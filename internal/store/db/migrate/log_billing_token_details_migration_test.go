@@ -52,13 +52,10 @@ func requireTokenDetails(t *testing.T, raw *string) *billing.BillingDetailsPaylo
 	return payload
 }
 
-func requireTokenValue(t *testing.T, value *int, want int) {
+func requireTokenValue(t *testing.T, value int, want int) {
 	t.Helper()
-	if value == nil {
-		t.Fatalf("token value is nil, want %d", want)
-	}
-	if *value != want {
-		t.Fatalf("token value = %d, want %d", *value, want)
+	if value != want {
+		t.Fatalf("token value = %d, want %d", value, want)
 	}
 }
 
@@ -179,6 +176,7 @@ func TestBackfillLogBillingTokenDetailsPreservesValidDetails(t *testing.T) {
 	t.Cleanup(func() { dbstore.LOG_DB = oldLogDB })
 
 	existing := `{"schema_version":1,"tokens":{"input":{"text_input":10},"output":{},"cache":{"read_cache":4}}}`
+	complete := `{"schema_version":1,"tokens":{"input":{"text_input":10,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":20,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":4,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	row := seedTokenMigrationLog(t, dbHandle, logstore.Log{
 		Type:             logstore.LogTypeConsume,
 		PromptTokens:     100,
@@ -191,8 +189,8 @@ func TestBackfillLogBillingTokenDetailsPreservesValidDetails(t *testing.T) {
 		t.Fatalf("backfill: %v", err)
 	}
 	stored := tokenMigrationStoredRow(t, dbHandle, row.Id)
-	if stored.BillingDetails == nil || *stored.BillingDetails != existing {
-		t.Fatalf("billing_details = %v, want unchanged %q", stored.BillingDetails, existing)
+	if stored.BillingDetails == nil || *stored.BillingDetails != complete {
+		t.Fatalf("billing_details = %v, want complete payload %q", stored.BillingDetails, complete)
 	}
 	if stored.Other != `{"cache_ratio":1}` {
 		t.Fatalf("other = %q", stored.Other)

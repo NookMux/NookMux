@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import {
+  BILLING_TOKEN_FIELDS,
   buildTokenBreakdownGroups,
   buildTokenTooltipRows,
   getPriceSnapshotComponentLabelKey,
@@ -28,6 +29,40 @@ import {
   resolveDisplayTokens,
 } from './billing-details'
 
+function completeBillingDetailsJson(
+  overrides: Partial<Record<(typeof BILLING_TOKEN_FIELDS)[number], number>> = {}
+) {
+  const values = Object.fromEntries(
+    BILLING_TOKEN_FIELDS.map((field) => [field, overrides[field] ?? 0])
+  )
+  return JSON.stringify({
+    schema_version: 1,
+    tokens: {
+      input: {
+        text_input: values.text_input,
+        image_input: values.image_input,
+        audio_input: values.audio_input,
+        video_input: values.video_input,
+        document_input: values.document_input,
+      },
+      output: {
+        text_output: values.text_output,
+        audio_output: values.audio_output,
+        image_output: values.image_output,
+        reasoning_output: values.reasoning_output,
+        accepted_prediction: values.accepted_prediction,
+        rejected_prediction: values.rejected_prediction,
+      },
+      cache: {
+        read_cache: values.read_cache,
+        write_cache: values.write_cache,
+        write_cache_5m: values.write_cache_5m,
+        write_cache_1h: values.write_cache_1h,
+      },
+    },
+  })
+}
+
 describe('parseBillingDetails', () => {
   test('empty value is missing, not legacy', () => {
     assert.deepEqual(parseBillingDetails(null), { status: 'missing' })
@@ -35,8 +70,14 @@ describe('parseBillingDetails', () => {
   })
 
   test('schema v1 keeps official token dimensions', () => {
-    const raw =
-      '{"schema_version":1,"tokens":{"input":{"text_input":60,"audio_input":20},"output":{"reasoning_output":3},"cache":{"read_cache":40,"write_cache":5,"write_cache_5m":5}}}'
+    const raw = completeBillingDetailsJson({
+      text_input: 60,
+      audio_input: 20,
+      reasoning_output: 3,
+      read_cache: 40,
+      write_cache: 5,
+      write_cache_5m: 5,
+    })
     const parsed = parseBillingDetails(raw)
 
     assert.equal(parsed.status, 'valid')
@@ -47,7 +88,7 @@ describe('parseBillingDetails', () => {
     assert.equal(parsed.tokens.read_cache, 40)
     assert.equal(parsed.tokens.write_cache, 5)
     assert.equal(parsed.tokens.write_cache_5m, 5)
-    assert.equal(parsed.tokens.write_cache_1h, undefined)
+    assert.equal(parsed.tokens.write_cache_1h, 0)
   })
 
   test('explicit official zero and every schema dimension survive parsing', () => {
@@ -66,22 +107,20 @@ describe('parseBillingDetails', () => {
     assert.equal(parsed.tokens.write_cache_1h, 9)
   })
 
-  test('null and omitted optional fields are equivalent and unallocated cache is preserved', () => {
+  test('rejects omitted and null token fields', () => {
     const omitted = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{},"output":{"text_output":3},"cache":{"write_cache":12,"write_cache_5m":7}}}'
+      '{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{}}}'
     )
-    const explicit = parseBillingDetails(
+    const explicitNull = parseBillingDetails(
       '{"schema_version":1,"tokens":{"input":{"text_input":null},"output":{"text_output":3},"cache":{"read_cache":null,"write_cache":12,"write_cache_5m":7,"write_cache_1h":null}}}'
     )
 
-    assert.deepEqual(omitted, explicit)
-    assert.ok(omitted.status === 'valid')
-    assert.ok(explicit.status === 'valid')
-    assert.equal(explicit.tokens.text_input, undefined)
-    assert.equal(explicit.tokens.read_cache, undefined)
-    assert.equal(explicit.tokens.write_cache, 12)
-    assert.equal(explicit.tokens.write_cache_5m, 7)
-    assert.equal(explicit.tokens.write_cache_1h, undefined)
+    assert.equal(omitted.status, 'invalid')
+    assert.equal(explicitNull.status, 'invalid')
+    assert.ok(omitted.status === 'invalid')
+    assert.ok(explicitNull.status === 'invalid')
+    assert.equal(omitted.code, 'invalid_fields')
+    assert.equal(explicitNull.code, 'invalid_fields')
   })
 
   test('rejects malformed JSON, unknown version and unknown fields', () => {
@@ -130,36 +169,26 @@ describe('parseBillingDetails', () => {
   })
 
   test('rejects split cache without total or exceeding total', () => {
-    for (const cache of [
-      { write_cache_5m: 5 },
-      { write_cache: 4, write_cache_5m: 5 },
-    ]) {
-      const parsed = parseBillingDetails(
-        JSON.stringify({
-          schema_version: 1,
-          tokens: { input: {}, output: {}, cache },
-        })
-      )
+    const missingTotal = parseBillingDetails(
+      '{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"write_cache_5m":5}}}'
+    )
+    assert.equal(missingTotal.status, 'invalid')
+    assert.equal(missingTotal.code, 'invalid_fields')
 
-      assert.equal(parsed.status, 'invalid')
-      assert.ok(parsed.status === 'invalid')
-      assert.equal(parsed.code, 'invalid_cache_splits')
-    }
+    const exceedingTotal = parseBillingDetails(
+      completeBillingDetailsJson({ write_cache: 4, write_cache_5m: 5 })
+    )
+    assert.equal(exceedingTotal.status, 'invalid')
+    assert.equal(exceedingTotal.code, 'invalid_cache_splits')
   })
 })
 
 describe('resolveDisplayTokens', () => {
-  test('empty valid payload has no values while explicit zero remains meaningful', () => {
-    const empty = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{}}}'
-    )
+  test('legal all-zero payload remains meaningful', () => {
+    const empty = parseBillingDetails(completeBillingDetailsJson())
     assert.equal(empty.status, 'valid')
-    assert.equal(resolveDisplayTokens(empty).hasValues, false)
-    const zero = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{"text_input":0},"output":{},"cache":{}}}'
-    )
-    assert.equal(resolveDisplayTokens(zero).hasValues, true)
-    assert.equal(resolveDisplayTokens(zero).input, 0)
+    assert.equal(resolveDisplayTokens(empty).hasValues, true)
+    assert.equal(resolveDisplayTokens(empty).input, 0)
   })
 
   test('missing details never derive tokens from aggregate columns', () => {
@@ -174,7 +203,12 @@ describe('resolveDisplayTokens', () => {
 
   test('valid details do not derive tokens from aggregate columns', () => {
     const billing = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{"text_output":7,"reasoning_output":3},"cache":{"read_cache":4}}}'
+      completeBillingDetailsJson({
+        text_input: 12,
+        text_output: 7,
+        reasoning_output: 3,
+        read_cache: 4,
+      })
     )
     const tokens = resolveDisplayTokens(billing)
 
@@ -186,7 +220,11 @@ describe('resolveDisplayTokens', () => {
 
   test('valid cache splits expose their unallocated remainder', () => {
     const billing = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"write_cache":12,"write_cache_5m":7,"write_cache_1h":3}}}'
+      completeBillingDetailsJson({
+        write_cache: 12,
+        write_cache_5m: 7,
+        write_cache_1h: 3,
+      })
     )
     const tokens = resolveDisplayTokens(billing)
 
@@ -211,7 +249,16 @@ describe('resolveDisplayTokens', () => {
 describe('buildTokenTooltipRows', () => {
   test('reuses resolved official dimensions, explicit zeros and unallocated cache', () => {
     const billing = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{"text_input":0,"image_input":2},"output":{"text_output":7,"reasoning_output":3},"cache":{"read_cache":11,"write_cache":12,"write_cache_5m":7,"write_cache_1h":3}}}'
+      completeBillingDetailsJson({
+        text_input: 0,
+        image_input: 2,
+        text_output: 7,
+        reasoning_output: 3,
+        read_cache: 11,
+        write_cache: 12,
+        write_cache_5m: 7,
+        write_cache_1h: 3,
+      })
     )
     const tokens = resolveDisplayTokens(billing)
     const rows = buildTokenTooltipRows(tokens)
@@ -252,7 +299,17 @@ describe('buildTokenTooltipRows', () => {
 describe('buildTokenBreakdownGroups', () => {
   test('separates official modalities, output audit splits and cache tiers', () => {
     const billing = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{"text_input":0,"image_input":2},"output":{"text_output":7,"reasoning_output":3,"rejected_prediction":1},"cache":{"read_cache":11,"write_cache":12,"write_cache_5m":7,"write_cache_1h":3}}}'
+      completeBillingDetailsJson({
+        text_input: 0,
+        image_input: 2,
+        text_output: 7,
+        reasoning_output: 3,
+        rejected_prediction: 1,
+        read_cache: 11,
+        write_cache: 12,
+        write_cache_5m: 7,
+        write_cache_1h: 3,
+      })
     )
     const groups = buildTokenBreakdownGroups(resolveDisplayTokens(billing), {
       aggregatePromptTokens: 999,
@@ -307,9 +364,15 @@ describe('buildTokenBreakdownGroups', () => {
 })
 
 describe('price snapshot helpers', () => {
-  test('map official snapshot components without deriving absent quantities', () => {
+  test('map official snapshot components with explicit zero quantities', () => {
     const billing = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{"reasoning_output":3},"cache":{"read_cache":4,"write_cache":5,"write_cache_5m":5}}}'
+      completeBillingDetailsJson({
+        text_input: 12,
+        reasoning_output: 3,
+        read_cache: 4,
+        write_cache: 5,
+        write_cache_5m: 5,
+      })
     )
     const tokens = resolveDisplayTokens(billing)
 
@@ -331,7 +394,7 @@ describe('price snapshot helpers', () => {
     )
     assert.equal(
       getPriceSnapshotComponentQuantity('image_output', tokens, String),
-      '—'
+      '0'
     )
     assert.equal(
       getPriceSnapshotComponentLabelKey('read_cache'),
@@ -345,7 +408,15 @@ describe('price snapshot helpers', () => {
 
   test('map contract snapshot component aliases without recalculation', () => {
     const billing = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{"text_output":7,"reasoning_output":3},"cache":{"read_cache":4,"write_cache":8,"write_cache_5m":5,"write_cache_1h":3}}}'
+      completeBillingDetailsJson({
+        text_input: 12,
+        text_output: 7,
+        reasoning_output: 3,
+        read_cache: 4,
+        write_cache: 8,
+        write_cache_5m: 5,
+        write_cache_1h: 3,
+      })
     )
     const tokens = resolveDisplayTokens(billing)
 
@@ -381,7 +452,13 @@ describe('price snapshot helpers', () => {
 
   test('prefer saved settlement quantities over display token projection', () => {
     const billing = parseBillingDetails(
-      '{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{"reasoning_output":3},"cache":{"write_cache":12,"write_cache_5m":7,"write_cache_1h":3}}}'
+      completeBillingDetailsJson({
+        text_input: 12,
+        reasoning_output: 3,
+        write_cache: 12,
+        write_cache_5m: 7,
+        write_cache_1h: 3,
+      })
     )
     const tokens = resolveDisplayTokens(billing)
 

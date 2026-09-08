@@ -2,7 +2,6 @@ package billing
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
@@ -10,7 +9,7 @@ import (
 // billing_details JSON（PRD 第 4 章）：
 //   - 顶层只允许 schema_version 与 tokens；tokens 下只允许 input/output/cache 三组；
 //   - 扩展字段必须先升级 schema 版本，未知字段/未知版本在读取端显式报错；
-//   - 上游未返回的可选拆分写 null 或省略，不能用 0 伪装"官方返回了零"；
+//   - 全部 Token 字段固定存在；上游未返回的可选拆分写 0，显式 0 同样写 0；
 //   - 全部 token 值必须是非负整数；
 //   - write_cache_5m + write_cache_1h <= write_cache，差值为未分档写入；
 //   - 序列化为 canonical JSON：结构体字段顺序固定、snake_case、无调试注释，
@@ -31,60 +30,64 @@ type BillingTokensDetail struct {
 }
 
 type BillingInputTokens struct {
-	TextInput     *int `json:"text_input,omitempty"`
-	ImageInput    *int `json:"image_input,omitempty"`
-	AudioInput    *int `json:"audio_input,omitempty"`
-	VideoInput    *int `json:"video_input,omitempty"`
-	DocumentInput *int `json:"document_input,omitempty"`
+	TextInput     int `json:"text_input"`
+	ImageInput    int `json:"image_input"`
+	AudioInput    int `json:"audio_input"`
+	VideoInput    int `json:"video_input"`
+	DocumentInput int `json:"document_input"`
 }
 
 type BillingOutputTokens struct {
-	TextOutput         *int `json:"text_output,omitempty"`
-	AudioOutput        *int `json:"audio_output,omitempty"`
-	ImageOutput        *int `json:"image_output,omitempty"`
-	ReasoningOutput    *int `json:"reasoning_output,omitempty"`
-	AcceptedPrediction *int `json:"accepted_prediction,omitempty"`
-	RejectedPrediction *int `json:"rejected_prediction,omitempty"`
+	TextOutput         int `json:"text_output"`
+	AudioOutput        int `json:"audio_output"`
+	ImageOutput        int `json:"image_output"`
+	ReasoningOutput    int `json:"reasoning_output"`
+	AcceptedPrediction int `json:"accepted_prediction"`
+	RejectedPrediction int `json:"rejected_prediction"`
 }
 
 type BillingCacheTokens struct {
-	ReadCache    *int `json:"read_cache,omitempty"`
-	WriteCache   *int `json:"write_cache,omitempty"`
-	WriteCache5m *int `json:"write_cache_5m,omitempty"`
-	WriteCache1h *int `json:"write_cache_1h,omitempty"`
+	ReadCache    int `json:"read_cache"`
+	WriteCache   int `json:"write_cache"`
+	WriteCache5m int `json:"write_cache_5m"`
+	WriteCache1h int `json:"write_cache_1h"`
 }
 
 // SerializeBillingUsage 把 BillingUsage 序列化为 schema v1 canonical JSON。
-// 入参必须先经 finalizeBillingUsage 校验（负数已在构建期显式失败）；
-// 只有官方明确返回（含 PRD 缓存写入转换规则产出的 5m 分档）的拆分才写入，
-// 官方显式 0 会被保留；三个分组对象始终存在。
+// 入参必须先经 finalizeBillingUsage 校验（负数已在构建期显式失败）。
+// 上游未返回的可选拆分按 0 写入；官方显式 0 同样保留。文本输入/输出是
+// 归一化结果：上游未返回文本拆分时按总量与已知独立模态恢复。
 func SerializeBillingUsage(bu *BillingUsage) (string, error) {
 	if bu == nil {
 		return "", fmt.Errorf("billing usage is nil")
+	}
+	textInput, textOutput, err := deriveCanonicalTextSplits(bu)
+	if err != nil {
+		return "", err
 	}
 	payload := BillingDetailsPayload{
 		SchemaVersion: BillingDetailsSchemaVersion,
 		Tokens: BillingTokensDetail{
 			Input: BillingInputTokens{
-				TextInput:     positiveInt(bu.TextInputTokens),
-				ImageInput:    positiveInt(bu.ImageInputTokens),
-				AudioInput:    positiveInt(bu.AudioInputTokens),
-				VideoInput:    positiveInt(bu.VideoInputTokens),
-				DocumentInput: positiveInt(bu.DocumentInputTokens),
+				TextInput:     textInput,
+				ImageInput:    intValue(bu.ImageInputTokens),
+				AudioInput:    intValue(bu.AudioInputTokens),
+				VideoInput:    intValue(bu.VideoInputTokens),
+				DocumentInput: intValue(bu.DocumentInputTokens),
 			},
 			Output: BillingOutputTokens{
-				TextOutput:         positiveInt(bu.TextOutputTokens),
-				AudioOutput:        positiveInt(bu.AudioOutputTokens),
-				ImageOutput:        positiveInt(bu.ImageOutputTokens),
-				ReasoningOutput:    positiveInt(bu.ReasoningTokens),
-				AcceptedPrediction: positiveInt(bu.AcceptedPredictionTokens),
-				RejectedPrediction: positiveInt(bu.RejectedPredictionTokens),
+				TextOutput:         textOutput,
+				AudioOutput:        intValue(bu.AudioOutputTokens),
+				ImageOutput:        intValue(bu.ImageOutputTokens),
+				ReasoningOutput:    intValue(bu.ReasoningTokens),
+				AcceptedPrediction: intValue(bu.AcceptedPredictionTokens),
+				RejectedPrediction: intValue(bu.RejectedPredictionTokens),
 			},
 			Cache: BillingCacheTokens{
-				ReadCache:    optionalCacheInt(bu.CacheReadTokens, bu.CacheReadPresent),
-				WriteCache:   optionalCacheInt(bu.CacheWriteTokens, bu.CacheWritePresent),
-				WriteCache5m: positiveInt(bu.CacheWrite5mTokens),
-				WriteCache1h: positiveInt(bu.CacheWrite1hTokens),
+				ReadCache:    bu.CacheReadTokens,
+				WriteCache:   bu.CacheWriteTokens,
+				WriteCache5m: intValue(bu.CacheWrite5mTokens),
+				WriteCache1h: intValue(bu.CacheWrite1hTokens),
 			},
 		},
 	}
@@ -95,18 +98,52 @@ func SerializeBillingUsage(bu *BillingUsage) (string, error) {
 	return string(encoded), nil
 }
 
-func positiveInt(value *int) *int {
-	if value == nil {
-		return nil
+func deriveCanonicalTextSplits(bu *BillingUsage) (int, int, error) {
+	textInput := intValue(bu.TextInputTokens)
+	if bu.TextInputTokens == nil {
+		knownInput, err := checkedAdd(
+			intValue(bu.ImageInputTokens), intValue(bu.AudioInputTokens),
+			"canonical input modality split",
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+		knownInput, err = checkedAdd(
+			knownInput, intValue(bu.VideoInputTokens),
+			"canonical input modality split",
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+		knownInput, err = checkedAdd(
+			knownInput, intValue(bu.DocumentInputTokens),
+			"canonical input modality split",
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+		ordinaryInput := bu.InputTokens()
+		if ordinaryInput < 0 || ordinaryInput < knownInput {
+			return 0, 0, fmt.Errorf("canonical input modality split is negative")
+		}
+		textInput = ordinaryInput - knownInput
 	}
-	return value
-}
 
-func optionalCacheInt(value int, present bool) *int {
-	if !present && value <= 0 {
-		return nil
+	textOutput := intValue(bu.TextOutputTokens)
+	if bu.TextOutputTokens == nil {
+		knownOutput, err := checkedAdd(
+			intValue(bu.AudioOutputTokens), intValue(bu.ImageOutputTokens),
+			"canonical output modality split",
+		)
+		if err != nil {
+			return 0, 0, err
+		}
+		if bu.OutputTokens < knownOutput {
+			return 0, 0, fmt.Errorf("canonical output modality split is negative")
+		}
+		textOutput = bu.OutputTokens - knownOutput
 	}
-	return &value
+	return textInput, textOutput, nil
 }
 
 // ParseBillingDetailsJSON 是读取端唯一入口：历史日志（NULL/空串）不调用本函数，
@@ -114,6 +151,16 @@ func optionalCacheInt(value int, present bool) *int {
 // 损坏 JSON、未知版本、未知字段、负数、非整数与分档大于总量都显式报错，
 // 不静默裁剪、不猜测相似字段。
 func ParseBillingDetailsJSON(raw string) (*BillingDetailsPayload, error) {
+	return parseBillingDetailsJSON(raw, true)
+}
+
+// ParseLegacyBillingDetailsJSON 仅供启动迁移把旧 schema v1 的稀疏 JSON
+// 统一成完整数字结构。读取端不得用它绕过必填字段校验。
+func ParseLegacyBillingDetailsJSON(raw string) (*BillingDetailsPayload, error) {
+	return parseBillingDetailsJSON(raw, false)
+}
+
+func parseBillingDetailsJSON(raw string, requireComplete bool) (*BillingDetailsPayload, error) {
 	if raw == "" {
 		return nil, fmt.Errorf("billing_details is empty")
 	}
@@ -124,7 +171,7 @@ func ParseBillingDetailsJSON(raw string) (*BillingDetailsPayload, error) {
 	if payload.SchemaVersion != BillingDetailsSchemaVersion {
 		return nil, fmt.Errorf("unknown billing_details schema version: %d", payload.SchemaVersion)
 	}
-	if err := validateBillingDetailsKeys(raw); err != nil {
+	if err := validateBillingDetailsKeys(raw, requireComplete); err != nil {
 		return nil, err
 	}
 	if err := validateBillingDetailsPayload(&payload); err != nil {
@@ -134,7 +181,7 @@ func ParseBillingDetailsJSON(raw string) (*BillingDetailsPayload, error) {
 }
 
 // validateBillingDetailsKeys 拒绝未知字段：schema v1 的字段集合是封闭的。
-func validateBillingDetailsKeys(raw string) error {
+func validateBillingDetailsKeys(raw string, requireComplete bool) error {
 	var probe map[string]any
 	if err := jsonx.Unmarshal([]byte(raw), &probe); err != nil {
 		return fmt.Errorf("billing_details is not valid JSON: %w", err)
@@ -175,6 +222,15 @@ func validateBillingDetailsKeys(raw string) error {
 		if err := rejectUnknownKeys(groupMap, "tokens."+group, fields); err != nil {
 			return err
 		}
+		if !requireComplete {
+			continue
+		}
+		for field := range fields {
+			value, present := groupMap[field]
+			if !present || value == nil {
+				return fmt.Errorf("billing_details.tokens.%s.%s is required and must be a non-null integer", group, field)
+			}
+		}
 	}
 	return nil
 }
@@ -189,7 +245,7 @@ func rejectUnknownKeys(values map[string]any, path string, allowed map[string]bo
 }
 
 func validateBillingDetailsPayload(payload *BillingDetailsPayload) error {
-	nonNegative := map[string]*int{
+	nonNegative := map[string]int{
 		"input.text_input":           payload.Tokens.Input.TextInput,
 		"input.image_input":          payload.Tokens.Input.ImageInput,
 		"input.audio_input":          payload.Tokens.Input.AudioInput,
@@ -207,26 +263,17 @@ func validateBillingDetailsPayload(payload *BillingDetailsPayload) error {
 		"cache.write_cache_1h":       payload.Tokens.Cache.WriteCache1h,
 	}
 	for name, value := range nonNegative {
-		if value == nil {
-			continue
-		}
-		if *value < 0 {
-			return fmt.Errorf("negative token count %s=%d", name, *value)
+		if value < 0 {
+			return fmt.Errorf("negative token count %s=%d", name, value)
 		}
 	}
-	writeCache := intValue(payload.Tokens.Cache.WriteCache)
-	var tiered int
-	if payload.Tokens.Cache.WriteCache5m != nil {
-		tiered = *payload.Tokens.Cache.WriteCache5m
-	}
-	if payload.Tokens.Cache.WriteCache1h != nil {
-		if *payload.Tokens.Cache.WriteCache1h > 0 && tiered > math.MaxInt-*payload.Tokens.Cache.WriteCache1h {
-			return fmt.Errorf("cache write tiers overflow")
-		}
-		tiered += *payload.Tokens.Cache.WriteCache1h
-	}
-	if tiered < 0 {
-		return fmt.Errorf("cache write tiers (%d) exceed write_cache total (%d)", tiered, writeCache)
+	writeCache := payload.Tokens.Cache.WriteCache
+	tiered, err := checkedAdd(
+		payload.Tokens.Cache.WriteCache5m, payload.Tokens.Cache.WriteCache1h,
+		"cache write tiers",
+	)
+	if err != nil {
+		return err
 	}
 	if tiered > writeCache {
 		return fmt.Errorf("cache write tiers (%d) exceed write_cache total (%d)", tiered, writeCache)

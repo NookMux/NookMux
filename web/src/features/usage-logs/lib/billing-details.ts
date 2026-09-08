@@ -44,9 +44,7 @@ export type BillingDetailsErrorCode =
   | 'invalid_fields'
   | 'invalid_cache_splits'
 
-export type BillingTokenValues = Partial<
-  Record<BillingTokenField, number | null>
->
+export type BillingTokenValues = Record<BillingTokenField, number>
 
 export type BillingDetails =
   | { status: 'missing' }
@@ -62,8 +60,6 @@ const nonnegativeToken = z
   .int()
   .nonnegative()
   .refine(Number.isSafeInteger)
-  .nullable()
-  .optional()
 
 const billingDetailsSchema = z
   .object({
@@ -148,26 +144,19 @@ export function parseBillingDetails(raw: unknown): BillingDetails {
     )
   }
 
-  const tokens: BillingTokenValues = {}
+  const tokens = {} as BillingTokenValues
   for (const group of [
     parsed.data.tokens.input,
     parsed.data.tokens.output,
     parsed.data.tokens.cache,
   ]) {
     for (const [field, value] of Object.entries(group)) {
-      if (value != null) {
+      if (typeof value === 'number') {
         tokens[field as BillingTokenField] = value
       }
     }
   }
-  const writeCache = tokens.write_cache
-  const writeCache5m = tokens.write_cache_5m
-  const writeCache1h = tokens.write_cache_1h
-  if (
-    (writeCache == null && (writeCache5m != null || writeCache1h != null)) ||
-    (writeCache != null &&
-      (writeCache5m ?? 0) + (writeCache1h ?? 0) > writeCache)
-  ) {
+  if (tokens.write_cache - tokens.write_cache_5m < tokens.write_cache_1h) {
     return cacheResult(raw, invalid('invalid_cache_splits'))
   }
 

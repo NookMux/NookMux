@@ -18,7 +18,7 @@ import (
 // wantBillingDetails 是同一 Claude 返回（input 150 / output 100 /
 // cache_read 30 / cache_creation 40，其中 5m 30、1h 10）在任何路径下
 // 都应产生的 billing_details JSON。
-const wantBillingDetails = `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"read_cache":30,"write_cache":40,"write_cache_5m":30,"write_cache_1h":10}}}`
+const wantBillingDetails = `{"schema_version":1,"tokens":{"input":{"text_input":150,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":100,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":30,"write_cache":40,"write_cache_5m":30,"write_cache_1h":10}}}`
 
 func claudeUsageFixture() *shared.ClaudeUsage {
 	return &shared.ClaudeUsage{

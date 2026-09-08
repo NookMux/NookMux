@@ -38,7 +38,7 @@ func TestBuildBillingUsageClaudeScenarios(t *testing.T) {
 				u.CompletionTokens = 50
 				u.TotalTokens = 150
 			}),
-			want:   `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{}}}`,
+			want:   `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":50,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`,
 			wantIn: 100,
 		},
 		{
@@ -48,7 +48,7 @@ func TestBuildBillingUsageClaudeScenarios(t *testing.T) {
 				u.CompletionTokens = 50
 				u.PromptTokensDetails.CachedTokens = 30
 			}),
-			want:   `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"read_cache":30}}}`,
+			want:   `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":50,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":30,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`,
 			wantIn: 100,
 		},
 		{
@@ -58,7 +58,7 @@ func TestBuildBillingUsageClaudeScenarios(t *testing.T) {
 				u.CompletionTokens = 50
 				u.PromptTokensDetails.CachedCreationTokens = 20
 			}),
-			want:         `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"write_cache":20,"write_cache_5m":20}}}`,
+			want:         `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":50,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":20,"write_cache_5m":20,"write_cache_1h":0}}}`,
 			wantIn:       100,
 			wantUntiered: 0,
 		},
@@ -71,7 +71,7 @@ func TestBuildBillingUsageClaudeScenarios(t *testing.T) {
 				u.ClaudeCacheCreation5mTokens = 30
 				u.ClaudeCacheCreation1hTokens = 10
 			}),
-			want:         `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"write_cache":40,"write_cache_5m":30,"write_cache_1h":10}}}`,
+			want:         `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":50,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":40,"write_cache_5m":30,"write_cache_1h":10}}}`,
 			wantIn:       100,
 			wantUntiered: 0,
 		},
@@ -83,7 +83,7 @@ func TestBuildBillingUsageClaudeScenarios(t *testing.T) {
 				u.PromptTokensDetails.CachedCreationTokens = 25
 				u.ClaudeCacheCreation1hTokens = 10
 			}),
-			want:         `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"write_cache":25,"write_cache_1h":10}}}`,
+			want:         `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":50,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":25,"write_cache_5m":0,"write_cache_1h":10}}}`,
 			wantIn:       100,
 			wantUntiered: 15,
 		},
@@ -215,7 +215,7 @@ func TestBuildBillingUsageFourSourcesSameSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize chat: %v", err)
 	}
-	wantChat := `{"schema_version":1,"tokens":{"input":{"image_input":15,"audio_input":25},"output":{"text_output":60,"audio_output":30,"reasoning_output":10},"cache":{"read_cache":30,"write_cache":20,"write_cache_5m":20}}}`
+	wantChat := `{"schema_version":1,"tokens":{"input":{"text_input":110,"image_input":15,"audio_input":25,"video_input":0,"document_input":0},"output":{"text_output":60,"audio_output":30,"image_output":0,"reasoning_output":10,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":30,"write_cache":20,"write_cache_5m":20,"write_cache_1h":0}}}`
 	if chatJSON != wantChat {
 		t.Fatalf("chat JSON = %s, want %s", chatJSON, wantChat)
 	}
@@ -223,7 +223,7 @@ func TestBuildBillingUsageFourSourcesSameSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize responses: %v", err)
 	}
-	wantResponses := `{"schema_version":1,"tokens":{"input":{},"output":{"reasoning_output":10},"cache":{"read_cache":30,"write_cache":20,"write_cache_5m":20}}}`
+	wantResponses := `{"schema_version":1,"tokens":{"input":{"text_input":150,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":100,"audio_output":0,"image_output":0,"reasoning_output":10,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":30,"write_cache":20,"write_cache_5m":20,"write_cache_1h":0}}}`
 	if responsesJSON != wantResponses {
 		t.Fatalf("responses JSON = %s, want %s", responsesJSON, wantResponses)
 	}
@@ -231,7 +231,7 @@ func TestBuildBillingUsageFourSourcesSameSemantics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize gemini: %v", err)
 	}
-	wantGemini := `{"schema_version":1,"tokens":{"input":{"text_input":130,"image_input":15,"audio_input":25},"output":{"text_output":60,"audio_output":30,"reasoning_output":10},"cache":{"read_cache":30}}}`
+	wantGemini := `{"schema_version":1,"tokens":{"input":{"text_input":130,"image_input":15,"audio_input":25,"video_input":0,"document_input":0},"output":{"text_output":60,"audio_output":30,"image_output":0,"reasoning_output":10,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":30,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if geminiJSON != wantGemini {
 		t.Fatalf("gemini JSON = %s, want %s", geminiJSON, wantGemini)
 	}
@@ -292,7 +292,7 @@ func TestBuildBillingUsageGeminiToolUseNotInPricingInput(t *testing.T) {
 		t.Fatalf("serialize: %v", err)
 	}
 	// metadata 未返回 CandidatesTokensDetails，text_output 不虚构。
-	want := `{"schema_version":1,"tokens":{"input":{"text_input":151},"output":{"reasoning_output":1120},"cache":{}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":151,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":2209,"audio_output":0,"image_output":0,"reasoning_output":1120,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if json != want {
 		t.Fatalf("JSON = %s, want %s", json, want)
 	}
@@ -377,7 +377,7 @@ func TestBuildBillingUsageRealtime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize: %v", err)
 	}
-	want := `{"schema_version":1,"tokens":{"input":{"text_input":120,"audio_input":40},"output":{"text_output":70,"audio_output":30},"cache":{"read_cache":40}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":120,"image_input":0,"audio_input":40,"video_input":0,"document_input":0},"output":{"text_output":70,"audio_output":30,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":40,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if json != want {
 		t.Fatalf("JSON = %s, want %s", json, want)
 	}
@@ -406,7 +406,7 @@ func TestBuildBillingUsageRealtimeKeepsExplicitZeroCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize: %v", err)
 	}
-	want := `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"read_cache":0}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":10,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":5,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if json != want {
 		t.Fatalf("JSON = %s, want %s", json, want)
 	}
@@ -437,7 +437,7 @@ func TestClaudeParsedExplicitZerosSurviveNormalization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize: %v", err)
 	}
-	want := `{"schema_version":1,"tokens":{"input":{},"output":{"reasoning_output":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":0,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":0,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if got != want {
 		t.Fatalf("JSON = %s, want %s", got, want)
 	}
@@ -465,7 +465,7 @@ func TestGeminiParsedExplicitZeroCacheSurvivesNormalization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize: %v", err)
 	}
-	want := `{"schema_version":1,"tokens":{"input":{"text_input":10},"output":{},"cache":{"read_cache":0}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":10,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":5,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if got != want {
 		t.Fatalf("JSON = %s, want %s", got, want)
 	}
@@ -525,7 +525,8 @@ func TestBuildBillingUsageExplicitFailures(t *testing.T) {
 	}
 }
 
-// TestBuildBillingUsageWarnings 验证明细大于官方总量保留可诊断告警且不裁剪数据。
+// TestBuildBillingUsageWarnings 验证明细大于官方总量保留可诊断告警，
+// 且完整 JSON 序列化不得把矛盾明细裁剪或补成负数。
 func TestBuildBillingUsageWarnings(t *testing.T) {
 	usage := buildUsageForTest(func(u *shared.Usage) {
 		u.PromptTokens = 100
@@ -539,14 +540,8 @@ func TestBuildBillingUsageWarnings(t *testing.T) {
 	if len(warnings) != 1 {
 		t.Fatalf("warnings = %v, want 1 entry", warnings)
 	}
-	json, err := SerializeBillingUsage(bu)
-	if err != nil {
-		t.Fatalf("serialize: %v", err)
-	}
-	// 数据原样保留，不做静默裁剪。
-	want := `{"schema_version":1,"tokens":{"input":{"audio_input":150},"output":{},"cache":{}}}`
-	if json != want {
-		t.Fatalf("JSON = %s, want %s", json, want)
+	if _, err := SerializeBillingUsage(bu); err == nil {
+		t.Fatalf("serialize contradictory modality details must fail explicitly")
 	}
 }
 
@@ -569,7 +564,7 @@ func TestBuildBillingUsageAcceptedRejectedPrediction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize: %v", err)
 	}
-	want := `{"schema_version":1,"tokens":{"input":{},"output":{"accepted_prediction":12,"rejected_prediction":3},"cache":{}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":50,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":12,"rejected_prediction":3},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if json != want {
 		t.Fatalf("JSON = %s, want %s", json, want)
 	}
@@ -606,7 +601,7 @@ func TestBuildBillingUsageKeepsParsedExplicitZeros(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize: %v", err)
 	}
-	want := `{"schema_version":1,"tokens":{"input":{"text_input":0,"image_input":0,"audio_input":0},"output":{"text_output":0,"audio_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":0,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":0,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	if got != want {
 		t.Fatalf("JSON = %s, want %s", got, want)
 	}

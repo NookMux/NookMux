@@ -59,7 +59,7 @@ func TestOpenaiSTTHandlerTagsUsageSourceAndSkipsEstimate(t *testing.T) {
 			t.Fatalf("PromptTokensDetails must stay empty to keep existing audio billing path, got %+v", usage.PromptTokensDetails)
 		}
 		got := billing.BuildBillingDetailsForLog(c, info, usage)
-		want := `{"schema_version":1,"tokens":{"input":{"text_input":60,"audio_input":20},"output":{},"cache":{"read_cache":40}}}`
+		want := `{"schema_version":1,"tokens":{"input":{"text_input":60,"image_input":0,"audio_input":20,"video_input":0,"document_input":0},"output":{"text_output":30,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":40,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 		if got != want {
 			t.Fatalf("billing_details = %s, want %s", got, want)
 		}
@@ -143,7 +143,7 @@ func TestOpenaiTTSHandlerBillingDetailsLocalCounting(t *testing.T) {
 		if httpapi.GetContextKeyBool(c, common.ContextKeyLocalCountTokens) {
 			t.Fatalf("upstream usage must not be flagged as local counting")
 		}
-		want := `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{}}}`
+		want := `{"schema_version":1,"tokens":{"input":{"text_input":10,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":100,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 		if got := billing.BuildBillingDetailsForLog(c, info, usage); got != want {
 			t.Fatalf("billing_details = %s, want %s", got, want)
 		}
@@ -345,7 +345,7 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 		if httpapi.GetContextKeyBool(c, common.ContextKeyLocalCountTokens) {
 			t.Fatalf("upstream usage session must not be flagged as local counting")
 		}
-		want := `{"schema_version":1,"tokens":{"input":{"text_input":40,"audio_input":10},"output":{"text_output":30,"audio_output":10},"cache":{"read_cache":10}}}`
+		want := `{"schema_version":1,"tokens":{"input":{"text_input":40,"image_input":0,"audio_input":10,"video_input":0,"document_input":0},"output":{"text_output":30,"audio_output":10,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":10,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 		if got := billing.BuildRealtimeBillingDetailsForLog(c, info, sumUsage); got != want {
 			t.Fatalf("billing_details = %s, want %s", got, want)
 		}

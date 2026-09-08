@@ -182,30 +182,33 @@ func migrateLegacyBillingDetails(row legacyBillingDetailsRow) (*string, string, 
 	}
 
 	var payload *billing.BillingDetailsPayload
-	payloadCreated := false
+	presence := map[string]bool{}
 	if row.BillingDetails != nil && *row.BillingDetails != "" {
-		payload, err = billing.ParseBillingDetailsJSON(*row.BillingDetails)
+		payload, err = billing.ParseLegacyBillingDetailsJSON(*row.BillingDetails)
 		if err != nil {
 			return nil, "", false, fmt.Errorf("validate existing billing_details: %w", err)
+		}
+		presence, err = billingDetailsFieldPresence(*row.BillingDetails)
+		if err != nil {
+			return nil, "", false, fmt.Errorf("inspect existing billing_details: %w", err)
 		}
 	}
 
 	if payload != nil {
-		if err := mergeLegacyTokenValues(payload, values); err != nil {
+		if err := mergeLegacyTokenValues(payload, presence, values); err != nil {
 			return nil, "", false, err
 		}
 	} else if (row.Type == logstore.LogTypeConsume && (row.PromptTokens != 0 || row.CompletionTokens != 0)) || values.HasExplicitTokenValue {
 		payload = &billing.BillingDetailsPayload{
 			SchemaVersion: billing.BillingDetailsSchemaVersion,
 		}
-		payloadCreated = true
-		if err := mergeLegacyTokenValues(payload, values); err != nil {
+		if err := mergeLegacyTokenValues(payload, presence, values); err != nil {
 			return nil, "", false, err
 		}
 	}
 
-	if payloadCreated {
-		if err := deriveRemainingTokenDetails(payload, row.PromptTokens, row.CompletionTokens); err != nil {
+	if payload != nil {
+		if err := deriveRemainingTokenDetails(payload, presence, row.PromptTokens, row.CompletionTokens); err != nil {
 			return nil, "", false, err
 		}
 	}
@@ -239,6 +242,24 @@ func migrateLegacyBillingDetails(row legacyBillingDetailsRow) (*string, string, 
 		}
 	}
 	return details, encodedOther, changed, nil
+}
+
+func billingDetailsFieldPresence(raw string) (map[string]bool, error) {
+	var probe map[string]interface{}
+	if err := jsonx.Unmarshal([]byte(raw), &probe); err != nil {
+		return nil, err
+	}
+	tokens, _ := probe["tokens"].(map[string]interface{})
+	result := make(map[string]bool)
+	for _, group := range []string{"input", "output", "cache"} {
+		groupMap, _ := tokens[group].(map[string]interface{})
+		for field, value := range groupMap {
+			if value != nil {
+				result[group+"."+field] = true
+			}
+		}
+	}
+	return result, nil
 }
 
 func decodeOtherObject(raw string) (map[string]interface{}, error) {
@@ -314,55 +335,52 @@ func extractLegacyTokenValues(values map[string]interface{}) (*legacyTokenValues
 	return result, nil
 }
 
-func mergeLegacyTokenValues(payload *billing.BillingDetailsPayload, values *legacyTokenValues) error {
-	if err := mergeLegacyToken(&payload.Tokens.Cache.ReadCache, values.CacheRead, "cache.read_cache"); err != nil {
+func mergeLegacyTokenValues(payload *billing.BillingDetailsPayload, presence map[string]bool, values *legacyTokenValues) error {
+	if err := mergeLegacyToken(&payload.Tokens.Cache.ReadCache, presence["cache.read_cache"], values.CacheRead, "cache.read_cache"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Cache.WriteCache, values.CacheWrite, "cache.write_cache"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Cache.WriteCache, presence["cache.write_cache"], values.CacheWrite, "cache.write_cache"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Cache.WriteCache5m, values.CacheWrite5m, "cache.write_cache_5m"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Cache.WriteCache5m, presence["cache.write_cache_5m"], values.CacheWrite5m, "cache.write_cache_5m"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Cache.WriteCache1h, values.CacheWrite1h, "cache.write_cache_1h"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Cache.WriteCache1h, presence["cache.write_cache_1h"], values.CacheWrite1h, "cache.write_cache_1h"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Input.TextInput, values.TextInput, "input.text_input"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Input.TextInput, presence["input.text_input"], values.TextInput, "input.text_input"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Input.AudioInput, values.AudioInput, "input.audio_input"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Input.AudioInput, presence["input.audio_input"], values.AudioInput, "input.audio_input"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Output.TextOutput, values.TextOutput, "output.text_output"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Output.TextOutput, presence["output.text_output"], values.TextOutput, "output.text_output"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Output.AudioOutput, values.AudioOutput, "output.audio_output"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Output.AudioOutput, presence["output.audio_output"], values.AudioOutput, "output.audio_output"); err != nil {
 		return err
 	}
-	if err := mergeLegacyToken(&payload.Tokens.Output.ImageOutput, values.ImageOutput, "output.image_output"); err != nil {
+	if err := mergeLegacyToken(&payload.Tokens.Output.ImageOutput, presence["output.image_output"], values.ImageOutput, "output.image_output"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func mergeLegacyToken(destination **int, value *int, field string) error {
+func mergeLegacyToken(destination *int, destinationPresent bool, value *int, field string) error {
 	if value == nil {
 		return nil
 	}
-	if destination == nil {
-		return fmt.Errorf("invalid destination for %s", field)
+	if destinationPresent && *destination != *value {
+		return fmt.Errorf("conflicting token count for %s: existing=%d, other=%d", field, *destination, *value)
 	}
-	if *destination != nil && **destination != *value {
-		return fmt.Errorf("conflicting token count for %s: existing=%d, other=%d", field, **destination, *value)
-	}
-	*destination = value
+	*destination = *value
 	return nil
 }
 
 // deriveRemainingTokenDetails fills ordinary text input/output from the old
 // aggregate columns. Explicit legacy details always win; known details that
 // exceed an aggregate are contradictory data and must stop the migration.
-func deriveRemainingTokenDetails(payload *billing.BillingDetailsPayload, promptTokens, completionTokens int) error {
+func deriveRemainingTokenDetails(payload *billing.BillingDetailsPayload, presence map[string]bool, promptTokens, completionTokens int) error {
 	if promptTokens < 0 {
 		return fmt.Errorf("negative prompt_tokens=%d", promptTokens)
 	}
@@ -371,25 +389,24 @@ func deriveRemainingTokenDetails(payload *billing.BillingDetailsPayload, promptT
 	}
 
 	inputOthers := []int{
-		intValue(payload.Tokens.Input.ImageInput),
-		intValue(payload.Tokens.Input.AudioInput),
-		intValue(payload.Tokens.Input.VideoInput),
-		intValue(payload.Tokens.Input.DocumentInput),
-		intValue(payload.Tokens.Cache.ReadCache),
-		intValue(payload.Tokens.Cache.WriteCache),
+		payload.Tokens.Input.ImageInput,
+		payload.Tokens.Input.AudioInput,
+		payload.Tokens.Input.VideoInput,
+		payload.Tokens.Input.DocumentInput,
+		payload.Tokens.Cache.ReadCache,
+		payload.Tokens.Cache.WriteCache,
 	}
 	inputKnown, err := checkedTokenSum(inputOthers...)
 	if err != nil {
 		return err
 	}
-	if payload.Tokens.Input.TextInput == nil {
+	if !presence["input.text_input"] {
 		if promptTokens < inputKnown {
 			return fmt.Errorf("input details (%d) exceed prompt_tokens (%d)", inputKnown, promptTokens)
 		}
-		textInput := promptTokens - inputKnown
-		payload.Tokens.Input.TextInput = &textInput
+		payload.Tokens.Input.TextInput = promptTokens - inputKnown
 	} else {
-		inputKnown, err = checkedTokenSum(inputKnown, *payload.Tokens.Input.TextInput)
+		inputKnown, err = checkedTokenSum(inputKnown, payload.Tokens.Input.TextInput)
 		if err != nil {
 			return err
 		}
@@ -399,24 +416,20 @@ func deriveRemainingTokenDetails(payload *billing.BillingDetailsPayload, promptT
 	}
 
 	outputOthers := []int{
-		intValue(payload.Tokens.Output.AudioOutput),
-		intValue(payload.Tokens.Output.ImageOutput),
-		intValue(payload.Tokens.Output.ReasoningOutput),
-		intValue(payload.Tokens.Output.AcceptedPrediction),
-		intValue(payload.Tokens.Output.RejectedPrediction),
+		payload.Tokens.Output.AudioOutput,
+		payload.Tokens.Output.ImageOutput,
 	}
 	outputKnown, err := checkedTokenSum(outputOthers...)
 	if err != nil {
 		return err
 	}
-	if payload.Tokens.Output.TextOutput == nil {
+	if !presence["output.text_output"] {
 		if completionTokens < outputKnown {
 			return fmt.Errorf("output details (%d) exceed completion_tokens (%d)", outputKnown, completionTokens)
 		}
-		textOutput := completionTokens - outputKnown
-		payload.Tokens.Output.TextOutput = &textOutput
+		payload.Tokens.Output.TextOutput = completionTokens - outputKnown
 	} else {
-		outputKnown, err = checkedTokenSum(outputKnown, *payload.Tokens.Output.TextOutput)
+		outputKnown, err = checkedTokenSum(outputKnown, payload.Tokens.Output.TextOutput)
 		if err != nil {
 			return err
 		}

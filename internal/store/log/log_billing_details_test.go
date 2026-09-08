@@ -22,7 +22,7 @@ import (
 // billingDetailsFixture 是一段符合 docs/PRD/计费.md 第 4 章 schema 的 canonical
 // JSON 样本。阶段 0 的存储层只透传该字符串、不负责归一化（归一化在阶段 1），
 // 这里用它验证列的可空语义与精确透传。
-const billingDetailsFixture = `{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{"text_output":7,"reasoning_output":3},"cache":{"read_cache":4,"write_cache":5,"write_cache_5m":5}}}`
+const billingDetailsFixture = `{"schema_version":1,"tokens":{"input":{"text_input":12,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":7,"audio_output":0,"image_output":0,"reasoning_output":3,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":4,"write_cache":5,"write_cache_5m":5,"write_cache_1h":0}}}`
 
 // setupBillingDetailsTestDB 复刻 setupLogAdminInfoTestDB 的 fixture 范式：
 // 独立内存 SQLite + 迁移所需表 + 全局量保存/恢复。
@@ -320,14 +320,17 @@ func TestRecordConsumeLogBillingDetailsReadableByParser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse stored billing_details %q: %v", *stored.BillingDetails, err)
 	}
-	if payload.Tokens.Cache.ReadCache == nil || *payload.Tokens.Cache.ReadCache != 30 {
+	if payload.Tokens.Cache.ReadCache != 30 {
 		t.Fatalf("read cache = %v, want 30", payload.Tokens.Cache.ReadCache)
 	}
-	if payload.Tokens.Cache.WriteCache5m == nil || *payload.Tokens.Cache.WriteCache5m != 20 {
+	if payload.Tokens.Cache.WriteCache5m != 20 {
 		t.Fatalf("write cache 5m = %v, want 20", payload.Tokens.Cache.WriteCache5m)
 	}
-	if payload.Tokens.Output.TextOutput != nil {
-		t.Fatalf("absent output split should stay nil, got %d", *payload.Tokens.Output.TextOutput)
+	if payload.Tokens.Output.TextOutput != 100 {
+		t.Fatalf("text output = %v, want 100", payload.Tokens.Output.TextOutput)
+	}
+	if payload.Tokens.Input.ImageInput != 0 {
+		t.Fatalf("absent image input = %d, want 0", payload.Tokens.Input.ImageInput)
 	}
 
 	// 损坏 JSON 读取端显式失败，不做启发式猜测。

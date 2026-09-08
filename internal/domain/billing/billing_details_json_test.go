@@ -39,18 +39,21 @@ func TestParseBillingDetailsJSONRoundTrip(t *testing.T) {
 	if payload.SchemaVersion != BillingDetailsSchemaVersion {
 		t.Fatalf("schema version = %d", payload.SchemaVersion)
 	}
-	if payload.Tokens.Cache.ReadCache == nil || *payload.Tokens.Cache.ReadCache != 30 {
+	if payload.Tokens.Cache.ReadCache != 30 {
 		t.Fatalf("read cache = %v", payload.Tokens.Cache.ReadCache)
 	}
-	if payload.Tokens.Cache.WriteCache == nil || *payload.Tokens.Cache.WriteCache != 20 {
+	if payload.Tokens.Cache.WriteCache != 20 {
 		t.Fatalf("write cache = %v", payload.Tokens.Cache.WriteCache)
 	}
-	if payload.Tokens.Cache.WriteCache5m == nil || *payload.Tokens.Cache.WriteCache5m != 20 {
+	if payload.Tokens.Cache.WriteCache5m != 20 {
 		t.Fatalf("write cache 5m = %v", payload.Tokens.Cache.WriteCache5m)
 	}
-	// 上游未返回的拆分序列化为"字段缺失"，读取端保持 nil 而不是 0。
-	if payload.Tokens.Input.TextInput != nil {
-		t.Fatalf("absent split should stay nil, got %d", *payload.Tokens.Input.TextInput)
+	// 上游未返回的模态拆分统一写 0；文本拆分按总量恢复。
+	if payload.Tokens.Input.TextInput != 150 {
+		t.Fatalf("text input = %d, want 150", payload.Tokens.Input.TextInput)
+	}
+	if payload.Tokens.Input.ImageInput != 0 {
+		t.Fatalf("absent image input = %d, want 0", payload.Tokens.Input.ImageInput)
 	}
 }
 
@@ -86,6 +89,8 @@ func TestParseBillingDetailsJSONExplicitErrors(t *testing.T) {
 		{"missing all groups", `{"schema_version":1,"tokens":{}}`},
 		{"missing output and cache", `{"schema_version":1,"tokens":{"input":{}}}`},
 		{"missing cache", `{"schema_version":1,"tokens":{"input":{},"output":{}}}`},
+		{"missing token field", `{"schema_version":1,"tokens":{"input":{"text_input":1},"output":{},"cache":{}}}`},
+		{"null token field", `{"schema_version":1,"tokens":{"input":{"text_input":null},"output":{},"cache":{}}}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -96,20 +101,33 @@ func TestParseBillingDetailsJSONExplicitErrors(t *testing.T) {
 	}
 }
 
-// TestParseBillingDetailsJSONNullAndOmittedValue 验证 null 与省略等价、
-// 官方明确返回的 0 合法保留。
-func TestParseBillingDetailsJSONNullAndOmittedValue(t *testing.T) {
-	raw := `{"schema_version":1,"tokens":{"input":{"text_input":null,"audio_input":0},"output":{},"cache":{"read_cache":null}}}`
+// TestParseBillingDetailsJSONExplicitZero 验证官方显式 0 合法保留。
+func TestParseBillingDetailsJSONExplicitZero(t *testing.T) {
+	raw := `{"schema_version":1,"tokens":{"input":{"text_input":0,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":0,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	payload, err := ParseBillingDetailsJSON(raw)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if payload.Tokens.Input.TextInput != nil {
-		t.Fatalf("null should read back as nil")
-	}
-	// 上游明确返回 0 时写 0 是合法口径，读取端保留。
-	if payload.Tokens.Input.AudioInput == nil || *payload.Tokens.Input.AudioInput != 0 {
-		t.Fatalf("explicit zero should be preserved, got %v", payload.Tokens.Input.AudioInput)
+	for _, value := range []int{
+		payload.Tokens.Input.TextInput,
+		payload.Tokens.Input.ImageInput,
+		payload.Tokens.Input.AudioInput,
+		payload.Tokens.Input.VideoInput,
+		payload.Tokens.Input.DocumentInput,
+		payload.Tokens.Output.TextOutput,
+		payload.Tokens.Output.AudioOutput,
+		payload.Tokens.Output.ImageOutput,
+		payload.Tokens.Output.ReasoningOutput,
+		payload.Tokens.Output.AcceptedPrediction,
+		payload.Tokens.Output.RejectedPrediction,
+		payload.Tokens.Cache.ReadCache,
+		payload.Tokens.Cache.WriteCache,
+		payload.Tokens.Cache.WriteCache5m,
+		payload.Tokens.Cache.WriteCache1h,
+	} {
+		if value != 0 {
+			t.Fatalf("explicit zero must be preserved, got %d", value)
+		}
 	}
 }
 
@@ -132,7 +150,7 @@ func TestSerializeBillingUsageCanonicalFormat(t *testing.T) {
 		t.Fatalf("canonical JSON must not contain whitespace: %s", raw)
 	}
 	// 固定字段顺序：schema_version -> tokens -> input -> output -> cache。
-	want := `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{"write_cache":20,"write_cache_5m":20}}}`
+	want := `{"schema_version":1,"tokens":{"input":{"text_input":180,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":100,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":20,"write_cache_5m":20,"write_cache_1h":0}}}`
 	if raw != want {
 		t.Fatalf("JSON = %s, want %s", raw, want)
 	}
@@ -179,7 +197,7 @@ func TestBuildBillingDetailsForLogSkips(t *testing.T) {
 		c := newCtx()
 		relayInfo := &relaycommon.RelayInfo{UsageSource: relayconstant.UsageSourceOpenAIChat}
 		got := BuildBillingDetailsForLog(c, relayInfo, realUsage)
-		want := `{"schema_version":1,"tokens":{"input":{},"output":{},"cache":{}}}`
+		want := `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":50,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 		if got != want {
 			t.Fatalf("JSON = %s, want %s", got, want)
 		}
@@ -224,7 +242,7 @@ func TestBuildRealtimeBillingDetailsForLogSkips(t *testing.T) {
 		c := newCtx()
 		relayInfo := &relaycommon.RelayInfo{UsageSource: relayconstant.UsageSourceOpenAIResponses}
 		got := BuildRealtimeBillingDetailsForLog(c, relayInfo, realtimeUsage)
-		want := `{"schema_version":1,"tokens":{"input":{"text_input":170},"output":{},"cache":{"read_cache":30}}}`
+		want := `{"schema_version":1,"tokens":{"input":{"text_input":170,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":100,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":30,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 		if got != want {
 			t.Fatalf("billing_details = %s, want %s", got, want)
 		}

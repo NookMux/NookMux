@@ -10,7 +10,7 @@ import (
 )
 
 func TestFilterHiddenUsageLogFieldsAppliesBillingDetailsVisibility(t *testing.T) {
-	billingDetails := `{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{"text_output":7,"reasoning_output":3},"cache":{"read_cache":4,"write_cache":5,"write_cache_5m":5}}}`
+	billingDetails := `{"schema_version":1,"tokens":{"input":{"text_input":12,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":7,"audio_output":0,"image_output":0,"reasoning_output":3,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":4,"write_cache":5,"write_cache_5m":5,"write_cache_1h":0}}}`
 	oldFields := console.GetConsoleSetting().UsageLogFields
 	oldUserDetailsEnabled := console.GetConsoleSetting().UsageLogFieldsUserEnabled
 	t.Cleanup(func() {
@@ -109,7 +109,7 @@ func TestFilterHiddenUsageLogFieldsReusesStoreOtherProjection(t *testing.T) {
 }
 
 func TestFilterUsageLogFieldsForRoleAppliesAdminVisibility(t *testing.T) {
-	billingDetails := `{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{},"cache":{}}}`
+	billingDetails := `{"schema_version":1,"tokens":{"input":{"text_input":12,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":0,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	other := `{"billing_price_snapshot":{"source":"legacy"}}`
 	oldFields := console.GetConsoleSetting().UsageLogFields
 	oldAdminDetailsEnabled := console.GetConsoleSetting().UsageLogFieldsAdminEnabled
@@ -153,7 +153,7 @@ func TestFilterUsageLogFieldsForRoleAppliesAdminVisibility(t *testing.T) {
 }
 
 func TestBillingDetailsWireProjection(t *testing.T) {
-	billingDetails := `{"schema_version":1,"tokens":{"input":{"text_input":12},"output":{},"cache":{}}}`
+	billingDetails := `{"schema_version":1,"tokens":{"input":{"text_input":12,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":0,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 
 	encoded, err := jsonx.Marshal(logstore.Log{BillingDetails: &billingDetails})
 	if err != nil {

@@ -33,8 +33,9 @@ const BillingDetailsSchemaVersion = 1
 //     Claude 按 input+cache_read+cache_creation 三项相加）。
 //   - InputTokens() 是扣除缓存后的普通输入，模态明细不默认从中二次扣除。
 //   - 输出模态与 reasoning/accepted/rejected 是输出总量子集，不得加回。
-//   - 指针字段为 nil 表示上游未返回该拆分；官方明确返回 0 时保存 0，
-//     缺失与官方零必须可区分，不能用缺失伪装成 0，也不能丢弃官方 0。
+//   - 指针字段为 nil 表示上游未返回该拆分，官方明确返回 0 时保存 0；
+//     该上游 presence 供归一化判断文本拆分是否需要由总量恢复。除文本
+//     输入/输出外，持久化 JSON 统一把缺失与显式 0 都写成数字 0。
 type BillingUsage struct {
 	Source relayconstant.UsageSource
 

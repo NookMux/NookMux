@@ -433,8 +433,7 @@ func TestApplyQuotaBillingDetailsWrittenOnlyForUpstreamUsage(t *testing.T) {
 		require.NotNil(t, stored.BillingDetails, "upstream usage must persist billing_details")
 		payload, err := ParseBillingDetailsJSON(*stored.BillingDetails)
 		require.NoError(t, err)
-		require.NotNil(t, payload.Tokens.Cache.ReadCache)
-		require.Equal(t, 40, *payload.Tokens.Cache.ReadCache)
+		require.Equal(t, 40, payload.Tokens.Cache.ReadCache)
 	})
 
 	t.Run("estimated usage keeps billing_details null", func(t *testing.T) {
