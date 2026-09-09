@@ -36,3 +36,4 @@ nul
 # subdirectory files such as .serena/memories/core.md)
 /core.*
 /core
+.codex/config.toml

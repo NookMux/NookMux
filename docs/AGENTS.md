@@ -2,6 +2,8 @@
 
 `docs/` 是项目设计和用户文档目录。
 
+其中在维护的时候只需要维护用户文档路面，`docs/zh`、`docs/en`这两个文件夹即可
+
 ## 规则
 
 - 文档示例不要包含真实 secrets、token、DSN、OAuth client secret。
