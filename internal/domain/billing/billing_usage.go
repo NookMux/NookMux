@@ -23,9 +23,6 @@ import (
 // 阶段边界：本文件只负责"转换、校验、落库 JSON 与新旧读取兼容"，
 // 不切换 quota 公式；现有计费快照与 Other 继续按原逻辑写入。
 
-// BillingDetailsSchemaVersion 当前 billing_details JSON 的 schema 版本（PRD 4.2）。
-const BillingDetailsSchemaVersion = 1
-
 // BillingUsage 是归一化后的语义化 Token 用量（PRD 3.1 语义映射表）。
 //
 // 口径约定：

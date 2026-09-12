@@ -11,6 +11,42 @@ import (
 	"gorm.io/gorm"
 )
 
+// legacyAggregateColumns 模拟计费重构前的历史 schema：logs 表曾有的两个
+// 聚合列。当前模型不再声明它们（读取为 wire 投影字段），测试用原始 SQL
+// 添加列、按结构体声明值回填，等价还原旧版数据库。
+var legacyAggregateColumns = [2]string{"prompt_tokens", "completion_tokens"}
+
+func addLegacyAggregateColumns(t *testing.T, dbHandle *gorm.DB) {
+	t.Helper()
+	for _, col := range legacyAggregateColumns {
+		if err := dbHandle.Exec("ALTER TABLE logs ADD COLUMN " + col + " BIGINT DEFAULT 0").Error; err != nil {
+			t.Fatalf("simulate legacy schema by adding %s: %v", col, err)
+		}
+	}
+}
+
+func seedLegacyAggregates(t *testing.T, dbHandle *gorm.DB, id int, promptTokens int, completionTokens int) {
+	t.Helper()
+	if err := dbHandle.Exec("UPDATE logs SET prompt_tokens = ?, completion_tokens = ? WHERE id = ?", promptTokens, completionTokens, id).Error; err != nil {
+		t.Fatalf("seed legacy aggregate columns for log id=%d: %v", id, err)
+	}
+}
+
+func assertLegacyAggregates(t *testing.T, dbHandle *gorm.DB, id int, promptTokens int, completionTokens int) {
+	t.Helper()
+	var got struct {
+		PromptTokens     int
+		CompletionTokens int
+	}
+	if err := dbHandle.Raw("SELECT prompt_tokens, completion_tokens FROM logs WHERE id = ?", id).Row().Scan(&got.PromptTokens, &got.CompletionTokens); err != nil {
+		t.Fatalf("read legacy aggregate columns for log id=%d: %v", id, err)
+	}
+	if got.PromptTokens != promptTokens || got.CompletionTokens != completionTokens {
+		t.Fatalf("legacy aggregates for log id=%d = (%d, %d), want (%d, %d)",
+			id, got.PromptTokens, got.CompletionTokens, promptTokens, completionTokens)
+	}
+}
+
 func setupTokenDetailsMigrationDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dbHandle, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
@@ -20,6 +56,7 @@ func setupTokenDetailsMigrationDB(t *testing.T) *gorm.DB {
 	if err := dbHandle.AutoMigrate(&logstore.Log{}); err != nil {
 		t.Fatalf("migrate sqlite: %v", err)
 	}
+	addLegacyAggregateColumns(t, dbHandle)
 	return dbHandle
 }
 
@@ -27,6 +64,11 @@ func seedTokenMigrationLog(t *testing.T, dbHandle *gorm.DB, row logstore.Log) lo
 	t.Helper()
 	if err := dbHandle.Create(&row).Error; err != nil {
 		t.Fatalf("seed log: %v", err)
+	}
+	// 聚合字段是 gorm:"-" 投影字段不落库；历史 schema 模拟需要旧列真实数据，
+	// 按结构体声明值回填。
+	if row.PromptTokens != 0 || row.CompletionTokens != 0 {
+		seedLegacyAggregates(t, dbHandle, row.Id, row.PromptTokens, row.CompletionTokens)
 	}
 	return row
 }

@@ -86,6 +86,9 @@ func InitLogDB() (err error) {
 			if err := backfillLogBillingTokenDetails(); err != nil {
 				return err
 			}
+			if err := dropLegacyLogTokenAggregateColumns(); err != nil {
+				return err
+			}
 		}
 		return
 	}
@@ -122,7 +125,10 @@ func InitLogDB() (err error) {
 		}
 		// 独立日志库：AutoMigrate 完成后回填历史日志的客户端请求头列。
 		backfillLogClientHeaderColumns()
-		return backfillLogBillingTokenDetails()
+		if err := backfillLogBillingTokenDetails(); err != nil {
+			return err
+		}
+		return dropLegacyLogTokenAggregateColumns()
 	} else {
 		common.FatalLog(err)
 	}

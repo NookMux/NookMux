@@ -86,6 +86,20 @@ func backfillLogBillingTokenDetails() error {
 		common.SysLog("backfillLogBillingTokenDetails: already completed")
 		return nil
 	}
+	// 旧聚合列不存在（全新空库，或已由 dropLegacyLogTokenAggregateColumns
+	// 删除）时没有可迁移的来源：直接确保完成标记存在后返回。不能省略这一步：
+	// 下方扫描按列名 SELECT 旧列，列缺失时即使空表也会报错并阻断启动。
+	legacyPresent, err := legacyLogAggregateColumnsPresent()
+	if err != nil {
+		return fmt.Errorf("inspect legacy log token columns: %w", err)
+	}
+	if !legacyPresent {
+		if err := saveLogBillingMigrationMarker(); err != nil {
+			return fmt.Errorf("complete billing migration marker: %w", err)
+		}
+		common.SysLog("backfillLogBillingTokenDetails: legacy token aggregate columns absent, marked complete without scan")
+		return nil
+	}
 	migrated := int64(0)
 	lastID := 0
 	started := time.Now()
@@ -102,9 +116,7 @@ func backfillLogBillingTokenDetails() error {
 			return fmt.Errorf("query logs for billing details migration: %w", err)
 		}
 		if len(rows) == 0 {
-			if err := retryLogBillingMigration(dbstore.LOG_DB, func(db *gorm.DB) error {
-				return db.Save(&logBillingMigrationState{Version: logstore.LogBillingDetailsVersion}).Error
-			}); err != nil {
+			if err := saveLogBillingMigrationMarker(); err != nil {
 				return fmt.Errorf("complete billing migration marker: %w", err)
 			}
 			common.SysLog(fmt.Sprintf("backfillLogBillingTokenDetails: completed, %d rows migrated, last_id=%d elapsed=%s", migrated, lastID, time.Since(started)))
@@ -147,6 +159,34 @@ func backfillLogBillingTokenDetails() error {
 // this release starts; a marker cannot fence an already-running old binary.
 type logBillingMigrationState struct {
 	Version int `gorm:"primaryKey;autoIncrement:false"`
+}
+
+// saveLogBillingMigrationMarker 在实际日志库写入完成标记。写入失败必须重试
+// 耗尽后显式报错，不得让后续正常重启重复全表回填。
+func saveLogBillingMigrationMarker() error {
+	return retryLogBillingMigration(dbstore.LOG_DB, func(db *gorm.DB) error {
+		return db.Save(&logBillingMigrationState{Version: logstore.LogBillingDetailsVersion}).Error
+	})
+}
+
+// legacyLogAggregateColumnsPresent 报告旧聚合列是否仍存在于实际日志库。
+// 正常状态是两列同时存在（升级前）或同时不存在（全新库/已删列）；
+// 仅存在其一属于异常状态，返回 true 让扫描显式失败暴露问题。
+func legacyLogAggregateColumnsPresent() (bool, error) {
+	if dbstore.LOG_DB == nil {
+		return false, fmt.Errorf("log database is not initialized")
+	}
+	migrator := dbstore.LOG_DB.Migrator()
+	for _, col := range legacyLogTokenAggregateColumns {
+		present, err := logColumnPresent(migrator, col)
+		if err != nil {
+			return false, err
+		}
+		if present {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func retryLogBillingMigration(db *gorm.DB, operation func(*gorm.DB) error) error {

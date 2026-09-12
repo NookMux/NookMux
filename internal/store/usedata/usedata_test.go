@@ -244,15 +244,20 @@ func TestLogQuotaErrorDataTrackByUserDisabled(t *testing.T) {
 }
 
 // TestRecalculateQuotaDataRespectsTrackingConfig 验证重算流程按配置聚合维度和 token 记录。
+// token_used 的来源是 logs.billing_details（唯一权威来源），按唯一汇总公式
+// 还原处理总量；track_tokens 关闭时强制归零。
 func TestRecalculateQuotaDataRespectsTrackingConfig(t *testing.T) {
 	setupQuotaDataTestDB(t)
 	// 全部禁用：所有记录聚合为单条，token 为 0
 	setTrackingConfig(t, false, false, false)
 
-	// 构造两条成功日志到 logs 表（type=2），重算入口读取 LOG_DB
+	// 构造两条成功日志到 logs 表（type=2），重算入口读取 LOG_DB。
+	// 明细的输入侧总量 10、输出总量 20，处理总量 30；若来源未切换或
+	// track_tokens 未生效，TokenUsed 断言都会失败。
+	details := `{"schema_version":1,"tokens":{"input":{"text_input":10,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":20,"audio_output":0,"image_output":0,"reasoning_output":0,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":0,"write_cache":0,"write_cache_5m":0,"write_cache_1h":0}}}`
 	logs := []*logstore.Log{
-		{UserId: 1, Username: "alice", ModelName: "gpt-4", CreatedAt: 1000, PromptTokens: 10, CompletionTokens: 20, Quota: 100, Type: logstore.LogTypeConsume},
-		{UserId: 2, Username: "bob", ModelName: "claude-3", CreatedAt: 1000, PromptTokens: 30, CompletionTokens: 40, Quota: 200, Type: logstore.LogTypeConsume},
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", CreatedAt: 1000, BillingDetails: &details, Quota: 100, Type: logstore.LogTypeConsume},
+		{UserId: 2, Username: "bob", ModelName: "claude-3", CreatedAt: 1000, BillingDetails: &details, Quota: 200, Type: logstore.LogTypeConsume},
 	}
 	if err := dbstore.LOG_DB.Create(&logs).Error; err != nil {
 		t.Fatalf("create logs: %v", err)
@@ -281,5 +286,56 @@ func TestRecalculateQuotaDataRespectsTrackingConfig(t *testing.T) {
 	}
 	if r.Quota != 300 {
 		t.Fatalf("Quota = %d, want 300", r.Quota)
+	}
+}
+
+// TestRecalculateQuotaDataSumsProcessedTotalsFromBillingDetails 验证
+// track_tokens 启用时 token_used 来自 billing_details 的处理总量求和：
+// 明细输入侧总量 = text 100 + cache read 300 + cache write 400 = 800，
+// 输出总量 = 500，处理总量 1300；reasoning 是 text 子集不重复相加；
+// NULL 明细计 0。
+func TestRecalculateQuotaDataSumsProcessedTotalsFromBillingDetails(t *testing.T) {
+	setupQuotaDataTestDB(t)
+	setTrackingConfig(t, true, true, true)
+
+	withCache := `{"schema_version":1,"tokens":{"input":{"text_input":100,"image_input":0,"audio_input":0,"video_input":0,"document_input":0},"output":{"text_output":500,"audio_output":0,"image_output":0,"reasoning_output":50,"accepted_prediction":0,"rejected_prediction":0},"cache":{"read_cache":300,"write_cache":400,"write_cache_5m":400,"write_cache_1h":0}}}`
+	logs := []*logstore.Log{
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", CreatedAt: 1000, BillingDetails: &withCache, Quota: 10, Type: logstore.LogTypeConsume},
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", CreatedAt: 1000, Quota: 20, Type: logstore.LogTypeConsume},
+	}
+	if err := dbstore.LOG_DB.Create(&logs).Error; err != nil {
+		t.Fatalf("create logs: %v", err)
+	}
+
+	if err := usedatastore.RecalculateQuotaData(0, 2000); err != nil {
+		t.Fatalf("RecalculateQuotaData error: %v", err)
+	}
+	var rows []*usedatastore.QuotaData
+	if err := dbstore.DB.Table("quota_data").Find(&rows).Error; err != nil {
+		t.Fatalf("query quota_data: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("quota_data rows = %d, want 1", len(rows))
+	}
+	if rows[0].TokenUsed != 1300 {
+		t.Fatalf("TokenUsed = %d, want 1300 (1300 + 0 for NULL details)", rows[0].TokenUsed)
+	}
+}
+
+// TestRecalculateQuotaDataFailsOnCorruptBillingDetails 验证损坏 JSON 显式
+// 报错，不静默按 0 重算。
+func TestRecalculateQuotaDataFailsOnCorruptBillingDetails(t *testing.T) {
+	setupQuotaDataTestDB(t)
+	setTrackingConfig(t, true, true, true)
+
+	corrupt := `{"schema_version":9,"tokens":{}}`
+	logs := []*logstore.Log{
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", CreatedAt: 1000, BillingDetails: &corrupt, Quota: 10, Type: logstore.LogTypeConsume},
+	}
+	if err := dbstore.LOG_DB.Create(&logs).Error; err != nil {
+		t.Fatalf("create logs: %v", err)
+	}
+	if err := usedatastore.RecalculateQuotaData(0, 2000); err == nil {
+		t.Fatal("RecalculateQuotaData must fail explicitly on corrupt billing_details")
 	}
 }

@@ -176,8 +176,8 @@ func TestApplyQuotaUpdatesCountersAndWritesConsumeLog(t *testing.T) {
 	assert.Equal(t, "gpt-4o", stored.ModelName)
 	assert.Equal(t, "tk-main", stored.TokenName)
 	assert.Equal(t, 460, stored.Quota)
-	assert.Equal(t, 100, stored.PromptTokens)
-	assert.Equal(t, 50, stored.CompletionTokens)
+	// 旧聚合列已删除：输入侧/输出总量从 billing_details 按唯一汇总公式还原
+	assertStoredTokenTotals(t, stored, 100, 50)
 	// 起点回拨 2 秒：UseTime 落库值应在 [1000, 4000] 区间（真实时钟，防抖动）
 	assert.GreaterOrEqual(t, stored.UseTime, 1000, "use_time should flow from settlement.useTimeMs")
 	assert.LessOrEqual(t, stored.UseTime, 4000)

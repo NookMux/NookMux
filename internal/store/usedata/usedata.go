@@ -3,6 +3,7 @@ package usedatastore
 import (
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
+	billingcontract "github.com/NookMux/NookMux/internal/domain/billing/contract"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"gorm.io/gorm"
 	"sync"
@@ -270,25 +271,43 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 	startTime = startTime - (startTime % 3600)
 	endTime = endTime - (endTime % 3600) + 3599
 
-	// 先从日志聚合数据（可失败的操作放在事务外）
+	// 先从日志聚合数据（可失败的操作放在事务外）。
+	// token_used 的生成来源是 billing_details（持久化 Token 用量的唯一权威
+	// 来源），按唯一汇总公式还原每条消费记录的处理总量；列不存在（无用量）
+	// 计 0，损坏 JSON 显式报错。
 	type logRow struct {
-		UserId           int
-		Username         string
-		ModelName        string
-		CreatedAt        int64
-		PromptTokens     int
-		CompletionTokens int
-		Quota            int
+		Id             int
+		UserId         int
+		Username       string
+		ModelName      string
+		CreatedAt      int64
+		BillingDetails *string
+		Quota          int
 	}
 
 	// 成功请求（type = 2）
 	var successLogs []logRow
 	err := dbstore.LOG_DB.Table("logs").
-		Select("user_id, username, model_name, created_at, prompt_tokens, completion_tokens, quota").
+		Select("id, user_id, username, model_name, created_at, billing_details, quota").
 		Where("type = 2 and created_at >= ? and created_at <= ?", startTime, endTime).
 		Find(&successLogs).Error
 	if err != nil {
 		return fmt.Errorf("查询成功日志失败: %w", err)
+	}
+	successTokens := make(map[int]int, len(successLogs))
+	for _, r := range successLogs {
+		if r.BillingDetails == nil || *r.BillingDetails == "" {
+			continue
+		}
+		payload, err := billingcontract.ParseBillingDetailsJSON(*r.BillingDetails)
+		if err != nil {
+			return fmt.Errorf("log id=%d: %w", r.Id, err)
+		}
+		processed, err := payload.ProcessedTotal()
+		if err != nil {
+			return fmt.Errorf("log id=%d: %w", r.Id, err)
+		}
+		successTokens[r.Id] = processed
 	}
 
 	// 失败请求（type = 5）
@@ -326,7 +345,7 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 	for _, r := range successLogs {
 		hourStart := r.CreatedAt - (r.CreatedAt % 3600)
 		// 根据写入层聚合粒度配置调整 key 维度和 token 记录
-		userId, username, modelName, tokenUsed := applyTrackingConfig(r.UserId, r.Username, r.ModelName, r.PromptTokens+r.CompletionTokens)
+		userId, username, modelName, tokenUsed := applyTrackingConfig(r.UserId, r.Username, r.ModelName, successTokens[r.Id])
 		key := aggKey{UserId: userId, Username: username, ModelName: modelName, HourStart: hourStart}
 		v, ok := merged[key]
 		if !ok {

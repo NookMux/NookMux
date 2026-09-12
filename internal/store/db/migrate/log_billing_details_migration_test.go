@@ -71,6 +71,7 @@ func TestMigrateLOGDBAddsBillingDetailsOnHistoricalLogDB(t *testing.T) {
 	if err := logDB.AutoMigrate(&logstore.Log{}); err != nil {
 		t.Fatalf("migrate sqlite log db: %v", err)
 	}
+	addLegacyAggregateColumns(t, logDB)
 	historical := &logstore.Log{
 		UserId:           1,
 		CreatedAt:        1700000000,
@@ -86,6 +87,7 @@ func TestMigrateLOGDBAddsBillingDetailsOnHistoricalLogDB(t *testing.T) {
 	if err := logDB.Create(historical).Error; err != nil {
 		t.Fatalf("seed historical log: %v", err)
 	}
+	seedLegacyAggregates(t, logDB, historical.Id, 100, 50)
 	dropBillingDetailsColumn(t, logDB)
 
 	for run := 1; run <= 2; run++ {
@@ -103,9 +105,10 @@ func TestMigrateLOGDBAddsBillingDetailsOnHistoricalLogDB(t *testing.T) {
 	if err := logDB.First(&stored, historical.Id).Error; err != nil {
 		t.Fatalf("reload historical log: %v", err)
 	}
-	if stored.Quota != 42 || stored.PromptTokens != 100 || stored.CompletionTokens != 50 || stored.Other != `{"cache_read":100}` {
+	if stored.Quota != 42 || stored.Other != `{"cache_read":100}` {
 		t.Fatalf("historical row mutated by migration: %+v", stored)
 	}
+	assertLegacyAggregates(t, logDB, historical.Id, 100, 50)
 	if stored.BillingDetailsVersion != logstore.LogBillingDetailsVersion {
 		t.Fatalf("billing_details_version = %d, want %d", stored.BillingDetailsVersion, logstore.LogBillingDetailsVersion)
 	}
@@ -144,6 +147,7 @@ func TestMigrateDBAddsBillingDetailsOnHistoricalMainDB(t *testing.T) {
 	if err := mainDB.AutoMigrate(&logstore.Log{}); err != nil {
 		t.Fatalf("migrate sqlite main db: %v", err)
 	}
+	addLegacyAggregateColumns(t, mainDB)
 	historical := &logstore.Log{
 		UserId:           1,
 		CreatedAt:        1700000000,
@@ -159,6 +163,7 @@ func TestMigrateDBAddsBillingDetailsOnHistoricalMainDB(t *testing.T) {
 	if err := mainDB.Create(historical).Error; err != nil {
 		t.Fatalf("seed historical log: %v", err)
 	}
+	seedLegacyAggregates(t, mainDB, historical.Id, 100, 50)
 	dropBillingDetailsColumn(t, mainDB)
 
 	for run := 1; run <= 2; run++ {
@@ -176,9 +181,10 @@ func TestMigrateDBAddsBillingDetailsOnHistoricalMainDB(t *testing.T) {
 	if err := mainDB.First(&stored, historical.Id).Error; err != nil {
 		t.Fatalf("reload historical log: %v", err)
 	}
-	if stored.Quota != 42 || stored.PromptTokens != 100 || stored.CompletionTokens != 50 || stored.Other != `{"cache_read":100}` {
+	if stored.Quota != 42 || stored.Other != `{"cache_read":100}` {
 		t.Fatalf("historical row mutated by migration: %+v", stored)
 	}
+	assertLegacyAggregates(t, mainDB, historical.Id, 100, 50)
 	if stored.BillingDetailsVersion != logstore.LogBillingDetailsVersion {
 		t.Fatalf("billing_details_version = %d, want %d", stored.BillingDetailsVersion, logstore.LogBillingDetailsVersion)
 	}

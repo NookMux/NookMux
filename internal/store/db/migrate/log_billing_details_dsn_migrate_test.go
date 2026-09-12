@@ -111,6 +111,9 @@ func TestBillingDetailsMigrateOnDialect(t *testing.T) {
 	// 先插入一条"历史"行，再删除列模拟旧 schema，迁移补列后行内容必须原样。
 	seedHistoricalLog(t, mainDB, 102)
 	dropBillingDetailsColumn(t, mainDB)
+	// 导入旧格式数据属于受控升级流程，必须先显式作废既有完成标记，
+	// 否则 backfill 会因标记而跳过扫描。
+	invalidateBillingMigrationMarker(t, mainDB)
 	if err := migrateDB(); err != nil {
 		t.Fatalf("migrateDB on historical %s schema: %v", dialectName(isPostgres), err)
 	}
@@ -136,6 +139,8 @@ func TestBillingDetailsMigrateOnDialect(t *testing.T) {
 	}
 	seedHistoricalLog(t, logDB, 201)
 	dropBillingDetailsColumn(t, logDB)
+	// 独立日志库的标记在日志库本库：同样先作废再触发历史迁移。
+	invalidateBillingMigrationMarker(t, logDB)
 	// 历史库启动 + 重复启动迁移，各跑一次共两次。
 	for run := 1; run <= 2; run++ {
 		if err := migrateLOGDB(); err != nil {
@@ -157,6 +162,15 @@ func dialectName(isPostgres bool) string {
 		return "postgresql"
 	}
 	return "mysql"
+}
+
+// invalidateBillingMigrationMarker 删除实际日志库中的完成标记，模拟受控
+// 升级流程中"导入旧格式数据前显式作废标记"的前置条件。
+func invalidateBillingMigrationMarker(t *testing.T, dbHandle *gorm.DB) {
+	t.Helper()
+	if err := dbHandle.Where("version = ?", logstore.LogBillingDetailsVersion).Delete(&logBillingMigrationState{}).Error; err != nil {
+		t.Fatalf("invalidate billing migration marker: %v", err)
+	}
 }
 
 // openBillingDetailsAdminDB 打开管理连接（用于重建测试专用数据库）。
@@ -234,25 +248,28 @@ func openBillingDetailsDB(t *testing.T, envName string, dsn string, isLog bool) 
 
 func seedHistoricalLog(t *testing.T, dbHandle *gorm.DB, userId int) {
 	t.Helper()
-	historical := &logstore.Log{
-		UserId:           userId,
-		CreatedAt:        1700000000,
-		Type:             logstore.LogTypeConsume,
-		Username:         "legacy-user",
-		ModelName:        "gpt-legacy",
-		Quota:            42,
-		PromptTokens:     100,
-		CompletionTokens: 50,
-		Group:            "default",
-		Other:            `{"cache_tokens":30,"cache_ratio":0.5}`,
+	// 历史行需要旧聚合列承载 prompt/completion 总量；当前模型已不声明这两列
+	//（读取为 wire 投影字段），先补列再以 map 插入真实历史数据。
+	addLegacyAggregateColumns(t, dbHandle)
+	historical := map[string]interface{}{
+		"user_id":           userId,
+		"created_at":        1700000000,
+		"type":              logstore.LogTypeConsume,
+		"username":          "legacy-user",
+		"model_name":        "gpt-legacy",
+		"quota":             42,
+		"prompt_tokens":     100,
+		"completion_tokens": 50,
+		"group":             "default",
+		"other":             `{"cache_tokens":30,"cache_ratio":0.5}`,
 	}
-	if err := dbHandle.Create(historical).Error; err != nil {
+	if err := dbHandle.Table("logs").Create(historical).Error; err != nil {
 		t.Fatalf("seed historical log (userId=%d): %v", userId, err)
 	}
 }
 
 // assertHistoricalLogMigrated 验证历史行完成 Token 明细迁移，同时保留
-// Other 中的非 Token 字段。
+// Other 中的非 Token 字段与旧聚合列数据。
 func assertHistoricalLogMigrated(t *testing.T, dbHandle *gorm.DB, userId int) {
 	t.Helper()
 	var value sql.NullString
@@ -263,15 +280,22 @@ func assertHistoricalLogMigrated(t *testing.T, dbHandle *gorm.DB, userId int) {
 	if !value.Valid || value.String != wantDetails {
 		t.Fatalf("historical billing_details = %v, want %q", value, wantDetails)
 	}
-	var stored logstore.Log
-	if err := dbHandle.Where("user_id = ?", userId).First(&stored).Error; err != nil {
-		t.Fatalf("reload historical log: %v", err)
+	var legacy struct {
+		Quota            int
+		PromptTokens     int
+		CompletionTokens int
+		Other            string
+		Version          int
 	}
-	if stored.Quota != 42 || stored.PromptTokens != 100 || stored.CompletionTokens != 50 || stored.Other != `{"cache_ratio":0.5}` {
-		t.Fatalf("historical row mutated by migration: %+v", stored)
+	if err := dbHandle.Raw("SELECT quota, prompt_tokens, completion_tokens, other, billing_details_version FROM logs WHERE user_id = ?", userId).
+		Row().Scan(&legacy.Quota, &legacy.PromptTokens, &legacy.CompletionTokens, &legacy.Other, &legacy.Version); err != nil {
+		t.Fatalf("reload historical log (userId=%d): %v", userId, err)
 	}
-	if stored.BillingDetailsVersion != logstore.LogBillingDetailsVersion {
-		t.Fatalf("billing_details_version = %d, want %d", stored.BillingDetailsVersion, logstore.LogBillingDetailsVersion)
+	if legacy.Quota != 42 || legacy.PromptTokens != 100 || legacy.CompletionTokens != 50 || legacy.Other != `{"cache_ratio":0.5}` {
+		t.Fatalf("historical row mutated by migration: %+v", legacy)
+	}
+	if legacy.Version != logstore.LogBillingDetailsVersion {
+		t.Fatalf("billing_details_version = %d, want %d", legacy.Version, logstore.LogBillingDetailsVersion)
 	}
 }
 

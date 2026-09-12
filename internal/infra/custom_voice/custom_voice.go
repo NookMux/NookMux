@@ -445,17 +445,17 @@ func chargePreviewTTS(c *gin.Context, userId, channelId int, modelName, group, p
 	if usePrice {
 		logContent = fmt.Sprintf("定制音色试听，模型价格 %.4f，分组倍率 %.4f", price, groupRatio)
 	}
+	// 定制音色按字符计费，没有 Token 用量：不传伪 token 聚合（历史版本曾把
+	// 字符数填进聚合列），保持 billing_details 与统计口径的“无 Token 用量”语义。
 	logstore.RecordConsumeLog(c, userId, logstore.RecordConsumeLogParams{
-		ChannelId:        channelId,
-		PromptTokens:     usageCharacters,
-		CompletionTokens: usageCharacters,
-		ModelName:        modelName,
-		TokenName:        tokenName,
-		Quota:            quota,
-		Content:          logContent,
-		UseTimeMs:        0,
-		IsStream:         false,
-		Group:            group,
+		ChannelId: channelId,
+		ModelName: modelName,
+		TokenName: tokenName,
+		Quota:     quota,
+		Content:   logContent,
+		UseTimeMs: 0,
+		IsStream:  false,
+		Group:     group,
 	})
 	return quota, nil
 }

@@ -18,6 +18,7 @@ func TestBackfillLogBillingTokenDetailsResumesCommittedBatches(t *testing.T) {
 	if err := dbHandle.AutoMigrate(&logstore.Log{}); err != nil {
 		t.Fatalf("migrate sqlite: %v", err)
 	}
+	addLegacyAggregateColumns(t, dbHandle)
 	oldLogDB := dbstore.LOG_DB
 	dbstore.LOG_DB = dbHandle
 	t.Cleanup(func() { dbstore.LOG_DB = oldLogDB })
@@ -35,6 +36,7 @@ func TestBackfillLogBillingTokenDetailsResumesCommittedBatches(t *testing.T) {
 		if err := dbHandle.Create(&rows[i]).Error; err != nil {
 			t.Fatalf("seed row %d: %v", i, err)
 		}
+		seedLegacyAggregates(t, dbHandle, rows[i].Id, rows[i].PromptTokens, rows[i].CompletionTokens)
 	}
 
 	err = backfillLogBillingTokenDetails()

@@ -48,7 +48,7 @@ func newEntryTestRelayInfo(source relayconstant.UsageSource) *relaycommon.RelayI
 }
 
 // Claude 入口（PRD 3.4）：普通输入×1 + 缓存读取×读取价 + 5m/1h 分档写入 +
-// 输出×补全倍率；PromptTokens 兼容列保持 raw 聚合；billing_details 与
+// 输出×补全倍率；输入侧/输出总量按唯一汇总公式从 billing_details 还原；
 // 计费快照分别可解释。
 func TestPostClaudeConsumeQuotaNormalizedFormula(t *testing.T) {
 	setupApplyQuotaTestDB(t)
@@ -70,9 +70,8 @@ func TestPostClaudeConsumeQuotaNormalizedFormula(t *testing.T) {
 	stored := waitForConsumeLogByTokenName(t, "tk-claude")
 	// quota = (700×1 + 200×0.5 + 60×1.25 + 40×2.0 + 500×3) × 2 = 2455×2 = 4910
 	assert.Equal(t, 4910, stored.Quota)
-	// PromptTokens 兼容列 = raw 输入聚合（PRD 1.2.4 输入侧处理总量）
-	assert.Equal(t, 1000, stored.PromptTokens)
-	assert.Equal(t, 500, stored.CompletionTokens)
+	// 旧聚合列已删除：输入侧/输出总量从 billing_details 按唯一汇总公式还原
+	assertStoredTokenTotals(t, stored, 1000, 500)
 
 	require.NotNil(t, stored.BillingDetails)
 	payload, err := ParseBillingDetailsJSON(*stored.BillingDetails)
@@ -115,8 +114,7 @@ func TestPostAudioConsumeQuotaNormalizedFormula(t *testing.T) {
 	stored := waitForConsumeLogByTokenName(t, "tk-audio")
 	// quota = (700×1 + 200×8 + 100×0.5 + 400×3 + 100×8×2) × 2 = 5150×2 = 10300
 	assert.Equal(t, 10300, stored.Quota)
-	assert.Equal(t, 1000, stored.PromptTokens)
-	assert.Equal(t, 500, stored.CompletionTokens)
+	assertStoredTokenTotals(t, stored, 1000, 500)
 
 	require.NotNil(t, stored.BillingDetails)
 	payload, err := ParseBillingDetailsJSON(*stored.BillingDetails)
@@ -182,8 +180,7 @@ func TestPostWssConsumeQuotaNormalizedFormula(t *testing.T) {
 
 	stored := waitForConsumeLogByTokenName(t, "tk-wss")
 	assert.Equal(t, 10300, stored.Quota)
-	assert.Equal(t, 1000, stored.PromptTokens)
-	assert.Equal(t, 500, stored.CompletionTokens)
+	assertStoredTokenTotals(t, stored, 1000, 500)
 
 	require.NotNil(t, stored.BillingDetails)
 	payload, err := ParseBillingDetailsJSON(*stored.BillingDetails)
@@ -234,6 +231,21 @@ func waitForConsumeLogByTokenName(t *testing.T, tokenName string) logstore.Log {
 		return err == nil
 	}, 2*time.Second, 10*time.Millisecond, "consume log row should be written asynchronously")
 	return stored
+}
+
+// assertStoredTokenTotals 按"billing_details 唯一权威来源"验收口径断言总量：
+// 旧聚合列已删除，输入侧/输出总量只能从落库 JSON 按唯一汇总公式还原。
+func assertStoredTokenTotals(t *testing.T, stored logstore.Log, wantInputSide int, wantOutput int) {
+	t.Helper()
+	require.NotNil(t, stored.BillingDetails, "token-bearing entry must persist billing_details")
+	payload, err := ParseBillingDetailsJSON(*stored.BillingDetails)
+	require.NoError(t, err)
+	inputSide, err := payload.InputSideTotal()
+	require.NoError(t, err)
+	assert.Equal(t, wantInputSide, inputSide)
+	output, err := payload.OutputTotal()
+	require.NoError(t, err)
+	assert.Equal(t, wantOutput, output)
 }
 
 // realtime 按事件增量预扣：归一化公式（含缓存读取）计算本轮增量额度并实扣，

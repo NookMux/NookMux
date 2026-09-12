@@ -132,10 +132,14 @@ func TestRecordConsumeLogWritesBillingDetailsOnlyWhenProvided(t *testing.T) {
 	if withDetails.BillingDetailsVersion != logstore.LogBillingDetailsVersion {
 		t.Fatalf("billing_details_version = %d, want %d", withDetails.BillingDetailsVersion, logstore.LogBillingDetailsVersion)
 	}
-	// 兼容聚合列保持原语义，不因新列迁移或改写。
-	if withDetails.Quota != 233 || withDetails.PromptTokens != 16 || withDetails.CompletionTokens != 10 {
-		t.Fatalf("legacy aggregate columns changed: quota=%d prompt=%d completion=%d",
-			withDetails.Quota, withDetails.PromptTokens, withDetails.CompletionTokens)
+	// 旧聚合列已从模型与全新 schema 中移除；quota 保持原语义。
+	for _, col := range []string{"prompt_tokens", "completion_tokens"} {
+		if dbstore.LOG_DB.Migrator().HasColumn(&logstore.Log{}, col) {
+			t.Fatalf("legacy aggregate column %s must not exist on fresh schema", col)
+		}
+	}
+	if withDetails.Quota != 233 {
+		t.Fatalf("quota changed: quota=%d, want 233", withDetails.Quota)
 	}
 	if withDetails.Other != `{"model_ratio":1.5}` {
 		t.Fatalf("other = %q, want unchanged snapshot", withDetails.Other)
@@ -163,27 +167,32 @@ func TestRecordConsumeLogWritesBillingDetailsOnlyWhenProvided(t *testing.T) {
 }
 
 // TestBillingDetailsMigrationKeepsHistoricalRowsEmpty 覆盖 SQLite 迁移路径：
-// 历史库（无该列）启动时 AutoMigrate 补列且幂等重跑通过；历史行保持 NULL、
-// 不回填、旧字段与 Other 原样；迁移后新行可正常写入。
+// 历史库（无该列、但有旧聚合列）启动时 AutoMigrate 补列且幂等重跑通过；
+// 历史行保持 NULL、不回填、旧聚合列与 Other 原样；迁移后新行可正常写入。
 func TestBillingDetailsMigrationKeepsHistoricalRowsEmpty(t *testing.T) {
 	setupBillingDetailsTestDB(t)
 
-	// 以当前模型建库后插入历史消费日志，再删除 billing_details 列，
-	// 等价还原新列上线前的历史 schema。
-	historical := &logstore.Log{
-		UserId:           1,
-		CreatedAt:        1700000000,
-		Type:             logstore.LogTypeConsume,
-		Username:         "legacy-user",
-		TokenName:        "legacy-token",
-		ModelName:        "gpt-legacy",
-		Quota:            42,
-		PromptTokens:     100,
-		CompletionTokens: 50,
-		Group:            "default",
-		Other:            `{"cache_read":100}`,
+	// 以当前模型建库后补上旧聚合列并插入历史消费日志，再删除 billing_details
+	// 列，等价还原新列上线前的历史 schema。
+	for _, col := range []string{"prompt_tokens", "completion_tokens"} {
+		if err := dbstore.LOG_DB.Exec("ALTER TABLE logs ADD COLUMN " + col + " BIGINT DEFAULT 0").Error; err != nil {
+			t.Fatalf("simulate legacy schema by adding %s: %v", col, err)
+		}
 	}
-	if err := dbstore.LOG_DB.Create(historical).Error; err != nil {
+	historical := map[string]interface{}{
+		"user_id":           1,
+		"created_at":        1700000000,
+		"type":              logstore.LogTypeConsume,
+		"username":          "legacy-user",
+		"token_name":        "legacy-token",
+		"model_name":        "gpt-legacy",
+		"quota":             42,
+		"prompt_tokens":     100,
+		"completion_tokens": 50,
+		"group":             "default",
+		"other":             `{"cache_read":100}`,
+	}
+	if err := dbstore.LOG_DB.Table("logs").Create(historical).Error; err != nil {
 		t.Fatalf("seed historical log: %v", err)
 	}
 	if err := dbstore.LOG_DB.Migrator().DropColumn(&logstore.Log{}, "billing_details"); err != nil {
@@ -204,15 +213,28 @@ func TestBillingDetailsMigrationKeepsHistoricalRowsEmpty(t *testing.T) {
 	}
 
 	var stored logstore.Log
-	if err := dbstore.LOG_DB.First(&stored, historical.Id).Error; err != nil {
+	if err := dbstore.LOG_DB.First(&stored, 1).Error; err != nil {
 		t.Fatalf("reload historical log: %v", err)
 	}
-	value := queryBillingDetailsRaw(t, historical.Id)
+	value := queryBillingDetailsRaw(t, stored.Id)
 	if value.Valid {
 		t.Fatalf("historical billing_details = %q, want NULL (no backfill)", value.String)
 	}
-	if stored.Quota != 42 || stored.PromptTokens != 100 || stored.CompletionTokens != 50 || stored.Other != `{"cache_read":100}` {
-		t.Fatalf("historical row mutated by migration: %+v", stored)
+	// 旧聚合列的数据在 AutoMigrate 补列阶段不被清理，保持原样（删除由
+	// dropLegacyLogTokenAggregateColumns 在回填完成后统一执行）。
+	var legacy struct {
+		Quota            int
+		PromptTokens     int
+		CompletionTokens int
+		Other            string
+	}
+	if err := dbstore.LOG_DB.Table("logs").
+		Select("quota, prompt_tokens, completion_tokens, other").
+		Where("id = ?", stored.Id).Scan(&legacy).Error; err != nil {
+		t.Fatalf("reload legacy aggregates: %v", err)
+	}
+	if legacy.Quota != 42 || legacy.PromptTokens != 100 || legacy.CompletionTokens != 50 || legacy.Other != `{"cache_read":100}` {
+		t.Fatalf("historical row mutated by migration: %+v", legacy)
 	}
 
 	// 迁移后的库可正常写入新格式，且历史行保持空列。
@@ -231,7 +253,7 @@ func TestBillingDetailsMigrationKeepsHistoricalRowsEmpty(t *testing.T) {
 	if newRow.BillingDetailsVersion != logstore.LogBillingDetailsVersion {
 		t.Fatalf("post-migration billing_details_version = %d, want %d", newRow.BillingDetailsVersion, logstore.LogBillingDetailsVersion)
 	}
-	if value := queryBillingDetailsRaw(t, historical.Id); value.Valid {
+	if value := queryBillingDetailsRaw(t, stored.Id); value.Valid {
 		t.Fatalf("historical row was backfilled: %q", value.String)
 	}
 }
@@ -336,5 +358,85 @@ func TestRecordConsumeLogBillingDetailsReadableByParser(t *testing.T) {
 	// 损坏 JSON 读取端显式失败，不做启发式猜测。
 	if _, err := billing.ParseBillingDetailsJSON(`{"schema_version":9,"tokens":{}}`); err == nil {
 		t.Fatalf("unknown schema version must fail explicitly")
+	}
+}
+
+// TestLogQueriesProjectTokenAggregatesFromBillingDetails 验证验收环节四
+// "必要的 Token 总量由服务端从 billing_details 投影"：查询函数按唯一汇总
+// 公式填充 wire 投影字段（prompt_tokens=输入侧总量、completion_tokens=
+// 输出总量），NULL 明细保持 0，损坏 JSON 显式报错。
+func TestLogQueriesProjectTokenAggregatesFromBillingDetails(t *testing.T) {
+	setupBillingDetailsTestDB(t)
+
+	logs := []*logstore.Log{
+		{
+			UserId:         7,
+			CreatedAt:      1700000001,
+			Type:           logstore.LogTypeConsume,
+			Username:       "proj-user",
+			TokenName:      "tk-proj",
+			ModelName:      "gpt-proj",
+			Quota:          1,
+			Group:          "default",
+			BillingDetails: strPtr(billingDetailsFixture),
+		},
+		{
+			UserId:    7,
+			CreatedAt: 1700000002,
+			Type:      logstore.LogTypeConsume,
+			Username:  "proj-user",
+			Quota:     1,
+			Group:     "default",
+		},
+	}
+	if err := dbstore.LOG_DB.Create(&logs).Error; err != nil {
+		t.Fatalf("seed logs: %v", err)
+	}
+
+	// fixture：输入侧总量 = 12 + 4 + 5 = 21；输出总量 = 7。
+	fetched, _, err := logstore.GetUserLogs(7, logstore.LogTypeConsume, 0, 0, "", "", 0, 10, "", "", "", "", "", "", "")
+	if err != nil {
+		t.Fatalf("GetUserLogs error = %v", err)
+	}
+	if len(fetched) != 2 {
+		t.Fatalf("log count = %d, want 2", len(fetched))
+	}
+	for _, l := range fetched {
+		if l.BillingDetails != nil {
+			if l.PromptTokens != 21 || l.CompletionTokens != 7 {
+				t.Fatalf("projected aggregates = (%d, %d), want (21, 7)", l.PromptTokens, l.CompletionTokens)
+			}
+		} else if l.PromptTokens != 0 || l.CompletionTokens != 0 {
+			t.Fatalf("NULL details projected as (%d, %d), want (0, 0)", l.PromptTokens, l.CompletionTokens)
+		}
+	}
+
+	adminLogs, _, err := logstore.GetAllLogs(logstore.LogTypeConsume, 0, 0, "", "proj-user", "", 0, 10, 0, "", "", "", "", "", "", "")
+	if err != nil {
+		t.Fatalf("GetAllLogs error = %v", err)
+	}
+	if len(adminLogs) != 2 {
+		t.Fatalf("admin log count = %d, want 2", len(adminLogs))
+	}
+	for _, l := range adminLogs {
+		if l.BillingDetails != nil && (l.PromptTokens != 21 || l.CompletionTokens != 7) {
+			t.Fatalf("admin path projected aggregates = (%d, %d), want (21, 7)", l.PromptTokens, l.CompletionTokens)
+		}
+	}
+
+	corrupt := &logstore.Log{
+		UserId:         8,
+		CreatedAt:      1700000003,
+		Type:           logstore.LogTypeConsume,
+		Username:       "proj-corrupt",
+		Quota:          1,
+		Group:          "default",
+		BillingDetails: strPtr(`{"schema_version":2,"tokens":{}}`),
+	}
+	if err := dbstore.LOG_DB.Create(corrupt).Error; err != nil {
+		t.Fatalf("seed corrupt log: %v", err)
+	}
+	if _, _, err := logstore.GetUserLogs(8, logstore.LogTypeConsume, 0, 0, "", "", 0, 10, "", "", "", "", "", "", ""); err == nil {
+		t.Fatal("GetUserLogs must fail explicitly on corrupt billing_details, not project zero totals")
 	}
 }

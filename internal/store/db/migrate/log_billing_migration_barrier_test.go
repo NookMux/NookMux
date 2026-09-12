@@ -16,6 +16,7 @@ func TestBillingMigrationBarrierRejectsPartialAndWrongDatabase(t *testing.T) {
 		if err := db.AutoMigrate(&logstore.Log{}); err != nil {
 			t.Fatal(err)
 		}
+		addLegacyAggregateColumns(t, db)
 	}
 	seedTokenMigrationLog(t, logDB, logstore.Log{Type: logstore.LogTypeConsume, Other: `{"cache_tokens":-1}`})
 	// A completion marker in the main database cannot authorize an independent log DB.
