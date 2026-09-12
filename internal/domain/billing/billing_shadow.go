@@ -276,6 +276,9 @@ func classifyShadowDiff(entry string, relayInfo *relaycommon.RelayInfo, bu *Bill
 	if relayInfo != nil && relayInfo.PriceData.ContextPricing != nil && relayInfo.PriceData.ContextPricing.Enabled {
 		hints = append(hints, "分段档位 tokens 现含输出维度（PRD 阶段 2）")
 	}
+	if relayInfo != nil && entry == "wss" && relayInfo.PriceData.UsePrice {
+		hints = append(hints, "realtime 按次价按每个 response.done 事件实扣（P1-4/P1-34 口径），旧公式整场仅一份（预期差异）")
+	}
 	if len(hints) == 0 {
 		return "unclassified: 需定位为旧公式 bug 或新语义 bug，禁止吸收差异"
 	}

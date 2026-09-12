@@ -280,7 +280,7 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 // realtimeMeterEvent 是 reader 转交结算循环的计量事件。reader 只负责读、
 // 解析与转发；token 计数、计量状态（pendingUsage/localUsage/sumUsage）与
 // 事件计费全部收敛到结算循环单一属主，消除双向读取与收尾之间的数据竞态
-//（P1-14）。
+// （P1-14）。
 type realtimeMeterEvent struct {
 	fromClient bool
 	event      *shared.RealtimeEvent
@@ -377,16 +377,8 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 					return
 				}
 
-				if realtimeEvent.Type == shared.RealtimeEventTypeResponseDone {
-					// response.done 的计量与计费在结算循环内统一处理。
-				} else if realtimeEvent.Type == shared.RealtimeEventTypeSessionUpdated || realtimeEvent.Type == shared.RealtimeEventTypeSessionCreated {
-					realtimeSession := realtimeEvent.Session
-					if realtimeSession != nil {
-						// update audio format
-						info.InputAudioFormat = common.GetStringIfEmpty(realtimeSession.InputAudioFormat, info.InputAudioFormat)
-						info.OutputAudioFormat = common.GetStringIfEmpty(realtimeSession.OutputAudioFormat, info.OutputAudioFormat)
-					}
-				}
+				// 计量、计费与会话元数据（音频格式）的更新全部收敛到结算
+				// 循环（单一属主），reader 只负责读、解析与转发。
 
 				meterChan <- realtimeMeterEvent{fromClient: false, event: realtimeEvent}
 
@@ -400,17 +392,29 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 		}
 	}()
 
-	// 结算循环：pendingUsage/localUsage/sumUsage 与事件计费的唯一属主。
-	// 实扣成功后才把该份用量累计进 sumUsage；失败立即上抛并触发会话
-	// teardown，该份用量不累计、不重试（P1-12：不重复结算、失败可观测）。
+	// 结算循环：pendingUsage/localUsage/sumUsage、事件计费与会话元数据
+	// （音频格式、RealtimeTools）的唯一属主。实扣成功后才把该份用量累计进
+	// sumUsage；失败记录 settleErr 并经 errChan 上抛一次，随后转入 drain
+	// 模式继续消费 meterChan 但不再处理——reader 的投递永不阻塞，否则父
+	// goroutine 的 readerWG.Wait() 会永久挂死（缺陷 33）；该份用量不累计、
+	// 不重试（P1-12：不重复结算、失败可观测）。
 	var sumUsage shared.RealtimeUsage
 	pendingUsage := &shared.RealtimeUsage{}
 	localUsage := &shared.RealtimeUsage{}
 	settleDone := make(chan struct{})
 	var settleErr error
+	// mixedLocalCount 标记会话内是否混入本地估算计数：由结算循环写、父
+	// goroutine 在 join（<-settleDone）后读。gin context 并发写不安全，
+	// 本地计数标志统一由父 goroutine 在 join 后设置，而不是在结算循环内
+	// 与 reader 的日志读取并发写 context。
+	var mixedLocalCount bool
 	go func() {
 		defer close(settleDone)
 		for meterEvent := range meterChan {
+			if settleErr != nil {
+				// drain 模式：结算已失败，只消费不处理（见上方注释）。
+				continue
+			}
 			realtimeEvent := meterEvent.event
 			if meterEvent.fromClient {
 				if realtimeEvent.Type == shared.RealtimeEventTypeSessionUpdate {
@@ -424,7 +428,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 				if err != nil {
 					settleErr = fmt.Errorf("error counting text token: %v", err)
 					errChan <- settleErr
-					return
+					continue
 				}
 				log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
 				localUsage.TotalTokens += textToken + audioToken
@@ -441,7 +445,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 					if err := preConsumeUsage(c, info, pendingUsage, &sumUsage); err != nil {
 						settleErr = fmt.Errorf("error consume usage: %v", err)
 						errChan <- settleErr
-						return
+						continue
 					}
 					// 本次计费完成，清除
 					pendingUsage = &shared.RealtimeUsage{}
@@ -452,7 +456,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 					if err != nil {
 						settleErr = fmt.Errorf("error counting text token: %v", err)
 						errChan <- settleErr
-						return
+						continue
 					}
 					log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
 					localUsage.TotalTokens += textToken + audioToken
@@ -461,25 +465,32 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 					localUsage.InputTokenDetails.TextTokens += textToken
 					localUsage.InputTokenDetails.AudioTokens += audioToken
 					// 上游 response.done 未携带 usage，本轮按本地 tokenizer 计数计费；
-					// 会话内混入本地估算，billing_details 不落列。
-					httpapi.SetContextKey(c, common.ContextKeyLocalCountTokens, true)
+					// 会话内混入本地估算，billing_details 不落列（标志由父
+					// goroutine 在 join 后统一设置）。
+					mixedLocalCount = true
 					if err := preConsumeUsage(c, info, localUsage, &sumUsage); err != nil {
 						settleErr = fmt.Errorf("error consume usage: %v", err)
 						errChan <- settleErr
-						return
+						continue
 					}
 					// 本次计费完成，清除
 					localUsage = &shared.RealtimeUsage{}
 				}
 				log.LogDebug(c, "realtime streaming sumUsage=%v localUsage=%v", sumUsage, localUsage)
 			case shared.RealtimeEventTypeSessionUpdated, shared.RealtimeEventTypeSessionCreated:
-				// 音频格式已在 target reader 更新；计量跳过
+				// 会话元数据（音频格式）与计量同属结算循环单一属主，消除
+				// target reader 写与结算循环经 CountTokenRealtime 读之间
+				// 的无同步并发访问。
+				if realtimeEvent.Session != nil {
+					info.InputAudioFormat = common.GetStringIfEmpty(realtimeEvent.Session.InputAudioFormat, info.InputAudioFormat)
+					info.OutputAudioFormat = common.GetStringIfEmpty(realtimeEvent.Session.OutputAudioFormat, info.OutputAudioFormat)
+				}
 			default:
 				textToken, audioToken, err := tokenizer.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
 				if err != nil {
 					settleErr = fmt.Errorf("error counting text token: %v", err)
 					errChan <- settleErr
-					return
+					continue
 				}
 				log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
 				localUsage.TotalTokens += textToken + audioToken
@@ -515,8 +526,17 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 		return shared.NewError(settleErr, shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry()), &sumUsage
 	}
 
+	// 会话内混入过本地估算（response.done 无 usage 分支），或收尾仍有本地
+	// 计数待结算：统一在此打本地计数标志——join 后父 goroutine 是 gin
+	// context 的唯一写入者，结算循环内直接 Set 会与 reader 的日志读取
+	// 并发读写 context。
+	if mixedLocalCount || localUsage.TotalTokens != 0 {
+		httpapi.SetContextKey(c, common.ContextKeyLocalCountTokens, true)
+	}
+
 	// 收尾剩余用量结算：pendingUsage 是官方 usage（不打本地标志），
-	// localUsage 是本地计数（必须打 local 标志，billing_details 不落列）。
+	// localUsage 是本地计数（local 标志已在上方统一设置，billing_details
+	// 不落列）。
 	// 失败同样显式上抛并跳过重试（P1-12：不吞错、不重复结算）。
 	if pendingUsage.TotalTokens != 0 {
 		if err := preConsumeUsage(c, info, pendingUsage, &sumUsage); err != nil {
@@ -527,9 +547,8 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 		pendingUsage = &shared.RealtimeUsage{}
 	}
 	if localUsage.TotalTokens != 0 {
-		// 连接结束时剩余未结算事件按本地计数计费，会话内混入本地估算，
-		// billing_details 不落列。
-		httpapi.SetContextKey(c, common.ContextKeyLocalCountTokens, true)
+		// 连接结束时剩余未结算事件按本地计数计费；本地计数标志已在
+		// 上方统一设置，billing_details 不落列。
 		if err := preConsumeUsage(c, info, localUsage, &sumUsage); err != nil {
 			log.LogError(c, "realtime closing consume failed: "+err.Error()+
 				fmt.Sprintf(", eventConsumedQuota=%d", info.WssEventConsumedQuota))

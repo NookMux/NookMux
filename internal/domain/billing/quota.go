@@ -17,10 +17,10 @@ import (
 	notify "github.com/NookMux/NookMux/internal/infra/notify"
 	"github.com/NookMux/NookMux/internal/infra/runtime"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
-	"github.com/NookMux/NookMux/internal/store/channel"
-	"github.com/NookMux/NookMux/internal/store/log"
-	"github.com/NookMux/NookMux/internal/store/token"
-	"github.com/NookMux/NookMux/internal/store/user"
+	channelstore "github.com/NookMux/NookMux/internal/store/channel"
+	logstore "github.com/NookMux/NookMux/internal/store/log"
+	tokenstore "github.com/NookMux/NookMux/internal/store/token"
+	userstore "github.com/NookMux/NookMux/internal/store/user"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 )
@@ -164,6 +164,13 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 	quota, quotaLines, quotaSnapshot, quotaErr := normalizedRealtimeQuota(bu, modelName, relayInfo.PriceData, relayInfo)
 	if quotaErr != nil {
 		return recordWssBillingFailure(quotaErr)
+	}
+	// 按次价（UsePrice）为固定价、与 token 用量无关：事件级已按每个
+	// response.done 实扣一份（WssEventConsumedQuota = 份数 × 当时单价），
+	// 收尾 finalQuota 必须采用同一口径；若沿用对汇总用量重算的单份按次价，
+	// 补差会把 N−1 份退还，整场会话净扣只剩一份（缺陷 34）。
+	if relayInfo.PriceData.UsePrice {
+		quota = relayInfo.WssEventConsumedQuota
 	}
 	var billingDetailsJSON string
 	if !httpapi.GetContextKeyBool(ctx, common.ContextKeyLocalCountTokens) && usage.TotalTokens != 0 {

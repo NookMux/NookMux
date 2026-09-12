@@ -477,3 +477,41 @@ func TestPostWssConsumeQuotaReconcileInsufficientBalance(t *testing.T) {
 	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
 	assert.Equal(t, 50, user.Quota, "failed reconciliation must not touch the wallet")
 }
+
+// UsePrice（按次价）整场净扣 = 事件份数 × 单价（缺陷 34 回归）：事件级
+// 每个 response.done 实扣一份（P1-4），收尾 finalQuota 必须采用同一口径，
+// 而不是对汇总用量重算的单份按次价——否则补差会把 N−1 份退还、整场净扣
+// 只剩一份。两个事件后净扣与日志 quota 均为 2 份，reconcile_delta 为 0。
+func TestPostWssConsumeQuotaUsePriceSessionNetsPerEvent(t *testing.T) {
+	setupApplyQuotaTestDB(t)
+	ctx := newEntryTestContext("tk-wss-useprice-close")
+	relayInfo := newEntryTestRelayInfo(relayconstant.UsageSourceOpenAIResponses)
+	relayInfo.TokenUnlimited = true
+	relayInfo.PriceData.UsePrice = true
+	relayInfo.PriceData.ModelPrice = 0.003
+
+	perEventQuota := int(0.003 * float64(common.QuotaPerUnit))
+
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(10, 5)))
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(20, 8)))
+	assert.Equal(t, 2*perEventQuota, relayInfo.WssEventConsumedQuota,
+		"two response.done events must consume two per-request charges")
+
+	sumUsage := newTextOnlyRealtimeUsage(30, 13)
+	require.Nil(t, PostWssConsumeQuota(ctx, relayInfo, relayInfo.OriginModelName, sumUsage, ""))
+
+	stored := waitForConsumeLogByTokenName(t, "tk-wss-useprice-close")
+	assert.Equal(t, 2*perEventQuota, stored.Quota,
+		"session quota must net the per-event charges, not a single per-request price")
+
+	var user userstore.User
+	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
+	assert.Equal(t, 1000000-2*perEventQuota, user.Quota,
+		"wallet net deduction must equal the per-event total")
+
+	other, err := common.StrToMap(stored.Other)
+	require.NoError(t, err)
+	assert.Equal(t, float64(2*perEventQuota), other["pre_consumed_quota"])
+	assert.Equal(t, float64(0), other["reconcile_delta"],
+		"per-event settlement must leave nothing to reconcile")
+}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,8 +18,8 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/domain/billing"
 	"github.com/NookMux/NookMux/internal/domain/shared"
-	redis "github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	redis "github.com/NookMux/NookMux/internal/infra/redis"
 	channelstore "github.com/NookMux/NookMux/internal/store/channel"
 	dbstore "github.com/NookMux/NookMux/internal/store/db"
 	pricingstore "github.com/NookMux/NookMux/internal/store/pricing"
@@ -252,10 +253,10 @@ func runRealtimeHandlerResult(t *testing.T, c *gin.Context, info *relaycommon.Re
 }
 
 const (
-	realtimeBillingTestUserId     = 901
-	realtimeBillingTestChannelId  = 17
-	realtimeBillingTestTokenId    = 71
-	realtimeBillingTestTokenKey   = "sk-realtime-billing-test"
+	realtimeBillingTestUserId    = 901
+	realtimeBillingTestChannelId = 17
+	realtimeBillingTestTokenId   = 71
+	realtimeBillingTestTokenKey  = "sk-realtime-billing-test"
 	realtimeBillingTestSeedQuota = 1000000
 )
 
@@ -332,7 +333,7 @@ func setupRealtimeBillingTestDB(t *testing.T) {
 // 每事件 quota 等于 token 数之和，便于精确断言。
 func newRealtimeBillingTestRelayInfo() *relaycommon.RelayInfo {
 	info := &relaycommon.RelayInfo{
-		RelayFormat: relayconstant.RelayFormatOpenAIRealtime,
+		RelayFormat:     relayconstant.RelayFormatOpenAIRealtime,
 		OriginModelName: "gpt-4o-realtime-preview",
 		ChannelMeta: &relaycommon.ChannelMeta{
 			ChannelId:         realtimeBillingTestChannelId,
@@ -516,6 +517,179 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 	})
 }
 
+// TestOpenaiRealtimeHandlerFailedEventNotRebilled 事件计费失败不重复累计且
+// 会话收尾不挂死（P1-12 回归 + 缺陷 33 死锁回归）：余额只够第一个事件，
+// 事件 2 实扣失败触发结算错误；失败事件不进入 sumUsage、不重试，错误以
+// skip-retry 显式上抛；随后 300 个积压事件超过 meterChan 缓冲（64），若
+// 结算循环错误路径停止消费（b17d321e 的提前 return 行为），reader 会阻塞
+// 在投递上、父 goroutine 的 readerWG.Wait() 永久挂死——runRealtimeHandlerResult
+// 的 5 秒看门狗即为该死锁的回归检测。
+func TestOpenaiRealtimeHandlerFailedEventNotRebilled(t *testing.T) {
+	setupRealtimeBillingTestDB(t)
+	c := newRealtimeBillingTestContext()
+	info := newRealtimeBillingTestRelayInfo()
+
+	clientWs, _ := newRealtimeWssPair(t)
+	info.ClientWs = clientWs
+	targetWs, targetPeer := newRealtimeWssPair(t)
+	info.TargetWs = targetWs
+
+	// 余额只够第一个事件（ratio 全 1：100 tokens = 100 quota）。
+	if err := dbstore.DB.Model(&userstore.User{}).Where("id = ?", realtimeBillingTestUserId).
+		Update("quota", 100).Error; err != nil {
+		t.Fatalf("seed insufficient quota: %v", err)
+	}
+
+	doneEvent := `{"type":"response.done","response":{"usage":{"total_tokens":100,"input_tokens":60,"output_tokens":40,"input_token_details":{"cached_tokens":10,"text_tokens":40,"audio_tokens":10},"output_token_details":{"text_tokens":30,"audio_tokens":10}}}}`
+
+	go func() {
+		// 事件 1：计费成功（扣 100，余额清零）。
+		_ = targetPeer.WriteMessage(websocket.TextMessage, []byte(doneEvent))
+		// 事件 2：实扣失败（余额 0 < 100）触发结算错误。
+		_ = targetPeer.WriteMessage(websocket.TextMessage, []byte(doneEvent))
+		// 300 个积压事件填满 meterChan 缓冲（64）：错误后若无人消费，
+		// reader 将阻塞在投递上（缺陷 33 的死锁触发条件）。
+		for i := 0; i < 300; i++ {
+			_ = targetPeer.WriteMessage(websocket.TextMessage, []byte(`{"type":"response.audio_transcript.delta","delta":"backlog"}`))
+		}
+		_ = targetPeer.Close()
+	}()
+
+	apiErr, sumUsage := runRealtimeHandlerResult(t, c, info)
+
+	if apiErr == nil {
+		t.Fatalf("failed event settlement must surface an explicit error")
+	}
+	if !shared.IsSkipRetryError(apiErr) {
+		t.Fatalf("settlement error must skip retry to avoid double billing, got %v", apiErr)
+	}
+
+	// 失败事件不进入 sumUsage：只有事件 1 的官方 usage（60/40）。
+	if sumUsage.InputTokens != 60 || sumUsage.OutputTokens != 40 {
+		t.Fatalf("sumUsage = %+v, want only the first event's usage 60/40", sumUsage)
+	}
+	if info.WssEventConsumedQuota != 100 {
+		t.Fatalf("eventConsumedQuota = %d, want 100 (first event only)", info.WssEventConsumedQuota)
+	}
+	if got := realtimeTestUserQuota(t); got != 0 {
+		t.Fatalf("wallet = %d, want 0 (seed 100 minus first event's 100)", got)
+	}
+}
+
 // TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless 双向并发交错用例：
-// client 输入事件与 target response.done 事件并发注入，断言 sumUsage 精确
-// 等于全部官方 usage 之和、钱包净扣等于事件实扣累计（无丢失更新）。
+// client 侧噪声事件与 target 侧多个官方 usage response.done 并发注入，断言
+// sumUsage 精确等于全部官方 usage 之和、钱包净扣等于事件实扣累计（无丢失
+// 更新）。噪声事件选 0-token 类型（response.cancel 不在 CountTokenRealtime
+// 计数分支内），保证官方 usage 之外的计数恒为 0、断言确定性。b17d321e 声称
+// 的该用例当时并不存在（文件末尾仅孤儿注释），此处补齐缺陷 14 的 -race
+// 竞态实证。
+func TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless(t *testing.T) {
+	setupRealtimeBillingTestDB(t)
+	c := newRealtimeBillingTestContext()
+	info := newRealtimeBillingTestRelayInfo()
+
+	clientWs, clientPeer := newRealtimeWssPair(t)
+	info.ClientWs = clientWs
+	targetWs, targetPeer := newRealtimeWssPair(t)
+	info.TargetWs = targetWs
+
+	const doneEventCount = 5
+	const noiseEventCount = 300
+	doneEvent := []byte(`{"type":"response.done","response":{"usage":{"total_tokens":100,"input_tokens":60,"output_tokens":40,"input_token_details":{"cached_tokens":10,"text_tokens":40,"audio_tokens":10},"output_token_details":{"text_tokens":30,"audio_tokens":10}}}}`)
+	noiseEvent := []byte(`{"type":"response.cancel"}`)
+
+	// clientPeer 侧 drain reader：消费 handler 转发的 target 事件，防止
+	// TCP 背压。
+	go func() {
+		for {
+			if _, _, err := clientPeer.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+	// targetPeer 侧 drain reader 同时统计已接收的转发噪声：全部噪声转发
+	// 完成前不能关闭 targetPeer——否则 client reader 对 targetConn 的转发
+	// 写会 connection reset，经 errChan 提前触发会话 teardown，官方 usage
+	// 事件来不及全部消费。
+	allNoiseForwarded := make(chan struct{})
+	go func() {
+		received := 0
+		for {
+			_, _, err := targetPeer.ReadMessage()
+			if err != nil {
+				return
+			}
+			received++
+			if received == noiseEventCount {
+				close(allNoiseForwarded)
+			}
+		}
+	}()
+
+	// handler 与双向写者并发运行（结果 channel + 看门狗）。
+	type handlerResult struct {
+		apiErr   *shared.NookMuxError
+		sumUsage *shared.RealtimeUsage
+	}
+	resultCh := make(chan handlerResult, 1)
+	go func() {
+		apiErr, sumUsage := OpenaiRealtimeHandler(c, info)
+		resultCh <- handlerResult{apiErr: apiErr, sumUsage: sumUsage}
+	}()
+
+	var writers sync.WaitGroup
+	writers.Add(2)
+	go func() {
+		defer writers.Done()
+		for i := 0; i < noiseEventCount; i++ {
+			if err := clientPeer.WriteMessage(websocket.TextMessage, noiseEvent); err != nil {
+				return
+			}
+		}
+	}()
+	go func() {
+		defer writers.Done()
+		for i := 0; i < doneEventCount; i++ {
+			if err := targetPeer.WriteMessage(websocket.TextMessage, doneEvent); err != nil {
+				return
+			}
+		}
+	}()
+	writers.Wait()
+
+	// 等全部噪声事件转发完成（client reader 回到空闲读），再关闭
+	// targetPeer：全部 response.done 先于 FIN 写入，target reader 必然先
+	// 消费完 5 个官方事件再观察到连接关闭，结算循环在此之前完成全部计费。
+	select {
+	case <-allNoiseForwarded:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("noise events were not fully forwarded to target peer")
+	}
+	_ = targetPeer.Close()
+
+	var result handlerResult
+	select {
+	case result = <-resultCh:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("OpenaiRealtimeHandler did not finish in time")
+	}
+	if result.apiErr != nil {
+		t.Fatalf("OpenaiRealtimeHandler error: %v", result.apiErr)
+	}
+
+	sumUsage := result.sumUsage
+	if sumUsage.InputTokens != doneEventCount*60 || sumUsage.OutputTokens != doneEventCount*40 {
+		t.Fatalf("sumUsage = %+v, want exactly %d/%d (no lost updates)",
+			sumUsage, doneEventCount*60, doneEventCount*40)
+	}
+	if info.WssEventConsumedQuota != doneEventCount*100 {
+		t.Fatalf("eventConsumedQuota = %d, want %d", info.WssEventConsumedQuota, doneEventCount*100)
+	}
+	if got := realtimeTestUserQuota(t); got != realtimeBillingTestSeedQuota-doneEventCount*100 {
+		t.Fatalf("wallet = %d, want %d", got, realtimeBillingTestSeedQuota-doneEventCount*100)
+	}
+	// 纯官方 usage 会话不混入本地估算：billing_details 正常落列。
+	if httpapi.GetContextKeyBool(c, common.ContextKeyLocalCountTokens) {
+		t.Fatalf("pure official-usage session must not be flagged as local counting")
+	}
+}

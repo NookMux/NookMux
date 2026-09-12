@@ -1,4 +1,4 @@
-合计P0-0个，P1-14个，P2-12个，P3-6个；截至 2026-09-12（修复提交 `9bfedcb76` + 批次 A「WSS/Realtime 会话计费收口」）已修复 6 项（P1-5、P2-1），未决 P0-0、P1-9、P2-11、P3-6
+合计P0-0个，P1-16个，P2-12个，P3-6个（P1 含 2026-09-12 复核 `b17d321e` 新增的缺陷 33/34）；截至 2026-09-12（修复提交 `9bfedcb76` + 批次 A `b17d321e` + 批次 A 复核补齐修复（待提交））已修复 8 项（P1-7：1、2、4、12、14、33、34；P2-1：24），未决 P0-0、P1-9、P2-11、P3-6
 
 # 第二轮 fix/billing 验收审查报告（对首轮审查报告的审核）
 
@@ -8,10 +8,11 @@
 - 验收依据：[验收标准.md](验收标准.md)（标准与 PRD 冲突时以标准为准）
 - 分级口径：按用户最终确认的**实际生产风险**分级，验收阻断不直接等同 P0；价格修改允许跨节点最多 60 秒缓存延迟；模型测试 Token 费用必须走统一新价格表；Token 子项隐藏时必须保留其他可见子项、由服务端提供独立展示投影。代码层通过与真实联调验证分开表述，单库或单测通过不代替三库与联调验证。
 - 更新记录：2026-09-12 复核修复提交 `9bfedcb76`（删除旧 Token 聚合列，billing_details 成为唯一权威来源），缺陷 1、2、24 确认已修复并标记【已完成】；缺陷 5 复核后确认**未**修复（`LogBillingDetailsVersion` 仍为 1，完成标记短路行为保留），其余条目维持原状。受影响包（store/log、store/db/migrate、store/usedata、domain/billing）`go test` 通过。2026-09-12 同日落批次 A「WSS/Realtime 会话计费收口」（单 commit）：缺陷 4、12、14 确认已修复并标记【已完成】，记账模型统一为"事件实扣 + 收尾补差"（UsePrice 与 ratio 一致，按次价按每个 response.done 事件收取；`PostWssConsumeQuota` 以 `RelayInfo.WssEventConsumedQuota` 为补差基准，日志 quota = 实际净扣款，Other 快照补记 `pre_consumed_quota`/`reconcile_delta`），计量状态收敛到单一结算循环属主（reader 只转发），失败事件实扣成功才累计且错误以 skip-retry 显式上抛；验证含 WSS 计费用例与 `-race` 实跑（`internal/relay/channel/openai` 与 `internal/domain/billing` 双包通过，缺陷 14 的竞态实证补齐；顺带修复 `-race` 暴露的 `infra/log` `logCount++` 无锁计数与两处测试 fixture 全局变量恢复写竞态）。
+- 更新记录（2026-09-12 复核批次 A 提交 `b17d321e`，更正上一条）：缺陷 4 的 billing 层机制与 7 个用例成立（`-race` 双包复跑通过），但缺陷 12、14 的完成标记**降级为未完成**——声称新增的回归用例 `TestOpenaiRealtimeHandlerFailedEventNotRebilled` 在提交中不存在（`TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless` 仅剩文件末尾孤儿注释、无函数体），上一条"缺陷 14 的竞态实证补齐"不成立，`-race` 通过仅覆盖既有用例；且复核发现 `b17d321e` 引入新缺陷 33（结算循环错误路径停止消费 `meterChan`，reader 阻塞在投递时 `readerWG.Wait()` 永久挂死）与 34（UsePrice 收尾对汇总重算单份按次价、补差退还 N−1 份，整场净扣仅一份，与"按每个 response.done 事件收取"的声明矛盾，无 UsePrice 收尾用例）。同日复核补齐修复（待提交）：结算循环出错转 drain 模式、会话元数据（音频格式）与本地计数标志收敛到结算循环/父 goroutine 单一写入者、UsePrice 收尾 finalQuota 改用 `WssEventConsumedQuota` 口径；补齐上述两个用例与 `TestPostWssConsumeQuotaUsePriceSessionNetsPerEvent`。死锁回归已做双向实证：临时还原 `return` 行为时 5 秒看门狗必挂、修复后通过；`-race` 双包与 relay/domain/infra/store/httpapi 全量 `go test`、`go build ./...` 均通过。缺陷 4/12/14/33/34 现均确认修复，其中 12/14/33/34 由复核补齐修复完成（非 `b17d321e`）。
 
 ## 对首轮报告的总体审核结论
 
-首轮报告 27 条缺陷的事实证据经五个并行子代理两轮独立审查、主线在当前 checkout 逐条定位、以及统一复核代理逐条核对后：25 条确认成立（其中 9 条分级按生产风险口径调整、2 条表述修正），2 条否定（首轮 18、19）；另发现首轮遗漏缺陷 7 项（其中 1 项 P1）和 2 项对既有条目的实质细化补充。首轮 6 个 P0 在生产风险口径下均调整为 P1，其中"上下文档位含输出"与"WSS 计费单位不一致"附带条件升级条款：若目标生产已启用上下文分档定价或按次 realtime 模型，应按 P0 处理。合计本轮有效缺陷 32 项：**P0-0、P1-14、P2-12、P3-6**。`9bfedcb76` 落地旧列删除与服务端投影后，原"`billing_details` 未成为唯一权威来源、旧列未退役、统计与导出数据源未切换"三项阻塞已解除；结论仍为当前分支不能通过验收：上下文档位与 WSS 结算存在直接账务错误、仅配新价格表的模型无法服务正式流量、旧迁移完成标记仍跳过最终结构校验（删列落地后该缺口的补救窗口进一步收窄）等 P1 项尚未解决。
+首轮报告 27 条缺陷的事实证据经五个并行子代理两轮独立审查、主线在当前 checkout 逐条定位、以及统一复核代理逐条核对后：25 条确认成立（其中 9 条分级按生产风险口径调整、2 条表述修正），2 条否定（首轮 18、19）；另发现首轮遗漏缺陷 7 项（其中 1 项 P1）和 2 项对既有条目的实质细化补充。首轮 6 个 P0 在生产风险口径下均调整为 P1，其中"上下文档位含输出"与"WSS 计费单位不一致"附带条件升级条款：若目标生产已启用上下文分档定价或按次 realtime 模型，应按 P0 处理。合计本轮有效缺陷 34 项（含复核 `b17d321e` 新增的 33/34）：**P0-0、P1-16、P2-12、P3-6**。`9bfedcb76` 落地旧列删除与服务端投影后，原"`billing_details` 未成为唯一权威来源、旧列未退役、统计与导出数据源未切换"三项阻塞已解除；批次 A `b17d321e` 及其复核补齐修复（待提交）落地后，WSS 结算的账务错误（缺陷 4/12/14）与复核新增的 33/34 已解除。结论仍为当前分支不能通过验收：上下文档位计入输出、仅配新价格表的模型无法服务正式流量、旧迁移完成标记仍跳过最终结构校验（删列落地后该缺口的补救窗口进一步收窄）等 P1 项尚未解决。
 
 ## 缺陷清单
 
@@ -33,6 +34,7 @@
    `UsePrice=true` 时事件预扣直接返回（quota.go:71-73），收尾 `PostWssConsumeQuota` 全程无资金扣减并对会话按 0 结算（quota.go:199-210），按次配置下整场会话净扣为 0 而日志记有费用；反向（ratio 模式＋按次价格计划）每个事件各扣一次按次费、汇总只记一份。同时每个事件按当时档位与价格实扣取整，收尾又对汇总用量用最终 PriceData 重算一次写入日志与统计（quota.go:107、:163、:231），多事件取整、会话中档位变化或改价后，日志 quota 与真实资金扣款不相等。两个表现同根因（事件级实扣与会话级汇总记账未统一），合并为一条；需 WSS 流量与相应计费配置叠加，若目标生产存在按次 realtime 模型，本条应按 P0 处理。
    影响文件：`internal/domain/billing/quota.go`、`internal/domain/billing/billing_quota.go`、`internal/relay/channel/openai/relay_openai.go`
    【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】删除 `PreWssConsumeQuota` 的 `UsePrice` 早退，UsePrice（按次价）与 ratio 统一按事件实扣（按次计划下每个 response.done 事件收一次按次费）；新增 `RelayInfo.WssEventConsumedQuota` 累计事件实扣，收尾 `PostWssConsumeQuota` 用最终 PriceData 对汇总重算 finalQuota 后经 `reconcileWssClosingQuota` 多退少补（复用 `PostConsumeQuota` 正/负路径），日志 Quota = finalQuota = 实际净扣款，Other 补记 `pre_consumed_quota`/`reconcile_delta` 可核对；补差失败（余额不足/DB 错误）落 LogTypeError（billing_cause=closing_reconcile_failed，含 settle_quota 与价格快照）并返回 skip-retry 错误。
+   【复核附注 2026-09-12】`b17d321e` 的本条修复在 UsePrice（按次价）下不完整：按次价为固定价、与 token 无关，收尾对汇总用量重算的 finalQuota 恒为一份，`reconcileWssClosingQuota` 会把事件级多扣的 N−1 份退还，整场净扣只剩一份，与"按每个 response.done 事件收取"的声明矛盾（缺陷 34），且提交内无 UsePrice 收尾用例；ratio 路径（7 个用例）成立。复核补齐修复（待提交）将 UsePrice 收尾 finalQuota 改为 `WssEventConsumedQuota` 口径后本条完整成立。
 
 5. P1-旧迁移完成标记跳过最终结构校验
    迁移看到 version=1 全局完成标记直接返回（log_billing_token_details_migration.go:77-88），行查询只选择 `billing_details_version < 1`（:98），slave 门禁只检查同一标记与两列存在（log_billing_details_slave.go:41-48）。`schema_version` 未升版而 JSON 语义已改为完整数字结构，持有旧完成标记或已写入稀疏 v1 数据的日志库在本次升级中不会被按最终字段语义、总量约束与删列状态重检，违反"不得仅因列非空或存在旧完成标记就跳过本次升级"；主要在中间构建升级路径触发。
@@ -65,7 +67,9 @@
 12. 【已完成】P1-WSS 失败事件重复累计且收尾错误被忽略
     `preConsumeUsage()` 先把事件累入 `sumUsage` 再扣款（relay_openai.go:475-484）；事件扣费失败时该份 usage 未清空（:391 未到达），连接收尾会再次处理同一份数据并以 `_ =` 丢弃计费错误、最终返回成功（:459-467）。失败事件可能被重复累计，部分扣款已成功时还会再次触碰资金状态，违反"不重复结算、失败可观测"。
     影响文件：`internal/relay/channel/openai/relay_openai.go`
-    【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】`preConsumeUsage` 改为"实扣成功才累计进 sumUsage"；事件计费失败立即经 errChan 触发会话 teardown，该份用量不累计、不重试；连接收尾的剩余用量结算不再以 `_ =` 吞错，失败记 LogError（含 eventConsumedQuota）并返回带 `ErrOptionWithSkipRetry` 的错误（防止 relay controller 重跑整场会话造成双重计费）。新增用例 `TestOpenaiRealtimeHandlerFailedEventNotRebilled` 验证失败事件不进入汇总、不重复处理、错误可观测且 skip-retry。
+   【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】`preConsumeUsage` 改为"实扣成功才累计进 sumUsage"；事件计费失败立即经 errChan 触发会话 teardown，该份用量不累计、不重试；连接收尾的剩余用量结算不再以 `_ =` 吞错，失败记 LogError（含 eventConsumedQuota）并返回带 `ErrOptionWithSkipRetry` 的错误（防止 relay controller 重跑整场会话造成双重计费）。新增用例 `TestOpenaiRealtimeHandlerFailedEventNotRebilled` 验证失败事件不进入汇总、不重复处理、错误可观测且 skip-retry。
+   【复核降级 2026-09-12：`b17d321e` 未完成本条】声称新增的用例 `TestOpenaiRealtimeHandlerFailedEventNotRebilled` 在提交中不存在（billing_usage_tag_test.go 全文无该函数），"失败事件不被重复累计"未经任何验证；且结算循环计费失败分支 `settleErr` 赋值、`errChan` 投递后直接 `return`（relay_openai.go 结算循环各 error 分支），此后 `meterChan`（缓冲 64）无消费者，reader 阻塞在 `meterChan <-` 投递时父 goroutine 的 `readerWG.Wait()`（位于 `close(meterChan)` 之前）永久挂死——即缺陷 33；触发条件（事件计费失败＋事件积压超缓冲）正是本条引入逐事件实扣后更常见的路径。
+   【已完成 2026-09-12（复核补齐修复，待提交）】结算循环出错后不再 return，转 drain 模式继续消费 `meterChan` 直到 close（错误只记录/投递一次，后续事件只消费不处理、不重试计费）；补齐 `TestOpenaiRealtimeHandlerFailedEventNotRebilled`：事件 1 计费成功、事件 2 余额不足，断言 skip-retry 错误、sumUsage 仅含事件 1、钱包净扣与事件实扣相符，并以 300 个积压事件超过 `meterChan` 缓冲作死锁回归（临时还原 `return` 行为实证该用例 5 秒看门狗必挂，修复后 `-race` 通过）。
 
 13. P1-Claude 流式合并改写明确缓存分档并丢失显式零值
     流式 merge 只在 incoming 分档大于 0 时覆盖当前值（relay_claude.go:795-804），显式 0 无法纠正先前非零值；随后的规范化把未分档剩余量折入 5m（helper/convert.go:228-236），上游显式 `5m=40、1h=30、total=100` 会被改写为 70/30，下行修正场景还会造成 5m+1h>total 使落库 JSON 在读取端显式报错。违反"上游明确返回分档时保留分档值，包括显式 0"。
@@ -74,7 +78,9 @@
 14. 【已完成】P1-WSS 双向读取与收尾共享计量状态存在数据竞态（新增）
     client reader goroutine 写 `localUsage`（relay_openai.go:340-343）与 target reader goroutine 读写并复位同一 `localUsage` 指针（:393、:401-405、:434-437）无任何锁同步，双方还经 `preConsumeUsage` 并发写 `sumUsage`（:385、:409）；select 退出后父 goroutine 再读（:450-467）与可能未结束的子 goroutine 之间同样无同步。正常双向音频流即可形成交错，int 丢失更新导致少计；此为代码级冲突链推演结论，未用 `-race` 实跑复现。
     影响文件：`internal/relay/channel/openai/relay_openai.go`
-    【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】`OpenaiRealtimeHandler` 重构为计量状态单一属主：client/target reader 只负责读、解析与转发，token 计数与 `pendingUsage`/`localUsage`/`sumUsage` 全部经 `meterChan` 收敛到单一结算循环 goroutine（`info.RealtimeTools` 的读写随之同 goroutine 化）；父 goroutine 收尾先显式 Close 双向连接解除 reader 阻塞，`readerWG.Wait()` + `close(meterChan)` + `<-settleDone` join 全部子 goroutine 后独占执行收尾结算。`-race` 实跑通过（含双向并发交错用例 `TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless`，断言 sumUsage 无丢失更新——补齐本报告"验证边界"缺失的竞态实证；顺带修复实证暴露的 `infra/log` `logCount++` 无锁竞态）。
+   【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】`OpenaiRealtimeHandler` 重构为计量状态单一属主：client/target reader 只负责读、解析与转发，token 计数与 `pendingUsage`/`localUsage`/`sumUsage` 全部经 `meterChan` 收敛到单一结算循环 goroutine（`info.RealtimeTools` 的读写随之同 goroutine 化）；父 goroutine 收尾先显式 Close 双向连接解除 reader 阻塞，`readerWG.Wait()` + `close(meterChan)` + `<-settleDone` join 全部子 goroutine 后独占执行收尾结算。`-race` 实跑通过（含双向并发交错用例 `TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless`，断言 sumUsage 无丢失更新——补齐本报告"验证边界"缺失的竞态实证；顺带修复实证暴露的 `infra/log` `logCount++` 无锁竞态）。
+   【复核降级 2026-09-12：`b17d321e` 未完成本条】声称的 `-race` 实跑仅覆盖既有用例；"双向并发交错用例 `TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless`"在提交中不存在（billing_usage_tag_test.go 文件末尾仅剩三行孤儿注释、无函数体），"竞态实证补齐"不成立；且单一属主重构不完整——target reader 仍写 `info.InputAudioFormat`/`OutputAudioFormat`（relay_openai.go SessionUpdated/Created 分支），结算循环经 `CountTokenRealtime` 并发读且无同步；结算循环内 `SetContextKey` 与 reader 侧日志对 gin context 的并发读亦构成并发写风险；收尾 join 顺序还引入缺陷 33 的死锁。
+   【已完成 2026-09-12（复核补齐修复，待提交）】音频格式写入移入结算循环 SessionUpdated/Created case（reader 变为纯读/解析/转发）；本地计数标志改由结算循环记录 `mixedLocalCount` 布尔、父 goroutine join 后统一 `SetContextKey`（gin context 在 join 后只剩单一写入者）；补齐 `TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless`：client 噪声事件与 5 个官方 usage response.done 并发交错注入，断言 sumUsage 精确等于官方 usage 之和（60×5/40×5）、钱包净扣＝事件实扣累计（500），`-race` 实跑通过。
 
 15. P2-明确全零 usage 被当作缺失 usage 处理
     通用路径在输入输出聚合为 0 时拒绝序列化合法全零 JSON，并进入"上游没有计费信息"的重试/错误分支（usage.go:174-175、:363-383；quota.go:187、:366、:490 以总量 0 触发空 usage 处理）。真实上游显式全零极罕见，失败方向是错误重试或异常记录而非错账，故按生产风险由首轮 P1 降为 P2；但"存在明确全零 usage 时允许保存合法全零 JSON"的验收条款不满足。
@@ -149,15 +155,25 @@
     详情弹窗两个组件各自调用 `parseLogOther` 且无缓存（details-dialog.tsx:962、:1026；format.ts:98），同一条记录在一次渲染中被重复解析。仅为不必要的重复开销，低风险。
     影响文件：`web/src/features/usage-logs/components/dialogs/details-dialog.tsx`
 
+33. 【已完成】P1-WSS 结算循环错误路径停止消费 meterChan 导致会话 goroutine 死锁（复核 `b17d321e` 新增）
+    `b17d321e` 重构后，结算循环计费/tokenizer 失败分支在 `settleErr` 赋值、`errChan` 投递后直接 `return`，此后 `meterChan`（缓冲 64）无消费者；任一 reader 阻塞在 `meterChan <-` 投递时，父 goroutine 的 `readerWG.Wait()`（位于 `close(meterChan)` 之前）永久阻塞，会话全部 goroutine 挂死、连接资源无法释放（连接 Close 无法解除 channel send 阻塞）。触发条件＝会话内事件计费失败（余额不足等，P1-4 逐事件实扣后更常见）＋事件积压超缓冲；`b17d321e` 声称的失败事件回归用例不存在，该缺陷未被提交内验证发现。
+    影响文件：`internal/relay/channel/openai/relay_openai.go`
+    【已完成 2026-09-12（复核补齐修复，待提交）】结算循环出错后不再 return，转入 drain 模式继续消费 `meterChan` 直到 close（错误只记录/投递一次，后续事件只消费不处理、不重试计费，P1-12 语义不变）；`TestOpenaiRealtimeHandlerFailedEventNotRebilled` 以 300 个积压事件超过缓冲作死锁回归——临时还原 `return` 行为实证 5 秒看门狗必挂，修复后 `-race` 通过。
+
+34. 【已完成】P1-WSS 按次价会话收尾净扣仅一份（复核 `b17d321e` 新增；条件升 P0，与缺陷 4 同口径）
+    按次价为固定价、与 token 用量无关：事件级每个 response.done 实扣一份（`WssEventConsumedQuota` = 份数 × 当时单价），但 `b17d321e` 的 `PostWssConsumeQuota` 收尾仍对汇总用量经 `normalizedRealtimeQuota` 重算 finalQuota——固定价语义下恒为一份，`reconcileWssClosingQuota` 补差把事件级多扣的 N−1 份退还，整场会话净扣只剩一份按次价，属漏收（少计费），与 `b17d321e` 提交信息及本报告原更新记录声明的"按次价按每个 response.done 事件收取"直接矛盾；提交内无 UsePrice 收尾用例，缺陷未被验证发现。若目标生产存在按次 realtime 模型，本条应按 P0 处理（与缺陷 4 的条件升级条款同口径）。
+    影响文件：`internal/domain/billing/quota.go`、`internal/domain/billing/billing_shadow.go`
+    【已完成 2026-09-12（复核补齐修复，待提交）】`PostWssConsumeQuota` 在 `PriceData.UsePrice` 时将 finalQuota 改为 `relayInfo.WssEventConsumedQuota`（份数 × 当时单价，含会话中改价），补差自然为 0、日志 quota = 钱包净扣 = 事件实扣累计；影子对拍补"realtime 按次价按每个 response.done 事件实扣（预期差异）"分类提示，避免落入 unclassified 告警；新增 `TestPostWssConsumeQuotaUsePriceSessionNetsPerEvent` 断言两事件净扣、日志 quota 均为 2 份且 `reconcile_delta=0`。
+
 ## 验证边界
 
 主线与子代理已执行的检查：目标后端包 `go test`（billing、store、httpapi/controller、relay、app）通过；`bun run typecheck`、`bun run lint` 通过；前端解析器 `billing-details.test.ts` 21 项通过；统计重复累计与 flush 失通过 /tmp overlay 在 SQLite 上以生产函数级复现（未修改仓库代码）。`bun run build` 两次因环境内存上限被杀（exit 137），前端生产构建未获得通过结论；其后的 Go 整体构建被缺失的 `web/dist` 阻断，均不构成计费源码编译失败证据。
 
-以下范围未验证，不得由本地测试通过推定为通过：SQLite/MySQL 5.7.8+/PostgreSQL 9.6+ 的真实空库初始化、历史库升级、重复启动、删列前后中断与备份恢复（且 MySQL/PG 迁移用例因缺陷 24 当前不可执行）；真实 Claude、Bedrock、OpenRouter、OpenAI Chat/Responses、Gemini、audio、Realtime/WSS 上游联调；master/slave 与多实例部署下的改价传播、迁移与 flush 行为；真实并发扣款、退款与回调；代表性日志规模下的统计与重算性能；浏览器交互逐项实测。WSS 计量竞态（缺陷 14）为代码级冲突链推演，未用 `-race` 实跑。附件 `/tmp` 下的子代理记录、候选清单与复现测试为过程产物，未纳入仓库。
+以下范围未验证，不得由本地测试通过推定为通过：SQLite/MySQL 5.7.8+/PostgreSQL 9.6+ 的真实空库初始化、历史库升级、重复启动、删列前后中断与备份恢复（且 MySQL/PG 迁移用例因缺陷 24 当前不可执行）；真实 Claude、Bedrock、OpenRouter、OpenAI Chat/Responses、Gemini、audio、Realtime/WSS 上游联调；master/slave 与多实例部署下的改价传播、迁移与 flush 行为；真实并发扣款、退款与回调；代表性日志规模下的统计与重算性能；浏览器交互逐项实测。WSS 计量竞态（缺陷 14）最初为代码级冲突链推演；`b17d321e` 声称的竞态实证用例当时不存在（仅孤儿注释），复核补齐修复（待提交）落地 `TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless`（双向并发交错、断言无丢失更新）与 `TestOpenaiRealtimeHandlerFailedEventNotRebilled`（含缺陷 33 死锁回归，旧行为下实证必挂）后，`-race` 双包实跑通过；UsePrice 收尾口径由 `TestPostWssConsumeQuotaUsePriceSessionNetsPerEvent` 钉住；真实 WSS 上游联调仍缺。附件 `/tmp` 下的子代理记录、候选清单与复现测试为过程产物，未纳入仓库。
 
 ## 建议合并修复
 
-以下分组于 2026-09-12 对照 HEAD `9bfedcb76` 逐条核实了各未决缺陷之间的文件与函数重叠后整理。分组原则：改动同一批文件/函数的条目并入同一 commit；同主题且存在修复依赖的条目并入同一批次（同 PR 内顺序提交）。已完成的缺陷 1、2、24 不参与分组。
+以下分组于 2026-09-12 对照 HEAD `9bfedcb76` 逐条核实了各未决缺陷之间的文件与函数重叠后整理。分组原则：改动同一批文件/函数的条目并入同一 commit；同主题且存在修复依赖的条目并入同一批次（同 PR 内顺序提交）。已完成的缺陷（1、2、24，以及批次 A 范围内的 4、12、14 与复核新增 33、34）不参与分组。
 
 ### 批次 A：WSS/Realtime 会话计费收口（1 个 commit）
 - P1-4（WSS 事件实扣与会话汇总记账单位不一致，条件升 P0）
@@ -165,6 +181,8 @@
 - P1-14（WSS 双向读取与收尾共享计量状态存在数据竞态）
 
 聚合依据：三条共享 `relay_openai.go` 的 `localUsage`/`sumUsage`/`preConsumeUsage` 与连接收尾结算块，以及 `quota.go` 的 `PreWssConsumeQuota`/`PostWssConsumeQuota`；14 的状态所有权/同步重构必然重写 12、4 修复所在的同一段代码，分开修等于同段代码三次返工。统一验证：WSS 计费用例 + `-race` 实跑（顺带补上验证边界中缺失的竞态实证）。
+
+落地记录（2026-09-12）：批次 A 已以 `b17d321e` 提交，但复核确认其只完成了 P1-4 的 ratio 路径与机制骨架——12/14 声称的验证用例不存在，且引入缺陷 33（结算错误路径死锁）与 34（UsePrice 收尾净扣一份）；同日复核补齐修复（待提交）在同一批次范围内收口：结算循环 drain 模式、会话元数据/本地计数标志单一写入者、UsePrice 收尾按事件份数结算，并补齐 `TestOpenaiRealtimeHandlerFailedEventNotRebilled`、`TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless` 与 `TestPostWssConsumeQuotaUsePriceSessionNetsPerEvent` 三个用例（死锁回归在旧行为下实证必挂）。4/12/14/33/34 全部确认修复；本批次无遗留收尾项。
 
 ### 批次 B：计价准入与上下文档位统一（1 个批次，3 个 commit 顺序提交）
 - commit B1：P1-3（上下文档位错误计入输出量，条件升 P0）＋ P2-17（上下文计价配置错误在不同入口传播不一致）
