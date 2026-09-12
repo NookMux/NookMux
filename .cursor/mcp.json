@@ -1,9 +1,19 @@
 {
   "mcpServers": {
-      "serena": {
-        "type": "http",
-        "url": "http://127.0.0.1:9121/mcp",
-        "timeoutMs": 12000
-      }
+    "serena": {
+      "type": "http",
+      "url": "http://127.0.0.1:9121/mcp",
+      "timeoutMs": 12000
+    },
+    "codegraph": {
+      "type": "stdio",
+      "command": "/home/app/.local/bin/codegraph",
+      "args": [
+        "serve",
+        "--mcp",
+        "--path",
+        "${workspaceFolder}"
+      ]
+    }
   }
 }

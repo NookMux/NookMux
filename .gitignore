@@ -37,3 +37,4 @@ nul
 /core.*
 /core
 .codex/config.toml
+.codegraph/
