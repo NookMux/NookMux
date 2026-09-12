@@ -1,4 +1,4 @@
-合计P0-0个，P1-14个，P2-12个，P3-6个
+合计P0-0个，P1-14个，P2-12个，P3-6个；截至 2026-09-12（修复提交 `9bfedcb76` + 批次 A「WSS/Realtime 会话计费收口」）已修复 6 项（P1-5、P2-1），未决 P0-0、P1-9、P2-11、P3-6
 
 # 第二轮 fix/billing 验收审查报告（对首轮审查报告的审核）
 
@@ -7,28 +7,32 @@
 - 审查分支与 HEAD：`fix/billing` @ `fe3ed4145`（与首轮 HEAD 之间仅环境与文档规则提交，无业务代码变化）
 - 验收依据：[验收标准.md](验收标准.md)（标准与 PRD 冲突时以标准为准）
 - 分级口径：按用户最终确认的**实际生产风险**分级，验收阻断不直接等同 P0；价格修改允许跨节点最多 60 秒缓存延迟；模型测试 Token 费用必须走统一新价格表；Token 子项隐藏时必须保留其他可见子项、由服务端提供独立展示投影。代码层通过与真实联调验证分开表述，单库或单测通过不代替三库与联调验证。
+- 更新记录：2026-09-12 复核修复提交 `9bfedcb76`（删除旧 Token 聚合列，billing_details 成为唯一权威来源），缺陷 1、2、24 确认已修复并标记【已完成】；缺陷 5 复核后确认**未**修复（`LogBillingDetailsVersion` 仍为 1，完成标记短路行为保留），其余条目维持原状。受影响包（store/log、store/db/migrate、store/usedata、domain/billing）`go test` 通过。2026-09-12 同日落批次 A「WSS/Realtime 会话计费收口」（单 commit）：缺陷 4、12、14 确认已修复并标记【已完成】，记账模型统一为"事件实扣 + 收尾补差"（UsePrice 与 ratio 一致，按次价按每个 response.done 事件收取；`PostWssConsumeQuota` 以 `RelayInfo.WssEventConsumedQuota` 为补差基准，日志 quota = 实际净扣款，Other 快照补记 `pre_consumed_quota`/`reconcile_delta`），计量状态收敛到单一结算循环属主（reader 只转发），失败事件实扣成功才累计且错误以 skip-retry 显式上抛；验证含 WSS 计费用例与 `-race` 实跑（`internal/relay/channel/openai` 与 `internal/domain/billing` 双包通过，缺陷 14 的竞态实证补齐；顺带修复 `-race` 暴露的 `infra/log` `logCount++` 无锁计数与两处测试 fixture 全局变量恢复写竞态）。
 
 ## 对首轮报告的总体审核结论
 
-首轮报告 27 条缺陷的事实证据经五个并行子代理两轮独立审查、主线在当前 checkout 逐条定位、以及统一复核代理逐条核对后：25 条确认成立（其中 9 条分级按生产风险口径调整、2 条表述修正），2 条否定（首轮 18、19）；另发现首轮遗漏缺陷 7 项（其中 1 项 P1）和 2 项对既有条目的实质细化补充。首轮 6 个 P0 在生产风险口径下均调整为 P1，其中"上下文档位含输出"与"WSS 计费单位不一致"附带条件升级条款：若目标生产已启用上下文分档定价或按次 realtime 模型，应按 P0 处理。合计本轮有效缺陷 32 项：**P0-0、P1-14、P2-12、P3-6**。结论不变：当前分支仍不能通过验收——`billing_details` 未成为唯一权威来源、旧列未退役、统计与导出数据源未切换、上下文档位与 WSS 结算存在直接账务错误、仅配新价格表的模型无法服务正式流量。
+首轮报告 27 条缺陷的事实证据经五个并行子代理两轮独立审查、主线在当前 checkout 逐条定位、以及统一复核代理逐条核对后：25 条确认成立（其中 9 条分级按生产风险口径调整、2 条表述修正），2 条否定（首轮 18、19）；另发现首轮遗漏缺陷 7 项（其中 1 项 P1）和 2 项对既有条目的实质细化补充。首轮 6 个 P0 在生产风险口径下均调整为 P1，其中"上下文档位含输出"与"WSS 计费单位不一致"附带条件升级条款：若目标生产已启用上下文分档定价或按次 realtime 模型，应按 P0 处理。合计本轮有效缺陷 32 项：**P0-0、P1-14、P2-12、P3-6**。`9bfedcb76` 落地旧列删除与服务端投影后，原"`billing_details` 未成为唯一权威来源、旧列未退役、统计与导出数据源未切换"三项阻塞已解除；结论仍为当前分支不能通过验收：上下文档位与 WSS 结算存在直接账务错误、仅配新价格表的模型无法服务正式流量、旧迁移完成标记仍跳过最终结构校验（删列落地后该缺口的补救窗口进一步收窄）等 P1 项尚未解决。
 
 ## 缺陷清单
 
-1. P1-旧 Token 总量列未退役，billing_details 未成为唯一权威存储
+1. 【已完成】P1-旧 Token 总量列未退役，billing_details 未成为唯一权威存储
    `logs` 模型仍声明并写入 `prompt_tokens`/`completion_tokens`（internal/store/log/log.go:31-32、:329-330），迁移完成分支只写 version 完成标记（log_billing_token_details_migration.go:106），全仓库不存在对两个旧列的 DropColumn，`billing_details_json.go` 头部注释仍声明核心总量由旧兼容列承载。阶段 0"完成迁移后删除旧列、不保留旧 Token 存储和业务回退读取"未完成，`billing_details` 尚未成为持久化 Token 用量的唯一权威来源；存量生产路径当前仍可运行，但分支的核心验收目标未达成。
    影响文件：`internal/store/log/log.go`、`internal/store/db/migrate/log_billing_token_details_migration.go`、`internal/domain/billing/billing_details_json.go`
+   【已完成 2026-09-12（`9bfedcb76`）】Log 模型移除旧列字段（改为 `gorm:"-"` 的 wire 投影字段）；新增 `dropLegacyLogTokenAggregateColumns` 在 backfill 成功后删除两旧列（原生 DROP COLUMN 优先＋Migrator 兜底＋删后复核，幂等、失败阻断启动，回滚约束要求恢复迁移前备份）；`billing_details_json.go` 注释改为声明 billing_details 为唯一权威来源，唯一汇总公式收敛至 `billing/contract` 契约叶子包。
 
-2. P1-阶段 5 统计、汇总、导出仍读取旧 Token 列且服务端投影缺失
+2. 【已完成】P1-阶段 5 统计、汇总、导出仍读取旧 Token 列且服务端投影缺失
    实时 TPM SQL（log.go:675、:746）、`SumUsedToken`（:765-766）、quota_data 生成（:359）与重算（usedata.go:287、:329）、key-query CSV 导出（key-query-logs-table.tsx:184-185）全部读取旧聚合列或旧字段；日志 API 只透传 `billing_details` 原始字符串，未按环节四.1 由服务端投影必要 Token 总量，损坏 JSON 只能依赖前端识别。写入端同样未切换：定制音色试听把同一字符数同时写入输入、输出两个旧 Token 列（custom_voice.go:450-451），从源头污染 TPM 与汇总（Token 榜单读取的 `quota_data.token_used` 是其下游，不另计条）。最终删列后上述查询将直接失败。
    影响文件：`internal/store/log/log.go`、`internal/store/usedata/usedata.go`、`internal/infra/custom_voice/custom_voice.go`、`internal/httpapi/controller/log/log.go`、`internal/store/usedata/usedata_rankings.go`、`web/src/features/key-query/key-query-logs-table.tsx`
+   【已完成 2026-09-12（`9bfedcb76`）】实时 TPM 拆为 RPM SQL＋应用层按唯一汇总公式从 `billing_details` 求和，删除零调用死代码 `SumUsedToken`；quota_data 生成改用与 billing_details 同源的归一化内存聚合，重算（含失败日志）改为读取 `billing_details`，损坏 JSON 带 log id 显式报错；定制音色试听不再写入伪 token 聚合；新增 `projectBillingTokenAggregates` 覆盖四个日志查询端点（含 key-query 使用的 `/api/log/token`）做服务端投影，key-query CSV 导出随投影自动切换，前端零改动。
 
 3. P1-上下文档位错误计入输出量（条件升 P0）
    `ContextTokensForTier()` 使用 `TotalProcessedTokens()`＝输入侧总量＋输出总量（pricing.go:16-25、billing_usage.go:99-100），该值同时进入旧上下文配置匹配与新价格表计划查询（billing_quota.go:133），输出变长会把相同输入推入更高档位并改变计价，直接违反"上下文档位只按普通输入＋缓存创建＋缓存读取匹配，不含输出"；预扣侧只用输入（price.go:61）与结算侧不一致，影子对拍还将该差异标记为"预期"（billing_shadow.go:277），属掩盖问题。资金方向错误确定，但仅在启用上下文分档定价的模型上发生：若目标生产已启用分档定价，本条应按 P0 处理。
    影响文件：`internal/domain/billing/pricing.go`、`internal/domain/billing/billing_usage.go`、`internal/domain/billing/billing_quota.go`、`internal/relay/helper/price.go`、`internal/domain/billing/billing_shadow.go`
 
-4. P1-WSS 事件实扣与会话汇总记账单位不一致（首轮 4＋14 合并，条件升 P0）
+4. 【已完成】P1-WSS 事件实扣与会话汇总记账单位不一致（首轮 4＋14 合并，条件升 P0）
    `UsePrice=true` 时事件预扣直接返回（quota.go:71-73），收尾 `PostWssConsumeQuota` 全程无资金扣减并对会话按 0 结算（quota.go:199-210），按次配置下整场会话净扣为 0 而日志记有费用；反向（ratio 模式＋按次价格计划）每个事件各扣一次按次费、汇总只记一份。同时每个事件按当时档位与价格实扣取整，收尾又对汇总用量用最终 PriceData 重算一次写入日志与统计（quota.go:107、:163、:231），多事件取整、会话中档位变化或改价后，日志 quota 与真实资金扣款不相等。两个表现同根因（事件级实扣与会话级汇总记账未统一），合并为一条；需 WSS 流量与相应计费配置叠加，若目标生产存在按次 realtime 模型，本条应按 P0 处理。
    影响文件：`internal/domain/billing/quota.go`、`internal/domain/billing/billing_quota.go`、`internal/relay/channel/openai/relay_openai.go`
+   【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】删除 `PreWssConsumeQuota` 的 `UsePrice` 早退，UsePrice（按次价）与 ratio 统一按事件实扣（按次计划下每个 response.done 事件收一次按次费）；新增 `RelayInfo.WssEventConsumedQuota` 累计事件实扣，收尾 `PostWssConsumeQuota` 用最终 PriceData 对汇总重算 finalQuota 后经 `reconcileWssClosingQuota` 多退少补（复用 `PostConsumeQuota` 正/负路径），日志 Quota = finalQuota = 实际净扣款，Other 补记 `pre_consumed_quota`/`reconcile_delta` 可核对；补差失败（余额不足/DB 错误）落 LogTypeError（billing_cause=closing_reconcile_failed，含 settle_quota 与价格快照）并返回 skip-retry 错误。
 
 5. P1-旧迁移完成标记跳过最终结构校验
    迁移看到 version=1 全局完成标记直接返回（log_billing_token_details_migration.go:77-88），行查询只选择 `billing_details_version < 1`（:98），slave 门禁只检查同一标记与两列存在（log_billing_details_slave.go:41-48）。`schema_version` 未升版而 JSON 语义已改为完整数字结构，持有旧完成标记或已写入稀疏 v1 数据的日志库在本次升级中不会被按最终字段语义、总量约束与删列状态重检，违反"不得仅因列非空或存在旧完成标记就跳过本次升级"；主要在中间构建升级路径触发。
@@ -58,17 +62,19 @@
     `SettleBilling()` 返回错误后调用方仅记日志并继续写成功消费日志（usage.go:423）；`BillingSession.Settle()` 先结算资金再调整 Token，Token 失败仍置 `settled=true`（service.go:118-126）导致无法补齐；退款先置终态再异步执行、失败仅 SysLog（service.go:135 附近）；预扣回滚失败后清零待补偿状态（service.go:203-209）。资金扣款、用户钱包与 Token 窗口/周期额度之间没有可靠的原子处理或持久补偿，违反阶段 4 对失败重试与并发一致性的要求。
     影响文件：`internal/domain/billing/service.go`、`internal/domain/billing/usage.go`、`internal/domain/billing/quota.go`
 
-12. P1-WSS 失败事件重复累计且收尾错误被忽略
+12. 【已完成】P1-WSS 失败事件重复累计且收尾错误被忽略
     `preConsumeUsage()` 先把事件累入 `sumUsage` 再扣款（relay_openai.go:475-484）；事件扣费失败时该份 usage 未清空（:391 未到达），连接收尾会再次处理同一份数据并以 `_ =` 丢弃计费错误、最终返回成功（:459-467）。失败事件可能被重复累计，部分扣款已成功时还会再次触碰资金状态，违反"不重复结算、失败可观测"。
     影响文件：`internal/relay/channel/openai/relay_openai.go`
+    【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】`preConsumeUsage` 改为"实扣成功才累计进 sumUsage"；事件计费失败立即经 errChan 触发会话 teardown，该份用量不累计、不重试；连接收尾的剩余用量结算不再以 `_ =` 吞错，失败记 LogError（含 eventConsumedQuota）并返回带 `ErrOptionWithSkipRetry` 的错误（防止 relay controller 重跑整场会话造成双重计费）。新增用例 `TestOpenaiRealtimeHandlerFailedEventNotRebilled` 验证失败事件不进入汇总、不重复处理、错误可观测且 skip-retry。
 
 13. P1-Claude 流式合并改写明确缓存分档并丢失显式零值
     流式 merge 只在 incoming 分档大于 0 时覆盖当前值（relay_claude.go:795-804），显式 0 无法纠正先前非零值；随后的规范化把未分档剩余量折入 5m（helper/convert.go:228-236），上游显式 `5m=40、1h=30、total=100` 会被改写为 70/30，下行修正场景还会造成 5m+1h>total 使落库 JSON 在读取端显式报错。违反"上游明确返回分档时保留分档值，包括显式 0"。
     影响文件：`internal/relay/channel/claude/relay_claude.go`、`internal/relay/helper/convert.go`
 
-14. P1-WSS 双向读取与收尾共享计量状态存在数据竞态（新增）
+14. 【已完成】P1-WSS 双向读取与收尾共享计量状态存在数据竞态（新增）
     client reader goroutine 写 `localUsage`（relay_openai.go:340-343）与 target reader goroutine 读写并复位同一 `localUsage` 指针（:393、:401-405、:434-437）无任何锁同步，双方还经 `preConsumeUsage` 并发写 `sumUsage`（:385、:409）；select 退出后父 goroutine 再读（:450-467）与可能未结束的子 goroutine 之间同样无同步。正常双向音频流即可形成交错，int 丢失更新导致少计；此为代码级冲突链推演结论，未用 `-race` 实跑复现。
     影响文件：`internal/relay/channel/openai/relay_openai.go`
+    【已完成 2026-09-12（批次 A：WSS/Realtime 会话计费收口）】`OpenaiRealtimeHandler` 重构为计量状态单一属主：client/target reader 只负责读、解析与转发，token 计数与 `pendingUsage`/`localUsage`/`sumUsage` 全部经 `meterChan` 收敛到单一结算循环 goroutine（`info.RealtimeTools` 的读写随之同 goroutine 化）；父 goroutine 收尾先显式 Close 双向连接解除 reader 阻塞，`readerWG.Wait()` + `close(meterChan)` + `<-settleDone` join 全部子 goroutine 后独占执行收尾结算。`-race` 实跑通过（含双向并发交错用例 `TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless`，断言 sumUsage 无丢失更新——补齐本报告"验证边界"缺失的竞态实证；顺带修复实证暴露的 `infra/log` `logCount++` 无锁竞态）。
 
 15. P2-明确全零 usage 被当作缺失 usage 处理
     通用路径在输入输出聚合为 0 时拒绝序列化合法全零 JSON，并进入"上游没有计费信息"的重试/错误分支（usage.go:174-175、:363-383；quota.go:187、:366、:490 以总量 0 触发空 usage 处理）。真实上游显式全零极罕见，失败方向是错误重试或异常记录而非错账，故按生产风险由首轮 P1 降为 P2；但"存在明确全零 usage 时允许保存合法全零 JSON"的验收条款不满足。
@@ -106,9 +112,10 @@
     重算把范围内全部成功与失败日志一次性 `Find` 进内存、无 LIMIT（usedata.go:285-308），控制器只校验起止非零与先后、未限制最大天数（controller/usedata.go:134-139）。大规模日志库下有高内存与长事务风险，违反环节四.12"统计不得无界加载全部日志"。
     影响文件：`internal/store/usedata/usedata.go`、`internal/httpapi/controller/usedata/usedata.go`
 
-24. P2-MySQL/PostgreSQL 迁移验收测试夹具失效（新增，测试缺陷）
+24. 【已完成】P2-MySQL/PostgreSQL 迁移验收测试夹具失效（新增，测试缺陷）
     DSN 门控迁移测试仍期望稀疏 JSON 结构（log_billing_details_dsn_migrate_test.go:262），与现行完整数字结构输出矛盾；用例被 `TEST_BILLING_DETAILS_DB_DSN` 门控默认跳过，失败被掩盖，三库迁移验收实际不可执行。空库先写完成标记再 seed/删列/回填的夹具顺序还可能跳过回填路径。
     影响文件：`internal/store/db/migrate/log_billing_details_dsn_migrate_test.go`
+    【已完成 2026-09-12（`9bfedcb76`）】迁移断言 `wantDetails` 改为期望完整数字结构；夹具先补旧聚合列并以 map 插入真实历史行，seed/删列前显式作废完成标记（`invalidateBillingMigrationMarker`），回填路径不再被跳过。
 
 25. P2-前端输入输出主值仅取文本拆分，详情存在旧聚合回退（首轮 2 细化）
     主表合计投影只映射 `text_input`/`text_output`（billing-details.ts:243-244、common-logs-columns.tsx:719），音频、图像、视频、文档子项不进主值，多模态记录被低估；详情"总请求输入"在有缓存时回退旧 `log.prompt_tokens`（details-dialog.tsx:878），与新明细口径不一致。统一解析器本身已具备全部子项，问题集中在投影消费端。
@@ -147,3 +154,66 @@
 主线与子代理已执行的检查：目标后端包 `go test`（billing、store、httpapi/controller、relay、app）通过；`bun run typecheck`、`bun run lint` 通过；前端解析器 `billing-details.test.ts` 21 项通过；统计重复累计与 flush 失通过 /tmp overlay 在 SQLite 上以生产函数级复现（未修改仓库代码）。`bun run build` 两次因环境内存上限被杀（exit 137），前端生产构建未获得通过结论；其后的 Go 整体构建被缺失的 `web/dist` 阻断，均不构成计费源码编译失败证据。
 
 以下范围未验证，不得由本地测试通过推定为通过：SQLite/MySQL 5.7.8+/PostgreSQL 9.6+ 的真实空库初始化、历史库升级、重复启动、删列前后中断与备份恢复（且 MySQL/PG 迁移用例因缺陷 24 当前不可执行）；真实 Claude、Bedrock、OpenRouter、OpenAI Chat/Responses、Gemini、audio、Realtime/WSS 上游联调；master/slave 与多实例部署下的改价传播、迁移与 flush 行为；真实并发扣款、退款与回调；代表性日志规模下的统计与重算性能；浏览器交互逐项实测。WSS 计量竞态（缺陷 14）为代码级冲突链推演，未用 `-race` 实跑。附件 `/tmp` 下的子代理记录、候选清单与复现测试为过程产物，未纳入仓库。
+
+## 建议合并修复
+
+以下分组于 2026-09-12 对照 HEAD `9bfedcb76` 逐条核实了各未决缺陷之间的文件与函数重叠后整理。分组原则：改动同一批文件/函数的条目并入同一 commit；同主题且存在修复依赖的条目并入同一批次（同 PR 内顺序提交）。已完成的缺陷 1、2、24 不参与分组。
+
+### 批次 A：WSS/Realtime 会话计费收口（1 个 commit）
+- P1-4（WSS 事件实扣与会话汇总记账单位不一致，条件升 P0）
+- P1-12（WSS 失败事件重复累计且收尾错误被忽略）
+- P1-14（WSS 双向读取与收尾共享计量状态存在数据竞态）
+
+聚合依据：三条共享 `relay_openai.go` 的 `localUsage`/`sumUsage`/`preConsumeUsage` 与连接收尾结算块，以及 `quota.go` 的 `PreWssConsumeQuota`/`PostWssConsumeQuota`；14 的状态所有权/同步重构必然重写 12、4 修复所在的同一段代码，分开修等于同段代码三次返工。统一验证：WSS 计费用例 + `-race` 实跑（顺带补上验证边界中缺失的竞态实证）。
+
+### 批次 B：计价准入与上下文档位统一（1 个批次，3 个 commit 顺序提交）
+- commit B1：P1-3（上下文档位错误计入输出量，条件升 P0）＋ P2-17（上下文计价配置错误在不同入口传播不一致）
+- commit B2：P1-6（仅配置新价格表的模型无法进入正式请求）
+- commit B3：P2-18（模型测试费用与 Token 明细使用两套算法，验收必须修复项）
+
+聚合依据：3 的 `ContextTokensForTier` 修复需同步调整 `billing_usage.go`、`billing_quota.go` 档位查询与预扣侧 `price.go` 的档位口径，并撤销 `billing_shadow.go` 中"分段档位 tokens 现含输出维度（PRD 阶段 2）"这条把口径差异标注为预期的掩盖——该条与 17 的错误传播点（`usage.go` 与 `quota.go` 的 `ApplyContextPricingForBillingUsage` 调用点）是同一批调用处；6 与 18 前后依赖（`ModelPriceHelper` 不放行仅配新价格表的模型时，18 的统一结算入口无从验证），且 B1/B2/B3 均修改 `price.go` 与 `billing_quota.go`。注意 `quota.go` 与批次 A 重叠，A 先落。
+
+### 批次 C：迁移最终结构校验与矛盾数据拒绝（1 个 commit）
+- P1-5（旧迁移完成标记跳过最终结构校验）
+- P1-9（历史迁移接受明细小于旧总量的矛盾数据）
+
+聚合依据：同在 `log_billing_token_details_migration.go`（5 的完成标记短路位于 `backfillLogBillingTokenDetails` 入口，9 的 `deriveRemainingTokenDetails` 在同一校验链），slave 门禁 `log_billing_details_slave.go` 随 5 的升版一并调整；`9bfedcb76` 删列落地后补救窗口进一步收窄，本批次宜最先合入。
+
+### 批次 D：消费日志写入边界与 quota_data 统计链路（1 个批次，2 个 commit）
+- commit D1：P2-16（日志写入边界不校验 billing_details JSON）＋ P2-19（消费日志写入失败后汇总仍继续增加）＋ P3-29（管理员模型筛选与统计 LIKE 语义不一致）
+- commit D2：P2-20（重算与待刷新缓存重复累计）＋ P2-21（quota_data 同桶重复行放大）＋ P2-22（flush 写失败仍清空缓存并报告成功）＋ P2-23（重算无界加载且入口无时间范围上限）＋ P3-30（QuotaStat.Tpm 命名承载区间总量）
+
+聚合依据：16 与 19 同在 `store/log/log.go` 的 `RecordConsumeLog` 及其失败分支（29 也在该文件的查询侧），一个 commit 避免三次触碰同一函数；20-23 与 30 全部集中在 `usedata.go` 的 `SaveQuotaDataCache`/`increaseQuotaData`/`RecalculateQuotaData` 同批函数，23 的入口上限可直接复用 `controller/usedata.go` 既有 `isUserQuotaRangeTooLong` 的模式。验证统一回归报告中的 SQLite 函数级复现场景 + store 测试。
+
+### 批次 E：billing_details 规范公式与 presence 语义（1-2 个 commit）
+- P1-8（显式文本拆分绕过规范公式，落库明细与总量可能不一致）
+- P2-15（明确全零 usage 被当作缺失 usage 处理）
+- P3-31 后端部分（schema_version 缺失与未知版本诊断混淆）
+
+聚合依据：8 与 15 都修改 `billing_usage.go` 的归一化与序列化门控（`usage.go` 的 `promptTokens == 0 && completionTokens == 0` 跳过序列化门控、`quota.go` 的全零分支），31 在 `billing_details_json.go` 同一解析路径顺路修正；因 `usage.go`/`quota.go` 与批次 A/B 重叠，落点排在 A、B 之后；31 的前端分类修正随批次 H 提交。
+
+### 批次 F：上游 usage 明细保真（1 个批次，2 个 commit）
+- commit F1：P1-7（Gemini 缓存模态未建模并固定从文本扣除）
+- commit F2：P1-13（Claude 流式合并改写明确缓存分档并丢失显式零值）
+
+聚合依据：同主题（上游明确明细与显式零值优先于启发式折算），验证路径相同（协议转换 roundtrip + billing 归一化用例）；7 与批次 E 在 `billing_usage.go` 有函数级重叠（`buildGeminiBillingUsage` 与归一化门控），E 先落。
+
+### 批次 G：Token 子项服务端可见性投影（1 个 commit）
+- P1-10（Token 子项可见性未由服务端投影执行）
+
+聚合依据：自包含特性改动（`controller/log/log.go` 的 `filterUsageLogFieldsForRole` 扩展 + `console` 配置联动）；`details-dialog.tsx` 的前端 `isVisible` 门控降级为纵深防御，该部分可与批次 H 合并提交以避免同文件冲突。
+
+### 批次 H：前端 usage-logs 展示一致性（1 个 commit）
+- P2-25（输入输出主值仅取文本拆分，详情存在旧聚合回退）
+- P3-28（价格快照缺数量 fallback 与详情单位展示不完整）
+- P3-32（详情弹窗重复解析同一 Other JSON）
+- P3-31 前端部分（unknown_version 分类）
+
+聚合依据：`billing-details.ts`、`details-dialog.tsx`、`common-logs-columns.tsx` 三文件交叉重叠，一次提交统一过 `typecheck`/`lint`/`build`；25 的旧聚合回退在 `9bfedcb76` 删列后已实际失效，修复直接对齐缺陷 2 已落地的服务端投影。
+
+### 独立修复项（不并入批次）
+- P1-11（结算失败恢复状态机不满足原子性与补偿要求）：设计级重构（`service.go` 的 `settled`/`refunded` 终态语义、退款异步补偿、`usage.go:423` 结算失败后仍写成功消费日志），与 A/B/E 在 `usage.go`/`quota.go` 重叠最大，应最后落地，避免整批反复 rebase。
+- P2-26（缺少与最终删列结构匹配的可执行备份恢复 runbook）：纯文档交付，可与批次 C 同批提交（同属删列交付完整性），无代码冲突。
+- P3-27（key-query 日志列表未使用统一列表组件）：独立前端重构，无依赖。
+
+落地顺序建议：C（补救窗口收窄，宜最先）→ A → B → D（与 A/B 无文件冲突，可随时并行）→ E → F → G/H（前端收尾）→ P1-11。

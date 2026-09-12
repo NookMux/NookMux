@@ -43,10 +43,20 @@ func setupApplyQuotaTestDB(t *testing.T) {
 
 	oldDB := dbstore.DB
 	oldLogDB := dbstore.LOG_DB
-	oldRedisEnabled := redis.RedisEnabled
 	oldMemoryCacheEnabled := common.MemoryCacheEnabled
 	oldBatchUpdateEnabled := common.BatchUpdateEnabled
 	oldLogConsumeEnabled := common.LogConsumeEnabled
+	// 这些全局会被 DecreaseUserQuota / RecordConsumeLog 的异步池任务并发
+	// 读取；即使写入相同值也是数据竞争（-race 实跑可证），因此只在取值
+	// 不同时写入。redis.RedisEnabled 的包初始值为 true（InitRedisClient 不
+	// 会在测试二进制中运行），fixture 置 false 后保持、不在 cleanup 写回：
+	// 恢复写会与迟到的异步池任务构成竞争，且本包测试二进制内没有依赖
+	// true 的用例。
+	setGlobalIfChanged := func(current *bool, want bool) {
+		if *current != want {
+			*current = want
+		}
+	}
 
 	testDB, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
 	if err != nil {
@@ -58,11 +68,11 @@ func setupApplyQuotaTestDB(t *testing.T) {
 	pricingstore.InvalidateModelPricePlanCache()
 	dbstore.DB = testDB
 	dbstore.LOG_DB = testDB
-	redis.RedisEnabled = false
-	common.MemoryCacheEnabled = false
+	setGlobalIfChanged(&redis.RedisEnabled, false)
+	setGlobalIfChanged(&common.MemoryCacheEnabled, false)
 	// 批量更新模式下计数器只进内存暂存，测试统一走同步直写路径。
-	common.BatchUpdateEnabled = false
-	common.LogConsumeEnabled = true
+	setGlobalIfChanged(&common.BatchUpdateEnabled, false)
+	setGlobalIfChanged(&common.LogConsumeEnabled, true)
 
 	if err := testDB.Create(&userstore.User{
 		Id:       applyQuotaTestUserId,
@@ -91,10 +101,9 @@ func setupApplyQuotaTestDB(t *testing.T) {
 		}
 		dbstore.DB = oldDB
 		dbstore.LOG_DB = oldLogDB
-		redis.RedisEnabled = oldRedisEnabled
-		common.MemoryCacheEnabled = oldMemoryCacheEnabled
-		common.BatchUpdateEnabled = oldBatchUpdateEnabled
-		common.LogConsumeEnabled = oldLogConsumeEnabled
+		setGlobalIfChanged(&common.MemoryCacheEnabled, oldMemoryCacheEnabled)
+		setGlobalIfChanged(&common.BatchUpdateEnabled, oldBatchUpdateEnabled)
+		setGlobalIfChanged(&common.LogConsumeEnabled, oldLogConsumeEnabled)
 	})
 }
 

@@ -65,12 +65,12 @@ func billingQuotaFailureMessage(ctx *gin.Context, err error) string {
 	return i18n.T(ctx, i18n.MsgQuotaBillingNormalizationFailed)
 }
 
-// PreWssConsumeQuota realtime 会话按事件增量预扣：按归一化用量（含缓存读取）
-// 计算本轮增量额度并实扣（计费 PRD 阶段 2）。
+// PreWssConsumeQuota realtime 会话按事件增量实扣：按归一化用量（含缓存
+// 读取）计算本轮增量额度并实扣（计费 PRD 阶段 2）。UsePrice（按次价格）与
+// ratio 两种模式统一走本入口：按次计划下每个 response.done 事件收一次按次
+// 费（P1-4：不再整场免结算）。实扣成功才累计 WssEventConsumedQuota，供
+// PostWssConsumeQuota 收尾补差对账。
 func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *shared.RealtimeUsage) error {
-	if relayInfo.PriceData.UsePrice {
-		return nil
-	}
 	userQuota, err := userstore.GetUserQuota(relayInfo.UserId, false)
 	if err != nil {
 		return err
@@ -109,6 +109,7 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 		return err
 	}
 	relayInfo.FinalPreConsumedQuota += quota
+	relayInfo.WssEventConsumedQuota += quota
 	log.LogInfo(ctx, "realtime streaming consume quota success, quota: "+fmt.Sprintf("%d", quota))
 	return nil
 }
@@ -173,6 +174,39 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 		billingDetailsJSON = payload
 	}
 
+	// 收尾补差失败的可观测路径（P1-4/P1-12）：事件已实扣资金与补差明细必须
+	// 有错误日志可对账，不写伪成功消费日志；错误不可重试（整场会话已交付，
+	// 重试会重复计费）。
+	recordWssReconcileFailure := func(causeErr error) *shared.NookMuxError {
+		eventConsumed := relayInfo.WssEventConsumedQuota
+		reconcileOther := map[string]interface{}{
+			"ws":                 true,
+			"billing_cause":      "closing_reconcile_failed",
+			"pre_consumed_quota": eventConsumed,
+			"reconcile_delta":    quota - eventConsumed,
+			"settle_quota":       quota,
+		}
+		AppendBillingPriceSnapshot(reconcileOther, &BillingQuotaResult{PriceSnapshot: quotaSnapshot})
+		logstore.RecordConsumeLog(ctx, relayInfo.UserId, logstore.RecordConsumeLogParams{
+			ChannelId:      relayInfo.ChannelId,
+			ModelName:      modelName,
+			TokenName:      ctx.GetString("token_name"),
+			Quota:          quota,
+			Content:        "realtime 收尾补差失败（" + causeErr.Error() + "），quota 为重算值，资金实际净扣以 pre_consumed_quota 为准",
+			TokenId:        relayInfo.TokenId,
+			UseTimeMs:      int(useTimeMs),
+			IsStream:       relayInfo.IsStream,
+			Group:          relayInfo.UsingGroup,
+			Other:          reconcileOther,
+			LogType:        logstore.LogTypeError,
+			PromptTokens:   usage.InputTokens,
+			BillingDetails: billingDetailsJSON,
+		})
+		log.LogError(ctx, fmt.Sprintf("billing wss closing reconcile failed: %s, eventConsumedQuota=%d, settleQuota=%d",
+			causeErr.Error(), eventConsumed, quota))
+		return shared.NewError(causeErr, shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry())
+	}
+
 	totalTokens := usage.TotalTokens
 	var logContent string
 	if !relayInfo.PriceData.UsePrice {
@@ -196,6 +230,13 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 		log.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, "+
 			"tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, modelName, relayInfo.FinalPreConsumedQuota))
 	} else {
+		// 收尾补差（P1-4 模型 C）：事件按当时档位与价格逐笔实扣了
+		// WssEventConsumedQuota，收尾用最终 PriceData 对汇总用量重算
+		// finalQuota，差额多退少补；多事件取整与会话中改价的偏差在此对齐，
+		// 保证日志 Quota = finalQuota = 实际净扣款。
+		if reconcileErr := reconcileWssClosingQuota(ctx, relayInfo, relayInfo.WssEventConsumedQuota, quota); reconcileErr != nil {
+			return recordWssReconcileFailure(reconcileErr)
+		}
 		userstore.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, quota)
 		channelstore.UpdateChannelUsedQuota(relayInfo.ChannelId, quota)
 	}
@@ -222,6 +263,11 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 		other["group_ratio"] = relayInfo.PriceData.GroupRatioInfo.GroupRatio / relayInfo.PriceData.GroupRatioInfo.DynamicRatio
 	}
 	AppendBillingPriceSnapshot(other, &BillingQuotaResult{PriceSnapshot: quotaSnapshot})
+	if totalTokens != 0 {
+		// 事件实扣与补差快照：日志 quota、事件实扣累计、补差值三者可核对。
+		other["pre_consumed_quota"] = relayInfo.WssEventConsumedQuota
+		other["reconcile_delta"] = quota - relayInfo.WssEventConsumedQuota
+	}
 	logstore.RecordConsumeLog(ctx, relayInfo.UserId, logstore.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     usage.InputTokens,
@@ -264,6 +310,27 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 		}
 	}
 	return nil
+}
+
+// reconcileWssClosingQuota 对齐事件实扣与收尾重算的差额（P1-4 模型 C：
+// 事件实扣 + 收尾补差）。diff>0 补扣前先做余额检查（与 PreWssConsumeQuota
+// 的事件级检查同口径），diff<0 直接走 PostConsumeQuota 的退款路径；任何
+// 失败都显式返回，不允许静默放弃差额。
+func reconcileWssClosingQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, eventConsumedQuota, settleQuota int) error {
+	diff := settleQuota - eventConsumedQuota
+	if diff == 0 {
+		return nil
+	}
+	if diff > 0 {
+		userQuota, err := userstore.GetUserQuota(relayInfo.UserId, false)
+		if err != nil {
+			return err
+		}
+		if userQuota < diff {
+			return fmt.Errorf("%s", i18n.T(ctx, i18n.MsgQuotaUserNotEnough, map[string]any{"UserQuota": log.FormatQuota(userQuota), "NeedQuota": log.FormatQuota(diff)}))
+		}
+	}
+	return PostConsumeQuota(ctx, relayInfo, diff, 0, false)
 }
 
 // normalizedRealtimeQuota 用归一化公式计算 realtime/WSS 额度，复刻旧

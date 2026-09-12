@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/NookMux/NookMux/internal/common"
@@ -25,9 +26,12 @@ const (
 
 const maxLogCount = 1000000
 
-var logCount int
+// logCount/setupLogWorking 会被多 goroutine 并发读写（relay 各 handler、
+// 计费结算循环与父 goroutine 并行打日志），必须原子访问；WSS -race 实跑
+// 曾捕获并发 logCount++ 竞态。
+var logCount atomic.Int64
 var setupLogLock sync.Mutex
-var setupLogWorking bool
+var setupLogWorking atomic.Bool
 
 // Dir 是日志文件目录，由 app.InitEnv 在 flag.Parse 后注入（--log-dir flag
 // 归 app 层持有；本包不得反向 import app，否则与启动装配成环）。
@@ -36,7 +40,7 @@ var Dir string
 
 func SetupLogger() {
 	defer func() {
-		setupLogWorking = false
+		setupLogWorking.Store(false)
 	}()
 	if Dir != "" {
 		ok := setupLogLock.TryLock()
@@ -89,10 +93,10 @@ func logHelper(ctx context.Context, level string, msg string) {
 	}
 	now := time.Now()
 	_, _ = fmt.Fprintf(writer, "[%s] %v | %s | %s \n", level, now.Format("2006/01/02 - 15:04:05"), id, msg)
-	logCount++ // we don't need accurate count, so no lock here
-	if logCount > maxLogCount && !setupLogWorking {
-		logCount = 0
-		setupLogWorking = true
+	logCount.Add(1) // we don't need accurate count, but concurrent logging requires atomic access
+	if logCount.Load() > maxLogCount && !setupLogWorking.Load() {
+		logCount.Store(0)
+		setupLogWorking.Store(true)
 		runtime.RelayGo(func() {
 			SetupLogger()
 		})

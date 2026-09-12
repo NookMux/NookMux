@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,10 +17,18 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/domain/billing"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	redis "github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	channelstore "github.com/NookMux/NookMux/internal/store/channel"
+	dbstore "github.com/NookMux/NookMux/internal/store/db"
+	pricingstore "github.com/NookMux/NookMux/internal/store/pricing"
+	tokenstore "github.com/NookMux/NookMux/internal/store/token"
+	userstore "github.com/NookMux/NookMux/internal/store/user"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 
 	"github.com/gin-gonic/gin"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 )
 
 // TestOpenaiSTTHandlerTagsUsageSourceAndSkipsEstimate 验证 STT 解析点：
@@ -220,6 +229,149 @@ func runRealtimeHandler(t *testing.T, c *gin.Context, info *relaycommon.RelayInf
 	}
 }
 
+// runRealtimeHandlerResult 驱动 OpenaiRealtimeHandler 并同时返回错误与汇总
+// 用量，不做错误断言，供预期失败的场景使用。
+func runRealtimeHandlerResult(t *testing.T, c *gin.Context, info *relaycommon.RelayInfo) (*shared.NookMuxError, *shared.RealtimeUsage) {
+	t.Helper()
+	type handlerResult struct {
+		apiErr   *shared.NookMuxError
+		sumUsage *shared.RealtimeUsage
+	}
+	done := make(chan handlerResult, 1)
+	go func() {
+		apiErr, sumUsage := OpenaiRealtimeHandler(c, info)
+		done <- handlerResult{apiErr: apiErr, sumUsage: sumUsage}
+	}()
+	select {
+	case result := <-done:
+		return result.apiErr, result.sumUsage
+	case <-time.After(5 * time.Second):
+		t.Fatalf("OpenaiRealtimeHandler did not finish in time")
+		return nil, nil
+	}
+}
+
+const (
+	realtimeBillingTestUserId     = 901
+	realtimeBillingTestChannelId  = 17
+	realtimeBillingTestTokenId    = 71
+	realtimeBillingTestTokenKey   = "sk-realtime-billing-test"
+	realtimeBillingTestSeedQuota = 1000000
+)
+
+// setupRealtimeBillingTestDB 提供事件实扣所需的内存 SQLite fixture：
+// UsePrice 免库旁路删除后（P1-4），realtime 会话计费在 handler 测试内
+// 真实落库，与 billing 包的 fixture 范式保持一致。
+func setupRealtimeBillingTestDB(t *testing.T) {
+	t.Helper()
+
+	oldDB := dbstore.DB
+	oldLogDB := dbstore.LOG_DB
+	oldMemoryCacheEnabled := common.MemoryCacheEnabled
+	oldBatchUpdateEnabled := common.BatchUpdateEnabled
+	// 这些全局会被 DecreaseUserQuota 的异步池任务并发读取；即使写入相同
+	// 值也是数据竞争，因此只在取值不同时写入。redis.RedisEnabled 的包初始
+	// 值为 true（InitRedisClient 不会在测试二进制中运行），fixture 置 false
+	// 后保持、不在 cleanup 写回：恢复写会与迟到的异步池任务构成竞争，且本
+	// 包测试二进制内没有依赖 true 的用例。
+	setGlobal := func(current *bool, want bool) {
+		if *current != want {
+			*current = want
+		}
+	}
+
+	testDB, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite test db: %v", err)
+	}
+	if err := testDB.AutoMigrate(&userstore.User{}, &channelstore.Channel{}, &tokenstore.Token{},
+		&pricingstore.ModelPricePlan{}, &pricingstore.ModelPriceComponent{}); err != nil {
+		t.Fatalf("migrate sqlite test db: %v", err)
+	}
+	pricingstore.InvalidateModelPricePlanCache()
+	dbstore.DB = testDB
+	dbstore.LOG_DB = testDB
+	setGlobal(&redis.RedisEnabled, false)
+	setGlobal(&common.MemoryCacheEnabled, false)
+	setGlobal(&common.BatchUpdateEnabled, false)
+
+	if err := testDB.Create(&userstore.User{
+		Id:       realtimeBillingTestUserId,
+		Username: "realtime-billing-tester",
+		Quota:    realtimeBillingTestSeedQuota,
+	}).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if err := testDB.Create(&channelstore.Channel{
+		Id:   realtimeBillingTestChannelId,
+		Name: "realtime-billing-channel",
+	}).Error; err != nil {
+		t.Fatalf("seed channel: %v", err)
+	}
+	if err := testDB.Create(&tokenstore.Token{
+		Id:     realtimeBillingTestTokenId,
+		UserId: realtimeBillingTestUserId,
+		Key:    realtimeBillingTestTokenKey,
+	}).Error; err != nil {
+		t.Fatalf("seed token: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if sqlDB, err := testDB.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+		dbstore.DB = oldDB
+		dbstore.LOG_DB = oldLogDB
+		setGlobal(&common.MemoryCacheEnabled, oldMemoryCacheEnabled)
+		setGlobal(&common.BatchUpdateEnabled, oldBatchUpdateEnabled)
+		pricingstore.InvalidateModelPricePlanCache()
+	})
+}
+
+// newRealtimeBillingTestRelayInfo 构造 ratio 模式（全 1 倍率）的会话：
+// 每事件 quota 等于 token 数之和，便于精确断言。
+func newRealtimeBillingTestRelayInfo() *relaycommon.RelayInfo {
+	info := &relaycommon.RelayInfo{
+		RelayFormat: relayconstant.RelayFormatOpenAIRealtime,
+		OriginModelName: "gpt-4o-realtime-preview",
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelId:         realtimeBillingTestChannelId,
+			UpstreamModelName: "gpt-4o-realtime-preview",
+		},
+		UserId:         realtimeBillingTestUserId,
+		TokenId:        realtimeBillingTestTokenId,
+		TokenKey:       realtimeBillingTestTokenKey,
+		TokenUnlimited: true,
+		TokenQuotaType: 0,
+		UsingGroup:     "default",
+		StartTime:      time.Now(),
+	}
+	info.PriceData.ModelRatio = 1
+	info.PriceData.CompletionRatio = 1
+	info.PriceData.CacheRatio = 1
+	info.PriceData.AudioRatio = 1
+	info.PriceData.AudioCompletionRatio = 1
+	info.PriceData.GroupRatioInfo.GroupRatio = 1
+	return info
+}
+
+func newRealtimeBillingTestContext() *gin.Context {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime", nil)
+	c.Set("token_name", "tk-realtime-billing")
+	return c
+}
+
+func realtimeTestUserQuota(t *testing.T) int {
+	t.Helper()
+	var user userstore.User
+	if err := dbstore.DB.First(&user, realtimeBillingTestUserId).Error; err != nil {
+		t.Fatalf("load realtime billing test user: %v", err)
+	}
+	return user.Quota
+}
+
 // TestOpenaiRealtimeHandlerBillingDetailsLocalCounting 验证 realtime 会话中
 // 上游 done 事件缺失 usage 时按本地 tokenizer 计数计费（现有计费行为不变），
 // 但 billing_details 必须跳过：本地估算不得伪装成上游官方用量落列。
@@ -227,15 +379,12 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	t.Run("done without usage bills local counting and skips billing details", func(t *testing.T) {
+		setupRealtimeBillingTestDB(t)
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime", nil)
-		info := &relaycommon.RelayInfo{
-			RelayFormat: relayconstant.RelayFormatOpenAIRealtime,
-			ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o-realtime-preview"},
-		}
-		// UsePrice 让 PreWssConsumeQuota 免库结算，其余行为与真实链路一致。
-		info.PriceData.UsePrice = true
+		c.Set("token_name", "tk-realtime-billing")
+		info := newRealtimeBillingTestRelayInfo()
 
 		clientWs, clientPeer := newRealtimeWssPair(t)
 		info.ClientWs = clientWs
@@ -269,6 +418,12 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 		if sumUsage.InputTokens == 0 {
 			t.Fatalf("local counting should still be billed, sumUsage = %+v", sumUsage)
 		}
+		if info.WssEventConsumedQuota == 0 {
+			t.Fatalf("local counting must be billed per event, eventConsumedQuota = %d", info.WssEventConsumedQuota)
+		}
+		if got := realtimeTestUserQuota(t); got != realtimeBillingTestSeedQuota-info.WssEventConsumedQuota {
+			t.Fatalf("wallet = %d, want seed - eventConsumedQuota (%d)", got, realtimeBillingTestSeedQuota-info.WssEventConsumedQuota)
+		}
 		if !httpapi.GetContextKeyBool(c, common.ContextKeyLocalCountTokens) {
 			t.Fatalf("session billed with local counting must set ContextKeyLocalCountTokens")
 		}
@@ -278,14 +433,12 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 	})
 
 	t.Run("leftover local usage billed at close flags local", func(t *testing.T) {
+		setupRealtimeBillingTestDB(t)
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime", nil)
-		info := &relaycommon.RelayInfo{
-			RelayFormat: relayconstant.RelayFormatOpenAIRealtime,
-			ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o-realtime-preview"},
-		}
-		info.PriceData.UsePrice = true
+		c.Set("token_name", "tk-realtime-billing")
+		info := newRealtimeBillingTestRelayInfo()
 
 		clientWs, _ := newRealtimeWssPair(t)
 		info.ClientWs = clientWs
@@ -307,6 +460,12 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 		if sumUsage.OutputTokens == 0 {
 			t.Fatalf("leftover local counting should still be billed, sumUsage = %+v", sumUsage)
 		}
+		if info.WssEventConsumedQuota == 0 {
+			t.Fatalf("leftover local counting must be billed at close, eventConsumedQuota = %d", info.WssEventConsumedQuota)
+		}
+		if got := realtimeTestUserQuota(t); got != realtimeBillingTestSeedQuota-info.WssEventConsumedQuota {
+			t.Fatalf("wallet = %d, want seed - eventConsumedQuota (%d)", got, realtimeBillingTestSeedQuota-info.WssEventConsumedQuota)
+		}
 		if !httpapi.GetContextKeyBool(c, common.ContextKeyLocalCountTokens) {
 			t.Fatalf("session billed with leftover local counting must set ContextKeyLocalCountTokens")
 		}
@@ -316,14 +475,12 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 	})
 
 	t.Run("done with usage keeps billing details", func(t *testing.T) {
+		setupRealtimeBillingTestDB(t)
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/v1/realtime", nil)
-		info := &relaycommon.RelayInfo{
-			RelayFormat: relayconstant.RelayFormatOpenAIRealtime,
-			ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-4o-realtime-preview"},
-		}
-		info.PriceData.UsePrice = true
+		c.Set("token_name", "tk-realtime-billing")
+		info := newRealtimeBillingTestRelayInfo()
 
 		clientWs, _ := newRealtimeWssPair(t)
 		info.ClientWs = clientWs
@@ -342,6 +499,13 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 		if sumUsage.InputTokens != 60 || sumUsage.OutputTokens != 40 {
 			t.Fatalf("sumUsage = %+v, want upstream usage 60/40", sumUsage)
 		}
+		// 全 1 倍率：quota = token 数之和 = 60 + 40 = 100，事件级实扣。
+		if info.WssEventConsumedQuota != 100 {
+			t.Fatalf("eventConsumedQuota = %d, want 100", info.WssEventConsumedQuota)
+		}
+		if got := realtimeTestUserQuota(t); got != realtimeBillingTestSeedQuota-100 {
+			t.Fatalf("wallet = %d, want %d", got, realtimeBillingTestSeedQuota-100)
+		}
 		if httpapi.GetContextKeyBool(c, common.ContextKeyLocalCountTokens) {
 			t.Fatalf("upstream usage session must not be flagged as local counting")
 		}
@@ -351,3 +515,7 @@ func TestOpenaiRealtimeHandlerBillingDetailsLocalCounting(t *testing.T) {
 		}
 	})
 }
+
+// TestOpenaiRealtimeHandlerConcurrentInterleaveIsLossless 双向并发交错用例：
+// client 输入事件与 target response.done 事件并发注入，断言 sumUsage 精确
+// 等于全部官方 usage 之和、钱包净扣等于事件实扣累计（无丢失更新）。

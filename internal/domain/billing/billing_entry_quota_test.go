@@ -181,6 +181,16 @@ func TestPostWssConsumeQuotaNormalizedFormula(t *testing.T) {
 	stored := waitForConsumeLogByTokenName(t, "tk-wss")
 	assert.Equal(t, 10300, stored.Quota)
 	assertStoredTokenTotals(t, stored, 1000, 500)
+	// 收尾补差（模型 C）：无事件实扣时 diff = finalQuota，全额落账；
+	// 日志 quota = 钱包净扣 = 实际结算。
+	var user userstore.User
+	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
+	assert.Equal(t, 1000000-10300, user.Quota, "closing reconciliation must deduct the settle quota")
+	assert.Equal(t, 10300, user.UsedQuota)
+	other, err := common.StrToMap(stored.Other)
+	require.NoError(t, err)
+	assert.Equal(t, float64(0), other["pre_consumed_quota"])
+	assert.Equal(t, float64(10300), other["reconcile_delta"])
 
 	require.NotNil(t, stored.BillingDetails)
 	payload, err := ParseBillingDetailsJSON(*stored.BillingDetails)
@@ -274,6 +284,7 @@ func TestPreWssConsumeQuotaDeductsPerEventDelta(t *testing.T) {
 	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, usage))
 	// quota = (700×1 + 200×8 + 100×0.5 + 400×3 + 100×8×2) × 2 = 10300
 	assert.Equal(t, 10300, relayInfo.FinalPreConsumedQuota, "pre-consumed quota must accumulate per-event delta")
+	assert.Equal(t, 10300, relayInfo.WssEventConsumedQuota, "event consumed quota must accumulate per-event delta")
 
 	var user userstore.User
 	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
@@ -316,4 +327,153 @@ func TestPreWssConsumeQuotaRejectsWhenUserQuotaInsufficient(t *testing.T) {
 	var user userstore.User
 	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
 	assert.Equal(t, 100, user.Quota, "insufficient quota must not deduct wallet")
+}
+
+// waitForTypedLogByTokenName 轮询指定类型的日志行（收尾补差失败落
+// LogTypeError，通用 helper 只查 LogTypeConsume）。
+func waitForTypedLogByTokenName(t *testing.T, tokenName string, logType int) logstore.Log {
+	t.Helper()
+	var stored logstore.Log
+	require.Eventually(t, func() bool {
+		err := dbstore.LOG_DB.Where("user_id = ? AND type = ? AND token_name = ?",
+			applyQuotaTestUserId, logType, tokenName).Order("id DESC").First(&stored).Error
+		return err == nil
+	}, 2*time.Second, 10*time.Millisecond, "typed log row should be written asynchronously")
+	return stored
+}
+
+func newTextOnlyRealtimeUsage(inputTokens, outputTokens int) *shared.RealtimeUsage {
+	return &shared.RealtimeUsage{
+		TotalTokens:  inputTokens + outputTokens,
+		InputTokens:  inputTokens,
+		OutputTokens: outputTokens,
+		InputTokenDetails: shared.InputTokenDetails{
+			TextTokens: inputTokens,
+		},
+		OutputTokenDetails: shared.OutputTokenDetails{
+			TextTokens: outputTokens,
+		},
+	}
+}
+
+// UsePrice（按次价格）模式的事件实扣（P1-4）：不再整场免结算，每个事件
+// 按次价实扣一次；两次 response.done = 两次按次费。
+func TestPreWssConsumeQuotaUsePriceBillsPerEvent(t *testing.T) {
+	setupApplyQuotaTestDB(t)
+	ctx := newEntryTestContext("tk-prewss-useprice")
+	relayInfo := newEntryTestRelayInfo(relayconstant.UsageSourceOpenAIResponses)
+	relayInfo.TokenUnlimited = true
+	relayInfo.PriceData.UsePrice = true
+	relayInfo.PriceData.ModelPrice = 0.003
+
+	perEventQuota := int(0.003 * float64(common.QuotaPerUnit))
+
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(10, 5)))
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(20, 8)))
+
+	assert.Equal(t, 2*perEventQuota, relayInfo.WssEventConsumedQuota,
+		"use-price sessions must be billed once per response.done event")
+
+	var user userstore.User
+	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
+	assert.Equal(t, 1000000-2*perEventQuota, user.Quota, "wallet must be deducted per event")
+}
+
+// 收尾补差吸收多事件取整偏差（P1-4 模型 C）：ModelRatio=1.5 时两个 1-token
+// 事件各取整为 2（共扣 4），汇总 2 tokens 重算为 3，diff=-1 退回；
+// 日志 quota = finalQuota = 实际净扣款。
+func TestPostWssConsumeQuotaReconcilesRoundingDrift(t *testing.T) {
+	setupApplyQuotaTestDB(t)
+	ctx := newEntryTestContext("tk-wss-rounding")
+	relayInfo := newEntryTestRelayInfo(relayconstant.UsageSourceOpenAIResponses)
+	relayInfo.TokenUnlimited = true
+	relayInfo.PriceData.ModelRatio = 1.5
+
+	// 事件 1：1 token → 1×1.5=1.5 取整 2；事件 2 同。
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(1, 0)))
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(1, 0)))
+	assert.Equal(t, 4, relayInfo.WssEventConsumedQuota)
+
+	sumUsage := newTextOnlyRealtimeUsage(2, 0)
+	require.Nil(t, PostWssConsumeQuota(ctx, relayInfo, relayInfo.OriginModelName, sumUsage, ""))
+
+	stored := waitForConsumeLogByTokenName(t, "tk-wss-rounding")
+	assert.Equal(t, 3, stored.Quota, "summary quota = 2 tokens × 1.5 = 3")
+
+	var user userstore.User
+	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
+	// 事件实扣 4，收尾退差 1 → 净扣 3 = 日志 quota。
+	assert.Equal(t, 1000000-3, user.Quota, "net wallet deduction must equal the logged quota")
+
+	other, err := common.StrToMap(stored.Other)
+	require.NoError(t, err)
+	assert.Equal(t, float64(4), other["pre_consumed_quota"])
+	assert.Equal(t, float64(-1), other["reconcile_delta"])
+}
+
+// 会话中改价：事件按旧价实扣，收尾按最终价重算并补差（多退少补）。
+func TestPostWssConsumeQuotaReconcilesOnPriceChange(t *testing.T) {
+	setupApplyQuotaTestDB(t)
+	ctx := newEntryTestContext("tk-wss-reprice")
+	relayInfo := newEntryTestRelayInfo(relayconstant.UsageSourceOpenAIResponses)
+	relayInfo.TokenUnlimited = true
+	relayInfo.PriceData.ModelRatio = 1
+
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(100, 0)))
+	assert.Equal(t, 100, relayInfo.WssEventConsumedQuota)
+
+	// 会话中途改价：最终 PriceData 倍率翻倍。
+	relayInfo.PriceData.ModelRatio = 2
+
+	sumUsage := newTextOnlyRealtimeUsage(100, 0)
+	require.Nil(t, PostWssConsumeQuota(ctx, relayInfo, relayInfo.OriginModelName, sumUsage, ""))
+
+	stored := waitForConsumeLogByTokenName(t, "tk-wss-reprice")
+	assert.Equal(t, 200, stored.Quota, "summary quota must recompute with the final price")
+
+	var user userstore.User
+	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
+	assert.Equal(t, 1000000-200, user.Quota, "wallet net deduction must equal the recomputed quota")
+
+	other, err := common.StrToMap(stored.Other)
+	require.NoError(t, err)
+	assert.Equal(t, float64(100), other["pre_consumed_quota"])
+	assert.Equal(t, float64(100), other["reconcile_delta"])
+}
+
+// 补差余额不足：返回可观测错误（skip-retry），落 LogTypeError 行携带
+// pre_consumed_quota/reconcile_delta/settle_quota 与价格快照；已实扣资金
+// 不被伪成功日志掩盖。
+func TestPostWssConsumeQuotaReconcileInsufficientBalance(t *testing.T) {
+	setupApplyQuotaTestDB(t)
+	ctx := newEntryTestContext("tk-wss-reconcile-poor")
+	relayInfo := newEntryTestRelayInfo(relayconstant.UsageSourceOpenAIResponses)
+	relayInfo.TokenUnlimited = true
+	relayInfo.PriceData.ModelRatio = 1
+
+	require.NoError(t, PreWssConsumeQuota(ctx, relayInfo, newTextOnlyRealtimeUsage(100, 0)))
+	assert.Equal(t, 100, relayInfo.WssEventConsumedQuota)
+
+	// 事件已扣 100；把余额压到 50，改价后 finalQuota=200，diff=100 > 50。
+	require.NoError(t, dbstore.DB.Model(&userstore.User{}).Where("id = ?", applyQuotaTestUserId).
+		Update("quota", 50).Error)
+	relayInfo.PriceData.ModelRatio = 2
+
+	sumUsage := newTextOnlyRealtimeUsage(100, 0)
+	apiErr := PostWssConsumeQuota(ctx, relayInfo, relayInfo.OriginModelName, sumUsage, "")
+	require.NotNil(t, apiErr)
+	require.True(t, shared.IsSkipRetryError(apiErr), "reconcile failure must skip retry to avoid double billing")
+
+	stored := waitForTypedLogByTokenName(t, "tk-wss-reconcile-poor", logstore.LogTypeError)
+	assert.Equal(t, 200, stored.Quota, "error row records the recomputed settle quota")
+	other, err := common.StrToMap(stored.Other)
+	require.NoError(t, err)
+	assert.Equal(t, "closing_reconcile_failed", other["billing_cause"])
+	assert.Equal(t, float64(100), other["pre_consumed_quota"])
+	assert.Equal(t, float64(100), other["reconcile_delta"])
+	assert.Equal(t, float64(200), other["settle_quota"])
+
+	var user userstore.User
+	require.NoError(t, dbstore.DB.First(&user, applyQuotaTestUserId).Error)
+	assert.Equal(t, 50, user.Quota, "failed reconciliation must not touch the wallet")
 }

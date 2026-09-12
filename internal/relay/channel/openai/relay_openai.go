@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/domain/shared"
@@ -276,6 +277,15 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 	return &simpleResponse.Usage, nil
 }
 
+// realtimeMeterEvent 是 reader 转交结算循环的计量事件。reader 只负责读、
+// 解析与转发；token 计数、计量状态（pendingUsage/localUsage/sumUsage）与
+// 事件计费全部收敛到结算循环单一属主，消除双向读取与收尾之间的数据竞态
+//（P1-14）。
+type realtimeMeterEvent struct {
+	fromClient bool
+	event      *shared.RealtimeEvent
+}
+
 func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared.NookMuxError, *shared.RealtimeUsage) {
 	// Realtime usage（input_tokens/input_token_details/output_tokens）与
 	// Responses 同族，归一化按 openai_responses 规则。
@@ -290,13 +300,17 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 
 	clientClosed := make(chan struct{})
 	targetClosed := make(chan struct{})
-	errChan := make(chan error, 2)
+	// errChan 缓冲 3：两个 reader 与结算循环各至多投递一次错误，投递方
+	// 永不阻塞退出。
+	errChan := make(chan error, 3)
+	meterChan := make(chan realtimeMeterEvent, 64)
 
-	usage := &shared.RealtimeUsage{}
-	localUsage := &shared.RealtimeUsage{}
-	sumUsage := &shared.RealtimeUsage{}
+	var readerWG sync.WaitGroup
+	readerWG.Add(2)
 
+	// client reader：读客户端事件并转发上游，计量经 meterChan 交给结算循环。
 	go func() {
+		defer readerWG.Done()
 		defer func() {
 			if r := recover(); r != nil {
 				errChan <- fmt.Errorf("panic in client reader: %v", r)
@@ -323,24 +337,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 					return
 				}
 
-				if realtimeEvent.Type == shared.RealtimeEventTypeSessionUpdate {
-					if realtimeEvent.Session != nil {
-						if realtimeEvent.Session.Tools != nil {
-							info.RealtimeTools = realtimeEvent.Session.Tools
-						}
-					}
-				}
-
-				textToken, audioToken, err := tokenizer.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
-				if err != nil {
-					errChan <- fmt.Errorf("error counting text token: %v", err)
-					return
-				}
-				log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
-				localUsage.TotalTokens += textToken + audioToken
-				localUsage.InputTokens += textToken + audioToken
-				localUsage.InputTokenDetails.TextTokens += textToken
-				localUsage.InputTokenDetails.AudioTokens += audioToken
+				meterChan <- realtimeMeterEvent{fromClient: true, event: realtimeEvent}
 
 				err = helper.WssString(c, targetConn, string(message))
 				if err != nil {
@@ -351,7 +348,9 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 		}
 	}()
 
+	// target reader：读上游事件并转发客户端，计量经 meterChan 交给结算循环。
 	go func() {
+		defer readerWG.Done()
 		defer func() {
 			if r := recover(); r != nil {
 				errChan <- fmt.Errorf("panic in target reader: %v", r)
@@ -379,44 +378,7 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 				}
 
 				if realtimeEvent.Type == shared.RealtimeEventTypeResponseDone {
-					realtimeUsage := realtimeEvent.Response.Usage
-					if realtimeUsage != nil {
-						accumulateRealtimeUsage(usage, realtimeUsage)
-						err := preConsumeUsage(c, info, usage, sumUsage)
-						if err != nil {
-							errChan <- fmt.Errorf("error consume usage: %v", err)
-							return
-						}
-						// 本次计费完成，清除
-						usage = &shared.RealtimeUsage{}
-
-						localUsage = &shared.RealtimeUsage{}
-					} else {
-						textToken, audioToken, err := tokenizer.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
-						if err != nil {
-							errChan <- fmt.Errorf("error counting text token: %v", err)
-							return
-						}
-						log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
-						localUsage.TotalTokens += textToken + audioToken
-						info.IsFirstRequest = false
-						localUsage.InputTokens += textToken + audioToken
-						localUsage.InputTokenDetails.TextTokens += textToken
-						localUsage.InputTokenDetails.AudioTokens += audioToken
-						// 上游 response.done 未携带 usage，本轮按本地 tokenizer 计数计费；
-						// 会话内混入本地估算，billing_details 不落列。
-						httpapi.SetContextKey(c, common.ContextKeyLocalCountTokens, true)
-						err = preConsumeUsage(c, info, localUsage, sumUsage)
-						if err != nil {
-							errChan <- fmt.Errorf("error consume usage: %v", err)
-							return
-						}
-						// 本次计费完成，清除
-						localUsage = &shared.RealtimeUsage{}
-						// print now usage
-					}
-					log.LogDebug(c, "realtime streaming sumUsage=%v localUsage=%v", sumUsage, localUsage)
-
+					// response.done 的计量与计费在结算循环内统一处理。
 				} else if realtimeEvent.Type == shared.RealtimeEventTypeSessionUpdated || realtimeEvent.Type == shared.RealtimeEventTypeSessionCreated {
 					realtimeSession := realtimeEvent.Session
 					if realtimeSession != nil {
@@ -424,18 +386,9 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 						info.InputAudioFormat = common.GetStringIfEmpty(realtimeSession.InputAudioFormat, info.InputAudioFormat)
 						info.OutputAudioFormat = common.GetStringIfEmpty(realtimeSession.OutputAudioFormat, info.OutputAudioFormat)
 					}
-				} else {
-					textToken, audioToken, err := tokenizer.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
-					if err != nil {
-						errChan <- fmt.Errorf("error counting text token: %v", err)
-						return
-					}
-					log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
-					localUsage.TotalTokens += textToken + audioToken
-					localUsage.OutputTokens += textToken + audioToken
-					localUsage.OutputTokenDetails.TextTokens += textToken
-					localUsage.OutputTokenDetails.AudioTokens += audioToken
 				}
+
+				meterChan <- realtimeMeterEvent{fromClient: false, event: realtimeEvent}
 
 				message = helper.MaskRealtimeEventModelJSON(message, info)
 				err = helper.WssString(c, clientConn, string(message))
@@ -443,6 +396,96 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 					errChan <- fmt.Errorf("error writing to client: %v", err)
 					return
 				}
+			}
+		}
+	}()
+
+	// 结算循环：pendingUsage/localUsage/sumUsage 与事件计费的唯一属主。
+	// 实扣成功后才把该份用量累计进 sumUsage；失败立即上抛并触发会话
+	// teardown，该份用量不累计、不重试（P1-12：不重复结算、失败可观测）。
+	var sumUsage shared.RealtimeUsage
+	pendingUsage := &shared.RealtimeUsage{}
+	localUsage := &shared.RealtimeUsage{}
+	settleDone := make(chan struct{})
+	var settleErr error
+	go func() {
+		defer close(settleDone)
+		for meterEvent := range meterChan {
+			realtimeEvent := meterEvent.event
+			if meterEvent.fromClient {
+				if realtimeEvent.Type == shared.RealtimeEventTypeSessionUpdate {
+					if realtimeEvent.Session != nil {
+						if realtimeEvent.Session.Tools != nil {
+							info.RealtimeTools = realtimeEvent.Session.Tools
+						}
+					}
+				}
+				textToken, audioToken, err := tokenizer.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
+				if err != nil {
+					settleErr = fmt.Errorf("error counting text token: %v", err)
+					errChan <- settleErr
+					return
+				}
+				log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
+				localUsage.TotalTokens += textToken + audioToken
+				localUsage.InputTokens += textToken + audioToken
+				localUsage.InputTokenDetails.TextTokens += textToken
+				localUsage.InputTokenDetails.AudioTokens += audioToken
+				continue
+			}
+
+			switch realtimeEvent.Type {
+			case shared.RealtimeEventTypeResponseDone:
+				if realtimeEvent.Response != nil && realtimeEvent.Response.Usage != nil {
+					accumulateRealtimeUsage(pendingUsage, realtimeEvent.Response.Usage)
+					if err := preConsumeUsage(c, info, pendingUsage, &sumUsage); err != nil {
+						settleErr = fmt.Errorf("error consume usage: %v", err)
+						errChan <- settleErr
+						return
+					}
+					// 本次计费完成，清除
+					pendingUsage = &shared.RealtimeUsage{}
+
+					localUsage = &shared.RealtimeUsage{}
+				} else {
+					textToken, audioToken, err := tokenizer.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
+					if err != nil {
+						settleErr = fmt.Errorf("error counting text token: %v", err)
+						errChan <- settleErr
+						return
+					}
+					log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
+					localUsage.TotalTokens += textToken + audioToken
+					info.IsFirstRequest = false
+					localUsage.InputTokens += textToken + audioToken
+					localUsage.InputTokenDetails.TextTokens += textToken
+					localUsage.InputTokenDetails.AudioTokens += audioToken
+					// 上游 response.done 未携带 usage，本轮按本地 tokenizer 计数计费；
+					// 会话内混入本地估算，billing_details 不落列。
+					httpapi.SetContextKey(c, common.ContextKeyLocalCountTokens, true)
+					if err := preConsumeUsage(c, info, localUsage, &sumUsage); err != nil {
+						settleErr = fmt.Errorf("error consume usage: %v", err)
+						errChan <- settleErr
+						return
+					}
+					// 本次计费完成，清除
+					localUsage = &shared.RealtimeUsage{}
+				}
+				log.LogDebug(c, "realtime streaming sumUsage=%v localUsage=%v", sumUsage, localUsage)
+			case shared.RealtimeEventTypeSessionUpdated, shared.RealtimeEventTypeSessionCreated:
+				// 音频格式已在 target reader 更新；计量跳过
+			default:
+				textToken, audioToken, err := tokenizer.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
+				if err != nil {
+					settleErr = fmt.Errorf("error counting text token: %v", err)
+					errChan <- settleErr
+					return
+				}
+				log.LogDebug(c, "realtime event type=%s textToken=%d audioToken=%d", realtimeEvent.Type, textToken, audioToken)
+				localUsage.TotalTokens += textToken + audioToken
+				localUsage.OutputTokens += textToken + audioToken
+				localUsage.OutputTokenDetails.TextTokens += textToken
+				localUsage.OutputTokenDetails.AudioTokens += audioToken
 			}
 		}
 	}()
@@ -456,20 +499,48 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*shared
 	case <-c.Done():
 	}
 
-	if usage.TotalTokens != 0 {
-		_ = preConsumeUsage(c, info, usage, sumUsage)
+	// 主动关闭双向连接解除 reader 的 ReadMessage 阻塞，等待 reader 与结算
+	// 循环全部退出后再独占处理收尾计量（P1-14：join 后无共享计量状态）。
+	_ = clientConn.Close()
+	_ = targetConn.Close()
+	readerWG.Wait()
+	close(meterChan)
+	<-settleDone
+
+	// 会话内事件计费失败：错误必须显式上抛（不可重试——整场会话已交付，
+	// 重跑等于双重计费），不再静默吞掉（P1-12）。
+	if settleErr != nil {
+		log.LogError(c, "realtime settlement error: "+settleErr.Error()+
+			fmt.Sprintf(", eventConsumedQuota=%d", info.WssEventConsumedQuota))
+		return shared.NewError(settleErr, shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry()), &sumUsage
 	}
 
+	// 收尾剩余用量结算：pendingUsage 是官方 usage（不打本地标志），
+	// localUsage 是本地计数（必须打 local 标志，billing_details 不落列）。
+	// 失败同样显式上抛并跳过重试（P1-12：不吞错、不重复结算）。
+	if pendingUsage.TotalTokens != 0 {
+		if err := preConsumeUsage(c, info, pendingUsage, &sumUsage); err != nil {
+			log.LogError(c, "realtime closing consume failed: "+err.Error()+
+				fmt.Sprintf(", eventConsumedQuota=%d", info.WssEventConsumedQuota))
+			return shared.NewError(err, shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry()), &sumUsage
+		}
+		pendingUsage = &shared.RealtimeUsage{}
+	}
 	if localUsage.TotalTokens != 0 {
 		// 连接结束时剩余未结算事件按本地计数计费，会话内混入本地估算，
 		// billing_details 不落列。
 		httpapi.SetContextKey(c, common.ContextKeyLocalCountTokens, true)
-		_ = preConsumeUsage(c, info, localUsage, sumUsage)
+		if err := preConsumeUsage(c, info, localUsage, &sumUsage); err != nil {
+			log.LogError(c, "realtime closing consume failed: "+err.Error()+
+				fmt.Sprintf(", eventConsumedQuota=%d", info.WssEventConsumedQuota))
+			return shared.NewError(err, shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry()), &sumUsage
+		}
+		localUsage = &shared.RealtimeUsage{}
 	}
 
-	// check usage total tokens, if 0, use local usage
+	// 交给 WssHelper 的 PostWssConsumeQuota 做收尾补差与汇总落库。
 
-	return nil, sumUsage
+	return nil, &sumUsage
 }
 
 func preConsumeUsage(ctx *gin.Context, info *relaycommon.RelayInfo, usage *shared.RealtimeUsage, totalUsage *shared.RealtimeUsage) error {
@@ -477,10 +548,13 @@ func preConsumeUsage(ctx *gin.Context, info *relaycommon.RelayInfo, usage *share
 		return fmt.Errorf("invalid usage pointer")
 	}
 
+	// 实扣成功才累计进汇总（P1-12）：失败时该份用量不进入 sumUsage，
+	// 连接收尾也不会再处理它，杜绝失败事件被重复累计。
+	if err := billing.PreWssConsumeQuota(ctx, info, usage); err != nil {
+		return err
+	}
 	accumulateRealtimeUsage(totalUsage, usage)
-	// clear usage
-	err := billing.PreWssConsumeQuota(ctx, info, usage)
-	return err
+	return nil
 }
 
 func accumulateRealtimeUsage(dst *shared.RealtimeUsage, src *shared.RealtimeUsage) {

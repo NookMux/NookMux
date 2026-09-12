@@ -127,6 +127,12 @@ type RelayInfo struct {
 	SendResponseCount     int
 	ReceivedResponseCount int
 	FinalPreConsumedQuota int // 最终预消耗的配额
+	// WssEventConsumedQuota realtime/WSS 会话内按事件实扣的资金累计，不含
+	// 请求级初始预扣（后者由 Billing 会话单独持有并在收尾按 0 释放）。
+	// PostWssConsumeQuota 收尾以此为补差基准：finalQuota 与该值的差额多退
+	// 少补，保证日志 Quota 等于实际净扣款。只由计量结算 goroutine 写入，
+	// 收尾在 join 结算 goroutine 之后读取。
+	WssEventConsumedQuota int
 	// Billing 是计费会话，封装了预扣费/结算/退款的统一生命周期。
 	// 免费模型和按次计费（MJ/Task）时为 nil。
 	Billing BillingSettler
