@@ -1129,9 +1129,7 @@ function DetailsDialogBody(props: {
               <span
                 className={cn(
                   'font-medium',
-                  timingTextColorClass(
-                    getTimeColor(props.log.use_time / 1000)
-                  )
+                  timingTextColorClass(getTimeColor(props.log.use_time / 1000))
                 )}
               >
                 {formatUseTime(props.log.use_time / 1000)}

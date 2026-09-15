@@ -284,9 +284,7 @@ export function KeyQueryLogsTable({ rawKey }: KeyQueryLogsTableProps) {
                 <span
                   className={cn(
                     'font-medium',
-                    timingTextColorClass(
-                      getTimeColor(log.use_time / 1000)
-                    )
+                    timingTextColorClass(getTimeColor(log.use_time / 1000))
                   )}
                 >
                   {formatUseTime(log.use_time / 1000)}
