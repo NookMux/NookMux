@@ -177,3 +177,32 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --ref "$REF"
           echo "Dispatched docker publish for $REF"
+
+  # CI 是最终门禁：失败通知必须由本工作流直接发送。不能挂在
+  # docker-image.yml 上——它只在 CI 全绿后才会被派发，失败路径
+  # 永远到不了通知步骤。
+  # 所需仓库配置（Settings → Secrets and variables → Actions）：
+  #   Secrets → FEISHU_APP_ID / FEISHU_APP_SECRET / FEISHU_USER_ID
+  notify_feishu:
+    name: Notify Feishu (failure)
+    needs: [web-checks, web-build, go-checks]
+    # 仅失败时发送：成功通知由 docker-image.yml 负责，避免每次全绿
+    # 收到两条重复通知。被取消的 run（concurrency 抢占）不打扰。
+    if: ${{ !cancelled() && contains(needs.*.result, 'failure') }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Send Feishu notification
+        uses: ./.github/actions/feishu-notify
+        with:
+          project_name: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          conclusion: failure
+          app_id: ${{ secrets.FEISHU_APP_ID }}
+          app_secret: ${{ secrets.FEISHU_APP_SECRET }}
+          user_id: ${{ secrets.FEISHU_USER_ID }}
