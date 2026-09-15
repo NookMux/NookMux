@@ -8,7 +8,7 @@
       },
       "codegraph": {
         "type": "stdio",
-        "command": "/home/app/.local/bin/codegraph",
+        "command": "/usr/local/bin/codegraph",
         "args": [
           "serve",
           "--mcp",

@@ -4,18 +4,20 @@
     "serena": {
       "type": "remote",
       "url": "http://127.0.0.1:9121/mcp",
-      "timeout": 12000
+      "timeout": 12000,
+      "enabled": true
     },
     "codegraph": {
       "type": "local",
       "command": [
-        "/home/app/.local/bin/codegraph",
+        "/usr/local/bin/codegraph",
         "serve",
         "--mcp",
         "--path",
         "."
       ],
-      "timeout": 12000
+      "timeout": 12000,
+      "enabled": true
     }
   }
 }
