@@ -10,13 +10,13 @@
 2. 供应商归一化只发生一次：上游原值进入 `BillingUsage` 后，计费、日志结构化、前端展示都不再按供应商协议加加减减。
 3. `Log` 只新增一个专用 `billing_details` JSON 列，存放本次请求的归一化 Token 用量；不新增一串 token 独立列，也不存放 quota、价格、倍率或 service tier。它服务普通 relay 和 audio/realtime/wss 等有 Token 用量的消费入口。
 4. 现有 `Quota`、`PromptTokens`、`CompletionTokens` 作为兼容和统计聚合列保留。`PromptTokens` 明确定义为“输入侧处理总量”兼容口径，不再代表普通输入。
-5. 前端新日志优先读 `billing_details`；历史日志继续走现有 `Other` 兼容路径。
+5. 前端使用日志只读 `billing_details` 获取 Token 明细；历史 Token 明细由启动前置迁移回填，聚合统计列继续保留。
 
 ### 1.3 非目标
 
 1. 不修改客户端可见的 OpenAI、Claude、Gemini 响应体 usage 语义。
-2. 不回填、不改写历史日志的历史口径。
-3. 不把 `Other` JSON 整体删除；`Other` 继续承载诊断和过渡兼容信息。
+2. 不改写计费结果、价格快照、倍率和诊断数据；历史行只迁移 Token 明细并从 `Other` 移除已接管字段。
+3. 不把 `Other` JSON 整体删除；`Other` 继续承载价格、倍率、诊断和管理排障信息。
 4. 不在本 PRD 中新增面向 SQL 查询的 token 明细列或 JSON 查询索引。
 5. 不把 quota、价格、倍率、service tier、工具费、图片生成调用费、文件检索费、定制音色按次/按字符费、模型测试费和违规费迁入 `billing_details`。计费结果和计价依据继续保留在现有位置。
 6. 不在 `billing_details` 中重复 `Log` 已有的用户、渠道、模型、入口类型和时间等元数据；供应商/协议来源、usage 来源、请求和上游格式、转换链继续属于日志诊断字段或现有 `Other`。
@@ -149,7 +149,7 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 3. 上游未返回的可选字段写 `null` 或省略，不能用 0 伪装成“官方返回了零”；核心总量字段必须存在。
 4. JSON 失败时计费和落库必须显式失败或进入清晰错误路径，不能伪造空拆分。
 5. `Quota`、`PromptTokens`、`CompletionTokens` 以及现有计费快照字段继续保留在原位，供计费、排序、统计和旧前端使用。
-6. `billing_details` 是新日志 Token 明细的权威来源；`Other` 中的计费和倍率 key 保持现有职责，不因本列迁移。
+6. `billing_details` 是所有新旧日志 Token 明细的权威来源；`Other` 中的价格、倍率和诊断 key 保持现有职责，不再承载本列已接管的 Token 明细。
 
 ### 4.2 JSON 顶层结构
 
@@ -198,13 +198,17 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 
 ### 4.3 迁移与兼容
 
-1. GORM AutoMigrate 只加 `billing_details` 列；三库都要验证空列、历史数据和重启迁移路径。
-2. 历史 `billing_details` 为空，读取端必须回退到 `Other` 和旧 `prompt_tokens` 口径。
-3. 不回填历史数据；禁止用旧 `Other` 的不完整拆分伪造完整 JSON。
-4. 新日志同时保留现有聚合列、计费快照和 `Other` 过渡 key；本列只接管 Token 用量，不改变计费快照的写入位置。
-5. 消费端必须用 `schema_version` 或 `billing_details` 是否存在判断新旧格式，不能用 `cache_read > 0` 推断，因为无缓存请求的明细也可能为 0。
+1. GORM AutoMigrate 加 `billing_details` 列和内部行级 `billing_details_version` 列；三库都要验证空列、历史数据和重启迁移路径。
+2. master 启动后在服务可写流量前执行一次性历史迁移；按旧 `Other` Token key 回填，缺失普通输入/输出时用聚合列扣除已知拆分，矛盾数据显式阻断。
+3. 已有合法 `billing_details` 不覆盖现有值；与旧 `Other` 同名字段冲突时迁移失败并要求人工处理。
+4. 新日志保留现有聚合列、计费快照和 `Other` 非 Token key；本列只接管 Token 用量，不改变计费快照的写入位置。
+5. 读取端不使用 `Other` 或聚合列推导 Token 明细；无 `billing_details` 显示明确空态，损坏 JSON、未知版本和非法字段显式报错。
 6. 没有真实 Token 用量的存量消费入口不生成该列；只有它们携带上游 Token usage 时才生成。
-7. 回滚顺序是先关闭写入和读取，再确认 `Other` 与聚合列仍可支撑旧展示和现有计费，最后才允许删除 nullable 的 `billing_details` 列；不得通过回填或改写历史日志来降级。
+7. 本版本不支持旧、新写入节点混跑：升级前备份日志库，停止并排空全部旧版 master/slave、后台日志写入和批量队列，再启动唯一新版 master；确认迁移完成后才启动新版 slave 并恢复流量。旧二进制仍能写入 v0 行，完成标记无法隔离旧写入；不得只依赖“先 master 后 slave”的部署顺序。导入旧数据也必须先停止全部读写节点，在实际日志库执行 `DELETE FROM log_billing_migration_states WHERE version = 1` 清除完成标记，导入完成后再运行 master 迁移。
+8. 完成标记保存在实际日志库的 `log_billing_migration_states` 表（`version=1`）；全部批次提交后才写入，master 后续启动命中标记直接跳过回填。slave 必须验证日志表、两列及标记，不执行迁移；独立 `LOG_SQL_DSN` 只以该日志库标记为准。
+9. 回填按主键 `id > lastID` 游标、每批 1000 行执行，不增加长期索引或运行期扫描；未完成迁移的启动至多顺序扫描一次已有前缀，已完成后重启不再扫描日志表。查询/事务每次尝试最多 2 分钟，数据库失败最多尝试 3 次，间隔 250/500 毫秒；非法历史数据立即阻断。已提交批次不回滚，重启按行版本继续；进度输出已提交行数、last_id 和耗时，标记写入失败同样阻断启动。
+10. 没有明细且聚合为零的历史消费日志保持 NULL；已有合法但无值的明细同样展示明确空态，显式记录的 0 仍为有效值。写入层对聚合非零但缺失明细发出告警，保留账务与错误日志，调用方负责记录无 usage 或归一化失败原因。
+11. 回滚顺序是先关闭新版本读写，再确认迁移前备份可恢复，最后才允许评估列清理；迁移已经回填的数据不得当作旧格式降级。
 
 ## 5. 实施阶段
 
@@ -222,7 +226,7 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 
 #### 注意事项
 
-- 不回填历史日志，不改写旧 `Other`，也不因为新列可空而把失败静默降级为空明细。
+- Token 明细迁移只在服务可写流量前执行；非法 JSON、非整数、负数、明细超过聚合或同字段冲突都必须失败，不改写计费结果、价格快照和诊断字段。
 - 三库差异按现有迁移约定处理：优先 text，不引入 JSONB 或 MySQL 专有能力。
 - 迁移必须幂等；任何迁移失败必须阻断启动，不能留下半迁移状态后继续写日志。
 
@@ -230,7 +234,7 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 
 - SQLite、MySQL 和 PostgreSQL 的历史库、空库、重复启动迁移全部通过。
 - 同库日志和独立日志库都能创建并读写 `billing_details`。
-- 历史日志保持空列，旧字段、旧统计和旧展示不变。
+- 历史消费日志具备 `billing_details` 或明确的“未记录 Token 明细”空态；`Other` 不再保留已迁移 Token key，旧统计列和计费结果不变。
 
 #### 编译校验清单
 
@@ -260,7 +264,7 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 
 - 四个来源在无缓存、缓存读取、缓存写入、5m/1h、text/image/audio/video/document、reasoning、上下文分段样本下生成相同语义的 JSON。
 - 同一 Claude 返回经原生、AWS、OpenRouter 路径转换后的语义字段一致。
-- 新日志能读出 JSON；历史日志和关闭写入后的日志仍回退到旧路径。
+- 新日志和历史迁移日志都能读出 JSON；关闭写入后的日志按缺失或错误状态显示，不回退旧路径。
 
 #### 编译校验清单
 
@@ -360,7 +364,7 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 
 - `usage-logs` 类型新增 `billing_details` 版本化结构，建立集中解析器，表格、tooltip 和详情弹窗复用同一结果。
 - 新日志直接读取 `tokens.input`、`tokens.output`、`tokens.cache.read_cache`、`write_cache`、`write_cache_5m`、`write_cache_1h`、模态和 `reasoning_output`，删除从 `prompt_tokens` 减 cache、cache creation、audio 的逻辑。
-- 空值回退旧 `Other`；损坏 JSON、未知版本和非法字段显示明确错误或降级，不做启发式猜测。
+- 空值显示“未记录 Token 明细”；损坏 JSON、未知版本和非法字段显示明确错误，不做启发式猜测或回退。
 - 金额、倍率、价格来源、上下文档位和 service tier 继续读结算快照；不从 token 明细或当前配置重算历史价格。
 - 工具费、违规费、管理端调试字段、普通用户权限过滤和现有统计口径保持不变。
 - 新增文案补齐英文和中文 i18n；表格和详情继续遵守 `DataTablePage` 与 `SectionPageLayout` 规范。
@@ -374,8 +378,8 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 
 #### 验收标准
 
-- 新旧日志同屏展示正确，导出、筛选、权限过滤和空态不回退。
-- 缓存、模态、reasoning、价格快照和旧 `Other` 场景都有前端测试。
+- 新旧迁移日志同屏展示正确，导出、筛选、权限过滤和空态不回退。
+- 缓存、模态、reasoning、价格快照和缺失明细场景都有前端测试。
 - 管理端和普通用户端可见字段与现有权限规则一致。
 
 #### 编译校验清单
@@ -403,10 +407,10 @@ Claude 的 `InputTokens` 已不含缓存，输入明细按映射表无标准字�
 
 - [ ] 新日志 `billing_details` 只有 `schema_version` 和 `tokens`；字段命名、非负整数、null/省略、缓存总量和分档约束全部符合第 4 章。
 - [ ] 存在无分档 `write_cache` 时，归一化结果将 `write_cache_5m` 设为同一总量；存在分档时满足分档和不大于总量。
-- [ ] `billing_details` 为空、JSON 损坏、版本未知时，后端计费和前端展示都有明确 fallback 或错误路径。
-- [ ] 历史日志展示、筛选、导出、统计和权限过滤不变；不回填、不改写历史数据。
+- [ ] `billing_details` 为空、JSON 损坏、版本未知时，后端计费和前端展示都有明确空态或错误路径。
+- [ ] 历史日志 Token 明细完成幂等迁移；计费结果、价格快照、倍率、诊断、筛选、导出、统计和权限过滤不变。
 - [ ] SQLite、MySQL、PostgreSQL 的空库初始化、历史库启动、重复启动迁移和独立日志库迁移通过。
-- [ ] 回滚演练通过：先关闭新列读写，确认旧 `Other` 与聚合列可回退，最后才能评估删除新列。
+- [ ] 回滚演练通过：先关闭新版本读写，使用迁移前备份恢复，最后才能评估内部版本列清理。
 
 ### 价格与结算
 
