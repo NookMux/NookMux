@@ -43,6 +43,7 @@
 后端 Go 包:
 
 - [internal/domain/AGENTS.md](internal/domain/AGENTS.md)
+- [internal/domain/billing/AGENTS.md](internal/domain/billing/AGENTS.md)
 - [internal/domain/audit/AGENTS.md](internal/domain/audit/AGENTS.md)
 - [internal/common/AGENTS.md](internal/common/AGENTS.md)
 - [internal/infra/AGENTS.md](internal/infra/AGENTS.md)
@@ -52,6 +53,8 @@
 - [internal/store/AGENTS.md](internal/store/AGENTS.md)
 - [internal/config/AGENTS.md](internal/config/AGENTS.md)
 - [internal/relay/AGENTS.md](internal/relay/AGENTS.md)
+- [internal/relay/channel/AGENTS.md](internal/relay/channel/AGENTS.md)
+- [internal/oauth/AGENTS.md](internal/oauth/AGENTS.md)
 - [internal/i18n/AGENTS.md](internal/i18n/AGENTS.md)
 - [pkg/AGENTS.md](pkg/AGENTS.md)
 
@@ -63,25 +66,30 @@
 
 ## 项目概览
 
-这是 Go 实现的 AI API 网关和管理后台。后端聚合 OpenAI、Claude、Gemini、
-Azure、AWS Bedrock 等上游能力，提供用户、渠道、计费、限速、认证和管理接口。
+这是基于 Go 与 React (Bun) 构建的企业级高性能 AI API 网关和分发管理平台。系统聚合 OpenAI、Claude、Gemini、Azure、AWS Bedrock 等多上游供应商，提供令牌、渠道、计费、模型重定向、限速、审计与控制台管理能力。
 
-主要结构:
+### 核心运行时与包管理器
 
-- `cmd/server/`: 进程入口，只处理退出码并调用 `internal/app.Run()`。
-- `internal/app/`: 启动资源初始化、Gin 装配、路由挂载和分析脚本注入；`env.go` 承载启动
-  flag 与 `InitEnv` 环境装配（阶段 4 自 `common/init.go` 迁入）。
-- `internal/httpapi/`: HTTP 边界聚合层（阶段 5.4 起）：根包为 gin 边界工具（`ApiError*` 响应族、`GetRequestBody`/`UnmarshalBodyReusable` 请求体读取、`SetContextKey`/`GetContextKey*` 上下文键助手，阶段 4 自 `common/gin.go` 迁入，仅依赖 `infra/cache`、`domain/shared`、`internal/common`（ContextKey）与 `pkg/jsonx`）；`router/`（API、relay、dashboard、web 静态路由）、`middleware/`（认证、限速、日志、分发、安全校验）、`controller/`（HTTP 边界、请求校验、响应组织，按资源拆子包：`channel/`、`user/`、`token/`、`billing/`、`relay/` 等，包名带 `controller` 后缀；`testsupport/` 为测试共享 fixture，仅 `_test.go` 可导入）。
-- `internal/domain/`: 领域层（阶段 5.1/5.3 落地）：`billing/`（计费核心服务 + `contract/` 契约叶子包 + `plan_quota/` 套餐配额）、`channel/`（渠道服务与自动禁用，含 `constant/`）、`audit/`（RecordAudit 入口）、`rankings/`、`ticket/`、`sensitive/`（敏感词匹配）、`group/`（分组倍率）、`shared/`（原 `dto/`+`types/` 合并的过渡收容包，只出不进）。
-- `internal/infra/`: 基础设施层（阶段 5.3/4 起）：`db/`（数据库类型与连接状态变量）、`redis/`（Redis 客户端与读写族）、`cache/`（磁盘缓存、请求体存储、Redis 限流器）、`email/`（SMTP 发送）、`security/`（SSRF/IP/URL/哈希/TOTP/验证码/受信代理）、`runtime/`（系统监控、pprof、pyroscope、有界 goroutine 池）、`log/`（业务日志）、`httpclient/`（通用 HTTP 传输层与 SSRF 复查、代理客户端构造）、`media/`（文件/图片/音频解码下载）、`tokenizer/`（token 计数与估算）、`notify/`（用户通知：邮件/webhook/bark/gotify 与频控）、`payment/`（epay 回调地址、stripe 集成与订单锁）、`passkey/`、`custom_voice/`。
-- `internal/store/`: 持久层（原 `model/`，阶段 5.2 按资源拆）：GORM 模型、迁移、缓存、数据库访问；子包按资源垂直拆分（`db/`、`channel/`、`user/`、`token/`、`log/` 等，包名带 `store` 后缀）。
-- `internal/config/`: 系统、运营、模型、倍率、性能、审计等配置（原 `setting/`；ConfigManager 在 `internal/config/manager/`）。
-- `internal/common/`: 业务全局变量与零碎工具内核（阶段 4 拆解后）：全局开关/限流/SMTP/OAuth 变量、`ContextKey` 注册表、`SysLog` 族输出、`GetEnvOrDefault*`、模型/端点与字符串工具；基础设施能力已迁 `internal/infra/`，HTTP 边界工具已迁 `internal/httpapi/` 根包（JSON 包装此前已迁至 `pkg/jsonx`）。
-- `internal/relay/`: AI 请求中继、协议转换、供应商适配；`relay.go` 为对外门面（re-export 各子包入口），`core/` 承载 adaptor 调度与 websocket 中继，`wire/`（含 `wire/convert/`、`wire/stream/`）承载 OpenAI wire 协议族转换（阶段 5.5 自 relay 顶层与 `relay/common/` 收口），`handler/` 承载各模态 handler；`helper/` 含协议转换（Claude/Gemini ↔ OpenAI）、relay 错误包装、响应透传工具（阶段 5.3 自原 `service/` 并入）与上游响应体限额读取（阶段 4 自 `common/response.go` 迁入）。
-- `internal/oauth/`: OAuth 供应商（原 `internal/constant/` 跨领域常量包已于阶段 4 解散：`ContextKey` 归 `internal/common`，运行时限值/缓存键/Setup 归 `internal/domain/shared/`；渠道域常量在 `domain/channel/constant/`，`FinishReason`/`RelayFormat` 在 `relay/constant/`）。
-- `internal/i18n/`: 后端 API 响应消息多语言翻译。
-- `pkg/`: 可独立复用且无业务依赖的基础库（`jsonx`、`cachex`），进入前必须通过依赖核查，详见 [pkg/AGENTS.md](pkg/AGENTS.md)。
-- `web/`: 前端 UI，React 19 + TypeScript + Rsbuild；`web/embed.go` 是 `web/dist` 的 Go embed 声明载体，经 `internal/app/webdist` 暴露给启动装配层。
+- **后端**：Go（版本以 `go.mod` 为准），使用标准 Go 工具链。
+- **前端**：Bun（工作目录 `web/`），严格使用 `bun` 作为唯一包管理器，禁止混用 npm/pnpm/yarn。
+
+### 主要架构层级
+
+子目录规则按渐进式披露组织，各包特有约定详见对应的 `AGENTS.md`：
+
+- `cmd/server/`：进程启动入口，仅处理系统退出码并调用 `internal/app.Run()`，见 [cmd/server/AGENTS.md](cmd/server/AGENTS.md)。
+- `internal/app/`：应用启动装配层，负责初始化环境、依赖注入、后台任务装配、HTTP 服务生命周期及前端嵌入资产门面，见 [internal/app/AGENTS.md](internal/app/AGENTS.md)。
+- `internal/httpapi/`：HTTP 边界层，包含路由（`router/`）、中间件（`middleware/`）与按资源垂直拆分的控制器（`controller/`），见 [internal/httpapi/controller/AGENTS.md](internal/httpapi/controller/AGENTS.md)。
+- `internal/domain/`：核心领域层，承载计费核算（`billing/`，见 [internal/domain/billing/AGENTS.md](internal/domain/billing/AGENTS.md)）、渠道调度与治理（`channel/`）、审计埋点（`audit/`，见 [internal/domain/audit/AGENTS.md](internal/domain/audit/AGENTS.md)）、敏感词过滤、分组倍率等领域服务及契约，见 [internal/domain/AGENTS.md](internal/domain/AGENTS.md)。
+- `internal/store/`：数据持久层，基于 GORM 的多资源存储实现（`dbstore`、`channelstore`、`userstore`、`tokenstore` 等），支持 SQLite / MySQL / PostgreSQL 三库兼容，见 [internal/store/AGENTS.md](internal/store/AGENTS.md)。
+- `internal/config/`：配置管理层，负责系统、运营、模型、倍率与性能配置的集中注册与动态管理，见 [internal/config/AGENTS.md](internal/config/AGENTS.md)。
+- `internal/common/`：跨层业务全局变量、上下文键（`ContextKey`）注册表及基础纯工具内核，见 [internal/common/AGENTS.md](internal/common/AGENTS.md)。
+- `internal/infra/`：基础设施层，提供代理 HTTP 客户端、Redis/缓存、安全校验、运行时监控、业务日志、媒体解析、Token 计数及支付通知，见 [internal/infra/AGENTS.md](internal/infra/AGENTS.md)。
+- `internal/relay/`：AI 请求中继与协议转换核心，负责多模态 Adaptor 调度（`channel/`，见 [internal/relay/channel/AGENTS.md](internal/relay/channel/AGENTS.md)）、OpenAI wire 双向转换、流式改写与上游中继，见 [internal/relay/AGENTS.md](internal/relay/AGENTS.md)。
+- `internal/oauth/`：第三方 OAuth 登录认证服务商扩展层，见 [internal/oauth/AGENTS.md](internal/oauth/AGENTS.md)。
+- `internal/i18n/`：后端 API 响应消息国际化，见 [internal/i18n/AGENTS.md](internal/i18n/AGENTS.md)。
+- `pkg/`：无业务依赖、可独立复用的底层库（`jsonx`、`cachex`），见 [pkg/AGENTS.md](pkg/AGENTS.md)。
+- `web/`：前端单页应用（React 19 + TypeScript + Rsbuild + Tailwind CSS 4），见 [web/AGENTS.md](web/AGENTS.md)。
 
 ## 全局工作规则
 
@@ -123,7 +131,11 @@ config、前端常量和 i18n。
 
 提交代码前，必须保证本地门禁全绿（与 `.github/workflows/ci.yml` 严格对齐），严禁未经全绿验证直接 commit：
 
-- **一键复核**：`./scripts/ci-check.sh`（全量检查，包含 Go 与 Web 的全套门禁）或 `make check-ci`。
+- **一键复核脚本**：
+  - `./scripts/ci-check.sh`：全量复核（包含 Go 与 Web 的全套门禁）。
+  - `./scripts/ci-check.sh --staged`：增量复核（仅针对 Git 暂存区改动，耗时极短）。
+  - `./scripts/ci-check.sh --backend`：仅跑后端门禁（fmt / tidy / vet / lint / test -race / build）。
+  - `./scripts/ci-check.sh --frontend`：仅跑前端门禁（format / typecheck / lint / audit / test）。
 - **Go 必检项**（改动后端代码或根配置时必跑）：
   - `unformatted=$(gofmt -l $(git ls-files '*.go'))`：格式检查（必须 0 违规，若有未对齐文件执行 `gofmt -w <file>`）。
   - `go mod tidy -diff`：保证 `go.mod` / `go.sum` 干净无差异。
@@ -137,7 +149,7 @@ config、前端常量和 i18n。
   - `cd web && bun run lint`：ESLint 静态规范通过。
   - `cd web && bun test`：前端单元测试通过。
 - **Git Hook 与提交闭环**：
-  - 本地 Git Hook 位于 `.githooks/pre-commit`（可通过 `make setup-hooks` 或 `git config core.hooksPath .githooks` 激活），在 `git commit` 时自动对暂存区改动执行增量 CI 校验。
+  - 本地 Git Hook 位于 `.githooks/pre-commit`，可通过 `git config core.hooksPath .githooks` 激活，在 `git commit` 时自动对暂存区改动执行增量 CI 校验。
   - 推送后，若具备权限，可通过 `gh run list --limit 1` 或 `gh run watch` 查看 GitHub Actions 流水线状态；如遇失败，须及时读取失败日志并当场修复，不留坏提交。
 
 

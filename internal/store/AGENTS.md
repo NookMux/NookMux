@@ -1,67 +1,52 @@
 # internal/store/AGENTS.md
 
-`internal/store/` 是原 `internal/model/` 按资源垂直拆分后的持久层：GORM 模型、
-查询、缓存、迁移与数据清理。本文件规则适用于所有子包。
+`internal/store/` 是数据持久层，承载系统 GORM 实体定义、数据持久化访问（CRUD）、底层缓存、数据迁移与存储清理。
 
 ## 目录结构与包命名
 
-子包按资源拆分；包名统一带 `store` 后缀（避免与调用方常见的局部变量
-`user`/`token`/`channel`/`log`/`db` 冲突），`db/` 系子包以 `db` 前缀命名：
+子包按资源垂直拆分；包名统一使用 `store` 后缀（避免与调用方局部变量 `user`/`token`/`channel`/`log`/`db` 冲突），`db/` 系列以 `db` 前缀命名：
 
-| 目录 | 包名 | 职责 |
+| 目录 | 包名 | 核心职责 |
 |---|---|---|
-| `db/` | `dbstore` | `DB`/`LOG_DB` 句柄、列名方言变量、连接初始化、批量更新器 |
-| `db/migrate/` | `dbmigrate` | `InitDB`/`InitLogDB` 编排、AutoMigrate、pre-migrate / 同类型迁移、日志头回填 |
-| `db/cleanup/` | `dbcleanup` | 一次性历史数据清理（cleanup_removed_*） |
-| `channel/` | `channelstore` | 渠道、ability、动态倍率 |
-| `user/` | `userstore` | 用户、用户缓存、用户动作日志（RecordLog*） |
-| `token/` | `tokenstore` | 令牌、令牌缓存、窗口/周期配额 |
-| `log/` | `logstore` | 消费/错误日志查询与统计 |
-| `pricing/` | `pricingstore` | 定价缓存与刷新（含 model_extra 查询） |
-| `option/` | `optionstore` | option KV、setup 记录、数据迁移 marker |
-| 其余单资源目录 | `<资源>store` | redemption/ticket/topup/checkin/usedata/audit/twofa/passkey/minimax_voice/missing_models/prefill_group/stored_media/vendor_meta |
+| `db/` | `dbstore` | `DB`/`LOG_DB` 句柄、方言列名变量、连接初始化、批量聚合更新器 |
+| `db/migrate/` | `dbmigrate` | `InitDB`/`InitLogDB` 迁移编排、AutoMigrate、同类型迁移、日志头回填 |
+| `db/cleanup/` | `dbcleanup` | 历史过期数据清理 |
+| `channel/` | `channelstore` | 渠道配置、ability 模型映射、动态倍率配置持久化 |
+| `user/` | `userstore` | 用户实体、用户缓存、操作动作日志 |
+| `token/` | `tokenstore` | 令牌实体、令牌缓存、时间窗口/周期配额 |
+| `log/` | `logstore` | 消费日志、错误日志检索与用量统计聚合 |
+| `pricing/` | `pricingstore` | 模型定价缓存与刷新 |
+| `option/` | `optionstore` | 系统 Option 键值对、系统 Setup 记录、迁移状态 Marker |
+| 其他单资源目录 | `<资源>store` | redemption/ticket/topup/checkin/usedata/audit/twofa/passkey/minimax_voice/missing_models/prefill_group/stored_media/vendor_meta |
 
-`vendormetastore`（`vendor_meta/`）持有 `Model`/`Vendor` 模型元数据，是大多数
-资源包的公共依赖；`dbstore` 不依赖任何资源包（分层最底层）。
+`vendormetastore`（`vendor_meta/`）持有 `Model`/`Vendor` 元数据，是跨资源包的公共基础依赖；`dbstore` 位于持久层最底端，不依赖任何资源包。
 
 ## 分层与依赖方向
 
-- `dbstore` 不 import 任何资源子包；资源子包 → `dbstore` 取 `DB`/`LOG_DB`/列名变量。
-- `InitDB`/`InitLogDB`/AutoMigrate 编排在 `dbmigrate`（引用全部资源模型，放
-  `dbstore` 会成环）；启动装配从 `dbmigrate` 调用。
-- 批量更新器机制（stores/locks/定时 flush）在 `dbstore`，各资源包在 `init()`
-  里通过 `dbstore.RegisterBatchFlushers` 注册自己的落库函数（写入与注册同包，
-  保证 flusher 永不缺失；nil 时按类型报错丢弃，不静默）。
-- `user ↔ log` 的历史循环以"用户动作日志随用户域"解：`RecordLog`/
-  `RecordLogWithAdminInfo` 在 `userstore`；logstore 只保留查询/消费/错误日志。
-- 一次性数据迁移 marker（`IsDataMigrationDone`/`MarkDataMigrationDone`）在
-  `optionstore`（直接读写 options 表）；`dbcleanup` 与 `dbmigrate` 复用。
+- **单向无环依赖**：`dbstore` 严禁 import 任何业务资源子包；资源子包 → `dbstore` 获取数据库句柄与方言列变量。
+- **迁移集中调度**：`InitDB`/`InitLogDB` 与自动迁移集中在 `dbmigrate` 编排，由启动装配层统一调用。
+- **批量更新机制**：批量聚合机制（stores/locks/定时 flush）统一收口在 `dbstore`，各资源包在 `init()` 中通过 `dbstore.RegisterBatchFlushers` 注册落盘函数（注册与实体同包，保证 flusher 存在；nil 时显式报错，严禁静默丢弃）。
+- **解耦动作日志**：用户管理操作日志（`RecordLog`/`RecordLogWithAdminInfo`）收口在 `userstore`，`logstore` 专注承载请求消费与错误日志查询，消除双向循环依赖。
 
-## 数据库兼容
+## 数据库三库兼容性规范
 
-必须同时支持 SQLite、MySQL >= 5.7.8、PostgreSQL >= 9.6。
+系统必须同时严谨支持 SQLite、MySQL >= 5.7.8、PostgreSQL >= 9.6：
 
-- 优先使用 GORM 查询、更新、迁移能力。
-- 原始 SQL 必须参数化，不能拼接外部输入。
-- 保留字列（`group`/`key`）用 `dbstore.CommonGroupCol`/`CommonKeyCol`/`LogGroupCol`
-  拼接（由 `dbstore.InitCol` 按方言初始化），不要手写反引号/双引号。
-- 保留字列、布尔值、引号、JSON 存储、ALTER 行为要处理三库差异。
-- JSON 存储优先 `TEXT`，不要引入缺少回退方案的 JSONB/MySQL 专有能力。
-- SQLite 不支持 `ALTER COLUMN`，迁移按现有 add-column/兼容模式处理。
+- 优先使用 GORM 链式 API 执行查询、更新与迁移。
+- 原始 SQL 必须严格参数化，禁止通过字符串拼接外部输入。
+- 保留字列名（如 `group`、`key`）必须调用 `dbstore.CommonGroupCol` / `CommonKeyCol` / `LogGroupCol` 变量进行方言拼接，严禁手写反引号或双引号。
+- 布尔值、JSON 存取、类型转换与 ALTER 行为必须兼容三库方言差异。
+- JSON 数据统一以 `TEXT` 类型持久化，严禁引入缺乏跨库回退方案的专有类型（如 JSONB）。
+- SQLite 原生不支持 `ALTER COLUMN`，表结构演进必须采用追加新列或兼容转换模式。
 
-## 缓存与配置
+## 缓存与数据一致性
 
-- `OptionMap`、channel cache、dynamic ratio cache 等全局缓存要注意锁、同步频率和多节点行为。
-- 迁移和 cleanup 必须幂等，可重复运行。
-
-## 测试
-
-- 跨包 fixture 的测试用外部测试包（`package <pkg>_test`，如 `logstore_test`），
-  避免内部测试包与被测包依赖成环；仅用本包未导出符号的测试保持内部测试包。
-- 测试间复位批量暂存用 `dbstore.ResetBatchUpdateStores()`。
+- 全局内存缓存（`OptionMap`、渠道缓存、动态倍率缓存）必须严格保障读写锁安全与节点间同步机制。
+- 数据迁移与清理脚本必须具备严格幂等性，确保可安全重复运行。
 
 ## 验证
 
-- 改模型、迁移或缓存后执行相关 store 测试。
-- 涉及 SQL 或迁移时至少做 SQLite 路径验证；能配置 MySQL/PostgreSQL 时补充对应验证。
-- 跨层影响执行 `go test ./internal/store/... ./internal/domain/... ./internal/httpapi/controller/...`。
+- `go test ./internal/store/...`
+- 涉及 SQL 或模型迁移变动时，必须验证 SQLite 路径；有条件时运行 MySQL/PostgreSQL 验证。
+- 跨层联动测试：
+  `go test ./internal/store/... ./internal/domain/... ./internal/httpapi/controller/...`
