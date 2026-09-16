@@ -93,6 +93,7 @@ assisted-by：opencode：Zhipu/GLM-5.3[Max]"
 
 提交前检查：
 
+- [ ] 本地门禁通过：`git config core.hooksPath .githooks` 激活 hooks 后，`git commit` 会自动执行秒级增量检查，`git push` 会执行对齐 CI 的全量门禁（也可手动运行 `./scripts/ci-check.sh`）
 - [ ] 测试通过（后端 `go test ./...`，前端 `bun run typecheck` / `bun run lint`）
 - [ ] 遵守对应目录的 `AGENTS.md` 规范
 - [ ] 更新了相关文档与 `.env.example`（涉及环境变量时）

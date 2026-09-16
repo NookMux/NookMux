@@ -96,7 +96,7 @@
 - 先建立证据链再改代码：现象、入口、相关代码/配置、根因层级、最小修复点、验证方式。
 - 保持工作区脏改隔离。不要回滚、覆盖或格式化与当前任务无关的用户改动。
 - 不做破坏性 Git 操作，不自动 commit/push；需要提交时只 add 相关具体文件。
-- 严禁未经本地 CI 等价门禁验证直接提交。提交时由 `.githooks/pre-commit` 自动把关，如遇拦截必须立刻定位并修复，严禁使用 `--no-verify` 绕过。
+- 严禁未经本地 CI 等价门禁验证直接提交。提交时由 `.githooks/pre-commit`（秒级增量）、推送时由 `.githooks/pre-push`（全量，对齐 CI）自动把关，如遇拦截必须立刻定位并修复，严禁使用 `--no-verify` 绕过。
 - 不写入 secrets。环境变量、数据库 DSN、OAuth 密钥、API key 都不得硬编码到源码或文档示例的真实值。
 - 不用模拟成功、静默降级、吞错或假数据让流程"看起来能跑"。失败必须清晰暴露。
 - 外部输入必须在系统边界校验：HTTP 参数、表单、文件、网络、数据库、缓存、权限、安全逻辑。
@@ -132,10 +132,10 @@ config、前端常量和 i18n。
 提交代码前，必须保证本地门禁全绿（与 `.github/workflows/ci.yml` 严格对齐），严禁未经全绿验证直接 commit：
 
 - **一键复核脚本**：
-  - `./scripts/ci-check.sh`：全量复核（包含 Go 与 Web 的全套门禁）。
-  - `./scripts/ci-check.sh --staged`：增量复核（仅针对 Git 暂存区改动，耗时极短）。
+  - `./scripts/ci-check.sh`：全量复核（对齐 ci.yml：Go fmt / tidy / vet / lint / test -race / build + Web typecheck / lint / format / audit / test；不含 rsbuild 生产构建，该项交给 CI）。由 pre-push hook 自动执行。
+  - `./scripts/ci-check.sh --staged`：增量复核（仅针对 Git 暂存区改动，秒级：Go 为暂存文件 gofmt + 全仓 vet，前端按暂存文件做 prettier，TS 相关变更才触发 typecheck）。由 pre-commit hook 自动执行。
   - `./scripts/ci-check.sh --backend`：仅跑后端门禁（fmt / tidy / vet / lint / test -race / build）。
-  - `./scripts/ci-check.sh --frontend`：仅跑前端门禁（format / typecheck / lint / audit / test）。
+  - `./scripts/ci-check.sh --frontend`：仅跑前端门禁（typecheck / lint / format / audit / test）。
 - **Go 必检项**（改动后端代码或根配置时必跑）：
   - `unformatted=$(gofmt -l $(git ls-files '*.go'))`：格式检查（必须 0 违规，若有未对齐文件执行 `gofmt -w <file>`）。
   - `go mod tidy -diff`：保证 `go.mod` / `go.sum` 干净无差异。
@@ -149,7 +149,7 @@ config、前端常量和 i18n。
   - `cd web && bun run lint`：ESLint 静态规范通过。
   - `cd web && bun test`：前端单元测试通过。
 - **Git Hook 与提交闭环**：
-  - 本地 Git Hook 位于 `.githooks/pre-commit`，可通过 `git config core.hooksPath .githooks` 激活，在 `git commit` 时自动对暂存区改动执行增量 CI 校验。
+  - 本地 Git Hooks 位于 `.githooks/`，可通过 `git config core.hooksPath .githooks` 激活：`pre-commit` 在 `git commit` 时对暂存区改动执行秒级增量校验（`--staged` 模式）；`pre-push` 在 `git push` 时执行对齐 CI 的全量门禁（Go 与 Web 全套）。
   - 推送后，若具备权限，可通过 `gh run list --limit 1` 或 `gh run watch` 查看 GitHub Actions 流水线状态；如遇失败，须及时读取失败日志并当场修复，不留坏提交。
 
 
