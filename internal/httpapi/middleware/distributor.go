@@ -108,7 +108,6 @@ func Distribute() func(c *gin.Context) {
 							autoGroups := domaingroup.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
 								if channelstore.IsChannelEnabledForGroupModel(g, modelRequest.Model, preferred.Id) {
-									selectGroup = g
 									httpapi.SetContextKey(c, common.ContextKeyAutoGroup, g)
 									channel = preferred
 									affinityUsable = true
@@ -118,7 +117,6 @@ func Distribute() func(c *gin.Context) {
 							}
 						} else if channelstore.IsChannelEnabledForGroupModel(usingGroup, modelRequest.Model, preferred.Id) {
 							channel = preferred
-							selectGroup = usingGroup
 							affinityUsable = true
 							domainchannel.MarkChannelAffinityUsed(c, usingGroup, preferred.Id)
 						}

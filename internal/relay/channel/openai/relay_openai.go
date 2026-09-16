@@ -65,7 +65,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 	// 检查是否为音频模型
 	isAudioModel := strings.Contains(strings.ToLower(model), "audio")
 
-	helper.StreamScannerHandler(c, resp, info, func(data string) bool {
+	if streamErr := helper.StreamScannerHandler(c, resp, info, func(data string) bool {
 		// 部分上游/中间网关会把 429/5xx 错误转成 HTTP 200 + SSE error 帧下发。
 		// 这里识别错误帧并保留真实上游错误，避免计费阶段因 totalTokens=0
 		// 被误记为「502 上游没有返回计费信息」。
@@ -98,7 +98,11 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			lastStreamData = data
 		}
 		return true
-	})
+	}); streamErr != nil {
+		// 流异常终止（超时/连接断开）：记录真实原因供排查；已收到的部分内容
+		// 仍按既有兜底估算计费，避免重试造成重复下发，故不向上返回错误。
+		log.LogError(c, "openai stream terminated abnormally: "+streamErr.Error())
+	}
 
 	// 对音频模型，从倒数第二个stream data中提取usage信息
 	if isAudioModel && secondLastStreamData != "" {

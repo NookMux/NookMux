@@ -87,7 +87,6 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *shar
 				return shared.NewError(err, shared.ErrorCodeConvertRequestFailed, shared.ErrOptionWithSkipRetry())
 			}
 			defer closer.Close()
-			jsonData = nil
 			info.UpstreamRequestBodySize = size
 			requestBody = body
 		}

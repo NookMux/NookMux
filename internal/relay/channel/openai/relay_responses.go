@@ -100,7 +100,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		responsesToChat = stream.NewResponsesToChatStreamConverter(false)
 	}
 
-	helper.StreamScannerHandler(c, resp, info, func(data string) bool {
+	if streamErr := helper.StreamScannerHandler(c, resp, info, func(data string) bool {
 		maskedData := data
 
 		// 检查当前数据是否包含 completed 状态和 usage 信息
@@ -168,7 +168,11 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			sendResponsesStreamData(c, streamResponse, maskedData)
 		}
 		return true
-	})
+	}); streamErr != nil {
+		// 流异常终止（超时/连接断开）：记录真实原因供排查；已收到的部分内容
+		// 仍按既有兜底估算计费，避免重试造成重复下发，故不向上返回错误。
+		log.LogError(c, "responses stream terminated abnormally: "+streamErr.Error())
+	}
 
 	if streamApiErr != nil {
 		// 上游在流内返回了 failed 事件：真实错误已识别，直接向上暴露，不再伪造 usage。

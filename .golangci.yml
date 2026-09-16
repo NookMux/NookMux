@@ -1,0 +1,43 @@
+# golangci-lint v2 配置。
+#
+# 门禁范围与 .github/workflows/ci.yml 的 Golangci lint 步骤注释声明的契约保持一致：
+#   errcheck / ineffassign / unused / staticcheck(SA+S)
+#   - staticcheck 收窄为 SA（正确性）与 S（简化建议）两族，禁用 QF/ST 快修类
+#     （QF1003 tagged switch、QF1008 内嵌字段选择器、ST1017 Yoda 条件等风格化
+#     建议不属于本门禁契约，避免噪声淹没真实问题）。
+#   - exclusions.presets 启用官方 std-error-handling 预设：仅放行约定俗成的
+#     忽略点（io.Closer 的 Close、fmt.Fprint*、os.Remove 等标准库错误处理惯例），
+#     不放行任何业务写路径的错误忽略。
+#
+# CI 固定版本 v2.13.2（见 ci.yml），本地需用同版本复验。
+
+version: "2"
+
+run:
+  # CI 与本地全量扫描的时间预算；超时视为门禁失败而不是静默截断。
+  timeout: 10m
+
+linters:
+  # 不启用默认 linter 集合，显式声明门禁范围。
+  default: none
+  enable:
+    - errcheck
+    - ineffassign
+    - staticcheck
+    - unused
+
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -ST*
+        - -QF*
+
+  exclusions:
+    # 标准库错误处理惯例（Close / Fprint / Remove 等）不阻塞门禁。
+    presets:
+      - std-error-handling
+    # 本地安装过前端依赖时避免把 web/node_modules 里的 vendored Go 文件
+    # （如 flatted 的 golang 绑定）当作本仓库代码扫描。
+    paths:
+      - web/node_modules

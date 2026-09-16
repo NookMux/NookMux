@@ -247,7 +247,7 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 		return nil, errors.New("id 为空！")
 	}
 	user := User{Id: id}
-	var err error = nil
+	var err error
 	if selectAll {
 		err = dbstore.DB.First(&user, "id = ?", id).Error
 	} else {

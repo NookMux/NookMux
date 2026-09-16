@@ -1173,7 +1173,7 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 	responseText := strings.Builder{}
 	var streamApiErr *shared.NookMuxError
 
-	helper.StreamScannerHandler(c, resp, info, func(data string) bool {
+	if streamErr := helper.StreamScannerHandler(c, resp, info, func(data string) bool {
 		var geminiResponse shared.GeminiChatResponse
 		err := jsonx.UnmarshalJsonStr(data, &geminiResponse)
 		if err != nil {
@@ -1216,7 +1216,11 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		}
 
 		return callback(data, &geminiResponse)
-	})
+	}); streamErr != nil {
+		// 流异常终止（超时/连接断开）：记录真实原因供排查；已收到的部分内容
+		// 仍按既有兜底估算计费，避免重试造成重复下发，故不向上返回错误。
+		log.LogError(c, "gemini stream terminated abnormally: "+streamErr.Error())
+	}
 
 	if streamApiErr != nil {
 		// 上游在流内返回了错误载荷：真实错误已识别，直接向上暴露，不再伪造 usage。

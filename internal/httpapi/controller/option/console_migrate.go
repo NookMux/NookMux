@@ -27,6 +27,17 @@ func MigrateConsoleSetting(c *gin.Context) {
 		valMap[o.Key] = o.Value
 	}
 
+	// 迁移任一步写入失败即中止并返回 500，避免出现"部分迁移"的中间状态
+	//（旧键已清、新键未写等）导致后续重试无法恢复。
+	migrateOption := func(key, value string) bool {
+		if err := optionstore.UpdateOption(key, value); err != nil {
+			common.SysError("failed to update option " + key + " during console migration: " + err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": i18n.T(c, i18n.MsgUpdateFailed)})
+			return false
+		}
+		return true
+	}
+
 	// 处理 APIInfo
 	if v := valMap["ApiInfo"]; v != "" {
 		var arr []map[string]interface{}
@@ -35,14 +46,22 @@ func MigrateConsoleSetting(c *gin.Context) {
 				arr = arr[:50]
 			}
 			bytes, _ := jsonx.Marshal(arr)
-			optionstore.UpdateOption("console.api_info", string(bytes))
+			if !migrateOption("console.api_info", string(bytes)) {
+				return
+			}
 		}
-		optionstore.UpdateOption("ApiInfo", "")
+		if !migrateOption("ApiInfo", "") {
+			return
+		}
 	}
 	// Announcements 直接搬
 	if v := valMap["Announcements"]; v != "" {
-		optionstore.UpdateOption("console.announcements", v)
-		optionstore.UpdateOption("Announcements", "")
+		if !migrateOption("console.announcements", v) {
+			return
+		}
+		if !migrateOption("Announcements", "") {
+			return
+		}
 	}
 	// FAQ 转换
 	if v := valMap["FAQ"]; v != "" {
@@ -66,9 +85,13 @@ func MigrateConsoleSetting(c *gin.Context) {
 				out = out[:50]
 			}
 			bytes, _ := jsonx.Marshal(out)
-			optionstore.UpdateOption("console.faq", string(bytes))
+			if !migrateOption("console.faq", string(bytes)) {
+				return
+			}
 		}
-		optionstore.UpdateOption("FAQ", "")
+		if !migrateOption("FAQ", "") {
+			return
+		}
 	}
 	// Uptime Kuma 迁移到新的 groups 结构（console.uptime_kuma_groups）
 	url := valMap["UptimeKumaUrl"]
@@ -85,14 +108,20 @@ func MigrateConsoleSetting(c *gin.Context) {
 			},
 		}
 		bytes, _ := jsonx.Marshal(groups)
-		optionstore.UpdateOption("console.uptime_kuma_groups", string(bytes))
+		if !migrateOption("console.uptime_kuma_groups", string(bytes)) {
+			return
+		}
 	}
 	// 清空旧键内容
 	if url != "" {
-		optionstore.UpdateOption("UptimeKumaUrl", "")
+		if !migrateOption("UptimeKumaUrl", "") {
+			return
+		}
 	}
 	if slug != "" {
-		optionstore.UpdateOption("UptimeKumaSlug", "")
+		if !migrateOption("UptimeKumaSlug", "") {
+			return
+		}
 	}
 
 	// 删除旧键记录

@@ -56,9 +56,8 @@ func InitDB() (err error) {
 		if !common.IsMasterNode {
 			return nil
 		}
-		if infradb.UsingMySQL {
-			//_, _ = sqlDB.Exec("ALTER TABLE channels MODIFY model_mapping TEXT;") // TODO: delete this line when most users have upgraded
-		}
+		// TODO: delete this line when most users have upgraded
+		//_, _ = sqlDB.Exec("ALTER TABLE channels MODIFY model_mapping TEXT;")
 		common.SysLog("database migration started")
 		err = migrateDB()
 		return err

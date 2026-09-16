@@ -186,10 +186,9 @@ func UnmarshalBodyReusable(c *gin.Context, v any) error {
 		err = parseFormData(requestBody, v)
 	} else if strings.Contains(contentType, gin.MIMEMultipartPOSTForm) {
 		err = parseMultipartFormData(c, requestBody, v)
-	} else {
-		// skip for now
-		// TODO: someday non json request have variant model, we will need to implementation this
 	}
+	// 其余 content-type 暂不解析；err 保持为 nil。
+	// TODO: someday non json request have variant model, we will need to implementation this
 	if err != nil {
 		return err
 	}
@@ -364,7 +363,12 @@ func parseMultipartFormData(c *gin.Context, data []byte, v any) error {
 	if err != nil {
 		return err
 	}
-	defer form.RemoveAll()
+	defer func() {
+		if err := form.RemoveAll(); err != nil {
+			// 清理 multipart 临时文件失败仅记录：表单解析已完成，不影响主流程。
+			common.SysError("failed to remove multipart form temp files: " + err.Error())
+		}
+	}()
 	formMap := make(map[string]any)
 	for key, vals := range form.Value {
 		if len(vals) == 1 {

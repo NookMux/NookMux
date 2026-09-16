@@ -54,7 +54,9 @@ func handleClaudeFormat(c *gin.Context, data string, info *relaycommon.RelayInfo
 	}
 	claudeResponses := helper.StreamResponseOpenAI2Claude(&streamResponse, info)
 	for _, resp := range claudeResponses {
-		helper.ClaudeData(c, *resp)
+		if err := helper.ClaudeData(c, *resp); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -164,7 +166,9 @@ func HandleFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, lastStream
 			}
 			response := helper.GenerateFinalUsageResponse(responseId, createAt, responseModel, *usage)
 			response.SetSystemFingerprint(systemFingerprint)
-			helper.ObjectData(c, response)
+			if err := helper.ObjectData(c, response); err != nil {
+				log.LogError(c, "failed to write final usage response: "+err.Error())
+			}
 		}
 		helper.Done(c)
 

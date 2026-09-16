@@ -71,7 +71,9 @@ func TestPlaygroundSelectedGroupAppliesBeforeModelRateLimit(t *testing.T) {
 		"vip": {1, 1000},
 	}
 	config.ModelRequestRateLimitMutex.Unlock()
-	inMemoryRateLimiter = common.InMemoryRateLimiter{}
+	// 复用同一 limiter 实例并清空其状态，而非整体重赋值：避免与仍在运行的
+	// 清扫协程竞争同一结构体内存（整体赋值会写 expirationDuration 等字段）。
+	inMemoryRateLimiter.Reset()
 
 	t.Cleanup(func() {
 		redis.RedisEnabled = oldRedisEnabled
@@ -82,7 +84,7 @@ func TestPlaygroundSelectedGroupAppliesBeforeModelRateLimit(t *testing.T) {
 		config.ModelRequestRateLimitMutex.Lock()
 		config.ModelRequestRateLimitGroup = oldGroupLimits
 		config.ModelRequestRateLimitMutex.Unlock()
-		inMemoryRateLimiter = common.InMemoryRateLimiter{}
+		inMemoryRateLimiter.Reset()
 	})
 
 	router := gin.New()

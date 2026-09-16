@@ -426,7 +426,9 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 		var requestBody bytes.Buffer
 		writer := multipart.NewWriter(&requestBody)
 
-		writer.WriteField("model", request.Model)
+		if err := writer.WriteField("model", request.Model); err != nil {
+			return nil, fmt.Errorf("error writing model field: %w", err)
+		}
 
 		formData, err2 := httpapi.ParseMultipartFormReusable(c)
 		if err2 != nil {
@@ -442,7 +444,9 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 				continue
 			}
 			for _, value := range values {
-				writer.WriteField(key, value)
+				if err := writer.WriteField(key, value); err != nil {
+					return nil, fmt.Errorf("error writing form field %s: %w", key, err)
+				}
 				log.LogDebug(c.Request.Context(), fmt.Sprintf("--form '%s=\"%s\"'", key, value))
 			}
 		}
@@ -487,7 +491,9 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 		var requestBody bytes.Buffer
 		writer := multipart.NewWriter(&requestBody)
 
-		writer.WriteField("model", request.Model)
+		if err := writer.WriteField("model", request.Model); err != nil {
+			return nil, fmt.Errorf("error writing model field: %w", err)
+		}
 		// 使用已解析的 multipart 表单，避免重复解析
 		mf := c.Request.MultipartForm
 		if mf == nil {
@@ -504,7 +510,9 @@ func (a *Adaptor) ConvertImageRequest(c *gin.Context, info *relaycommon.RelayInf
 					continue
 				}
 				for _, value := range values {
-					writer.WriteField(key, value)
+					if err := writer.WriteField(key, value); err != nil {
+						return nil, fmt.Errorf("error writing form field %s: %w", key, err)
+					}
 				}
 			}
 		}

@@ -38,6 +38,10 @@ type boundedRelayPool struct {
 	idleTimeout time.Duration
 	mu          sync.Mutex
 	workers     int
+	// inFlight 跟踪已提交但尚未执行完毕的异步任务，供测试清理阶段排空，
+	// 避免清理改写全局量时与后台协程产生数据竞争。Add/Done 各一次，不改变
+	// worker 上限、队列大小与空闲退出语义。
+	inFlight sync.WaitGroup
 }
 
 func init() {
@@ -141,8 +145,13 @@ func (p *boundedRelayPool) CtxGo(ctx context.Context, f func()) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	p.inFlight.Add(1)
+	wrapped := func() {
+		defer p.inFlight.Done()
+		f()
+	}
 	p.startWorkerIfNeeded()
-	p.tasks <- relayTask{ctx: ctx, f: f}
+	p.tasks <- relayTask{ctx: ctx, f: wrapped}
 	p.startWorkerIfNeeded()
 }
 
@@ -152,4 +161,11 @@ func RelayCtxGo(ctx context.Context, f func()) {
 
 func RelayGo(f func()) {
 	RelayCtxGo(context.Background(), f)
+}
+
+// WaitRelayTasks 阻塞直到当前所有已提交的异步任务执行完毕。仅供测试清理阶段
+// 排空后台计费/日志回写等异步工作，确保清理改写全局量时不会与仍在运行的后台
+// 协程产生数据竞争。不得在中继任务内部递归调用（会自等待死锁）。
+func WaitRelayTasks() {
+	relayGoPool.inFlight.Wait()
 }

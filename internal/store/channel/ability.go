@@ -145,7 +145,7 @@ func GetChannelWithRelayFormat(group string, model string, priorityIndex int, pr
 func getChannelWithRelayFormat(group string, model string, priorityIndex int, preferredAPIType int, relayFormat relayconstant.RelayFormat, excludeChannelId int, allowExcludedFallback bool) (*Channel, error) {
 	var abilities []Ability
 
-	var err error = nil
+	var err error
 	channelQuery, err := getChannelQuery(group, model, priorityIndex, excludeChannelId)
 	if err != nil {
 		return nil, err

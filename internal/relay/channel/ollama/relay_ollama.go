@@ -158,6 +158,9 @@ func PullOllamaModelStream(baseURL, apiKey, proxyURL, modelName string, progress
 	}
 
 	client, err := newOllamaHttpClient(proxyURL, time.Hour) // 1小时超时，支持超大模型
+	if err != nil {
+		return fmt.Errorf("创建客户端失败: %v", err)
+	}
 	request, err := http.NewRequest("POST", url, strings.NewReader(string(requestBody)))
 	if err != nil {
 		return fmt.Errorf("创建请求失败: %v", err)
@@ -232,6 +235,9 @@ func DeleteOllamaModel(baseURL, apiKey, proxyURL, modelName string) error {
 	}
 
 	client, err := newOllamaHttpClient(proxyURL, 0)
+	if err != nil {
+		return fmt.Errorf("创建客户端失败: %v", err)
+	}
 	request, err := http.NewRequest("DELETE", url, strings.NewReader(string(requestBody)))
 	if err != nil {
 		return fmt.Errorf("创建请求失败: %v", err)

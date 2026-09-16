@@ -766,11 +766,6 @@ const (
 
 	// GlmResetCardTypePersonal 个人套餐固定 targetType，避免上层暴露给前端可注入。
 	GlmResetCardTypePersonal GlmResetCardType = "PERSONAL"
-
-	// glmResetCardQuotaUnitFiveHour / Week 对应智谱官方前端 quotaUnit 映射，
-	// 仅作为注释参考，不参与后端逻辑。
-	glmResetCardQuotaUnitFiveHour = 3
-	glmResetCardQuotaUnitWeek     = 6
 )
 
 // GlmResetCardType 枚举智谱官方 resetType 取值。

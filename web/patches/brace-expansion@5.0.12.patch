@@ -1,0 +1,9 @@
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 0e0cc962307eb697dc8139ef4c1f86b82380e5cc..70de32e7389e0855850a84dede6cee31fa6a917b 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -327,3 +327,4 @@ function expand_(str, max, maxLength, maxDepth, depth, maxRewrites, isTop) {
+     return acc;
+ }
+ //# sourceMappingURL=index.js.map
++export default expand;

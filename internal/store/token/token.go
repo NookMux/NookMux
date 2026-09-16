@@ -371,8 +371,7 @@ func GetTokenByIds(id int, userId int) (*Token, error) {
 		return nil, errors.New("id 或 userId 为空！")
 	}
 	token := Token{Id: id, UserId: userId}
-	var err error = nil
-	err = dbstore.DB.First(&token, "id = ? and user_id = ?", id, userId).Error
+	err := dbstore.DB.First(&token, "id = ? and user_id = ?", id, userId).Error
 	return &token, err
 }
 
@@ -381,8 +380,7 @@ func GetTokenById(id int) (*Token, error) {
 		return nil, errors.New("id 为空！")
 	}
 	token := Token{Id: id}
-	var err error = nil
-	err = dbstore.DB.First(&token, "id = ?", id).Error
+	err := dbstore.DB.First(&token, "id = ?", id).Error
 	if dbstore.ShouldUpdateRedis(true, err) {
 		runtime.RelayGo(func() {
 			if err := cacheSetToken(token); err != nil {

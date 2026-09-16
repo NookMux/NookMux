@@ -431,7 +431,11 @@ func Verify2FALogin(c *gin.Context) {
 	session.Delete("pending_username")
 	session.Delete("pending_user_id")
 	session.Delete("pending_2fa_set_at")
-	session.Save()
+	if err := session.Save(); err != nil {
+		common.SysError("failed to save session after 2fa verification: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgUserSessionSaveFailed)
+		return
+	}
 
 	usercontroller.SetupLogin(user, c)
 }

@@ -9,36 +9,64 @@ type InMemoryRateLimiter struct {
 	store              map[string]*[]int64
 	mutex              sync.Mutex
 	expirationDuration time.Duration
+	stopCh             chan struct{}
 }
 
+// Init 幂等初始化限流器并按需启动清扫协程。重复调用是 no-op。
 func (l *InMemoryRateLimiter) Init(expirationDuration time.Duration) {
-	if l.store == nil {
-		l.mutex.Lock()
-		if l.store == nil {
-			l.store = make(map[string]*[]int64)
-			l.expirationDuration = expirationDuration
-			if expirationDuration > 0 {
-				go l.clearExpiredItems()
-			}
-		}
-		l.mutex.Unlock()
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if l.store != nil {
+		return
+	}
+	l.store = make(map[string]*[]int64)
+	l.expirationDuration = expirationDuration
+	if expirationDuration > 0 {
+		stopCh := make(chan struct{})
+		l.stopCh = stopCh
+		go l.clearExpiredItems(stopCh, expirationDuration)
 	}
 }
 
-func (l *InMemoryRateLimiter) clearExpiredItems() {
+// clearExpiredItems 周期清理过期 key。清扫周期作为参数传入，避免协程内无锁
+// 读 expirationDuration 造成数据竞争；删除逻辑持锁操作 store。
+func (l *InMemoryRateLimiter) clearExpiredItems(stopCh chan struct{}, duration time.Duration) {
+	ticker := time.NewTicker(duration)
+	defer ticker.Stop()
+	expirationSeconds := int64(duration.Seconds())
 	for {
-		time.Sleep(l.expirationDuration)
-		l.mutex.Lock()
-		now := time.Now().Unix()
-		for key := range l.store {
-			queue := l.store[key]
-			size := len(*queue)
-			if size == 0 || now-(*queue)[size-1] > int64(l.expirationDuration.Seconds()) {
-				delete(l.store, key)
-			}
+		select {
+		case <-stopCh:
+			return
+		case <-ticker.C:
+			l.removeExpired(expirationSeconds)
 		}
-		l.mutex.Unlock()
 	}
+}
+
+func (l *InMemoryRateLimiter) removeExpired(expirationSeconds int64) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	now := time.Now().Unix()
+	for key, queue := range l.store {
+		size := len(*queue)
+		if size == 0 || now-(*queue)[size-1] > expirationSeconds {
+			delete(l.store, key)
+		}
+	}
+}
+
+// Reset 停止清扫协程并清空状态，供测试或配置重载复用同一 limiter 实例时使用。
+// 调用后可通过 Init 重新启动。生产路径一般不调用（limiter 进程级单例）。
+func (l *InMemoryRateLimiter) Reset() {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if l.stopCh != nil {
+		close(l.stopCh)
+		l.stopCh = nil
+	}
+	l.store = nil
+	l.expirationDuration = 0
 }
 
 // Request parameter duration's unit is seconds

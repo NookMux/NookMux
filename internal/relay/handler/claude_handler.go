@@ -110,7 +110,6 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *sha
 			return shared.NewError(err, shared.ErrorCodeConvertRequestFailed, shared.ErrOptionWithSkipRetry())
 		}
 		defer closer.Close()
-		jsonData = nil
 		info.UpstreamRequestBodySize = size
 		requestBody = body
 	}
