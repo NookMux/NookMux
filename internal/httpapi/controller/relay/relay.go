@@ -233,6 +233,10 @@ func Relay(c *gin.Context, relayFormat relayconstant.RelayFormat) {
 		}
 		c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 
+		attemptStartTime := time.Now()
+		httpapi.SetContextKey(c, common.ContextKeyRequestStartTime, attemptStartTime)
+		relayInfo.ResetForAttempt(attemptStartTime)
+
 		switch relayFormat {
 		case relayconstant.RelayFormatOpenAIRealtime:
 			newAPIError = relay.WssHelper(c, relayInfo)
