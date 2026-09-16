@@ -141,3 +141,24 @@ config、前端常量和 i18n。
 - 跨模块详细开发规范文档放在 `docs/开发规范/`，根 `AGENTS.md` 和子目录
   `AGENTS.md` 通过链接引用，避免在 AGENTS.md 中堆砌长篇规范正文。
 - `docs/AGENTS.md` 中的规则适用于 `docs/` 目录下的所有文档文件。
+
+## AI协助开发声明
+
+凡使用了 AI 辅助生成或修改的代码，必须在 **commit 信息结尾**（以及对应 **PR 描述**中）按以下格式注明所使用的工具环境和模型：
+
+```
+assisted-by：{agent_name}：{model}
+```
+
+- `{agent_name}`：使用的 AI 编码工具/环境，如 `opencode`、`codex`、`cursor`
+- `{model}`：实际使用的模型（含供应商，格式可参考 `供应商/模型`），如 `Zhipu/GLM-5.3[Max]`
+
+示例：
+
+```bash
+git commit -m "feat(channel): support batch model pulling
+
+assisted-by：opencode：Zhipu/GLM-5.3[Max]"
+```
+
+多个模型/工具参与时逐行列出。纯人工改动无需此声明，但需在 PR 描述中说明。
