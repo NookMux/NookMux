@@ -135,6 +135,8 @@ jobs:
       - name: Send Feishu notification
         uses: ./.github/actions/feishu-notify
         with:
+          notify_type: docker
+          workflow_name: ${{ github.workflow }}
           project_name: ${{ github.repository }}
           branch: ${{ github.ref_name }}
           conclusion: ${{ needs.build_amd64.result }}
