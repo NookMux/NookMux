@@ -19,10 +19,11 @@ import (
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/NookMux/NookMux/internal/httpapi"
 	"github.com/NookMux/NookMux/internal/httpapi/middleware"
+	"github.com/NookMux/NookMux/internal/infra/httpclient"
+	redisinfra "github.com/NookMux/NookMux/internal/infra/redis"
+	"github.com/NookMux/NookMux/internal/infra/runtime"
 	relayconstant "github.com/NookMux/NookMux/internal/relay/constant"
 	"github.com/NookMux/NookMux/internal/relay/helper"
-	redisinfra "github.com/NookMux/NookMux/internal/infra/redis"
-	"github.com/NookMux/NookMux/internal/infra/httpclient"
 	channelstore "github.com/NookMux/NookMux/internal/store/channel"
 	dbstore "github.com/NookMux/NookMux/internal/store/db"
 	logstore "github.com/NookMux/NookMux/internal/store/log"
@@ -122,6 +123,7 @@ func TestProcessChannelError_PerAttemptDurationNotCumulative(t *testing.T) {
 	dbstore.LOG_DB = testDB
 
 	t.Cleanup(func() {
+		runtime.WaitRelayTasks()
 		if sqlDB, err := testDB.DB(); err == nil {
 			_ = sqlDB.Close()
 		}
@@ -202,6 +204,7 @@ func TestRelay_RetryLoopPerAttemptDurationNotCumulative(t *testing.T) {
 	dbstore.LOG_DB = testDB
 
 	t.Cleanup(func() {
+		runtime.WaitRelayTasks()
 		if sqlDB, err := testDB.DB(); err == nil {
 			_ = sqlDB.Close()
 		}

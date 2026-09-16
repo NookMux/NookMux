@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Git pre-commit hook
+# 自动在提交前对暂存区的文件运行 CI 门禁检查（对齐 AGENTS.md 与 ci.yml）。
+# 检查失败时会拒绝提交并显示具体错误信息，避免向远程仓库推送坏提交。
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+CHECK_SCRIPT="$ROOT_DIR/scripts/ci-check.sh"
+
+if [ -f "$CHECK_SCRIPT" ]; then
+  exec "$CHECK_SCRIPT" --staged
+else
+  echo "⚠️ 警告: 未找到 $CHECK_SCRIPT，跳过提交前检查。"
+  exit 0
+fi
