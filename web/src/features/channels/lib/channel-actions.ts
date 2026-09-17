@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import type { QueryClient } from '@tanstack/react-query'
 import i18next from 'i18next'
 import { toast } from 'sonner'
-import { formatCurrencyFromUSD } from '@/lib/currency'
 import {
   copyChannel,
   deleteChannel,
@@ -37,6 +36,7 @@ import {
 } from '../api'
 import { CHANNEL_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import type { CopyChannelParams } from '../types'
+import { formatBalanceByCurrency } from './channel-utils'
 
 // ============================================================================
 // Query Keys
@@ -288,11 +288,7 @@ export async function handleUpdateChannelBalance(
       const balance = response.balance
       toast.success(
         i18next.t('channels.status.balanceUpdatedBalance', {
-          balance: formatCurrencyFromUSD(balance, {
-            digitsLarge: 2,
-            digitsSmall: 4,
-            abbreviate: false,
-          }),
+          balance: formatBalanceByCurrency(balance, response.currency),
         })
       )
       queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })

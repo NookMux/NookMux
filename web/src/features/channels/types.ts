@@ -155,6 +155,8 @@ export interface ChannelBalanceResponse {
   message?: string
   balance?: number
   currency?: string
+  granted_balance?: number
+  topped_up_balance?: number
 }
 
 export interface FetchModelsResponse {

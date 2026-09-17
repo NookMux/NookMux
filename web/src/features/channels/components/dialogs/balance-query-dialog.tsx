@@ -33,7 +33,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { getGlmAccountReport, updateChannelBalance } from '../../api'
-import { channelsQueryKeys, isZhipuChannel } from '../../lib'
+import {
+  channelsQueryKeys,
+  formatBalanceByCurrency,
+  isZhipuChannel,
+} from '../../lib'
 import type { GlmAccountReportData } from '../../types'
 import { useChannels } from '../channels-provider'
 
@@ -54,6 +58,13 @@ export function BalanceQueryDialog({
   const [balanceUpdatedTime, setBalanceUpdatedTime] = useState<number | null>(
     null
   )
+  // 实时查询结果的币种（如 DeepSeek 的 CNY/USD），仅用于本次查询结果的展示
+  const [balanceCurrency, setBalanceCurrency] = useState<string | null>(null)
+  // DeepSeek 余额明细：赠金与充值余额（币种同 balanceCurrency）
+  const [deepSeekDetails, setDeepSeekDetails] = useState<{
+    grantedBalance: number
+    toppedUpBalance: number
+  } | null>(null)
   // 智谱 GLM-4V 渠道的账户资金报告（人民币原值），查询成功后填充
   const [glmReport, setGlmReport] = useState<GlmAccountReportData | null>(null)
 
@@ -71,6 +82,16 @@ export function BalanceQueryDialog({
 
         setBalance(newBalance)
         setBalanceUpdatedTime(now)
+        setBalanceCurrency(response.currency ?? null)
+        setDeepSeekDetails(
+          response.granted_balance !== undefined ||
+            response.topped_up_balance !== undefined
+            ? {
+                grantedBalance: response.granted_balance ?? 0,
+                toppedUpBalance: response.topped_up_balance ?? 0,
+              }
+            : null
+        )
         toast.success(t('channels.status.balanceUpdatedSuccessfully'))
 
         // Update currentRow immediately with new balance and timestamp
@@ -140,6 +161,8 @@ export function BalanceQueryDialog({
   const handleClose = () => {
     setBalance(null)
     setBalanceUpdatedTime(null)
+    setBalanceCurrency(null)
+    setDeepSeekDetails(null)
     setGlmReport(null)
     onOpenChange(false)
   }
@@ -209,7 +232,7 @@ export function BalanceQueryDialog({
               {isZhipu
                 ? formatCNYAmount(glmReport?.balance)
                 : balance !== null
-                  ? formatBalance(balance)
+                  ? formatBalanceByCurrency(balance, balanceCurrency)
                   : formatBalance(currentRow.balance)}
             </div>
             <div className='text-muted-foreground mt-2 text-xs'>
@@ -233,6 +256,34 @@ export function BalanceQueryDialog({
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* DeepSeek balance breakdown (granted / topped-up), same currency as the total */}
+          {!isZhipu && deepSeekDetails && (
+            <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+              <div className='rounded-lg border p-3'>
+                <div className='text-muted-foreground text-xs'>
+                  {t('channels.fields.grantedBalance')}
+                </div>
+                <div className='mt-1 text-sm font-semibold'>
+                  {formatBalanceByCurrency(
+                    deepSeekDetails.grantedBalance,
+                    balanceCurrency
+                  )}
+                </div>
+              </div>
+              <div className='rounded-lg border p-3'>
+                <div className='text-muted-foreground text-xs'>
+                  {t('channels.fields.toppedUpBalance')}
+                </div>
+                <div className='mt-1 text-sm font-semibold'>
+                  {formatBalanceByCurrency(
+                    deepSeekDetails.toppedUpBalance,
+                    balanceCurrency
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

@@ -65,14 +65,18 @@ type SiliconFlowUsageResponse struct {
 	} `json:"data"`
 }
 
+// deepSeekBalanceInfo 对应 DeepSeek /user/balance 中单币种的余额条目，
+// 金额为字符串形式的十进制数；国内账户为 CNY，国际账户为 USD。
+type deepSeekBalanceInfo struct {
+	Currency        string `json:"currency"`
+	TotalBalance    string `json:"total_balance"`
+	GrantedBalance  string `json:"granted_balance"`
+	ToppedUpBalance string `json:"topped_up_balance"`
+}
+
 type DeepSeekUsageResponse struct {
-	IsAvailable  bool `json:"is_available"`
-	BalanceInfos []struct {
-		Currency        string `json:"currency"`
-		TotalBalance    string `json:"total_balance"`
-		GrantedBalance  string `json:"granted_balance"`
-		ToppedUpBalance string `json:"topped_up_balance"`
-	} `json:"balance_infos"`
+	IsAvailable  bool                  `json:"is_available"`
+	BalanceInfos []deepSeekBalanceInfo `json:"balance_infos"`
 }
 
 type OpenRouterCreditResponse struct {
@@ -80,6 +84,33 @@ type OpenRouterCreditResponse struct {
 		TotalCredits float64 `json:"total_credits"`
 		TotalUsage   float64 `json:"total_usage"`
 	} `json:"data"`
+}
+
+// 上游余额币种标识，用于实时刷新链路的货币展示。
+const (
+	balanceCurrencyCNY = "CNY"
+	balanceCurrencyUSD = "USD"
+)
+
+// pickDeepSeekBalanceInfo 挑选实时展示用的余额条目：
+// 优先取 CNY，缺失时回退 USD，均缺失说明上游返回异常。
+func pickDeepSeekBalanceInfo(infos []deepSeekBalanceInfo) (deepSeekBalanceInfo, error) {
+	for _, currency := range []string{balanceCurrencyCNY, balanceCurrencyUSD} {
+		for _, balanceInfo := range infos {
+			if strings.ToUpper(strings.TrimSpace(balanceInfo.Currency)) == currency {
+				return balanceInfo, nil
+			}
+		}
+	}
+	return deepSeekBalanceInfo{}, errors.New("balance_infos has no CNY or USD entry")
+}
+
+// parseDeepSeekAmount 解析赠金/充值余额，字段缺失时按 0 处理。
+func parseDeepSeekAmount(value string) (float64, error) {
+	if strings.TrimSpace(value) == "" {
+		return 0, nil
+	}
+	return strconv.ParseFloat(value, 64)
 }
 
 // GetAuthHeader get auth header
@@ -149,33 +180,36 @@ func updateChannelSiliconFlowBalance(channel *channelstore.Channel) (float64, er
 	return balance, nil
 }
 
-func updateChannelDeepSeekBalance(channel *channelstore.Channel) (float64, error) {
+func updateChannelDeepSeekBalance(channel *channelstore.Channel) (float64, string, float64, float64, error) {
 	url := "https://api.deepseek.com/user/balance"
 	body, err := GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
 	if err != nil {
-		return 0, err
+		return 0, "", 0, 0, err
 	}
 	response := DeepSeekUsageResponse{}
 	err = jsonx.Unmarshal(body, &response)
 	if err != nil {
-		return 0, err
+		return 0, "", 0, 0, err
 	}
-	index := -1
-	for i, balanceInfo := range response.BalanceInfos {
-		if balanceInfo.Currency == "CNY" {
-			index = i
-			break
-		}
-	}
-	if index == -1 {
-		return 0, errors.New("currency CNY not found")
-	}
-	balance, err := strconv.ParseFloat(response.BalanceInfos[index].TotalBalance, 64)
+	balanceInfo, err := pickDeepSeekBalanceInfo(response.BalanceInfos)
 	if err != nil {
-		return 0, err
+		return 0, "", 0, 0, err
 	}
+	balance, err := strconv.ParseFloat(balanceInfo.TotalBalance, 64)
+	if err != nil {
+		return 0, "", 0, 0, err
+	}
+	grantedBalance, err := parseDeepSeekAmount(balanceInfo.GrantedBalance)
+	if err != nil {
+		return 0, "", 0, 0, err
+	}
+	toppedUpBalance, err := parseDeepSeekAmount(balanceInfo.ToppedUpBalance)
+	if err != nil {
+		return 0, "", 0, 0, err
+	}
+	currency := strings.ToUpper(strings.TrimSpace(balanceInfo.Currency))
 	channel.UpdateBalance(balance)
-	return balance, nil
+	return balance, currency, grantedBalance, toppedUpBalance, nil
 }
 
 func updateChannelOpenRouterBalance(channel *channelstore.Channel) (float64, error) {
@@ -228,7 +262,9 @@ func updateChannelMoonshotBalance(channel *channelstore.Channel) (float64, error
 	return availableBalanceCny, nil
 }
 
-func updateChannelBalance(c *gin.Context, channel *channelstore.Channel) (float64, error) {
+// updateChannelBalance 刷新指定渠道余额并返回实时查询结果：
+// balance 为上游原值，currency 标识其币种，DeepSeek 额外返回赠金与充值余额明细。
+func updateChannelBalance(c *gin.Context, channel *channelstore.Channel) (float64, string, float64, float64, error) {
 	baseURL := constant.ChannelBaseURLs[channel.Type]
 	if channel.GetBaseURL() == "" {
 		channel.BaseURL = &baseURL
@@ -239,32 +275,36 @@ func updateChannelBalance(c *gin.Context, channel *channelstore.Channel) (float6
 			baseURL = channel.GetBaseURL()
 		}
 	case constant.ChannelTypeAzure:
-		return 0, errors.New(i18n.T(c, i18n.MsgChannelBalanceNotImplemented))
+		return 0, "", 0, 0, errors.New(i18n.T(c, i18n.MsgChannelBalanceNotImplemented))
 	case constant.ChannelTypeCustom:
 		baseURL = channel.GetBaseURL()
 	case constant.ChannelTypeSiliconFlow:
-		return updateChannelSiliconFlowBalance(channel)
+		balance, err := updateChannelSiliconFlowBalance(channel)
+		return balance, balanceCurrencyUSD, 0, 0, err
 	case constant.ChannelTypeDeepSeek:
 		return updateChannelDeepSeekBalance(channel)
 	case constant.ChannelTypeOpenRouter:
-		return updateChannelOpenRouterBalance(channel)
+		balance, err := updateChannelOpenRouterBalance(channel)
+		return balance, balanceCurrencyUSD, 0, 0, err
 	case constant.ChannelTypeMoonshot:
-		return updateChannelMoonshotBalance(channel)
+		balance, err := updateChannelMoonshotBalance(channel)
+		return balance, balanceCurrencyCNY, 0, 0, err
 	case constant.ChannelTypeZhipu_v4:
-		return updateChannelZhipuBalance(channel)
+		balance, err := updateChannelZhipuBalance(channel)
+		return balance, balanceCurrencyCNY, 0, 0, err
 	default:
-		return 0, errors.New(i18n.T(c, i18n.MsgChannelBalanceNotImplemented))
+		return 0, "", 0, 0, errors.New(i18n.T(c, i18n.MsgChannelBalanceNotImplemented))
 	}
 	url := fmt.Sprintf("%s/v1/dashboard/billing/subscription", baseURL)
 
 	body, err := GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
 	if err != nil {
-		return 0, err
+		return 0, "", 0, 0, err
 	}
 	subscription := OpenAISubscriptionResponse{}
 	err = jsonx.Unmarshal(body, &subscription)
 	if err != nil {
-		return 0, err
+		return 0, "", 0, 0, err
 	}
 	now := time.Now()
 	startDate := fmt.Sprintf("%s-01", now.Format("2006-01"))
@@ -275,16 +315,16 @@ func updateChannelBalance(c *gin.Context, channel *channelstore.Channel) (float6
 	url = fmt.Sprintf("%s/v1/dashboard/billing/usage?start_date=%s&end_date=%s", baseURL, startDate, endDate)
 	body, err = GetResponseBody("GET", url, channel, GetAuthHeader(channel.Key))
 	if err != nil {
-		return 0, err
+		return 0, "", 0, 0, err
 	}
 	usage := OpenAIUsageResponse{}
 	err = jsonx.Unmarshal(body, &usage)
 	if err != nil {
-		return 0, err
+		return 0, "", 0, 0, err
 	}
 	balance := subscription.HardLimitUSD - usage.TotalUsage/100
 	channel.UpdateBalance(balance)
-	return balance, nil
+	return balance, balanceCurrencyUSD, 0, 0, nil
 }
 
 // updateChannelZhipuBalance 通过智谱账户报告接口刷新 GLM-4V 渠道余额。
@@ -319,17 +359,23 @@ func UpdateChannelBalance(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgChannelMultiKeyBalanceUnsupported)
 		return
 	}
-	balance, err := updateChannelBalance(c, channel)
+	balance, currency, grantedBalance, toppedUpBalance, err := updateChannelBalance(c, channel)
 	if err != nil {
 		common.SysError("failed to update channel balance: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"balance": balance,
-	})
+	response := gin.H{
+		"success":  true,
+		"message":  "",
+		"balance":  balance,
+		"currency": currency,
+	}
+	if grantedBalance != 0 || toppedUpBalance != 0 {
+		response["granted_balance"] = grantedBalance
+		response["topped_up_balance"] = toppedUpBalance
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func updateAllChannelsBalance() error {
@@ -348,7 +394,7 @@ func updateAllChannelsBalance() error {
 		//if channel.Type != common.ChannelTypeOpenAI && channel.Type != common.ChannelTypeCustom {
 		//	continue
 		//}
-		balance, err := updateChannelBalance(nil, channel)
+		balance, _, _, _, err := updateChannelBalance(nil, channel)
 		if err != nil {
 			continue
 		} else {

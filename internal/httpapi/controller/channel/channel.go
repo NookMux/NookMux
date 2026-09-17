@@ -2614,9 +2614,10 @@ func QueryGlmAccountReport(c *gin.Context) {
 	channel.UpdateBalance(balanceCNY)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    report,
-		"balance": balanceCNY,
+		"success":  true,
+		"data":     report,
+		"balance":  balanceCNY,
+		"currency": balanceCurrencyCNY,
 	})
 }
 

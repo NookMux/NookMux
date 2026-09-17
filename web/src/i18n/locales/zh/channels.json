@@ -118,6 +118,8 @@
   "channels.fields.giveAmount": "系统赠金",
   "channels.fields.totalSpendAmount": "累计消费",
   "channels.fields.frozenBalance": "冻结余额",
+  "channels.fields.grantedBalance": "赠金余额",
+  "channels.fields.toppedUpBalance": "充值余额",
   "channels.fields.currentKey": "当前密钥",
   "channels.errors.currentLegacyJsonIsInvalidCannotAppend": "当前旧格式 JSON 不合法，无法追加模板",
   "channels.fields.currentLevelOnly": "仅当前层",

@@ -118,6 +118,8 @@
   "channels.fields.giveAmount": "Gift Credit",
   "channels.fields.totalSpendAmount": "Total Spent",
   "channels.fields.frozenBalance": "Frozen Balance",
+  "channels.fields.grantedBalance": "Granted Balance",
+  "channels.fields.toppedUpBalance": "Topped-up Balance",
   "channels.fields.currentKey": "Current key",
   "channels.errors.currentLegacyJsonIsInvalidCannotAppend": "Current legacy JSON is invalid, cannot append",
   "channels.fields.currentLevelOnly": "Current Level Only",

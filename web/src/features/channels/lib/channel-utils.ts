@@ -275,6 +275,23 @@ export function formatBalance(balance: number | null | undefined): string {
 }
 
 /**
+ * Format an amount that is already denominated in the given upstream
+ * currency (e.g. a live balance query result). CNY amounts keep their
+ * original value with a ¥ symbol; any other currency falls back to the
+ * system display logic (formatBalance).
+ */
+export function formatBalanceByCurrency(
+  value: number | null | undefined,
+  currency?: string | null
+): string {
+  if (value == null || Number.isNaN(value)) return '-'
+  if (currency?.trim().toUpperCase() === 'CNY') {
+    return `¥${Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value)}`
+  }
+  return formatBalance(value)
+}
+
+/**
  * Format balance with currency symbol, abbreviating large values to
  * K/M/B suffixes (e.g. "$99.99M") for dense table cells. Pair with a
  * tooltip showing the exact `formatBalance()` value.
