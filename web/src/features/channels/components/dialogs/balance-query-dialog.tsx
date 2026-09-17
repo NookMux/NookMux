@@ -101,7 +101,7 @@ export function BalanceQueryDialog({
   }
 
   // 智谱 GLM-4V 渠道走账户报告接口：服务端携带数据库保存的 Key 请求智谱后台，
-  // 返回余额/充值/赠金/消耗等指标，同时落库折算后的 USD 余额供表格展示。
+  // 返回余额/充值/赠金/消耗等指标，同时落库人民币原值余额供表格展示。
   const handleQueryGlmAccountReport = async () => {
     setIsQuerying(true)
     try {

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
-	"github.com/NookMux/NookMux/internal/config/operation"
 	planquota "github.com/NookMux/NookMux/internal/domain/billing/plan_quota"
 	domainchannel "github.com/NookMux/NookMux/internal/domain/channel"
 	"github.com/NookMux/NookMux/internal/domain/channel/constant"
@@ -14,7 +13,6 @@ import (
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
-	"github.com/shopspring/decimal"
 	"io"
 	"net/http"
 	"strconv"
@@ -224,10 +222,10 @@ func updateChannelMoonshotBalance(channel *channelstore.Channel) (float64, error
 	if !response.Status || response.Code != 0 {
 		return 0, fmt.Errorf("failed to update moonshot balance, status: %v, code: %d, scode: %s", response.Status, response.Code, response.Scode)
 	}
+	// 上游余额为人民币原值，直接落库并返回
 	availableBalanceCny := response.Data.AvailableBalance
-	availableBalanceUsd := decimal.NewFromFloat(availableBalanceCny).Div(decimal.NewFromFloat(operation.Price)).InexactFloat64()
-	channel.UpdateBalance(availableBalanceUsd)
-	return availableBalanceUsd, nil
+	channel.UpdateBalance(availableBalanceCny)
+	return availableBalanceCny, nil
 }
 
 func updateChannelBalance(c *gin.Context, channel *channelstore.Channel) (float64, error) {
@@ -289,12 +287,6 @@ func updateChannelBalance(c *gin.Context, channel *channelstore.Channel) (float6
 	return balance, nil
 }
 
-// glmBalanceCNYToUSD 智谱上游金额为人民币，按全局美元售价折算成
-// 系统统一记账单位（USD），与 Moonshot 渠道的处理方式保持一致。
-func glmBalanceCNYToUSD(balanceCNY float64) float64 {
-	return decimal.NewFromFloat(balanceCNY).Div(decimal.NewFromFloat(operation.Price)).InexactFloat64()
-}
-
 // updateChannelZhipuBalance 通过智谱账户报告接口刷新 GLM-4V 渠道余额。
 // Key 取数据库保存的渠道密钥，请求由服务端发出并经渠道代理。
 func updateChannelZhipuBalance(channel *channelstore.Channel) (float64, error) {
@@ -307,9 +299,8 @@ func updateChannelZhipuBalance(channel *channelstore.Channel) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	balanceUSD := glmBalanceCNYToUSD(balanceCNY)
-	channel.UpdateBalance(balanceUSD)
-	return balanceUSD, nil
+	channel.UpdateBalance(balanceCNY)
+	return balanceCNY, nil
 }
 
 func UpdateChannelBalance(c *gin.Context) {

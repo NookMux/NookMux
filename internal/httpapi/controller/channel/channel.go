@@ -2576,7 +2576,7 @@ func QueryGlmContactInfo(c *gin.Context) {
 // QueryGlmAccountReport 查询智谱 GLM-4V 渠道的账户资金报告
 // （余额 / 充值 / 赠金 / 消耗 / 可用 / 冻结）。Key 取数据库保存的渠道密钥由
 // 服务端注入并强制携带浏览器 UA，浏览器不直连智谱后台；请求经渠道代理发出。
-// 成功后同步把可用余额折算成 USD 落库，与通用余额更新（update_balance）一致。
+// 成功后同步把可用余额（人民币原值）落库，与通用余额更新（update_balance）一致。
 func QueryGlmAccountReport(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
@@ -2611,13 +2611,12 @@ func QueryGlmAccountReport(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
 		return
 	}
-	balanceUSD := glmBalanceCNYToUSD(balanceCNY)
-	channel.UpdateBalance(balanceUSD)
+	channel.UpdateBalance(balanceCNY)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    report,
-		"balance": balanceUSD,
+		"balance": balanceCNY,
 	})
 }
 
