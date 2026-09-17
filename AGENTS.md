@@ -28,39 +28,36 @@
 的逻辑时，同时阅读 `internal/httpapi/controller/AGENTS.md`、`internal/domain/AGENTS.md`
 和 `internal/domain/billing/` 相关子包规则。
 
-## 子规则索引
+## 架构层级与子规则索引
 
-前端:
+修改某个包/目录下的代码前，必须先阅读该目录下的 `AGENTS.md`。各目录特有约定按渐进式披露组织：
 
-- [web/AGENTS.md](web/AGENTS.md)
+### 启动与装配
+- [cmd/](cmd/AGENTS.md) / [cmd/server/](cmd/server/AGENTS.md)：进程启动入口，仅处理系统退出码并调用 `internal/app.Run()`。
+- [internal/app/](internal/app/AGENTS.md)：应用启动装配层，负责初始化环境、依赖注入、后台任务装配、HTTP 服务生命周期及前端嵌入资产门面。
 
-启动与装配:
+### HTTP 边界层
+- [internal/httpapi/controller/](internal/httpapi/controller/AGENTS.md)：按资源垂直拆分的 HTTP 控制器。
+- [internal/httpapi/router/](internal/httpapi/router/AGENTS.md) 与 [internal/httpapi/middleware/](internal/httpapi/middleware/AGENTS.md)：路由组装、鉴权、限流与上下文注入中间件。
 
-- [cmd/AGENTS.md](cmd/AGENTS.md)
-- [cmd/server/AGENTS.md](cmd/server/AGENTS.md)
-- [internal/app/AGENTS.md](internal/app/AGENTS.md)
+### 核心领域层
+- [internal/domain/](internal/domain/AGENTS.md)：领域服务总入口与公共业务契约。
+- [internal/domain/billing/](internal/domain/billing/AGENTS.md)：计费核算、配额冻结/扣减与额度校验。
+- [internal/domain/audit/](internal/domain/audit/AGENTS.md)：系统管理员资源操作审计埋点。
 
-后端 Go 包:
+### 数据与基础设施层
+- [internal/store/](internal/store/AGENTS.md)：数据持久层，基于 GORM 的多资源存储实现，兼容 SQLite / MySQL / PostgreSQL 三库。
+- [internal/config/](internal/config/AGENTS.md)：系统、运营、模型、倍率与性能配置的集中注册与动态管理。
+- [internal/infra/](internal/infra/AGENTS.md)：代理 HTTP 客户端、Redis/缓存、安全校验、业务日志、媒体解析与 Token 计数。
+- [internal/relay/](internal/relay/AGENTS.md)（含 [channel/](internal/relay/channel/AGENTS.md)）：AI 请求中继与协议转换核心，多模态 Adaptor 调度、OpenAI wire 双向转换与流式改写。
+- [internal/oauth/](internal/oauth/AGENTS.md)：第三方 OAuth 登录认证服务商扩展层。
+- [internal/common/](internal/common/AGENTS.md)：跨层业务全局变量、上下文键（`ContextKey`）注册表及基础纯工具内核。
+- [internal/i18n/](internal/i18n/AGENTS.md)：后端 API 响应消息国际化。
+- [pkg/](pkg/AGENTS.md)：无业务依赖、可独立复用的底层库（`jsonx`、`cachex`）。
 
-- [internal/domain/AGENTS.md](internal/domain/AGENTS.md)
-- [internal/domain/billing/AGENTS.md](internal/domain/billing/AGENTS.md)
-- [internal/domain/audit/AGENTS.md](internal/domain/audit/AGENTS.md)
-- [internal/common/AGENTS.md](internal/common/AGENTS.md)
-- [internal/infra/AGENTS.md](internal/infra/AGENTS.md)
-- [internal/httpapi/router/AGENTS.md](internal/httpapi/router/AGENTS.md)
-- [internal/httpapi/controller/AGENTS.md](internal/httpapi/controller/AGENTS.md)
-- [internal/httpapi/middleware/AGENTS.md](internal/httpapi/middleware/AGENTS.md)
-- [internal/store/AGENTS.md](internal/store/AGENTS.md)
-- [internal/config/AGENTS.md](internal/config/AGENTS.md)
-- [internal/relay/AGENTS.md](internal/relay/AGENTS.md)
-- [internal/relay/channel/AGENTS.md](internal/relay/channel/AGENTS.md)
-- [internal/oauth/AGENTS.md](internal/oauth/AGENTS.md)
-- [internal/i18n/AGENTS.md](internal/i18n/AGENTS.md)
-- [pkg/AGENTS.md](pkg/AGENTS.md)
-
-文档:
-
-- [docs/AGENTS.md](docs/AGENTS.md)
+### 前端与文档
+- [web/](web/AGENTS.md)：前端单页应用（React 19 + TypeScript + Rsbuild + Tailwind CSS 4）。
+- [docs/](docs/AGENTS.md)：跨模块详细规范、系统设计与开发参考文档。
 
 `参考项目/` 是本地参考源码，已被忽略；除非用户明确要求，不要修改其中内容。
 
@@ -73,35 +70,30 @@
 - **后端**：Go（版本以 `go.mod` 为准），使用标准 Go 工具链。
 - **前端**：Bun（工作目录 `web/`），严格使用 `bun` 作为唯一包管理器，禁止混用 npm/pnpm/yarn。
 
-### 主要架构层级
-
-子目录规则按渐进式披露组织，各包特有约定详见对应的 `AGENTS.md`：
-
-- `cmd/server/`：进程启动入口，仅处理系统退出码并调用 `internal/app.Run()`，见 [cmd/server/AGENTS.md](cmd/server/AGENTS.md)。
-- `internal/app/`：应用启动装配层，负责初始化环境、依赖注入、后台任务装配、HTTP 服务生命周期及前端嵌入资产门面，见 [internal/app/AGENTS.md](internal/app/AGENTS.md)。
-- `internal/httpapi/`：HTTP 边界层，包含路由（`router/`）、中间件（`middleware/`）与按资源垂直拆分的控制器（`controller/`），见 [internal/httpapi/controller/AGENTS.md](internal/httpapi/controller/AGENTS.md)。
-- `internal/domain/`：核心领域层，承载计费核算（`billing/`，见 [internal/domain/billing/AGENTS.md](internal/domain/billing/AGENTS.md)）、渠道调度与治理（`channel/`）、审计埋点（`audit/`，见 [internal/domain/audit/AGENTS.md](internal/domain/audit/AGENTS.md)）、敏感词过滤、分组倍率等领域服务及契约，见 [internal/domain/AGENTS.md](internal/domain/AGENTS.md)。
-- `internal/store/`：数据持久层，基于 GORM 的多资源存储实现（`dbstore`、`channelstore`、`userstore`、`tokenstore` 等），支持 SQLite / MySQL / PostgreSQL 三库兼容，见 [internal/store/AGENTS.md](internal/store/AGENTS.md)。
-- `internal/config/`：配置管理层，负责系统、运营、模型、倍率与性能配置的集中注册与动态管理，见 [internal/config/AGENTS.md](internal/config/AGENTS.md)。
-- `internal/common/`：跨层业务全局变量、上下文键（`ContextKey`）注册表及基础纯工具内核，见 [internal/common/AGENTS.md](internal/common/AGENTS.md)。
-- `internal/infra/`：基础设施层，提供代理 HTTP 客户端、Redis/缓存、安全校验、运行时监控、业务日志、媒体解析、Token 计数及支付通知，见 [internal/infra/AGENTS.md](internal/infra/AGENTS.md)。
-- `internal/relay/`：AI 请求中继与协议转换核心，负责多模态 Adaptor 调度（`channel/`，见 [internal/relay/channel/AGENTS.md](internal/relay/channel/AGENTS.md)）、OpenAI wire 双向转换、流式改写与上游中继，见 [internal/relay/AGENTS.md](internal/relay/AGENTS.md)。
-- `internal/oauth/`：第三方 OAuth 登录认证服务商扩展层，见 [internal/oauth/AGENTS.md](internal/oauth/AGENTS.md)。
-- `internal/i18n/`：后端 API 响应消息国际化，见 [internal/i18n/AGENTS.md](internal/i18n/AGENTS.md)。
-- `pkg/`：无业务依赖、可独立复用的底层库（`jsonx`、`cachex`），见 [pkg/AGENTS.md](pkg/AGENTS.md)。
-- `web/`：前端单页应用（React 19 + TypeScript + Rsbuild + Tailwind CSS 4），见 [web/AGENTS.md](web/AGENTS.md)。
-
 ## 全局工作规则
 
 - 先建立证据链再改代码：现象、入口、相关代码/配置、根因层级、最小修复点、验证方式。
+- 终态干净交付：代码修改、注释、文档与提交信息只呈现最终目标设计，严禁残留"之前写错了/多加了逻辑，在此处删掉"等历史纠错痕迹与自我辩解（详见下文反模式警示）。
 - 保持工作区脏改隔离。不要回滚、覆盖或格式化与当前任务无关的用户改动。
 - 不做破坏性 Git 操作，不自动 commit/push；需要提交时只 add 相关具体文件。
+- 严禁用 sed、awk、正则脚本或自动化批处理脚本盲改源码，一律使用行级精准编辑工具，防止隐式破坏。
+- 禁止在命令行中内联（inline）拼接超长 Bash 或多行复杂脚本；复杂诊断、验证或工具脚本须先写入工作区临时文件再执行。
+- 成熟数据格式（JSON、YAML、Markdown、HTML 等）解析必须使用标准库或成熟生态库，严禁手动通过正则或切片自造简易 parser。
+- 任务执行必须完整闭环：实施、运行、测试并迭代直至正确可用，严禁初步改完代码就停下并转嫁给用户测试。
 - 严禁未经本地 CI 等价门禁验证直接提交。提交时由 `.githooks/pre-commit`（秒级增量）、推送时由 `.githooks/pre-push`（全量，对齐 CI）自动把关，如遇拦截必须立刻定位并修复，严禁使用 `--no-verify` 绕过。
 - 不写入 secrets。环境变量、数据库 DSN、OAuth 密钥、API key 都不得硬编码到源码或文档示例的真实值。
 - 不用模拟成功、静默降级、吞错或假数据让流程"看起来能跑"。失败必须清晰暴露。
 - 外部输入必须在系统边界校验：HTTP 参数、表单、文件、网络、数据库、缓存、权限、安全逻辑。
 - 新增通用能力前先搜索现有工具函数；确有复用价值再放入 `internal/common/` 或对应前端 `lib/`。
 - 不要顺手删除、替换或改名项目标识、AGPL/版权头、Go module path、Docker/CI 镜像名等元数据。
+
+### 行为反模式警示：拒绝纠错残留
+
+严厉禁止以下“纠偏后残留历史痕迹与自我辩解”的行为模式：
+
+> 用户让做一盘“番茄炒蛋”，Agent 擅自加了“东坡肉”；被指出后虽然去掉了，但提交/PR 时写着「番茄炒蛋（无东坡肉）」，并在注释中大篇幅解释为什么本道菜不需要加东坡肉。
+
+**交付要求**：任何代码、注释、文档、提交信息及回复，都必须直接呈现对齐后的**干净终态设计**（Clean final-state design），严禁包含任何前序错误、自我辩解或“在此删掉某逻辑”的纠错痕迹。
 
 ## 后端规则
 
@@ -127,30 +119,16 @@
 新增需要审计的资源类型时，按 `internal/httpapi/controller/AGENTS.md` 中的检查清单同步更新 store（audit 常量）、
 config、前端常量和 i18n。
 
-### 提交前 CI 门禁检查（Pre-Commit Checklist）
+## 本地 CI 门禁检查
 
-提交代码前，必须保证本地门禁全绿（与 `.github/workflows/ci.yml` 严格对齐），严禁未经全绿验证直接 commit：
+提交代码前必须保证本地门禁全绿（严禁使用 `--no-verify` 绕过）。优先使用项目封装的一键脚本复核（已集成 fmt / tidy / vet / lint / test -race / build 及 Web 校验）：
 
 - **一键复核脚本**：
-  - `./scripts/ci-check.sh`：全量复核（对齐 ci.yml：Go fmt / tidy / vet / lint / test -race / build + Web typecheck / lint / format / audit / test；不含 rsbuild 生产构建，该项交给 CI）。由 pre-push hook 自动执行。
-  - `./scripts/ci-check.sh --staged`：增量复核（仅针对 Git 暂存区改动，秒级：Go 为暂存文件 gofmt + 全仓 vet，前端按暂存文件做 prettier，TS 相关变更才触发 typecheck）。由 pre-commit hook 自动执行。
-  - `./scripts/ci-check.sh --backend`：仅跑后端门禁（fmt / tidy / vet / lint / test -race / build）。
-  - `./scripts/ci-check.sh --frontend`：仅跑前端门禁（typecheck / lint / format / audit / test）。
-- **Go 必检项**（改动后端代码或根配置时必跑）：
-  - `unformatted=$(gofmt -l $(git ls-files '*.go'))`：格式检查（必须 0 违规，若有未对齐文件执行 `gofmt -w <file>`）。
-  - `go mod tidy -diff`：保证 `go.mod` / `go.sum` 干净无差异。
-  - `go vet ./...`：无编译期静态隐患。
-  - `go test -race ./...`（或改动受影响模块带 `-race`）：排查并发数据竞态（测试清理须注意排空异步协程如 `runtime.WaitRelayTasks()`）。
-  - `golangci-lint run`：遵循 [.golangci.yml](.golangci.yml) 门禁契约。
-  - `go build ./...`：全包构建通过。
-- **Web 必检项**（改动 `web/` 目录时必跑）：
-  - `cd web && bun run format:check`：Prettier 代码格式干净。
-  - `cd web && bun run typecheck`：TypeScript 类型检查通过。
-  - `cd web && bun run lint`：ESLint 静态规范通过。
-  - `cd web && bun test`：前端单元测试通过。
+  - `./scripts/ci-check.sh`：全量复核（对齐 ci.yml，由 pre-push hook 自动执行）。
+  - `./scripts/ci-check.sh --staged`：增量复核（仅针对暂存区秒级校验，由 pre-commit hook 自动执行）。
+  - `./scripts/ci-check.sh --backend` / `--frontend`：按端定向复核后端或前端门禁。
 - **Git Hook 与提交闭环**：
-  - 本地 Git Hooks 位于 `.githooks/`，可通过 `git config core.hooksPath .githooks` 激活：`pre-commit` 在 `git commit` 时对暂存区改动执行秒级增量校验（`--staged` 模式）；`pre-push` 在 `git push` 时执行对齐 CI 的全量门禁（Go 与 Web 全套）。
-  - 推送后，若具备权限，可通过 `gh run list --limit 1` 或 `gh run watch` 查看 GitHub Actions 流水线状态；如遇失败，须及时读取失败日志并当场修复，不留坏提交。
+  - 执行 `git config core.hooksPath .githooks` 激活本地拦截；推送后若 Actions 失败须当场修复，不留坏提交。
 
 
 ## 前端规则
