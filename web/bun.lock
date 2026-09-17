@@ -18,7 +18,7 @@
         "@tanstack/react-table": "^9.1.2",
         "@tanstack/table-core": "^9.1.2",
         "@visactor/react-vchart": "^2.1.6",
-        "@visactor/vchart": "^2.0.22",
+        "@visactor/vchart": "^2.1.6",
         "ai": "^7.0.15",
         "axios": "^1.20.0",
         "class-variance-authority": "^0.7.1",
@@ -873,7 +873,7 @@
 
     "@visactor/react-vchart": ["@visactor/react-vchart@2.1.6", "", { "dependencies": { "@visactor/vchart": "2.1.6", "@visactor/vchart-extension": "2.1.6", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vutils": "~1.0.23", "react-is": "^18.2.0" }, "peerDependencies": { "react": ">=16.0.0", "react-dom": ">=16.0.0" } }, "sha512-QyAUF2Qho7oXii5FOFtzS1jmvvT4K16pOfD17pvjbKSUT3BB4H0uEOgTOxvdX7KNoCOl2br3f+RRcPa9tlQVfw=="],
 
-    "@visactor/vchart": ["@visactor/vchart@2.0.22", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vlayouts": "~1.0.23", "@visactor/vrender-animate": "1.0.45", "@visactor/vrender-components": "1.0.45", "@visactor/vrender-core": "1.0.45", "@visactor/vrender-kits": "1.0.45", "@visactor/vscale": "~1.0.23", "@visactor/vutils": "~1.0.23", "@visactor/vutils-extension": "2.0.22" } }, "sha512-37jw5tSUMOoSvo8dfx0tMUougpsMMRG8IO+TC5QMZpWEb7rx/3HTBYPAeHPFdSTDkNE2CdwFKmuE+cn9tCjPfA=="],
+    "@visactor/vchart": ["@visactor/vchart@2.1.6", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vlayouts": "~1.0.23", "@visactor/vrender": "1.1.8", "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-components": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vscale": "~1.0.23", "@visactor/vutils": "~1.0.23", "@visactor/vutils-extension": "2.1.6" } }, "sha512-vswGt0XMMqWeB05wzM7ZVQd3bN+IB27RqgQRbcKYWAgc7kycR2zZe2Qe2PSSbemeCUtV8DG1lmLrHm+2NAer0g=="],
 
     "@visactor/vchart-extension": ["@visactor/vchart-extension@2.1.6", "", { "dependencies": { "@visactor/vchart": "2.1.6", "@visactor/vdataset": "~1.0.23", "@visactor/vlayouts": "~1.0.23", "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-components": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vutils": "~1.0.23" } }, "sha512-Lp5VFgMQn4NAJeHOTh1W2/tjU3HRgSPC2xDZf5w8dWaQNaCWWohb3QU1nzepU02K1eAG2/yX10F0epBl5INKNg=="],
 
@@ -883,9 +883,9 @@
 
     "@visactor/vrender": ["@visactor/vrender@1.1.8", "", { "dependencies": { "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-components": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8" } }, "sha512-bQS9fSaSry5K7zjKIyP7CGvOga0rXuyJBg3hzkBSMuLwScCafQz8MYJRrG9grKV0cTF12lRY6bq4za4MdXwL3A=="],
 
-    "@visactor/vrender-animate": ["@visactor/vrender-animate@1.0.45", "", { "dependencies": { "@visactor/vrender-core": "1.0.45", "@visactor/vutils": "~1.0.12" } }, "sha512-6v7LRpr+zugxR8JH3RCnodYxrrzHkSp4GaBTNwXuJ7bwThi/YzXTvmBz2pfQNmUG/rRze8Bm7vqneHVdXuFhng=="],
+    "@visactor/vrender-animate": ["@visactor/vrender-animate@1.1.8", "", { "dependencies": { "@visactor/vrender-core": "1.1.8", "@visactor/vutils": "~1.0.12" } }, "sha512-p6x6rFjInJIIqiPW3bqBIqjU7cIGCYm7asXYTTm6FEauzhSL6TJXxucOKTaEVCTExfHK0xaUwciq5wuaZhiUPA=="],
 
-    "@visactor/vrender-components": ["@visactor/vrender-components@1.0.45", "", { "dependencies": { "@visactor/vrender-animate": "1.0.45", "@visactor/vrender-core": "1.0.45", "@visactor/vrender-kits": "1.0.45", "@visactor/vscale": "~1.0.12", "@visactor/vutils": "~1.0.12" } }, "sha512-rYsG/rncT5FgYYWqv09f6LkZEAk/IS45IEYWBD0SCgKguYnpEebYDmDba1muJGn+rRv/vGlqg1pYqXLw8mEU5w=="],
+    "@visactor/vrender-components": ["@visactor/vrender-components@1.1.8", "", { "dependencies": { "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vscale": "~1.0.12", "@visactor/vutils": "~1.0.12" } }, "sha512-5wF7fIkBQ9ug2LDSWLnrUhzbTVVHsTtuZkXXC528toE1MLHZoVMJIxIdEbN9IdbfImWfPqO+TLRp61rW5oJzVQ=="],
 
     "@visactor/vrender-core": ["@visactor/vrender-core@1.1.8", "", { "dependencies": { "@visactor/vutils": "~1.0.12", "color-convert": "2.0.1" } }, "sha512-DSKEtLniC/7Cd7GxWEJC6o9/6Zf5BisqeecMbK3yqOiM0tdiP7w3OBM8wOsFyuw/Bkfr8sC5bUP0z3wQ1mMHGg=="],
 
@@ -895,7 +895,7 @@
 
     "@visactor/vutils": ["@visactor/vutils@1.0.23", "", { "dependencies": { "@turf/helpers": "^6.5.0", "@turf/invariant": "^6.5.0", "eventemitter3": "^4.0.7" } }, "sha512-M8SLqgdHhKN8QmQKTWD1gzEaHptpIV9pvMYvC6+VeOsqYvZZ6UdhSCAAczTYVo+m/uwcEC2JHSUspbrs8rzlRQ=="],
 
-    "@visactor/vutils-extension": ["@visactor/vutils-extension@2.0.22", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vutils": "~1.0.23" } }, "sha512-PRxjplZF1/Qdsflb1hYh9DGGJdblq91yIG7CCC6MIlMMSlDYEAMJzJ9y2clnR1MgWa2AsAtMtuu+MSdG3DctUA=="],
+    "@visactor/vutils-extension": ["@visactor/vutils-extension@2.1.6", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vutils": "~1.0.23" } }, "sha512-SfH96bpaWcDUyGUlHlDr49sJaAQCCLGVAkNuvQT2yqWS3smkbbEjVPA7F5eZ5t7bKb1hTWIE7vIljY95EvkL1Q=="],
 
     "@workflow/serde": ["@workflow/serde@4.1.0", "", {}, "sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ=="],
 
@@ -2489,28 +2489,6 @@
 
     "@typescript-eslint/visitor-keys/@typescript-eslint/types": ["@typescript-eslint/types@8.65.0", "", {}, "sha512-JSSwWNy+H0E/01jJEM+hrX6N0OFDzFzeIhHFSAS01tlVaevpG8cFyYRPhS5yjGOvBUx3sqQHVMjCL1CAZZMxBg=="],
 
-    "@visactor/react-vchart/@visactor/vchart": ["@visactor/vchart@2.1.6", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vlayouts": "~1.0.23", "@visactor/vrender": "1.1.8", "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-components": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vscale": "~1.0.23", "@visactor/vutils": "~1.0.23", "@visactor/vutils-extension": "2.1.6" } }, "sha512-vswGt0XMMqWeB05wzM7ZVQd3bN+IB27RqgQRbcKYWAgc7kycR2zZe2Qe2PSSbemeCUtV8DG1lmLrHm+2NAer0g=="],
-
-    "@visactor/vchart/@visactor/vrender-core": ["@visactor/vrender-core@1.0.45", "", { "dependencies": { "@visactor/vutils": "~1.0.12", "color-convert": "2.0.1" } }, "sha512-kvYAsKGZ+dXbhOQzjjbMkRzI815KgaHoWOW7iyVorXTldQBTsxLtFIi/J3VfYqGdM3apUgsFoy8uvjS5DepPUA=="],
-
-    "@visactor/vchart/@visactor/vrender-kits": ["@visactor/vrender-kits@1.0.45", "", { "dependencies": { "@resvg/resvg-js": "2.4.1", "@visactor/vrender-core": "1.0.45", "@visactor/vutils": "~1.0.12", "gifuct-js": "2.1.2", "lottie-web": "^5.12.2", "roughjs": "4.6.6" } }, "sha512-iaeRitht8IqNvJwdKmcPKAYL0a4+f8xhK2bWUumSQjNbZJQx9UzGuDp73cIdNXzCNoCiJZElpsOiIGu3kymqiw=="],
-
-    "@visactor/vchart-extension/@visactor/vchart": ["@visactor/vchart@2.1.6", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vlayouts": "~1.0.23", "@visactor/vrender": "1.1.8", "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-components": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vscale": "~1.0.23", "@visactor/vutils": "~1.0.23", "@visactor/vutils-extension": "2.1.6" } }, "sha512-vswGt0XMMqWeB05wzM7ZVQd3bN+IB27RqgQRbcKYWAgc7kycR2zZe2Qe2PSSbemeCUtV8DG1lmLrHm+2NAer0g=="],
-
-    "@visactor/vchart-extension/@visactor/vrender-animate": ["@visactor/vrender-animate@1.1.8", "", { "dependencies": { "@visactor/vrender-core": "1.1.8", "@visactor/vutils": "~1.0.12" } }, "sha512-p6x6rFjInJIIqiPW3bqBIqjU7cIGCYm7asXYTTm6FEauzhSL6TJXxucOKTaEVCTExfHK0xaUwciq5wuaZhiUPA=="],
-
-    "@visactor/vchart-extension/@visactor/vrender-components": ["@visactor/vrender-components@1.1.8", "", { "dependencies": { "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vscale": "~1.0.12", "@visactor/vutils": "~1.0.12" } }, "sha512-5wF7fIkBQ9ug2LDSWLnrUhzbTVVHsTtuZkXXC528toE1MLHZoVMJIxIdEbN9IdbfImWfPqO+TLRp61rW5oJzVQ=="],
-
-    "@visactor/vrender/@visactor/vrender-animate": ["@visactor/vrender-animate@1.1.8", "", { "dependencies": { "@visactor/vrender-core": "1.1.8", "@visactor/vutils": "~1.0.12" } }, "sha512-p6x6rFjInJIIqiPW3bqBIqjU7cIGCYm7asXYTTm6FEauzhSL6TJXxucOKTaEVCTExfHK0xaUwciq5wuaZhiUPA=="],
-
-    "@visactor/vrender/@visactor/vrender-components": ["@visactor/vrender-components@1.1.8", "", { "dependencies": { "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vscale": "~1.0.12", "@visactor/vutils": "~1.0.12" } }, "sha512-5wF7fIkBQ9ug2LDSWLnrUhzbTVVHsTtuZkXXC528toE1MLHZoVMJIxIdEbN9IdbfImWfPqO+TLRp61rW5oJzVQ=="],
-
-    "@visactor/vrender-animate/@visactor/vrender-core": ["@visactor/vrender-core@1.0.45", "", { "dependencies": { "@visactor/vutils": "~1.0.12", "color-convert": "2.0.1" } }, "sha512-kvYAsKGZ+dXbhOQzjjbMkRzI815KgaHoWOW7iyVorXTldQBTsxLtFIi/J3VfYqGdM3apUgsFoy8uvjS5DepPUA=="],
-
-    "@visactor/vrender-components/@visactor/vrender-core": ["@visactor/vrender-core@1.0.45", "", { "dependencies": { "@visactor/vutils": "~1.0.12", "color-convert": "2.0.1" } }, "sha512-kvYAsKGZ+dXbhOQzjjbMkRzI815KgaHoWOW7iyVorXTldQBTsxLtFIi/J3VfYqGdM3apUgsFoy8uvjS5DepPUA=="],
-
-    "@visactor/vrender-components/@visactor/vrender-kits": ["@visactor/vrender-kits@1.0.45", "", { "dependencies": { "@resvg/resvg-js": "2.4.1", "@visactor/vrender-core": "1.0.45", "@visactor/vutils": "~1.0.12", "gifuct-js": "2.1.2", "lottie-web": "^5.12.2", "roughjs": "4.6.6" } }, "sha512-iaeRitht8IqNvJwdKmcPKAYL0a4+f8xhK2bWUumSQjNbZJQx9UzGuDp73cIdNXzCNoCiJZElpsOiIGu3kymqiw=="],
-
     "accepts/mime-types": ["mime-types@3.0.2", "", { "dependencies": { "mime-db": "^1.54.0" } }, "sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A=="],
 
     "ahooks/dayjs": ["dayjs@1.11.20", "", {}, "sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ=="],
@@ -2702,14 +2680,6 @@
     "@typescript-eslint/utils/@typescript-eslint/typescript-estree/semver": ["semver@7.7.4", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA=="],
 
     "@typescript-eslint/utils/@typescript-eslint/typescript-estree/tinyglobby": ["tinyglobby@0.2.16", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg=="],
-
-    "@visactor/react-vchart/@visactor/vchart/@visactor/vrender-animate": ["@visactor/vrender-animate@1.1.8", "", { "dependencies": { "@visactor/vrender-core": "1.1.8", "@visactor/vutils": "~1.0.12" } }, "sha512-p6x6rFjInJIIqiPW3bqBIqjU7cIGCYm7asXYTTm6FEauzhSL6TJXxucOKTaEVCTExfHK0xaUwciq5wuaZhiUPA=="],
-
-    "@visactor/react-vchart/@visactor/vchart/@visactor/vrender-components": ["@visactor/vrender-components@1.1.8", "", { "dependencies": { "@visactor/vrender-animate": "1.1.8", "@visactor/vrender-core": "1.1.8", "@visactor/vrender-kits": "1.1.8", "@visactor/vscale": "~1.0.12", "@visactor/vutils": "~1.0.12" } }, "sha512-5wF7fIkBQ9ug2LDSWLnrUhzbTVVHsTtuZkXXC528toE1MLHZoVMJIxIdEbN9IdbfImWfPqO+TLRp61rW5oJzVQ=="],
-
-    "@visactor/react-vchart/@visactor/vchart/@visactor/vutils-extension": ["@visactor/vutils-extension@2.1.6", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vutils": "~1.0.23" } }, "sha512-SfH96bpaWcDUyGUlHlDr49sJaAQCCLGVAkNuvQT2yqWS3smkbbEjVPA7F5eZ5t7bKb1hTWIE7vIljY95EvkL1Q=="],
-
-    "@visactor/vchart-extension/@visactor/vchart/@visactor/vutils-extension": ["@visactor/vutils-extension@2.1.6", "", { "dependencies": { "@visactor/vdataset": "~1.0.23", "@visactor/vutils": "~1.0.23" } }, "sha512-SfH96bpaWcDUyGUlHlDr49sJaAQCCLGVAkNuvQT2yqWS3smkbbEjVPA7F5eZ5t7bKb1hTWIE7vIljY95EvkL1Q=="],
 
     "accepts/mime-types/mime-db": ["mime-db@1.54.0", "", {}, "sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ=="],
 

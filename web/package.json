@@ -31,7 +31,7 @@
     "@tanstack/react-table": "^9.1.2",
     "@tanstack/table-core": "^9.1.2",
     "@visactor/react-vchart": "^2.1.6",
-    "@visactor/vchart": "^2.0.22",
+    "@visactor/vchart": "^2.1.6",
     "ai": "^7.0.15",
     "axios": "^1.20.0",
     "class-variance-authority": "^0.7.1",
