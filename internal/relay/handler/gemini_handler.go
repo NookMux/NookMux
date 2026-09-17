@@ -102,7 +102,6 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *sha
 			return shared.NewError(err, shared.ErrorCodeConvertRequestFailed, shared.ErrOptionWithSkipRetry())
 		}
 		defer closer.Close()
-		jsonData = nil
 		info.UpstreamRequestBodySize = size
 		requestBody = body
 	}
@@ -154,7 +153,6 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 
 	var req shared.Request
 	var err error
-	var inputTexts []string
 
 	if isBatch {
 		batchRequest := &shared.GeminiBatchEmbeddingRequest{}
@@ -163,13 +161,6 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 			return shared.NewError(err, shared.ErrorCodeInvalidRequest, shared.ErrOptionWithSkipRetry())
 		}
 		req = batchRequest
-		for _, r := range batchRequest.Requests {
-			for _, part := range r.Content.Parts {
-				if part.Text != "" {
-					inputTexts = append(inputTexts, part.Text)
-				}
-			}
-		}
 	} else {
 		singleRequest := &shared.GeminiEmbeddingRequest{}
 		err = httpapi.UnmarshalBodyReusable(c, singleRequest)
@@ -177,11 +168,6 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 			return shared.NewError(err, shared.ErrorCodeInvalidRequest, shared.ErrOptionWithSkipRetry())
 		}
 		req = singleRequest
-		for _, part := range singleRequest.Content.Parts {
-			if part.Text != "" {
-				inputTexts = append(inputTexts, part.Text)
-			}
-		}
 	}
 
 	err = helper.ModelMappedHelper(c, info, req)
@@ -216,7 +202,6 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 		return shared.NewError(err, shared.ErrorCodeConvertRequestFailed, shared.ErrOptionWithSkipRetry())
 	}
 	defer closer.Close()
-	jsonData = nil
 	info.UpstreamRequestBodySize = size
 	requestBody = body
 

@@ -4,10 +4,12 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/andybalholm/brotli"
 	"github.com/gin-gonic/gin"
+	"github.com/klauspost/compress/zstd"
 )
 
 type readCloser struct {
@@ -38,8 +40,10 @@ func DecompressRequestMiddleware() gin.HandlerFunc {
 		wrapMaxBytes := func(body io.ReadCloser) io.ReadCloser {
 			return http.MaxBytesReader(c.Writer, body, maxBytes)
 		}
+		decompressed := false
 
-		switch c.GetHeader("Content-Encoding") {
+		contentEncoding := strings.ToLower(strings.TrimSpace(c.GetHeader("Content-Encoding")))
+		switch contentEncoding {
 		case "gzip":
 			gzipReader, err := gzip.NewReader(origBody)
 			if err != nil {
@@ -55,7 +59,7 @@ func DecompressRequestMiddleware() gin.HandlerFunc {
 					return origBody.Close()
 				},
 			})
-			c.Request.Header.Del("Content-Encoding")
+			decompressed = true
 		case "br":
 			reader := brotli.NewReader(origBody)
 			c.Request.Body = wrapMaxBytes(&readCloser{
@@ -64,10 +68,34 @@ func DecompressRequestMiddleware() gin.HandlerFunc {
 					return origBody.Close()
 				},
 			})
-			c.Request.Header.Del("Content-Encoding")
+			decompressed = true
+		case "zstd":
+			reader, err := zstd.NewReader(origBody)
+			if err != nil {
+				_ = origBody.Close()
+				c.AbortWithStatus(http.StatusBadRequest)
+				return
+			}
+			c.Request.Body = wrapMaxBytes(&readCloser{
+				Reader: reader,
+				closeFn: func() error {
+					reader.Close()
+					return origBody.Close()
+				},
+			})
+			decompressed = true
 		default:
 			// Even for uncompressed bodies, enforce a max size to avoid huge request allocations.
 			c.Request.Body = wrapMaxBytes(origBody)
+		}
+
+		if decompressed {
+			// The original Content-Length describes the compressed wire body, not
+			// the replacement decompressed stream. Clear it so body storage and
+			// later middleware do not rely on a stale compressed size.
+			c.Request.Header.Del("Content-Encoding")
+			c.Request.Header.Del("Content-Length")
+			c.Request.ContentLength = -1
 		}
 
 		// Continue processing the request

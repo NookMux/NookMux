@@ -233,9 +233,8 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *shared.NookMuxError) 
 			}
 			if !common.MemoryCacheEnabled {
 				_ = channel.SaveChannelInfo()
-			} else {
-				// CacheUpdateChannel(channel)
 			}
+			// 内存缓存开启时由缓存侧统一失效，无需落库。
 		}()
 		// Start from the saved polling index and look for the next enabled key
 		start := channelInfo.MultiKeyPollingIndex
@@ -510,7 +509,7 @@ func SearchChannelsWithMeta(keyword string, group string, model string, idSort b
 
 func GetChannelById(id int, selectAll bool) (*Channel, error) {
 	channel := &Channel{Id: id}
-	var err error = nil
+	var err error
 	if selectAll {
 		err = dbstore.DB.First(channel, "id = ?", id).Error
 	} else {

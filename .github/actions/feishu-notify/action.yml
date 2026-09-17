@@ -1,0 +1,147 @@
+name: Feishu Notify
+description: Send a Feishu interactive card for workflow results.
+
+inputs:
+  notify_type:
+    description: "Notification type: 'docker' or 'ci'"
+    required: false
+    default: "docker"
+  workflow_name:
+    description: Workflow display name.
+    required: false
+    default: ""
+  project_name:
+    description: Repository name.
+    required: true
+  branch:
+    description: Branch or tag name.
+    required: true
+  conclusion:
+    description: Workflow conclusion.
+    required: true
+  app_id:
+    description: Feishu app id.
+    required: true
+  app_secret:
+    description: Feishu app secret.
+    required: true
+  user_id:
+    description: Feishu recipient user id.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Send Feishu interactive card
+      shell: bash
+      env:
+        NOTIFY_TYPE: ${{ inputs.notify_type }}
+        CONCLUSION: ${{ inputs.conclusion }}
+        WF_NAME: ${{ inputs.workflow_name }}
+        REPO: ${{ inputs.project_name }}
+        BRANCH: ${{ inputs.branch }}
+        APP_ID: ${{ inputs.app_id }}
+        APP_SECRET: ${{ inputs.app_secret }}
+        USER_ID: ${{ inputs.user_id }}
+      run: |
+        set -euo pipefail
+
+        TYPE=$(echo "${NOTIFY_TYPE:-}" | tr '[:upper:]' '[:lower:]')
+        if [ "$TYPE" = "ci" ] || { [ -z "$TYPE" ] && [[ "${WF_NAME:-}" =~ [Cc][Ii] ]]; }; then
+          TEMPLATE_VERSION="1.0.1"
+          if [ "$CONCLUSION" = "success" ]; then
+            TEMPLATE_ID="AAqv27Ca6iyuE"
+          else
+            TEMPLATE_ID="AAqv27ClgkT3l"
+          fi
+        else
+          TEMPLATE_VERSION="1.0.4"
+          if [ "$CONCLUSION" = "success" ]; then
+            TEMPLATE_ID="AAqv2e8wrOFTm"
+          else
+            TEMPLATE_ID="AAqv27Co32Y8H"
+          fi
+        fi
+
+        TIME_BJ=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')
+
+        TOKEN_RESPONSE=$(mktemp)
+        RESPONSE=$(mktemp)
+
+        curl -sS -X POST \
+          -H 'Content-Type: application/json' \
+          -d "{\"app_id\":\"${APP_ID}\",\"app_secret\":\"${APP_SECRET}\"}" \
+          https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal \
+          -o "$TOKEN_RESPONSE"
+
+        TOKEN=$(jq -r '.tenant_access_token // empty' "$TOKEN_RESPONSE")
+        if [ -z "$TOKEN" ]; then
+          CODE=$(jq -r '.code // empty' "$TOKEN_RESPONSE")
+          MSG=$(jq -r '.msg // empty' "$TOKEN_RESPONSE")
+          echo "Failed to fetch tenant_access_token. code=${CODE}, msg=${MSG}" >&2
+          exit 1
+        fi
+
+        echo "::add-mask::${TOKEN}"
+
+        if [ "$TYPE" = "ci" ] || { [ -z "$TYPE" ] && [[ "${WF_NAME:-}" =~ [Cc][Ii] ]]; }; then
+          CONTENT=$(jq -nc \
+            --arg template_id "$TEMPLATE_ID" \
+            --arg template_version "$TEMPLATE_VERSION" \
+            --arg project_name "$REPO" \
+            --arg branch "$BRANCH" \
+            --arg time "$TIME_BJ" \
+            '{
+              type: "template",
+              data: {
+                template_id: $template_id,
+                template_version_name: $template_version,
+                template_variable: {
+                  Project_Name: $project_name,
+                  Branch: $branch,
+                  Time: $time
+                }
+              }
+            }')
+        else
+          ACTIONS_NAME="${WF_NAME:-Publish Docker image (AMD64 only)}"
+          CONTENT=$(jq -nc \
+            --arg template_id "$TEMPLATE_ID" \
+            --arg template_version "$TEMPLATE_VERSION" \
+            --arg project_name "$REPO" \
+            --arg branch "$BRANCH" \
+            --arg time "$TIME_BJ" \
+            --arg actions_name "$ACTIONS_NAME" \
+            '{
+              type: "template",
+              data: {
+                template_id: $template_id,
+                template_version_name: $template_version,
+                template_variable: {
+                  Project_Name: $project_name,
+                  Branch: $branch,
+                  Time: $time,
+                  Actions_name: $actions_name
+                }
+              }
+            }')
+        fi
+
+        PAYLOAD=$(jq -nc \
+          --arg receive_id "$USER_ID" \
+          --arg content "$CONTENT" \
+          '{receive_id: $receive_id, msg_type: "interactive", content: $content}')
+
+        echo "$PAYLOAD" | curl -sS -X POST \
+          -H 'Content-Type: application/json; charset=utf-8' \
+          -H "Authorization: Bearer ${TOKEN}" \
+          --data-binary @- \
+          "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=user_id" \
+          -o "$RESPONSE"
+
+        CODE=$(jq -r '.code // empty' "$RESPONSE")
+        MSG=$(jq -r '.msg // empty' "$RESPONSE")
+        if [ "$CODE" != "0" ]; then
+          echo "Feishu API returned non-zero code: ${CODE}, msg: ${MSG}" >&2
+          exit 1
+        fi

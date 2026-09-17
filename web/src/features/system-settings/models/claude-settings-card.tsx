@@ -31,8 +31,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { SettingsForm } from '../components/settings-form-layout'
+import {
+  SettingsForm,
+  SettingsSwitchContent,
+  SettingsSwitchItem,
+} from '../components/settings-form-layout'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -62,6 +67,7 @@ const schema = z.object({
         })
       }
     }),
+    remove_claude_code_billing_header_enabled: z.boolean(),
   }),
 })
 
@@ -71,6 +77,7 @@ type ClaudeSettingsFormInput = z.input<typeof schema>
 type FlatClaudeSettings = {
   'claude.model_headers_settings': string
   'claude.default_max_tokens': string
+  'claude.remove_claude_code_billing_header_enabled': boolean
 }
 
 type ClaudeSettingsCardProps = {
@@ -87,6 +94,8 @@ export function ClaudeSettingsCard({ defaultValues }: ClaudeSettingsCardProps) {
     'claude.default_max_tokens': normalizeJsonString(
       defaultValues.claude.default_max_tokens
     ),
+    'claude.remove_claude_code_billing_header_enabled':
+      defaultValues.claude.remove_claude_code_billing_header_enabled ?? true,
   })
 
   const buildFormDefaults = (
@@ -99,6 +108,8 @@ export function ClaudeSettingsCard({ defaultValues }: ClaudeSettingsCardProps) {
       default_max_tokens: formatJsonForTextarea(
         values.claude.default_max_tokens
       ),
+      remove_claude_code_billing_header_enabled:
+        values.claude.remove_claude_code_billing_header_enabled ?? true,
     },
   })
 
@@ -119,6 +130,8 @@ export function ClaudeSettingsCard({ defaultValues }: ClaudeSettingsCardProps) {
       'claude.default_max_tokens': normalizeJsonString(
         defaultValues.claude.default_max_tokens
       ),
+      'claude.remove_claude_code_billing_header_enabled':
+        defaultValues.claude.remove_claude_code_billing_header_enabled ?? true,
     }
 
     form.reset(buildFormDefaults(defaultValues))
@@ -132,6 +145,8 @@ export function ClaudeSettingsCard({ defaultValues }: ClaudeSettingsCardProps) {
       'claude.default_max_tokens': normalizeJsonString(
         values.claude.default_max_tokens
       ),
+      'claude.remove_claude_code_billing_header_enabled':
+        values.claude.remove_claude_code_billing_header_enabled,
     }
 
     const updates = (
@@ -195,6 +210,31 @@ export function ClaudeSettingsCard({ defaultValues }: ClaudeSettingsCardProps) {
                 </FormDescription>
                 <FormMessage />
               </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='claude.remove_claude_code_billing_header_enabled'
+            render={({ field }) => (
+              <SettingsSwitchItem>
+                <SettingsSwitchContent>
+                  <FormLabel>
+                    {t('systemSettings.actions.removeClaudeCodeBillingHeader')}
+                  </FormLabel>
+                  <FormDescription>
+                    {t(
+                      'systemSettings.tips.removeClaudeCodeBillingHeaderForApiCompatibility'
+                    )}
+                  </FormDescription>
+                </SettingsSwitchContent>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </SettingsSwitchItem>
             )}
           />
         </SettingsForm>

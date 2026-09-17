@@ -17,18 +17,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Check, Copy, Info, Loader2, Settings } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import {
+  appTableFeatures,
   type ColumnDef,
   type RowSelectionState,
   type Table as TanStackTable,
   flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
-import { Check, Copy, Info, Loader2, Settings } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
+  useTable,
+} from '@/lib/tanstack-table'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
@@ -453,7 +452,10 @@ export function ChannelTestDialog({
         header: ({ table }) => (
           <Checkbox
             checked={table.getIsAllPageRowsSelected()}
-            indeterminate={table.getIsSomePageRowsSelected()}
+            indeterminate={
+              table.getIsSomePageRowsSelected() &&
+              !table.getIsAllPageRowsSelected()
+            }
             onCheckedChange={(value) =>
               table.toggleAllPageRowsSelected(!!value)
             }
@@ -549,7 +551,8 @@ export function ChannelTestDialog({
     ]
   )
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: tableData,
     columns,
     state: {
@@ -558,8 +561,6 @@ export function ChannelTestDialog({
     },
     enableRowSelection: true,
     getRowId: (row) => row.model,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
   })

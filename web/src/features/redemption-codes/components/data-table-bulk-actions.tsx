@@ -17,10 +17,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
-import { type Table } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -34,11 +34,11 @@ import { deleteInvalidRedemptions, getRedemptionKey } from '../api'
 import { type Redemption } from '../types'
 import { useRedemptions } from './redemptions-provider'
 
-type DataTableBulkActionsProps<TData> = {
+type DataTableBulkActionsProps<TData extends RowData> = {
   table: Table<TData>
 }
 
-export function DataTableBulkActions<TData>({
+export function DataTableBulkActions<TData extends RowData>({
   table,
 }: DataTableBulkActionsProps<TData>) {
   const { t } = useTranslation()

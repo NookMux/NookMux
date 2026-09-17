@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useState } from 'react'
-import { type VisibilityState } from '@tanstack/react-table'
+import { type VisibilityState } from '@/lib/tanstack-table'
 
 const STORAGE_PREFIX = 'nookmux:table:column-visibility:'
 

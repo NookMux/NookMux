@@ -106,5 +106,11 @@
   "keys.errors.windowStartHourMustBeBetween0And23": "窗口开始小时必须在 0 到 23 之间",
   "keys.fields.windowStartHourFrom0To23": "窗口开始小时，范围 0 到 23",
   "keys.tips.aboutToDeleteCountApiKeyS": "您即将删除 {{count}} 个 API 密钥。",
-  "keys.errors.apiKeyIsLoadingPleaseTryAgainInAMoment": "API Key 正在加载，请稍后重试"
+  "keys.errors.apiKeyIsLoadingPleaseTryAgainInAMoment": "API Key 正在加载，请稍后重试",
+  "keys.fields.modelMapping": "模型重定向",
+  "keys.fields.clientRequestModel": "客户端请求模型",
+  "keys.fields.redirectTargetModel": "重定向目标模型",
+  "keys.tips.modelMappingRedirectsRequestsToTheTarget": "入站改写：请求命中左侧模型名时，计费、渠道调度与统计将按右侧目标模型执行",
+  "keys.errors.invalidModelMapping": "模型重定向必须为键值均为非空字符串的 JSON 对象",
+  "keys.errors.modelMappingEntryTooLong": "模型重定向的单个键/值不能超过 256 字符，且总配置不能超过 64KB"
 }

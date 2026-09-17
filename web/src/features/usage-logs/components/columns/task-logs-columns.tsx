@@ -18,11 +18,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useMemo } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
 import { Music } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatTimestampToDate } from '@/lib/format'
+import type { ColumnDef } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { DataTableColumnHeader } from '@/components/data-table'

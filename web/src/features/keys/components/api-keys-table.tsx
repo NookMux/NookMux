@@ -19,19 +19,15 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import {
-  type SortingState,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import {
+  appTableFeatures,
+  type SortingState,
+  type Table,
+  useTable,
+} from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import {
@@ -92,7 +88,7 @@ function ApiKeysMobileList({
   table,
   isLoading,
 }: {
-  table: ReturnType<typeof useReactTable<ApiKey>>
+  table: Table<ApiKey>
   isLoading: boolean
 }) {
   const { t } = useTranslation()
@@ -272,7 +268,8 @@ export function ApiKeysTable() {
 
   const apiKeys = data?.items || []
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: apiKeys,
     columns,
     state: {
@@ -287,12 +284,6 @@ export function ApiKeysTable() {
     getRowId: (row) => String(row.id),
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     onPaginationChange,
     onColumnFiltersChange,
     manualPagination: true,

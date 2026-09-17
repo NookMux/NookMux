@@ -2,7 +2,7 @@
 
 [English](README.en.md) · 简体中文
 
-基于 [newapi](https://github.com/QuantumNous/new-api) 的自用定制版 AI API 网关/代理项目。
+基于 [newapi](https://github.com/QuantumNous/new-api) 的自用定制版 AI API 网关/代理项目。内置支持各大厂商CodingPlan套餐渠道，方便便捷对接使用、额度查询等服务
 
 本项目主要用于个人学习、研究与自用场景。使用、部署或二次分发本项目时，应遵守 AGPL-3.0 许可证、本项目及上游项目的版权声明，并自行确保不违反相关上游服务提供商的服务条款；不得将本项目用于中转、分发、倒卖厂商 Plan 或其他违反第三方服务条款的行为。
 
@@ -21,13 +21,15 @@
 
 由于本项目包含 AI 辅助生成与人工调整内容，可能存在实现不完善、边界情况处理不足或潜在兼容性问题。若因部署、修改、使用本项目产生任何第三方争议、服务风险、账号风险或合规问题，均由使用者自行承担，与本项目维护者及上游项目无关。
 
+如果你使用AI Coding对本项目进行维护开发，建议您配置好两个MCP，`serena`和`codegraph`，其中`serena`需要先拉起HTTP服务
+
 ### 使用的 AI Coding 工具
 
-- OpenCode
-- Codex
-- Cursor
-- CodeBuddy
-- ZCode
+- OpenCode[Web UI]
+- Codex[CLI & APP]
+- Cursor[IDE]
+- CodeBuddy[插件]
+- ZCode[闲时任务]
 
 ### 当前使用的 AI 模型
 
@@ -35,14 +37,18 @@
 
 - Zhipu/GLM-5.3[Max]
 - Zhipu/GLM-5V-Turbo[Thinking]
-- OpenAI/GPT-5.4[Xhigh]
 - OpenAI/GPT-5.5[high]
 - OpenAI/GPT-5.5[Xhigh]
 - OpenAI/GPT-5.6-系列[Sol/Luna]-[Max]
 
+### 历史使用的 AI Coding 工具
+
+- Claude Code
+
 ### 历史使用模型
 
 - OpenAI/GPT-5.2[Xhigh]
+- OpenAI/GPT-5.4[Xhigh]
 - Zhipu/GLM-5-Turbo[Thinking]
 - Zhipu/GLM-5[Thinking]
 - Zhipu/GLM-5.1[Thinking]
@@ -56,9 +62,10 @@
 
 感谢以下开源项目对本项目的启发与帮助：
 
-- **[newapi](https://github.com/QuantumNous/new-api)** — 本项目的上游基础项目。
-- **[MicroWARP](https://github.com/ccbkkb/MicroWARP)** — 极简高性能的 Cloudflare WARP SOCKS5 Docker 代理，为 AI API 网关提供稳定的网络出口方案。
-- **[AxonHub](https://github.com/looplj/axonhub)** — 优秀的 AI API 网关参考实现。
-- **[Openafw](https://github.com/openafw/openafw)** — 本地 AI 流量安全过滤方案参考。
-- **[zaicontrol](https://github.com/zhongruan0522/zaicontrol)（私有仓库）** — Z.AI 套餐查询相关接口。
-- **[cc-switch](https://github.com/farion1231/cc-switch)** — Kimi 套餐查询相关接口。
+- **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)** — 本项目的上游基础项目。
+- **[CuzTeam/new-api](https://github.com/CuzTeam/new-api)** — 首页UI的参考来源。
+- **[ccbkkb/MicroWARP](https://github.com/ccbkkb/MicroWARP)** — 极简高性能的 Cloudflare WARP SOCKS5 Docker 代理，为 AI API 网关提供稳定的网络出口方案。
+- **[looplj/AxonHub](https://github.com/looplj/axonhub)** — 优秀的 AI API 网关参考实现。
+- **[openafw/Openafw](https://github.com/openafw/openafw)** — 本地 AI 流量安全过滤方案参考。
+- **[zhongruan0522/zaicontrol](https://github.com/zhongruan0522/zaicontrol)（私有仓库）** — Z.AI 套餐查询相关接口。
+- **[farion1231/cc-switch](https://github.com/farion1231/cc-switch)** — Kimi 套餐查询相关接口。

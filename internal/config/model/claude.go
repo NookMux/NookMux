@@ -15,9 +15,12 @@ import (
 
 // ClaudeSettings 定义Claude模型的配置
 type ClaudeSettings struct {
-	HeadersSettings  map[string]map[string][]string `json:"model_headers_settings"`
-	DefaultMaxTokens map[string]int                 `json:"default_max_tokens"`
+	HeadersSettings                      map[string]map[string][]string `json:"model_headers_settings"`
+	DefaultMaxTokens                     map[string]int                 `json:"default_max_tokens"`
+	RemoveClaudeCodeBillingHeaderEnabled bool                           `json:"remove_claude_code_billing_header_enabled"`
 }
+
+const ClaudeCodeBillingHeader = "x-anthropic-billing-header"
 
 // 默认配置
 var defaultClaudeSettings = ClaudeSettings{
@@ -25,6 +28,7 @@ var defaultClaudeSettings = ClaudeSettings{
 	DefaultMaxTokens: map[string]int{
 		"default": 8192,
 	},
+	RemoveClaudeCodeBillingHeaderEnabled: true,
 }
 
 // 全局实例
@@ -45,6 +49,9 @@ func GetClaudeSettings() *ClaudeSettings {
 }
 
 func (c *ClaudeSettings) WriteHeaders(originModel string, httpHeader *http.Header) {
+	if httpHeader == nil {
+		return
+	}
 	if headers, ok := c.HeadersSettings[originModel]; ok {
 		for headerKey, headerValues := range headers {
 			mergedValues := normalizeHeaderListValues(
@@ -56,6 +63,13 @@ func (c *ClaudeSettings) WriteHeaders(originModel string, httpHeader *http.Heade
 			httpHeader.Set(headerKey, strings.Join(mergedValues, ","))
 		}
 	}
+	if c.RemoveClaudeCodeBillingHeaderEnabled {
+		httpHeader.Del(ClaudeCodeBillingHeader)
+	}
+}
+
+func ShouldRemoveClaudeCodeBillingHeader(headerName string) bool {
+	return GetClaudeSettings().RemoveClaudeCodeBillingHeaderEnabled && strings.EqualFold(strings.TrimSpace(headerName), ClaudeCodeBillingHeader)
 }
 
 func normalizeHeaderListValues(values []string) []string {

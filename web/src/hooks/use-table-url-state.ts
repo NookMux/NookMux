@@ -21,7 +21,7 @@ import type {
   ColumnFiltersState,
   OnChangeFn,
   PaginationState,
-} from '@tanstack/react-table'
+} from '@/lib/tanstack-table'
 
 type SearchRecord = Record<string, unknown>
 

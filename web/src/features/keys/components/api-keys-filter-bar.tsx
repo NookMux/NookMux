@@ -19,10 +19,10 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useQueryClient, useIsFetching, useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { type Table } from '@tanstack/react-table'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getUserGroups } from '@/lib/api'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -41,11 +41,13 @@ import { API_KEY_STATUS_OPTIONS } from '../constants'
 
 const route = getRouteApi('/_authenticated/keys/')
 
-interface ApiKeysFilterBarProps<TData> {
+interface ApiKeysFilterBarProps<TData extends RowData> {
   table: Table<TData>
 }
 
-export function ApiKeysFilterBar<TData>(props: ApiKeysFilterBarProps<TData>) {
+export function ApiKeysFilterBar<TData extends RowData>(
+  props: ApiKeysFilterBarProps<TData>
+) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()

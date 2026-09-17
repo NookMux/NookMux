@@ -20,3 +20,11 @@ test-backend:
 start-backend:
 	@echo "Starting backend dev server..."
 	@cd $(BACKEND_DIR) && go run ./cmd/server &
+
+setup-hooks:
+	@chmod +x scripts/ci-check.sh .githooks/pre-commit
+	@git config core.hooksPath .githooks
+	@echo "Git pre-commit hooks configured successfully."
+
+check-ci:
+	@./scripts/ci-check.sh

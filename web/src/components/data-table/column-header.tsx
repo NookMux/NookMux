@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type Column } from '@tanstack/react-table'
 import {
   ArrowDown as ArrowDownIcon,
   ArrowUp as ArrowUpIcon,
@@ -24,6 +23,7 @@ import {
   EyeOff as EyeNoneIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Column } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,13 +34,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-type DataTableColumnHeaderProps<TData, TValue> =
-  React.HTMLAttributes<HTMLDivElement> & {
-    column: Column<TData, TValue>
-    title: React.ReactNode
-  }
+type DataTableColumnHeaderProps<
+  TData extends RowData,
+  TValue,
+> = React.HTMLAttributes<HTMLDivElement> & {
+  column: Column<TData, TValue>
+  title: React.ReactNode
+}
 
-export function DataTableColumnHeader<TData, TValue>({
+export function DataTableColumnHeader<TData extends RowData, TValue>({
   column,
   title,
   className,

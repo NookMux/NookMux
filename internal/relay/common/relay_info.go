@@ -612,6 +612,25 @@ func (info *RelayInfo) HasSendResponse() bool {
 	return info.FirstResponseTime.After(info.StartTime)
 }
 
+// ResetForAttempt resets timing and stream tracking fields for a new retry attempt,
+// ensuring that error logs, consume logs, first response time, and duration reflect
+// only the current attempt's actual time instead of accumulating previous attempts.
+func (info *RelayInfo) ResetForAttempt(startTime time.Time) {
+	if info == nil {
+		return
+	}
+	info.StartTime = startTime
+	info.FirstResponseTime = startTime.Add(-time.Second)
+	info.isFirstResponse = true
+	info.ReceivedResponseCount = 0
+	info.SendResponseCount = 0
+	if info.GeminiConvertInfo != nil {
+		info.GeminiConvertInfo.ToolCallArguments = make(map[int]map[int]string)
+		info.GeminiConvertInfo.ToolCallNames = make(map[int]map[int]string)
+		info.GeminiConvertInfo.ToolCallIDs = make(map[int]map[int]string)
+	}
+}
+
 // RemoveDisabledFields 从请求 JSON 数据中移除渠道设置中禁用的字段
 // service_tier: 服务层级字段，可能导致额外计费（OpenAI、Claude、Responses API 支持）
 // store: 数据存储授权字段，涉及用户隐私（仅 OpenAI、Responses API 支持，默认允许透传，禁用后可能导致 Codex 无法使用）

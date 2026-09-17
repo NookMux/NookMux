@@ -18,9 +18,9 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { type Table } from '@tanstack/react-table'
 import { Power, PowerOff, Tag, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -46,11 +46,11 @@ import {
 } from '../lib'
 import type { Channel } from '../types'
 
-interface DataTableBulkActionsProps<TData> {
+interface DataTableBulkActionsProps<TData extends RowData> {
   table: Table<TData>
 }
 
-export function DataTableBulkActions<TData>({
+export function DataTableBulkActions<TData extends RowData>({
   table,
 }: DataTableBulkActionsProps<TData>) {
   const { t } = useTranslation()

@@ -1,63 +1,66 @@
 # web/AGENTS.md
 
-前端规则。上级规则见 [../AGENTS.md](../AGENTS.md)。
+`web/` 是前端单页应用目录，基于 React 19、TypeScript、Rsbuild 与 Tailwind CSS 4 构建企业级 AI API 网关管理控制台。
 
-## 技术栈
+## 包管理器与技术栈
 
-- React 19、TypeScript、Rsbuild。
-- 路由: `@tanstack/react-router`，文件路由在 `src/routes/`。
-- 数据: `@tanstack/react-query`、Zustand、统一 axios 实例 `src/lib/api.ts`。
-- UI: Base UI、Tailwind CSS 4、`src/components/ui/`、Hugeicons/lucide。
-- 表单: React Hook Form + Zod。
-- 图表: VChart v2。
-- i18n: i18next + react-i18next，`en` 和 `zh`。
+- **包管理器**：**严格使用 Bun**。依赖锁文件为 `bun.lock`，严禁使用 npm、pnpm 或 yarn。
+- **框架与运行时**：React 19、TypeScript、Rsbuild。
+- **路由**：`@tanstack/react-router`，文件路由集中在 `src/routes/`。
+- **状态与请求**：`@tanstack/react-query`、Zustand、统一 Axios 实例 `src/lib/api.ts`。
+- **UI 组件库**：Base UI、Tailwind CSS 4、`src/components/ui/`、Hugeicons / Lucide 图标。
+- **表单与校验**：React Hook Form + Zod。
+- **数据图表**：VChart v2。
+- **国际化**：i18next + react-i18next（支持 `zh` 与 `en`）。
 
 ## 后端嵌入载体
 
-- `web/embed.go` 是后端专用 Go 源文件，用于在 `web/dist` 旁声明 `//go:embed`；Go embed 不支持 `..`，因此该文件不能移入 `internal/app/webdist/`。
-- `internal/app/webdist/` 是启动装配层使用的门面包；修改嵌入路径时必须同步检查该包和 `internal/httpapi/router/web_router.go`。
-- 修改 `web/embed.go` 后至少执行 `go test ./internal/app/... ./router/...`。
+- `web/embed.go` 是后端专用 Go 源文件，用于在 `web/dist` 旁声明 `//go:embed dist`；Go embed 不支持跨层级 `..`，因此该文件必须保留在本目录下，不可移入 `internal/app/webdist/`。
+- `internal/app/webdist/` 是启动装配层使用的统一门面包；修改前端静态产物路径时必须同步检查该包与 `internal/httpapi/router/web_router.go`。
+- 修改 `web/embed.go` 后至少执行：`go test ./internal/app/... ./internal/httpapi/router/...`。
 
-## 命令
+## 核心命令
 
-- 安装依赖: `bun install`
-- 开发服务: `bun run dev`
-- 类型检查: `bun run typecheck`
-- ESLint: `bun run lint`
-- 格式检查: `bun run format:check`
-- 生产构建: `bun run build`
-- 完整构建检查: `bun run build:check`
-- i18n 同步: `bun run i18n:sync`
+- 安装依赖：`bun install`
+- 本地开发：`bun run dev`
+- 类型检查：`bun run typecheck`
+- 静态检查：`bun run lint`
+- 代码格式检查：`bun run format:check`
+- 代码格式修复：`bun run format`
+- 单元测试：`bun test`
+- 生产打包：`bun run build`
+- 完整打包检查：`bun run build:check`
+- 国际化字典同步：`bun run i18n:sync`
+- 依赖漏洞审计：`bun audit --audit-level=high`
 
-改 TS/TSX 后至少执行 `bun run typecheck`。改路由、API、核心页面或构建配置后执行
-`bun run build` 或 `bun run build:check`。
+改动 TS/TSX 文件后必须执行 `bun run typecheck`。涉及路由、API 契约、页面核心组件或构建配置修改时，必须执行 `bun run build` 或 `bun run build:check`。
 
-## 文件组织
+## 文件组织规范
 
-- 功能模块放 `src/features/<feature>/`，常见结构为 `api.ts`、`types.ts`、`constants.ts`、
-`components/`、`hooks/`、`lib/`。
-- 路由只负责装配页面和路由级校验，业务逻辑放到 feature。
-- 通用组件放 `src/components/`，基础 UI 原语放 `src/components/ui/`。
-- 通用工具放 `src/lib/`，状态放 `src/stores/`。
-- 类型导入使用 `import type`。
+- 业务功能模块集中在 `src/features/<feature>/`，标准结构包含：`api.ts`、`types.ts`、`constants.ts`、`components/`、`hooks/`、`lib/`。
+- 路由组件只负责装配页面布局与路由级守卫校验，具体业务逻辑与交互下沉至对应 feature。
+- 通用组件置于 `src/components/`，原子级基础 UI 原语置于 `src/components/ui/`。
+- 全局工具函数置于 `src/lib/`，跨模块全局状态置于 `src/stores/`。
+- 纯类型导入必须显式使用 `import type`。
 
-## API 与数据
+## API 请求与数据流
 
-- 使用 `src/lib/api.ts` 的 `api` 实例，保留 cookie、错误处理、GET 去重和 `New-Api-User` 头。
-- 数据获取用 `useQuery`，变更用 `useMutation`，query key 使用数组并保持层级稳定。
-- 成功后按影响范围 invalidate 相关 query。不要手动刷新整个页面替代状态更新。
-- 服务端响应以本项目后端为准。参考项目 API 不存在时，隐藏入口或改前端适配，不新增后端业务 API。
-- 不使用 mock 数据、假分页、假成功状态或静默吞错。
+- 统一通过 `src/lib/api.ts` 的 `api` 实例发起请求，保留 Cookie 凭证、错误拦截、GET 请求防重以及 `New-Api-User` Header。
+- 数据查询使用 `useQuery`，写操作使用 `useMutation`；query key 采用层级数组结构并保持语义一致。
+- 变更成功后根据影响边界精确执行 `queryClient.invalidateQueries`，严禁使用整页刷新替代局部响应式更新。
+- 服务端数据契约以本项目后端代码为单一真实来源。第三方参考项目 API 若在本项目未实现，应隐藏入口或在前端做兼容适配，严禁私自强加后端业务 API。
+- 严禁用前端 Mock 数据、伪造分页或静默吞错让流程"看起来能跑"。
 
-## i18n
+## 国际化 (i18n)
 
-- React 组件中使用 `const { t } = useTranslation()`;非 React 模块可用 `i18next.t`。
-- 文案按 feature 物理拆分到 `src/i18n/locales/<locale>/<section>.json`(`<locale>` 为 en 或 zh,`<section>` 对应 feature,如 `auth`、`channels`、`system-settings`,共用/品牌/壳层分别用 `common.json` 和 `layout.json`)。每个 section 文件是扁平的 `Record<string, string>`,不包 translation 包装层;运行时在 `src/i18n/config.ts` 用对象展开合并回单一 translation namespace。
-- 用户可见文案用语义 key,格式 `<section>.<group>.<name>[.<attr>]`,前缀 `<section>` 与所在文件名一致(如 `channels.json` → `channels.fields.xxx`);`<group>` 收敛在 `fields/actions/status/errors/tips/titles/placeholders`,`<name>` 用 camelCase,section 名含连字符时前缀转 camelCase(`usage-logs` → `usageLogs`)。语义 key 为扁平字符串,禁止写成嵌套对象。
-- 新增用户可见文案:在相关 feature 的 `src/i18n/locales/en/<section>.json` 和 `src/i18n/locales/zh/<section>.json` 中各加一行;新增 section 文件后必须在 `src/i18n/config.ts` 里导入并展开到对应语言的 translation。
-- 用 `bun run i18n:sync` 校验 en/zh key 是否对齐(脚本会按 base 顺序重排各 section、产出 `_extras`、`_reports`,不再写回单一大文件)。
-- 常量、配置、枚举等动态 key 要登记到 `src/i18n/static-keys.ts`,或确保以 `t('...')` 字面量出现。
-- `keySeparator: false`、`nsSeparator: false`;`supportedLngs` 目前只有 en 和 zh,不要添加未维护的语言入口。
+- React 组件中使用 `const { t } = useTranslation()`；非 React 逻辑模块使用 `i18next.t`。
+- 文案按 feature 物理拆分存储在 `src/i18n/locales/<locale>/<section>.json`（`<locale>` 为 `zh` 或 `en`；`<section>` 对应功能模块，如 `auth`、`channels`、`system-settings`；通用与布局文案分别放入 `common.json` 和 `layout.json`）。每个 section 文件为扁平的 `Record<string, string>` 映射。
+- 语义 Key 命名规范：`<section>.<group>.<name>[.<attr>]`，前缀 `<section>` 与文件名一致；`<group>` 归敛为 `fields/actions/status/errors/tips/titles/placeholders`；`<name>` 使用 camelCase。语义 key 必须保持扁平键名，禁止写成嵌套 JSON 对象。
+- 新增文案规范：必须同步在对应 feature 的 `zh/<section>.json` 与 `en/<section>.json` 中添加相应 key；新增 section 需在 `src/i18n/config.ts` 中注册挂载。
+- 字典对齐校验：提交前执行 `bun run i18n:sync` 自动对齐与校验中英文键集合。
+- 动态 Key 必须登记在 `src/i18n/static-keys.ts` 中，或确保代码中包含静态字面量 `t('...')` 以供扫描。
+- 目前仅维护 `zh` 与 `en` 两种语言，严禁新增未维护的语言入口。
+
 
 ## 类型、表单与错误
 

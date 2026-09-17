@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	modelconfig "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -503,6 +504,9 @@ func applyOperations(data []byte, operations []ParamOperation, conditionContext 
 				return nil, parseErr
 			}
 			for _, headerName := range headerNames {
+				if modelconfig.ShouldRemoveClaudeCodeBillingHeader(headerName) {
+					continue
+				}
 				err = passRequestHeaderToOverride(context, headerName, op.KeepOrigin)
 				if err != nil {
 					break

@@ -1,7 +1,9 @@
 {
   "home.actions.addYourApiKeysSetUpChannelsAndConfigure": "Add your API keys, set up channels and configure access permissions",
+  "home.fields.aiApplicationInfrastructureFoundation": "AI Application Infrastructure Foundation",
   "home.titles.allYourAiModels": "All Your AI Models",
   "home.fields.builtForDevelopers": "Built for developers,",
+  "home.titles.claudeGptAndMore": "Claude, GPT & More.",
   "home.tips.communityDrivenSelfHostedAndExtensible": "Community driven, self-hosted, and extensible",
   "home.fields.compatibleApiRoutes": "compatible API routes",
   "home.tips.compatibleApiRoutesForCommonAiApplicationWorkflows": "Compatible API routes for common AI application workflows",
@@ -14,6 +16,8 @@
   "home.tips.deployYourOwnGatewayAndStartRoutingRequestsThrough": "Deploy your own gateway and start routing requests through your configured upstream services.",
   "home.fields.designedForScale": "designed for scale",
   "home.fields.developerFriendly": "Developer Friendly",
+  "home.titles.everyAiModel": "Every AI Model.",
+  "home.titles.fortyPlusProviders": "40+ Providers.",
   "home.placeholders.enterpriseGradeSecurityWithComprehensivePermissionManagement": "Enterprise-grade security with comprehensive permission management",
   "home.errors.failedToLoadHomePageContent": "Failed to load home page content",
   "home.fields.globalCoverage": "Global Coverage",
@@ -35,6 +39,8 @@
   "home.fields.request": "Request",
   "home.tips.schedulingControls": "scheduling controls",
   "home.fields.secureReliable": "Secure & Reliable",
+  "home.tips.showApiExample": "Show the API example",
+  "home.tips.showRoutingDiagram": "Show the routing diagram",
   "home.tips.supportForHighConcurrencyWithAutomaticLoadBalancing": "Support for high concurrency with automatic load balancing",
   "home.fields.teamCollaboration": "Team Collaboration",
   "home.fields.threeStepsToGetStarted": "Three steps to get started",
@@ -43,5 +49,6 @@
   "home.fields.unifiedApiGatewayFor": "Unified API Gateway for",
   "home.fields.upstreamServicesIntegrated": "upstream services integrated",
   "home.actions.viewPricing": "View Pricing",
-  "home.tips.aiIntegration": "your AI integration?"
+  "home.tips.aiIntegration": "your AI integration?",
+  "home.titles.yourEntireLlmStack": "Your Entire LLM Stack."
 }

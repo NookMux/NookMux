@@ -150,6 +150,11 @@ func GetUptimeKumaStatus(c *gin.Context) {
 		})
 	}
 
-	g.Wait()
+	if err := g.Wait(); err != nil {
+		// errgroup 中所有 goroutine 均显式 return nil，理论上不会到达；
+		// 保留显式处理以备未来扩展并避免吞错。
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": results})
 }

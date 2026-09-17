@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
-import { type ColumnDef } from '@tanstack/react-table'
 import { CircleAlert, Sparkles, KeyRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
@@ -27,6 +26,7 @@ import {
   formatLogQuota,
   formatTimestampToDate,
 } from '@/lib/format'
+import { type ColumnDef } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -43,7 +43,7 @@ import { useUsageLogFieldVisibility } from '../../hooks/use-field-visibility'
 import {
   formatModelName,
   getFirstResponseTimeColor,
-  getResponseTimeColor,
+  getTimeColor,
   getThroughputColor,
   getTieredBillingSummary,
   hasAnyCacheTokens,
@@ -604,10 +604,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
           typeof other?.speed === 'number' && other.speed > 0
             ? other.speed
             : null
-        const timeVariant = getResponseTimeColor(
-          useTimeSeconds,
-          log.completion_tokens
-        )
+        const timeVariant = getTimeColor(useTimeSeconds)
         const frtVariant = frt ? getFirstResponseTimeColor(frt / 1000) : null
         const speedVariant =
           speed != null

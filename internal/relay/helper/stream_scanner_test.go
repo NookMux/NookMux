@@ -33,6 +33,15 @@ func streamScannerTestContext(t *testing.T) (*gin.Context, func()) {
 	return c, cleanup
 }
 
+// assertStreamScannerHandler 包装 StreamScannerHandler，对其返回值做显式断言，
+// 避免 relay 测试在忽略流式终止错误（超时/读错误）时掩盖真实问题。
+func assertStreamScannerHandler(tb testing.TB, c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo, dataHandler func(data string) bool) {
+	tb.Helper()
+	if err := StreamScannerHandler(c, resp, info, dataHandler); err != nil {
+		tb.Fatalf("StreamScannerHandler returned unexpected error: %v", err)
+	}
+}
+
 func TestStreamScannerHandlerTrimsAndSkipsEmptyDataFrames(t *testing.T) {
 	c, cleanup := streamScannerTestContext(t)
 	t.Cleanup(cleanup)
@@ -49,7 +58,7 @@ func TestStreamScannerHandlerTrimsAndSkipsEmptyDataFrames(t *testing.T) {
 	}
 
 	var got []string
-	StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 		got = append(got, data)
 		return true
 	})
@@ -80,7 +89,7 @@ func TestStreamScannerHandlerSkipsNonDataLines(t *testing.T) {
 	}
 
 	var count int
-	StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 		count++
 		return true
 	})
@@ -99,7 +108,7 @@ func TestStreamScannerHandlerDataWithExtraSpaces(t *testing.T) {
 	}
 
 	var got string
-	StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 		got = data
 		return true
 	})
@@ -125,7 +134,7 @@ func TestStreamScannerHandlerDoneStopsScanner(t *testing.T) {
 	}
 
 	var count int
-	StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 		count++
 		return true
 	})
@@ -148,8 +157,8 @@ func TestStreamScannerHandlerNilInputs(t *testing.T) {
 	t.Cleanup(cleanup)
 	info := &relaycommon.RelayInfo{}
 
-	StreamScannerHandler(c, nil, info, func(data string) bool { return true })
-	StreamScannerHandler(c, &http.Response{Body: io.NopCloser(strings.NewReader(""))}, info, nil)
+	assertStreamScannerHandler(t, c, nil, info, func(data string) bool { return true })
+	assertStreamScannerHandler(t, c, &http.Response{Body: io.NopCloser(strings.NewReader(""))}, info, nil)
 }
 
 func TestStreamScannerHandlerEmptyBody(t *testing.T) {
@@ -161,7 +170,7 @@ func TestStreamScannerHandlerEmptyBody(t *testing.T) {
 	}
 
 	var called bool
-	StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 		called = true
 		return true
 	})
@@ -181,7 +190,7 @@ func TestStreamScannerHandler1000Chunks(t *testing.T) {
 	info := &relaycommon.RelayInfo{}
 
 	var count int
-	StreamScannerHandler(c, resp, info, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, info, func(data string) bool {
 		count++
 		return true
 	})
@@ -204,7 +213,7 @@ func TestStreamScannerHandlerOrderPreserved(t *testing.T) {
 
 	var mu sync.Mutex
 	received := make([]string, 0, numChunks)
-	StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 		mu.Lock()
 		received = append(received, data)
 		mu.Unlock()
@@ -232,7 +241,7 @@ func TestStreamScannerHandlerStopStopsStream(t *testing.T) {
 
 	const stopAt = 50
 	var count int
-	StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+	assertStreamScannerHandler(t, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 		count++
 		return count < stopAt
 	})
@@ -275,7 +284,7 @@ func TestStreamScannerHandlerPingSentDuringSlowUpstream(t *testing.T) {
 	var count int
 	done := make(chan struct{})
 	go func() {
-		StreamScannerHandler(c, resp, info, func(data string) bool {
+		assertStreamScannerHandler(t, c, resp, info, func(data string) bool {
 			count++
 			return true
 		})
@@ -319,7 +328,7 @@ func TestStreamScannerHandlerPingDisabledByRelayInfo(t *testing.T) {
 	}
 	info := &relaycommon.RelayInfo{DisablePing: true}
 
-	StreamScannerHandler(c, resp, info, func(data string) bool { return true })
+	assertStreamScannerHandler(t, c, resp, info, func(data string) bool { return true })
 
 	if pingCount := strings.Count(recorder.Body.String(), ": PING"); pingCount != 0 {
 		t.Fatalf("expected no pings when DisablePing=true, got %d", pingCount)
@@ -361,7 +370,7 @@ func BenchmarkStreamScannerHandler(b *testing.B) {
 			Body:       io.NopCloser(strings.NewReader(body)),
 		}
 		count := 0
-		StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+		assertStreamScannerHandler(b, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 			count++
 			return data != ""
 		})
@@ -448,7 +457,7 @@ func BenchmarkStreamScannerHandlerConcurrent128(b *testing.B) {
 					Body:       io.NopCloser(strings.NewReader(body)),
 				}
 				seenFirstFrame := false
-				StreamScannerHandler(c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
+				assertStreamScannerHandler(b, c, resp, &relaycommon.RelayInfo{}, func(data string) bool {
 					if !seenFirstFrame {
 						seenFirstFrame = true
 						firstFrames.Done()

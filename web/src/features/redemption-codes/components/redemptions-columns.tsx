@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
+import { type ColumnDef } from '@/lib/tanstack-table'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Tooltip,
@@ -43,7 +43,10 @@ export function useRedemptionsColumns(): ColumnDef<Redemption>[] {
       header: ({ table }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
+          indeterminate={
+            table.getIsSomePageRowsSelected() &&
+            !table.getIsAllPageRowsSelected()
+          }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label={t('channels.placeholders.selectAll')}
           className='translate-y-[2px]'

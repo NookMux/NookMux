@@ -149,8 +149,8 @@ export function getTimeColor(
 export function getFirstResponseTimeColor(
   seconds: number
 ): 'success' | 'warning' | 'danger' {
-  if (seconds < 5) return 'success'
-  if (seconds < 10) return 'warning'
+  if (seconds < 2) return 'success'
+  if (seconds < 5) return 'warning'
   return 'danger'
 }
 
@@ -160,20 +160,9 @@ export function getFirstResponseTimeColor(
 export function getThroughputColor(
   tokensPerSecond: number
 ): 'success' | 'warning' | 'danger' {
-  if (tokensPerSecond >= 30) return 'success'
-  if (tokensPerSecond >= 15) return 'warning'
+  if (tokensPerSecond >= 60) return 'success'
+  if (tokensPerSecond >= 40) return 'warning'
   return 'danger'
-}
-
-/**
- * Get response color using throughput only when enough output tokens exist.
- */
-export function getResponseTimeColor(
-  seconds: number,
-  completionTokens: number
-): 'success' | 'warning' | 'danger' {
-  if (completionTokens < 100 || seconds <= 0) return getTimeColor(seconds)
-  return getThroughputColor(completionTokens / seconds)
 }
 
 /**

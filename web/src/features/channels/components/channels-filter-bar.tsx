@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useEffect, useCallback } from 'react'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { type Table } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import {
   Select,
   SelectContent,
@@ -45,13 +45,15 @@ export interface ChannelFilterOption {
   iconNode?: React.ReactNode
 }
 
-interface ChannelsFilterBarProps<TData> {
+interface ChannelsFilterBarProps<TData extends RowData> {
   table: Table<TData>
   typeOptions: ChannelFilterOption[]
   groupOptions: ChannelFilterOption[]
 }
 
-export function ChannelsFilterBar<TData>(props: ChannelsFilterBarProps<TData>) {
+export function ChannelsFilterBar<TData extends RowData>(
+  props: ChannelsFilterBarProps<TData>
+) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()

@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type ColumnDef } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, Pencil, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type ColumnDef } from '@/lib/tanstack-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'

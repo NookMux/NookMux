@@ -19,18 +19,17 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
+import { useMediaQuery } from '@/hooks'
+import { useTranslation } from 'react-i18next'
+import { getLobeIcon } from '@/lib/lobe-icon'
 import {
-  getCoreRowModel,
-  useReactTable,
-  getExpandedRowModel,
+  appTableFeatures,
+  useTable,
   type OnChangeFn,
   type SortingState,
   type ExpandedState,
   type Row,
-} from '@tanstack/react-table'
-import { useMediaQuery } from '@/hooks'
-import { useTranslation } from 'react-i18next'
-import { getLobeIcon } from '@/lib/lobe-icon'
+} from '@/lib/tanstack-table'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import {
   DISABLED_ROW_DESKTOP,
@@ -236,7 +235,8 @@ export function ChannelsTable() {
   const columns = useChannelsColumns()
 
   // React Table instance
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: channels,
     columns,
     pageCount: Math.ceil(totalCount / pagination.pageSize),
@@ -255,12 +255,14 @@ export function ChannelsTable() {
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange,
     onExpandedChange: setExpanded,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
     getSubRows: (row: Channel & { children?: Channel[] }) => row.children,
     manualPagination: true,
     manualSorting: true,
     manualFiltering: true,
+    // 标签聚合模式下，编辑/添加/刷新等 refetch 会重建行结构；TanStack 默认
+    // 在行结构变化时自动重置 expanded，导致已展开标签收起。行 ID（tag:xxx /
+    // channel id）本身稳定，关闭自动重置让展开状态在数据重载后得以保留。
+    autoResetExpanded: false,
   })
 
   // Ensure page is in range when total count changes

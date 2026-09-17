@@ -20,8 +20,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { ArrowDown, ArrowUp, Loader2, Plus, Search, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -348,9 +348,7 @@ export function ProviderPickerDialog({
           <Button variant='outline' onClick={handleClose}>
             {t('common.actions.cancel')}
           </Button>
-          <Button onClick={handleConfirm}>
-            {t('common.actions.confirm')}
-          </Button>
+          <Button onClick={handleConfirm}>{t('common.actions.confirm')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

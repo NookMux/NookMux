@@ -626,8 +626,6 @@ func StreamResponseOpenAI2Claude(openAIResponse *shared.ChatCompletionsStreamRes
 					},
 				})
 			}
-		} else {
-
 		}
 		// 判断首个响应是否存在内容（非标准的 OpenAI 响应）
 		if len(openAIResponse.Choices) > 0 {

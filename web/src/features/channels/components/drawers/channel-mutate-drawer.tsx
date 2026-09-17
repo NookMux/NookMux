@@ -56,6 +56,11 @@ import { cn } from '@/lib/utils'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import { Combobox } from '@/components/ui/combobox'
 import {
   Form,
@@ -87,11 +92,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
 import {
   Tooltip,
   TooltipContent,
@@ -159,14 +159,14 @@ import {
 import type { Channel, ProxyTestResultData } from '../../types'
 import { FetchModelsDialog } from '../dialogs/fetch-models-dialog'
 import {
-  ProviderPickerDialog,
-  type ProviderPickerMode,
-} from '../dialogs/provider-picker-dialog'
-import {
   MissingModelsConfirmationDialog,
   type MissingModelsAction,
 } from '../dialogs/missing-models-confirmation-dialog'
 import { ParamOverrideEditorDialog } from '../dialogs/param-override-editor-dialog'
+import {
+  ProviderPickerDialog,
+  type ProviderPickerMode,
+} from '../dialogs/provider-picker-dialog'
 import { StatusCodeRiskDialog } from '../dialogs/status-code-risk-dialog'
 import { ModelMappingEditor } from '../model-mapping-editor'
 
@@ -700,6 +700,8 @@ export function ChannelMutateDrawer({
       type: form.getValues('type'),
       key: form.getValues('key'),
       base_url: form.getValues('base_url') || '',
+      aws_key_type: form.getValues('aws_key_type'),
+      proxy: form.getValues('proxy') || '',
     })
     if (response.success && response.data) {
       return response.data.map((m) =>
@@ -2375,7 +2377,9 @@ export function ChannelMutateDrawer({
                                       {t('channels.fields.orTriStateRequireOn')}
                                     </SelectItem>
                                     <SelectItem value='false'>
-                                      {t('channels.fields.orTriStateRequireOff')}
+                                      {t(
+                                        'channels.fields.orTriStateRequireOff'
+                                      )}
                                     </SelectItem>
                                   </SelectGroup>
                                 </SelectContent>
@@ -2415,10 +2419,14 @@ export function ChannelMutateDrawer({
                                       {t('channels.fields.orTriStateUnset')}
                                     </SelectItem>
                                     <SelectItem value='deny'>
-                                      {t('channels.fields.orDataCollectionDeny')}
+                                      {t(
+                                        'channels.fields.orDataCollectionDeny'
+                                      )}
                                     </SelectItem>
                                     <SelectItem value='allow'>
-                                      {t('channels.fields.orDataCollectionAllow')}
+                                      {t(
+                                        'channels.fields.orDataCollectionAllow'
+                                      )}
                                     </SelectItem>
                                   </SelectGroup>
                                 </SelectContent>
@@ -2442,7 +2450,9 @@ export function ChannelMutateDrawer({
                               <FormControl>
                                 <MultiSelect
                                   options={OPENROUTER_QUANTIZATION_OPTIONS}
-                                  selected={parseOpenRouterSlugList(field.value || '')}
+                                  selected={parseOpenRouterSlugList(
+                                    field.value || ''
+                                  )}
                                   onChange={(values) =>
                                     field.onChange(values.join(', '))
                                   }
@@ -2460,28 +2470,26 @@ export function ChannelMutateDrawer({
                         />
                       </div>
 
-                      {(
-                        [
-                          {
-                            name: 'or_order' as const,
-                            mode: 'order' as const,
-                            labelKey: 'channels.fields.orOrder',
-                            description: 'OR_ORDER' as const,
-                          },
-                          {
-                            name: 'or_only' as const,
-                            mode: 'only' as const,
-                            labelKey: 'channels.fields.orOnly',
-                            description: 'OR_ONLY' as const,
-                          },
-                          {
-                            name: 'or_ignore' as const,
-                            mode: 'ignore' as const,
-                            labelKey: 'channels.fields.orIgnore',
-                            description: 'OR_IGNORE' as const,
-                          },
-                        ]
-                      ).map(({ name, mode, labelKey, description }) => (
+                      {[
+                        {
+                          name: 'or_order' as const,
+                          mode: 'order' as const,
+                          labelKey: 'channels.fields.orOrder',
+                          description: 'OR_ORDER' as const,
+                        },
+                        {
+                          name: 'or_only' as const,
+                          mode: 'only' as const,
+                          labelKey: 'channels.fields.orOnly',
+                          description: 'OR_ONLY' as const,
+                        },
+                        {
+                          name: 'or_ignore' as const,
+                          mode: 'ignore' as const,
+                          labelKey: 'channels.fields.orIgnore',
+                          description: 'OR_IGNORE' as const,
+                        },
+                      ].map(({ name, mode, labelKey, description }) => (
                         <FormField
                           key={name}
                           control={form.control}
@@ -2552,7 +2560,9 @@ export function ChannelMutateDrawer({
                                           {t('channels.fields.orSortPrice')}
                                         </SelectItem>
                                         <SelectItem value='throughput'>
-                                          {t('channels.fields.orSortThroughput')}
+                                          {t(
+                                            'channels.fields.orSortThroughput'
+                                          )}
                                         </SelectItem>
                                         <SelectItem value='latency'>
                                           {t('channels.fields.orSortLatency')}
@@ -2590,10 +2600,14 @@ export function ChannelMutateDrawer({
                                     <SelectContent alignItemWithTrigger={false}>
                                       <SelectGroup>
                                         <SelectItem value='model'>
-                                          {t('channels.fields.orSortPartitionModel')}
+                                          {t(
+                                            'channels.fields.orSortPartitionModel'
+                                          )}
                                         </SelectItem>
                                         <SelectItem value='none'>
-                                          {t('channels.fields.orSortPartitionNone')}
+                                          {t(
+                                            'channels.fields.orSortPartitionNone'
+                                          )}
                                         </SelectItem>
                                       </SelectGroup>
                                     </SelectContent>
@@ -2626,16 +2640,16 @@ export function ChannelMutateDrawer({
                                     <FormField
                                       control={form.control}
                                       name='or_pref_min_throughput_percentile'
-                                      render={({
-                                        field: percentileField,
-                                      }) => (
+                                      render={({ field: percentileField }) => (
                                         <FormItem className='w-28 space-y-0'>
                                           <FormLabel className='sr-only'>
                                             {t('channels.fields.orPercentile')}
                                           </FormLabel>
                                           <FormControl>
                                             <Select
-                                              value={percentileField.value || ''}
+                                              value={
+                                                percentileField.value || ''
+                                              }
                                               onValueChange={
                                                 percentileField.onChange
                                               }
@@ -2669,7 +2683,9 @@ export function ChannelMutateDrawer({
                                     />
                                   </div>
                                   <FormDescription>
-                                    {t(FIELD_DESCRIPTIONS.OR_PREF_MIN_THROUGHPUT)}
+                                    {t(
+                                      FIELD_DESCRIPTIONS.OR_PREF_MIN_THROUGHPUT
+                                    )}
                                   </FormDescription>
                                   <FormMessage />
                                 </FormItem>
@@ -2697,16 +2713,16 @@ export function ChannelMutateDrawer({
                                     <FormField
                                       control={form.control}
                                       name='or_pref_max_latency_percentile'
-                                      render={({
-                                        field: percentileField,
-                                      }) => (
+                                      render={({ field: percentileField }) => (
                                         <FormItem className='w-28 space-y-0'>
                                           <FormLabel className='sr-only'>
                                             {t('channels.fields.orPercentile')}
                                           </FormLabel>
                                           <FormControl>
                                             <Select
-                                              value={percentileField.value || ''}
+                                              value={
+                                                percentileField.value || ''
+                                              }
                                               onValueChange={
                                                 percentileField.onChange
                                               }
@@ -2798,46 +2814,8 @@ export function ChannelMutateDrawer({
                               name='or_zdr'
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>{t('channels.fields.orZdr')}</FormLabel>
-                                  <Select
-                                    value={field.value || ''}
-                                    onValueChange={field.onChange}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue
-                                          placeholder={t(
-                                            'channels.fields.orTriStateUnset'
-                                          )}
-                                        />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent alignItemWithTrigger={false}>
-                                      <SelectGroup>
-                                        <SelectItem value=''>
-                                          {t('channels.fields.orTriStateUnset')}
-                                        </SelectItem>
-                                        <SelectItem value='true'>
-                                          {t('channels.fields.orTriStateRequireOn')}
-                                        </SelectItem>
-                                        <SelectItem value='false'>
-                                          {t('channels.fields.orTriStateRequireOff')}
-                                        </SelectItem>
-                                      </SelectGroup>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name='or_enforce_distillable_text'
-                              render={({ field }) => (
-                                <FormItem>
                                   <FormLabel>
-                                    {t('channels.fields.orEnforceDistillableText')}
+                                    {t('channels.fields.orZdr')}
                                   </FormLabel>
                                   <Select
                                     value={field.value || ''}
@@ -2858,10 +2836,60 @@ export function ChannelMutateDrawer({
                                           {t('channels.fields.orTriStateUnset')}
                                         </SelectItem>
                                         <SelectItem value='true'>
-                                          {t('channels.fields.orTriStateRequireOn')}
+                                          {t(
+                                            'channels.fields.orTriStateRequireOn'
+                                          )}
                                         </SelectItem>
                                         <SelectItem value='false'>
-                                          {t('channels.fields.orTriStateRequireOff')}
+                                          {t(
+                                            'channels.fields.orTriStateRequireOff'
+                                          )}
+                                        </SelectItem>
+                                      </SelectGroup>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            <FormField
+                              control={form.control}
+                              name='or_enforce_distillable_text'
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>
+                                    {t(
+                                      'channels.fields.orEnforceDistillableText'
+                                    )}
+                                  </FormLabel>
+                                  <Select
+                                    value={field.value || ''}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue
+                                          placeholder={t(
+                                            'channels.fields.orTriStateUnset'
+                                          )}
+                                        />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent alignItemWithTrigger={false}>
+                                      <SelectGroup>
+                                        <SelectItem value=''>
+                                          {t('channels.fields.orTriStateUnset')}
+                                        </SelectItem>
+                                        <SelectItem value='true'>
+                                          {t(
+                                            'channels.fields.orTriStateRequireOn'
+                                          )}
+                                        </SelectItem>
+                                        <SelectItem value='false'>
+                                          {t(
+                                            'channels.fields.orTriStateRequireOff'
+                                          )}
                                         </SelectItem>
                                       </SelectGroup>
                                     </SelectContent>

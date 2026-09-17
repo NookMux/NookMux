@@ -19,9 +19,9 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
-import { type Table } from '@tanstack/react-table'
 import { Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import { useIsAdmin } from '@/hooks/use-admin'
 import { Button } from '@/components/ui/button'
 import {
@@ -59,11 +59,11 @@ function isLogTypeValue(value: string): value is LogTypeValue {
   return (logTypeValues as readonly string[]).includes(value)
 }
 
-interface CommonLogsFilterBarProps<TData> {
+interface CommonLogsFilterBarProps<TData extends RowData> {
   table: Table<TData>
 }
 
-export function CommonLogsFilterBar<TData>(
+export function CommonLogsFilterBar<TData extends RowData>(
   props: CommonLogsFilterBarProps<TData>
 ) {
   const { t } = useTranslation()

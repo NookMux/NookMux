@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/NookMux/NookMux/internal/common"
@@ -25,9 +26,9 @@ const (
 
 const maxLogCount = 1000000
 
-var logCount int
+var logCount atomic.Int64
 var setupLogLock sync.Mutex
-var setupLogWorking bool
+var setupLogWorking atomic.Bool
 
 // Dir 是日志文件目录，由 app.InitEnv 在 flag.Parse 后注入（--log-dir flag
 // 归 app 层持有；本包不得反向 import app，否则与启动装配成环）。
@@ -35,9 +36,7 @@ var setupLogWorking bool
 var Dir string
 
 func SetupLogger() {
-	defer func() {
-		setupLogWorking = false
-	}()
+	defer setupLogWorking.Store(false)
 	if Dir != "" {
 		ok := setupLogLock.TryLock()
 		if !ok {
@@ -89,10 +88,11 @@ func logHelper(ctx context.Context, level string, msg string) {
 	}
 	now := time.Now()
 	_, _ = fmt.Fprintf(writer, "[%s] %v | %s | %s \n", level, now.Format("2006/01/02 - 15:04:05"), id, msg)
-	logCount++ // we don't need accurate count, so no lock here
-	if logCount > maxLogCount && !setupLogWorking {
-		logCount = 0
-		setupLogWorking = true
+	// 计数与日志滚动触发改用原子操作：日志是并发热路径，加锁会显著拖慢；
+	// 计数精度无需绝对准确，但必须无数据竞争。CompareAndSwap 防止多个协程
+	// 同时触发 SetupLogger 重入。
+	if logCount.Add(1) > maxLogCount && setupLogWorking.CompareAndSwap(false, true) {
+		logCount.Store(0)
 		runtime.RelayGo(func() {
 			SetupLogger()
 		})

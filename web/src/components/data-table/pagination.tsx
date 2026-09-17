@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type Table } from '@tanstack/react-table'
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -24,6 +23,7 @@ import {
   ChevronsRight as DoubleArrowRightIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import { cn, getPageNumbers } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,15 +35,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-type DataTablePaginationProps<TData> = {
+type DataTablePaginationProps<TData extends RowData> = {
   table: Table<TData>
 }
 
-export function DataTablePagination<TData>({
+export function DataTablePagination<TData extends RowData>({
   table,
 }: DataTablePaginationProps<TData>) {
   const { t } = useTranslation()
-  const currentPage = table.getState().pagination.pageIndex + 1
+  const currentPage = table.state.pagination.pageIndex + 1
   const totalPages = table.getPageCount()
   const pageNumbers = getPageNumbers(currentPage, totalPages)
 
@@ -73,13 +73,13 @@ export function DataTablePagination<TData>({
                 label: pageSize,
               })),
             ]}
-            value={`${table.getState().pagination.pageSize}`}
+            value={`${table.state.pagination.pageSize}`}
             onValueChange={(value) => {
               table.setPageSize(Number(value))
             }}
           >
             <SelectTrigger className='h-8 w-[64px] sm:w-[70px]'>
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
+              <SelectValue placeholder={table.state.pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side='top' alignItemWithTrigger={false}>
               <SelectGroup>

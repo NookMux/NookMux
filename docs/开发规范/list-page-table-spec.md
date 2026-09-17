@@ -167,7 +167,7 @@ import { SectionPageLayout } from '@/components/layout'
 import { DataTablePage } from '@/components/data-table'
 
 export function MyListPage() {
-  // ... useReactTable setup ...
+  // ... useTable setup（features: appTableFeatures）...
 
   return (
     <SectionPageLayout>

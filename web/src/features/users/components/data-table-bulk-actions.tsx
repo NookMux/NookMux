@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type Table } from '@tanstack/react-table'
+import { type Table } from '@/lib/tanstack-table'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
 import { type User } from '../types'
 

@@ -72,6 +72,7 @@ token.no_auth_header: "No Authorization header"
 token.invalid_bearer: "Invalid Bearer token"
 token.authorized: "Authorized"
 token.max_limit_reached: "Maximum token limit reached ({{.Max}})"
+token.invalid_model_mapping: "Invalid model mapping: must be a JSON object with non-empty string keys and values"
 
 # Redemption messages
 redemption.name_length: "Redemption code name length must be between 1-20"

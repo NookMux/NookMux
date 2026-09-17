@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useEffect, useCallback } from 'react'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
-import { type Table } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import { useIsAdmin } from '@/hooks/use-admin'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
@@ -37,7 +37,7 @@ const route = getRouteApi('/_authenticated/usage-logs/$section')
 type TaskLikeLogCategory = Extract<LogCategory, 'drawing' | 'task'>
 type TaskLogsFilters = DrawingLogFilters | TaskLogFilters
 
-interface TaskLogsFilterBarProps<TData> {
+interface TaskLogsFilterBarProps<TData extends RowData> {
   table: Table<TData>
   logCategory: TaskLikeLogCategory
 }
@@ -63,7 +63,9 @@ function setFilterValue(
   return { ...filters, taskId: value }
 }
 
-export function TaskLogsFilterBar<TData>(props: TaskLogsFilterBarProps<TData>) {
+export function TaskLogsFilterBar<TData extends RowData>(
+  props: TaskLogsFilterBarProps<TData>
+) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()

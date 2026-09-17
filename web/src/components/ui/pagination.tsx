@@ -127,7 +127,9 @@ function PaginationNext({
       className={cn('pr-1.5!', className)}
       {...props}
     >
-      <span className='hidden sm:block'>{text ?? t('common.actions.next')}</span>
+      <span className='hidden sm:block'>
+        {text ?? t('common.actions.next')}
+      </span>
       <HugeiconsIcon
         icon={ArrowRight01Icon}
         strokeWidth={2}

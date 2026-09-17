@@ -40,12 +40,61 @@ export function getApiKeyFormSchema(t: TFunction) {
       cycle_days: z.number().optional(),
       cycle_quota_dollars: z.number().optional(),
       model_limits: z.array(z.string()),
+      model_mapping: z.string().optional(),
       allow_ips: z.string().optional(),
       group: z.string().optional(),
       cross_group_retry: z.boolean().optional(),
       tokenCount: z.number().min(1).optional(),
     })
     .superRefine((data, ctx) => {
+      const modelMapping = (data.model_mapping || '').trim()
+      if (modelMapping) {
+        // 与后端 validateTokenModelMapping 对齐：JSON 对象且键值均为
+        // 非空字符串、不含冒号/斜杠/空白（这些字符无法安全承载在
+        // Gemini 路径等改写来源中），单键值不超过 256 字符、总量
+        // 不超过 64KB。
+        let tooLong = false
+        let valid: boolean
+        try {
+          const parsed: unknown = JSON.parse(modelMapping)
+          const entries = Object.entries(
+            (parsed ?? {}) as Record<string, unknown>
+          )
+          tooLong =
+            entries.some(
+              ([from, to]) =>
+                typeof to === 'string' && (from.length > 256 || to.length > 256)
+            ) || modelMapping.length > 64 * 1024
+          valid =
+            !!parsed &&
+            typeof parsed === 'object' &&
+            !Array.isArray(parsed) &&
+            entries.every(
+              ([from, to]) =>
+                typeof to === 'string' &&
+                from.trim() !== '' &&
+                to.trim() !== '' &&
+                !/[:/\s]/.test(from) &&
+                !/[:/\s]/.test(to)
+            )
+        } catch {
+          valid = false
+        }
+        if (!valid) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['model_mapping'],
+            message: t('keys.errors.invalidModelMapping'),
+          })
+        } else if (tooLong) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['model_mapping'],
+            message: t('keys.errors.modelMappingEntryTooLong'),
+          })
+        }
+      }
+
       if (data.quota_type === 0) {
         return
       }
@@ -120,6 +169,7 @@ export const API_KEY_FORM_DEFAULT_VALUES: ApiKeyFormValues = {
   cycle_days: 1,
   cycle_quota_dollars: 10,
   model_limits: [],
+  model_mapping: '',
   allow_ips: '',
   group: DEFAULT_GROUP,
   cross_group_retry: true,
@@ -160,6 +210,7 @@ export function transformFormDataToPayload(
     unlimited_quota: quotaType === 0,
     model_limits_enabled: data.model_limits.length > 0,
     model_limits: data.model_limits.join(','),
+    model_mapping: (data.model_mapping || '').trim(),
     allow_ips: data.allow_ips || '',
     group: data.group || '',
     cross_group_retry: data.group === 'auto' ? !!data.cross_group_retry : false,
@@ -205,6 +256,7 @@ export function transformApiKeyToFormDefaults(
     model_limits: apiKey.model_limits
       ? apiKey.model_limits.split(',').filter(Boolean)
       : [],
+    model_mapping: apiKey.model_mapping || '',
     allow_ips: apiKey.allow_ips || '',
     group: apiKey.group || DEFAULT_GROUP,
     cross_group_retry: !!apiKey.cross_group_retry,

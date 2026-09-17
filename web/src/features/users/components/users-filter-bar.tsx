@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useEffect, useCallback } from 'react'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
-import { type Table } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import {
   Select,
   SelectContent,
@@ -38,7 +38,7 @@ import { getUserStatusOptions, getUserRoleOptions } from '../constants'
 
 const route = getRouteApi('/_authenticated/users/')
 
-interface UsersFilterBarProps<TData> {
+interface UsersFilterBarProps<TData extends RowData> {
   table: Table<TData>
 }
 
@@ -52,7 +52,9 @@ interface UserFilters {
   role?: string
 }
 
-export function UsersFilterBar<TData>(props: UsersFilterBarProps<TData>) {
+export function UsersFilterBar<TData extends RowData>(
+  props: UsersFilterBarProps<TData>
+) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()

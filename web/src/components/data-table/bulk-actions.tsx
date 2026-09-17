@@ -17,9 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState, useEffect, useRef } from 'react'
-import { type Table } from '@tanstack/react-table'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Table } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,7 +30,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-type DataTableBulkActionsProps<TData> = {
+type DataTableBulkActionsProps<TData extends RowData> = {
   table: Table<TData>
   entityName: string
   children: React.ReactNode
@@ -46,7 +46,7 @@ type DataTableBulkActionsProps<TData> = {
  * @param {React.ReactNode} props.children The action buttons to be rendered inside the toolbar.
  * @returns {React.ReactNode | null} The rendered component or null if no rows are selected.
  */
-export function DataTableBulkActions<TData>({
+export function DataTableBulkActions<TData extends RowData>({
   table,
   entityName,
   children,

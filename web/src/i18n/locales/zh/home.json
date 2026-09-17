@@ -1,7 +1,9 @@
 {
   "home.actions.addYourApiKeysSetUpChannelsAndConfigure": "添加 API 密钥，设置渠道并配置访问权限",
+  "home.fields.aiApplicationInfrastructureFoundation": "AI 应用基础设施基座",
   "home.titles.allYourAiModels": "所有 AI 模型",
   "home.fields.builtForDevelopers": "为开发者打造，",
+  "home.titles.claudeGptAndMore": "Claude、GPT 等。",
   "home.tips.communityDrivenSelfHostedAndExtensible": "社区驱动、可自托管、易于扩展",
   "home.fields.compatibleApiRoutes": "兼容 API 路由",
   "home.tips.compatibleApiRoutesForCommonAiApplicationWorkflows": "兼容常见 AI 应用工作流的 API 路由",
@@ -14,6 +16,8 @@
   "home.tips.deployYourOwnGatewayAndStartRoutingRequestsThrough": "部署你自己的网关，并通过已配置的上游服务开始转发请求。",
   "home.fields.designedForScale": "为规模而设计",
   "home.fields.developerFriendly": "开发者友好",
+  "home.titles.everyAiModel": "海量 AI 模型。",
+  "home.titles.fortyPlusProviders": "40+ 供应商。",
   "home.placeholders.enterpriseGradeSecurityWithComprehensivePermissionManagement": "企业级安全性，提供全面的权限管理",
   "home.errors.failedToLoadHomePageContent": "加载首页内容失败",
   "home.fields.globalCoverage": "全球覆盖",
@@ -35,6 +39,8 @@
   "home.fields.request": "请求",
   "home.tips.schedulingControls": "调度控制能力",
   "home.fields.secureReliable": "安全可靠",
+  "home.tips.showApiExample": "查看 API 示例",
+  "home.tips.showRoutingDiagram": "查看路由拓扑图",
   "home.tips.supportForHighConcurrencyWithAutomaticLoadBalancing": "支持高并发和自动负载均衡",
   "home.fields.teamCollaboration": "团队协作",
   "home.fields.threeStepsToGetStarted": "三步快速上手",
@@ -43,5 +49,6 @@
   "home.fields.unifiedApiGatewayFor": "统一 API 网关，服务于",
   "home.fields.upstreamServicesIntegrated": "上游服务适配",
   "home.actions.viewPricing": "查看定价",
-  "home.tips.aiIntegration": "你的 AI 集成了吗？"
+  "home.tips.aiIntegration": "你的 AI 集成了吗？",
+  "home.titles.yourEntireLlmStack": "你的整个 LLM 技术栈。"
 }

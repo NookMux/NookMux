@@ -237,7 +237,7 @@ func shouldUseClaudeAdaptiveThinking(info *relaycommon.RelayInfo, model string) 
 }
 
 func isClaudeAdaptiveOutputModel(model string) bool {
-	return strings.Contains(model, "claude-opus-4-6") || strings.Contains(model, "claude-opus-4-7")
+	return strings.Contains(model, "claude-opus-4-6") || strings.Contains(model, "claude-opus-4-7") || strings.Contains(model, "claude-opus-4-8")
 }
 
 func isClaudeOpus47Model(model string) bool {
@@ -945,7 +945,9 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		return shared.NewError(err, shared.ErrorCodeBadResponseBody)
 	}
 	if claudeError := claudeResponse.GetClaudeError(); claudeError != nil && claudeError.Type != "" {
-		return shared.WithClaudeError(*claudeError, http.StatusInternalServerError)
+		// 按官方文档把错误类型还原为真实 HTTP 状态码（如 overloaded_error→529），
+		// 保持重试与渠道禁用判断的准确性。
+		return shared.WithClaudeError(*claudeError, shared.ClaudeErrorStatusCode(claudeError.Type))
 	}
 	if claudeResponse.StopReason != "" {
 		maybeMarkClaudeRefusal(c, claudeResponse.StopReason)
@@ -1028,9 +1030,6 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 }
 
 func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo) {
-	if claudeInfo.Usage.PromptTokens == 0 {
-		//上游出错
-	}
 	if claudeInfo.Usage == nil {
 		claudeInfo.Usage = &shared.Usage{}
 	}
@@ -1153,12 +1152,20 @@ func ClaudeStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.
 		Usage:        &shared.Usage{},
 	}
 	var err *shared.NookMuxError
-	helper.StreamScannerHandler(c, resp, info, func(data string) bool {
+	streamErr := helper.StreamScannerHandler(c, resp, info, func(data string) bool {
 		err = HandleStreamResponseData(c, info, claudeInfo, data)
 		return err == nil
 	})
 	if err != nil {
 		return nil, err
+	}
+	// 流异常终止（超时/连接断开）：若尚未收到任何计费数据，直接上报真实错误，
+	// 避免计费层因 usage 为空伪造「502 上游没有返回计费信息」掩盖根因。
+	// 若已收到部分数据（message_start 的 usage 或正文），保持既有兜底：
+	// 补完流结束并按部分内容估算计费。
+	if streamErr != nil && !claudeInfo.Done &&
+		claudeInfo.Usage.PromptTokens == 0 && claudeInfo.ResponseText.Len() == 0 {
+		return nil, streamErr
 	}
 
 	HandleStreamFinalResponse(c, info, claudeInfo)
@@ -1172,7 +1179,8 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		return shared.NewError(err, shared.ErrorCodeBadResponseBody)
 	}
 	if claudeError := claudeResponse.GetClaudeError(); claudeError != nil && claudeError.Type != "" {
-		return shared.WithClaudeError(*claudeError, http.StatusInternalServerError)
+		// 按官方文档把错误类型还原为真实 HTTP 状态码，保持重试与渠道禁用判断的准确性。
+		return shared.WithClaudeError(*claudeError, shared.ClaudeErrorStatusCode(claudeError.Type))
 	}
 	maybeMarkClaudeRefusal(c, claudeResponse.StopReason)
 	if claudeInfo.Usage == nil {

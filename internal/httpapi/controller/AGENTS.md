@@ -1,16 +1,12 @@
 # internal/httpapi/controller/AGENTS.md
 
-`internal/httpapi/controller/` 是 HTTP 边界层，负责输入校验、权限检查、调用 domain/store、组织响应。
+`internal/httpapi/controller/` 是 HTTP 边界层，负责输入校验、权限检查、调度 domain/store 及组织统一格式响应。
 
-## 包结构（阶段 5.4 按资源拆分）
+## 包结构与资源拆分
 
-- 按资源垂直拆子包（`channel/`、`user/`、`token/`、`billing/`、`topup/`、`relay/`、`option/`、
-  `misc/` 等），包名统一带 `controller` 后缀（`channelcontroller`/`usercontroller`/...），
-  规避调用方局部变量（`channel`/`user`/`token`/`log` 等）遮蔽冲突。
-- 新增资源接口时放进对应资源子包；跨资源的 handler 互调走显式 import
-  （如 passkey → secure_verification、billing → token/channel），不得回退为单包。
-- `testsupport/` 承载跨子包测试共享 fixture（如安全验证测试库初始化），
-  仅可被 `_test.go` 文件导入，不得在业务代码中引用，不得塞入 mock 数据。
+- 按资源垂直拆分独立子包（`channel/`、`user/`、`token/`、`billing/`、`topup/`、`relay/`、`option/`、`misc/` 等），包名统一增加 `controller` 后缀（如 `channelcontroller`/`usercontroller`），规避调用方局部变量名（`channel`/`user`/`token` 等）与包名遮蔽冲突。
+- 新增资源接口必须置于对应的资源子包；跨资源交互通过显式包 import 完成（例如 passkey → secure_verification、billing → token/channel），禁止重新合流为单包。
+- `testsupport/` 承载跨子包测试共享 fixture，仅允许被 `_test.go` 文件导入，严禁在生产代码中引用，且不得塞入 mock 伪造数据。
 
 ## 规则
 

@@ -18,7 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { type Row } from '@tanstack/react-table'
 import {
   MoreHorizontal,
   Boxes,
@@ -39,6 +38,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { type Row } from '@/lib/tanstack-table'
 import {
   AlertDialog,
   AlertDialogAction,

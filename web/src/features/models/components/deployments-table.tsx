@@ -19,14 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import {
-  getCoreRowModel,
-  useReactTable,
-  type VisibilityState,
-} from '@tanstack/react-table'
 import { useMediaQuery } from '@/hooks'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import {
+  appTableFeatures,
+  useTable,
+  type VisibilityState,
+} from '@/lib/tanstack-table'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import {
   AlertDialog,
@@ -199,7 +199,8 @@ export function DeploymentsTable() {
     },
   })
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: deployments,
     columns,
     pageCount: Math.ceil(totalCount / pagination.pageSize),
@@ -213,7 +214,6 @@ export function DeploymentsTable() {
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange,
     onGlobalFilterChange,
-    getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualFiltering: true,
   })

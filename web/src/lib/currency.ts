@@ -278,9 +278,7 @@ function formatCompactNumeric(value: number): string {
  * 819.9999999999999), hence 1e-9.
  */
 function truncateToTwoDecimals(value: number): string {
-  return removeTrailingZeros(
-    (Math.floor(value * 100 + 1e-9) / 100).toFixed(2)
-  )
+  return removeTrailingZeros((Math.floor(value * 100 + 1e-9) / 100).toFixed(2))
 }
 
 /** Signed K/M/B abbreviation with the sign before any symbol, e.g. "-33.68K" */

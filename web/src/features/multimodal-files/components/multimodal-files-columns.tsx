@@ -16,10 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type ColumnDef } from '@tanstack/react-table'
 import { Copy, Eye, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatTimestampToDate } from '@/lib/format'
+import { type ColumnDef } from '@/lib/tanstack-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -49,7 +49,10 @@ export function useMultimodalFilesColumns(
       header: ({ table }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
+          indeterminate={
+            table.getIsSomePageRowsSelected() &&
+            !table.getIsAllPageRowsSelected()
+          }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label={t('multimodalFiles.placeholders.selectVisibleFiles')}
           className='translate-y-[2px]'

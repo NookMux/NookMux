@@ -276,7 +276,6 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *share
 			return shared.NewError(err, shared.ErrorCodeConvertRequestFailed, shared.ErrOptionWithSkipRetry())
 		}
 		defer closer.Close()
-		jsonData = nil
 		info.UpstreamRequestBodySize = size
 		requestBody = body
 	}

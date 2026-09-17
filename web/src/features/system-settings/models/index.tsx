@@ -34,6 +34,7 @@ const defaultModelSettings: ModelSettings = {
   'gemini.remove_function_response_id_enabled': true,
   'claude.model_headers_settings': '',
   'claude.default_max_tokens': '',
+  'claude.remove_claude_code_billing_header_enabled': true,
   'grok.violation_deduction_enabled': true,
   'grok.violation_deduction_amount': 0.05,
   'minimax.enabled': false,

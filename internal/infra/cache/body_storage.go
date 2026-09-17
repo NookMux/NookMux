@@ -334,5 +334,7 @@ func CreateBodyStorageFromReader(reader io.Reader, contentLength int64, maxBytes
 // CleanupOldCacheFiles 清理旧的缓存文件（用于启动时清理残留）
 func CleanupOldCacheFiles() {
 	// 使用统一的缓存管理
-	CleanupOldDiskCacheFiles(5 * time.Minute)
+	if err := CleanupOldDiskCacheFiles(5 * time.Minute); err != nil {
+		common.SysError("failed to cleanup old disk cache files: " + err.Error())
+	}
 }

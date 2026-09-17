@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
@@ -57,7 +58,11 @@ func getJSONList(jsonStr string) []map[string]interface{} {
 		return []map[string]interface{}{}
 	}
 	var list []map[string]interface{}
-	jsonx.UnmarshalJsonStr(jsonStr, &list)
+	if err := jsonx.UnmarshalJsonStr(jsonStr, &list); err != nil {
+		// 控制台配置在写入前已校验；解析失败说明存储值被外部篡改或损坏，
+		// 记录真实原因并返回空列表，避免拖垮依赖该数据的公开接口（如 /api/status）。
+		common.SysError("failed to parse console json list: " + err.Error())
+	}
 	return list
 }
 

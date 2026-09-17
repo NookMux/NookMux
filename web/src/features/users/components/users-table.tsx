@@ -19,20 +19,15 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import {
-  type SortingState,
-  type VisibilityState,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { useMediaQuery } from '@/hooks'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import {
+  appTableFeatures,
+  type SortingState,
+  type VisibilityState,
+  useTable,
+} from '@/lib/tanstack-table'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import {
   DISABLED_ROW_DESKTOP,
@@ -137,7 +132,8 @@ export function UsersTable() {
 
   const users = data?.items || []
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: users,
     columns,
     state: {
@@ -151,12 +147,6 @@ export function UsersTable() {
     getRowId: (row) => String(row.id),
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     onPaginationChange,
     manualPagination: true,
     pageCount: Math.ceil((data?.total || 0) / pagination.pageSize),

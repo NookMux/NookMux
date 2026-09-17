@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useState } from 'react'
-import { type Row } from '@tanstack/react-table'
 import {
   Trash2,
   Edit,
@@ -33,6 +32,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
+import { type RowData, type Row } from '@/lib/tanstack-table'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -73,11 +73,11 @@ function encodeConnectionString(key: string, url: string): string {
   })
 }
 
-type DataTableRowActionsProps<TData> = {
+type DataTableRowActionsProps<TData extends RowData> = {
   row: Row<TData>
 }
 
-export function DataTableRowActions<TData>({
+export function DataTableRowActions<TData extends RowData>({
   row,
 }: DataTableRowActionsProps<TData>) {
   const { t } = useTranslation()

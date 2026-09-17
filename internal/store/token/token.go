@@ -7,6 +7,7 @@ import (
 	"github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/store/db"
+	"github.com/NookMux/NookMux/pkg/jsonx"
 	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 	"strings"
@@ -41,6 +42,7 @@ type Token struct {
 	UnlimitedQuota     bool    `json:"unlimited_quota"`
 	ModelLimitsEnabled bool    `json:"model_limits_enabled"`
 	ModelLimits        string  `json:"model_limits" gorm:"type:text;default:''"`
+	ModelMapping       *string `json:"model_mapping" gorm:"type:text"` // 令牌级模型重定向规则 (JSON 字符串)
 	AllowIps           *string `json:"allow_ips" gorm:"default:''"`
 	UsedQuota          int     `json:"used_quota" gorm:"default:0"` // used quota
 	Group              string  `json:"group" gorm:"default:''"`
@@ -369,8 +371,7 @@ func GetTokenByIds(id int, userId int) (*Token, error) {
 		return nil, errors.New("id 或 userId 为空！")
 	}
 	token := Token{Id: id, UserId: userId}
-	var err error = nil
-	err = dbstore.DB.First(&token, "id = ? and user_id = ?", id, userId).Error
+	err := dbstore.DB.First(&token, "id = ? and user_id = ?", id, userId).Error
 	return &token, err
 }
 
@@ -379,8 +380,7 @@ func GetTokenById(id int) (*Token, error) {
 		return nil, errors.New("id 为空！")
 	}
 	token := Token{Id: id}
-	var err error = nil
-	err = dbstore.DB.First(&token, "id = ?", id).Error
+	err := dbstore.DB.First(&token, "id = ?", id).Error
 	if dbstore.ShouldUpdateRedis(true, err) {
 		runtime.RelayGo(func() {
 			if err := cacheSetToken(token); err != nil {
@@ -443,7 +443,7 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = dbstore.DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry",
+		"model_limits_enabled", "model_limits", "model_mapping", "allow_ips", "group", "cross_group_retry",
 		"quota_type", "window_hours", "window_quota", "window_start_hour",
 		"cycle_days", "cycle_quota",
 		"window_used_quota", "window_start_time", "cycle_used_quota", "cycle_start_time").Updates(token).Error
@@ -498,6 +498,30 @@ func (token *Token) GetModelLimitsMap() map[string]bool {
 		limitsMap[limit] = true
 	}
 	return limitsMap
+}
+
+// GetModelMapping 返回令牌级模型重定向的 JSON 字符串，未配置时返回空字符串。
+func (token *Token) GetModelMapping() string {
+	if token.ModelMapping == nil {
+		return ""
+	}
+	return *token.ModelMapping
+}
+
+// GetModelMappingMap 将令牌级模型重定向规则解析为 map，未配置或格式非法时返回 nil。
+func (token *Token) GetModelMappingMap() map[string]string {
+	mappingStr := token.GetModelMapping()
+	if mappingStr == "" || mappingStr == "{}" {
+		return nil
+	}
+	modelMap := make(map[string]string)
+	if err := jsonx.Unmarshal([]byte(mappingStr), &modelMap); err != nil {
+		return nil
+	}
+	if len(modelMap) == 0 {
+		return nil
+	}
+	return modelMap
 }
 
 func DisableModelLimits(tokenId int) error {

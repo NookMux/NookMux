@@ -6,18 +6,17 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, version 3 of the License.
 */
 import { useMemo, type ReactNode } from 'react'
-import {
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-  type ColumnDef,
-  type OnChangeFn,
-  type PaginationState,
-} from '@tanstack/react-table'
 import { Edit, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
+import {
+  appTableFeatures,
+  flexRender,
+  useTable,
+  type ColumnDef,
+  type OnChangeFn,
+  type PaginationState,
+} from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -184,7 +183,8 @@ export function VoiceManagementTable(props: VoiceManagementTableProps) {
     ]
   }, [props, t])
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: props.items,
     columns,
     state: {
@@ -193,8 +193,6 @@ export function VoiceManagementTable(props: VoiceManagementTableProps) {
     manualPagination: true,
     pageCount: Math.max(1, Math.ceil(props.total / props.pagination.pageSize)),
     onPaginationChange: props.onPaginationChange,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   })
 
   return (

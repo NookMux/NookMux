@@ -38,7 +38,7 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 	c.Writer.WriteHeader(resp.StatusCode)
 
 	if info.IsStream {
-		helper.StreamScannerHandler(c, resp, info, func(data string) bool {
+		if streamErr := helper.StreamScannerHandler(c, resp, info, func(data string) bool {
 			if sensitive.SundaySearch(data, "usage") {
 				var simpleResponse shared.SimpleResponse
 				err := jsonx.Unmarshal([]byte(data), &simpleResponse)
@@ -53,7 +53,11 @@ func OpenaiTTSHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 			}
 			_ = helper.StringData(c, data)
 			return true
-		})
+		}); streamErr != nil {
+			// TTS 流在响应头已写出后异常终止：按本 handler 契约不对外重试，
+			// 记录真实原因供排查，usage 维持已写入部分的实际统计。
+			log.LogError(c, "tts stream terminated abnormally: "+streamErr.Error())
+		}
 	} else {
 		httpapi.SetContextKey(c, common.ContextKeyLocalCountTokens, true)
 		// 读取响应体到缓冲区

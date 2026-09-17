@@ -10,6 +10,7 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	secureverificationcontroller "github.com/NookMux/NookMux/internal/httpapi/controller/secure_verification"
 	"github.com/NookMux/NookMux/internal/infra/redis"
+	"github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/log"
 	"github.com/NookMux/NookMux/internal/store/passkey"
@@ -43,6 +44,10 @@ func SetupSecureVerificationTestDB(t *testing.T) {
 	common.MemoryCacheEnabled = false
 
 	t.Cleanup(func() {
+		// 等待后台中继任务（如 IncreaseUserQuota 的异步计费回写）排空，
+		// 再改写它们读取的全局量（redis.RedisEnabled 等），避免测试清理
+		// 与后台协程的数据竞争。
+		runtime.WaitRelayTasks()
 		if sqlDB, err := db.DB(); err == nil {
 			_ = sqlDB.Close()
 		}

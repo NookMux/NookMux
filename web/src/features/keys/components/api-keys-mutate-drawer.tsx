@@ -59,6 +59,7 @@ import {
   sideDrawerSwitchItemClassName,
 } from '@/components/drawer-layout'
 import { MultiSelect } from '@/components/multi-select'
+import { ModelMappingEditor } from '@/features/channels/components/model-mapping-editor'
 import { createApiKey, updateApiKey, getApiKey } from '../api'
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import {
@@ -713,6 +714,34 @@ export function ApiKeysMutateDrawer({
                       </FormControl>
                       <FormDescription>
                         {t('keys.status.limitWhichModelsCanBeUsedWithThisKey')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='model_mapping'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('keys.fields.modelMapping')}</FormLabel>
+                      <FormControl>
+                        <ModelMappingEditor
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          disabled={isSubmitting}
+                          fromLabel='keys.fields.clientRequestModel'
+                          toLabel='keys.fields.redirectTargetModel'
+                          fromPlaceholder='claude-3-5-sonnet'
+                          toPlaceholder='glm-4-plus'
+                          template='{"claude-3-5-sonnet": "glm-4-plus", "claude-3-7-sonnet": "glm-4-plus"}'
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'keys.tips.modelMappingRedirectsRequestsToTheTarget'
+                        )}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

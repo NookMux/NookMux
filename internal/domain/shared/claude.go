@@ -3,6 +3,7 @@ package shared
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/NookMux/NookMux/internal/common"
@@ -529,6 +530,34 @@ func (c *ClaudeResponse) GetClaudeError() *ClaudeError {
 			Message: fmt.Sprintf("unknown_error: %v", err),
 		}
 	}
+}
+
+// claudeErrorTypeStatusCodeMap 遵循 Anthropic 官方错误文档中错误类型与
+// HTTP 状态码的映射（https://docs.anthropic.com/en/api/errors）。
+// 流式 error 事件（https://docs.anthropic.com/en/api/streaming#error-events）
+// 发生在 HTTP 200 之后、不携带状态码，需要按错误类型还原真实状态码，
+// 否则重试与渠道禁用判断会失真（如 overloaded_error 被统一误报为 500）。
+var claudeErrorTypeStatusCodeMap = map[string]int{
+	"invalid_request_error": http.StatusBadRequest,
+	"authentication_error":  http.StatusUnauthorized,
+	"billing_error":         http.StatusPaymentRequired,
+	"permission_error":      http.StatusForbidden,
+	"not_found_error":       http.StatusNotFound,
+	"conflict_error":        http.StatusConflict,
+	"request_too_large":     http.StatusRequestEntityTooLarge,
+	"rate_limit_error":      http.StatusTooManyRequests,
+	"api_error":             http.StatusInternalServerError,
+	"timeout_error":         http.StatusGatewayTimeout,
+	"overloaded_error":      529, // Anthropic 专属状态码：API 暂时过载
+}
+
+// ClaudeErrorStatusCode 按官方文档把 Claude 错误类型还原为对应的 HTTP
+// 状态码；未知类型（官方版本策略下可能新增）保持 500 上游错误语义。
+func ClaudeErrorStatusCode(errorType string) int {
+	if statusCode, ok := claudeErrorTypeStatusCodeMap[strings.TrimSpace(errorType)]; ok {
+		return statusCode
+	}
+	return http.StatusInternalServerError
 }
 
 type ClaudeUsage struct {

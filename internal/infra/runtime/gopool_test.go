@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,14 +12,14 @@ func TestBoundedRelayPoolAppliesBackpressure(t *testing.T) {
 	p := newBoundedRelayPool(1, 1)
 
 	release := make(chan struct{})
-	p.CtxGo(nil, func() {
+	p.CtxGo(context.Background(), func() {
 		<-release
 	})
-	p.CtxGo(nil, func() {})
+	p.CtxGo(context.Background(), func() {})
 
 	submitted := make(chan struct{})
 	go func() {
-		p.CtxGo(nil, func() {})
+		p.CtxGo(context.Background(), func() {})
 		close(submitted)
 	}()
 
@@ -40,7 +41,7 @@ func TestBoundedRelayPoolRunsAllSubmittedTasks(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(taskCount)
 	for i := 0; i < taskCount; i++ {
-		p.CtxGo(nil, func() {
+		p.CtxGo(context.Background(), func() {
 			ran.Add(1)
 			wg.Done()
 		})
@@ -59,7 +60,7 @@ func TestBoundedRelayPoolStartsWorkersLazily(t *testing.T) {
 	}
 
 	done := make(chan struct{})
-	p.CtxGo(nil, func() {
+	p.CtxGo(context.Background(), func() {
 		close(done)
 	})
 	select {
@@ -76,7 +77,7 @@ func TestBoundedRelayPoolWorkersExitWhenIdle(t *testing.T) {
 	p := newBoundedRelayPoolWithIdleTimeout(2, 2, 10*time.Millisecond)
 
 	done := make(chan struct{})
-	p.CtxGo(nil, func() {
+	p.CtxGo(context.Background(), func() {
 		close(done)
 	})
 	select {

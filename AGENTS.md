@@ -3,6 +3,19 @@
 本文件是仓库级统一入口。按 https://agents.md/ 的约定，子目录中更近的
 `AGENTS.md` 会补充或覆盖这里的规则；用户在对话中的明确要求优先级最高。
 
+## 特殊工具提示
+
+本项目配置了 Serena与 CodeGraph两个 MCP，与原生工具按任务形状分工，不要无条件只用某一个：
+
+- 跨文件架构、功能入口、调用链、依赖关系、改动影响面，且当前项目已初始化
+  CodeGraph 时，优先使用 CodeGraph 获取全局上下文。
+- 已知具体符号后的定义查看、引用查找、精确修改、重命名，使用 Serena/LSP。
+- 精确文本搜索（错误信息、日志字符串、配置键）、整文件阅读、行级编辑、
+  命令执行，使用原生工具。
+- 索引结果（CodeGraph 图数据、调用计数）与实际源码不一致时，以当前源码和
+  可执行验证结果为准；逐点精确的引用清单以 Serena（LSP references）为准。
+- Serena 返回的行号是 0-based，向用户报告时 +1。
+
 ## ⚠ 必读：分层规则
 
 **修改某个包/目录下的代码前，必须先阅读该目录下的 `AGENTS.md`。** 根文件只包含
@@ -15,71 +28,72 @@
 的逻辑时，同时阅读 `internal/httpapi/controller/AGENTS.md`、`internal/domain/AGENTS.md`
 和 `internal/domain/billing/` 相关子包规则。
 
-## 子规则索引
+## 架构层级与子规则索引
 
-前端:
+修改某个包/目录下的代码前，必须先阅读该目录下的 `AGENTS.md`。各目录特有约定按渐进式披露组织：
 
-- [web/AGENTS.md](web/AGENTS.md)
+### 启动与装配
+- [cmd/](cmd/AGENTS.md) / [cmd/server/](cmd/server/AGENTS.md)：进程启动入口，仅处理系统退出码并调用 `internal/app.Run()`。
+- [internal/app/](internal/app/AGENTS.md)：应用启动装配层，负责初始化环境、依赖注入、后台任务装配、HTTP 服务生命周期及前端嵌入资产门面。
 
-启动与装配:
+### HTTP 边界层
+- [internal/httpapi/controller/](internal/httpapi/controller/AGENTS.md)：按资源垂直拆分的 HTTP 控制器。
+- [internal/httpapi/router/](internal/httpapi/router/AGENTS.md) 与 [internal/httpapi/middleware/](internal/httpapi/middleware/AGENTS.md)：路由组装、鉴权、限流与上下文注入中间件。
 
-- [cmd/AGENTS.md](cmd/AGENTS.md)
-- [cmd/server/AGENTS.md](cmd/server/AGENTS.md)
-- [internal/app/AGENTS.md](internal/app/AGENTS.md)
+### 核心领域层
+- [internal/domain/](internal/domain/AGENTS.md)：领域服务总入口与公共业务契约。
+- [internal/domain/billing/](internal/domain/billing/AGENTS.md)：计费核算、配额冻结/扣减与额度校验。
+- [internal/domain/audit/](internal/domain/audit/AGENTS.md)：系统管理员资源操作审计埋点。
 
-后端 Go 包:
+### 数据与基础设施层
+- [internal/store/](internal/store/AGENTS.md)：数据持久层，基于 GORM 的多资源存储实现，兼容 SQLite / MySQL / PostgreSQL 三库。
+- [internal/config/](internal/config/AGENTS.md)：系统、运营、模型、倍率与性能配置的集中注册与动态管理。
+- [internal/infra/](internal/infra/AGENTS.md)：代理 HTTP 客户端、Redis/缓存、安全校验、业务日志、媒体解析与 Token 计数。
+- [internal/relay/](internal/relay/AGENTS.md)（含 [channel/](internal/relay/channel/AGENTS.md)）：AI 请求中继与协议转换核心，多模态 Adaptor 调度、OpenAI wire 双向转换与流式改写。
+- [internal/oauth/](internal/oauth/AGENTS.md)：第三方 OAuth 登录认证服务商扩展层。
+- [internal/common/](internal/common/AGENTS.md)：跨层业务全局变量、上下文键（`ContextKey`）注册表及基础纯工具内核。
+- [internal/i18n/](internal/i18n/AGENTS.md)：后端 API 响应消息国际化。
+- [pkg/](pkg/AGENTS.md)：无业务依赖、可独立复用的底层库（`jsonx`、`cachex`）。
 
-- [internal/domain/AGENTS.md](internal/domain/AGENTS.md)
-- [internal/domain/audit/AGENTS.md](internal/domain/audit/AGENTS.md)
-- [internal/common/AGENTS.md](internal/common/AGENTS.md)
-- [internal/infra/AGENTS.md](internal/infra/AGENTS.md)
-- [internal/httpapi/router/AGENTS.md](internal/httpapi/router/AGENTS.md)
-- [internal/httpapi/controller/AGENTS.md](internal/httpapi/controller/AGENTS.md)
-- [internal/httpapi/middleware/AGENTS.md](internal/httpapi/middleware/AGENTS.md)
-- [internal/store/AGENTS.md](internal/store/AGENTS.md)
-- [internal/config/AGENTS.md](internal/config/AGENTS.md)
-- [internal/relay/AGENTS.md](internal/relay/AGENTS.md)
-- [internal/i18n/AGENTS.md](internal/i18n/AGENTS.md)
-- [pkg/AGENTS.md](pkg/AGENTS.md)
-
-文档:
-
-- [docs/AGENTS.md](docs/AGENTS.md)
+### 前端与文档
+- [web/](web/AGENTS.md)：前端单页应用（React 19 + TypeScript + Rsbuild + Tailwind CSS 4）。
+- [docs/](docs/AGENTS.md)：跨模块详细规范、系统设计与开发参考文档。
 
 `参考项目/` 是本地参考源码，已被忽略；除非用户明确要求，不要修改其中内容。
 
 ## 项目概览
 
-这是 Go 实现的 AI API 网关和管理后台。后端聚合 OpenAI、Claude、Gemini、
-Azure、AWS Bedrock 等上游能力，提供用户、渠道、计费、限速、认证和管理接口。
+这是基于 Go 与 React (Bun) 构建的企业级高性能 AI API 网关和分发管理平台。系统聚合 OpenAI、Claude、Gemini、Azure、AWS Bedrock 等多上游供应商，提供令牌、渠道、计费、模型重定向、限速、审计与控制台管理能力。
 
-主要结构:
+### 核心运行时与包管理器
 
-- `cmd/server/`: 进程入口，只处理退出码并调用 `internal/app.Run()`。
-- `internal/app/`: 启动资源初始化、Gin 装配、路由挂载和分析脚本注入；`env.go` 承载启动
-  flag 与 `InitEnv` 环境装配（阶段 4 自 `common/init.go` 迁入）。
-- `internal/httpapi/`: HTTP 边界聚合层（阶段 5.4 起）：根包为 gin 边界工具（`ApiError*` 响应族、`GetRequestBody`/`UnmarshalBodyReusable` 请求体读取、`SetContextKey`/`GetContextKey*` 上下文键助手，阶段 4 自 `common/gin.go` 迁入，仅依赖 `infra/cache`、`domain/shared`、`internal/common`（ContextKey）与 `pkg/jsonx`）；`router/`（API、relay、dashboard、web 静态路由）、`middleware/`（认证、限速、日志、分发、安全校验）、`controller/`（HTTP 边界、请求校验、响应组织，按资源拆子包：`channel/`、`user/`、`token/`、`billing/`、`relay/` 等，包名带 `controller` 后缀；`testsupport/` 为测试共享 fixture，仅 `_test.go` 可导入）。
-- `internal/domain/`: 领域层（阶段 5.1/5.3 落地）：`billing/`（计费核心服务 + `contract/` 契约叶子包 + `plan_quota/` 套餐配额）、`channel/`（渠道服务与自动禁用，含 `constant/`）、`audit/`（RecordAudit 入口）、`rankings/`、`ticket/`、`sensitive/`（敏感词匹配）、`group/`（分组倍率）、`shared/`（原 `dto/`+`types/` 合并的过渡收容包，只出不进）。
-- `internal/infra/`: 基础设施层（阶段 5.3/4 起）：`db/`（数据库类型与连接状态变量）、`redis/`（Redis 客户端与读写族）、`cache/`（磁盘缓存、请求体存储、Redis 限流器）、`email/`（SMTP 发送）、`security/`（SSRF/IP/URL/哈希/TOTP/验证码/受信代理）、`runtime/`（系统监控、pprof、pyroscope、有界 goroutine 池）、`log/`（业务日志）、`httpclient/`（通用 HTTP 传输层与 SSRF 复查、代理客户端构造）、`media/`（文件/图片/音频解码下载）、`tokenizer/`（token 计数与估算）、`notify/`（用户通知：邮件/webhook/bark/gotify 与频控）、`payment/`（epay 回调地址、stripe 集成与订单锁）、`passkey/`、`custom_voice/`。
-- `internal/store/`: 持久层（原 `model/`，阶段 5.2 按资源拆）：GORM 模型、迁移、缓存、数据库访问；子包按资源垂直拆分（`db/`、`channel/`、`user/`、`token/`、`log/` 等，包名带 `store` 后缀）。
-- `internal/config/`: 系统、运营、模型、倍率、性能、审计等配置（原 `setting/`；ConfigManager 在 `internal/config/manager/`）。
-- `internal/common/`: 业务全局变量与零碎工具内核（阶段 4 拆解后）：全局开关/限流/SMTP/OAuth 变量、`ContextKey` 注册表、`SysLog` 族输出、`GetEnvOrDefault*`、模型/端点与字符串工具；基础设施能力已迁 `internal/infra/`，HTTP 边界工具已迁 `internal/httpapi/` 根包（JSON 包装此前已迁至 `pkg/jsonx`）。
-- `internal/relay/`: AI 请求中继、协议转换、供应商适配；`relay.go` 为对外门面（re-export 各子包入口），`core/` 承载 adaptor 调度与 websocket 中继，`wire/`（含 `wire/convert/`、`wire/stream/`）承载 OpenAI wire 协议族转换（阶段 5.5 自 relay 顶层与 `relay/common/` 收口），`handler/` 承载各模态 handler；`helper/` 含协议转换（Claude/Gemini ↔ OpenAI）、relay 错误包装、响应透传工具（阶段 5.3 自原 `service/` 并入）与上游响应体限额读取（阶段 4 自 `common/response.go` 迁入）。
-- `internal/oauth/`: OAuth 供应商（原 `internal/constant/` 跨领域常量包已于阶段 4 解散：`ContextKey` 归 `internal/common`，运行时限值/缓存键/Setup 归 `internal/domain/shared/`；渠道域常量在 `domain/channel/constant/`，`FinishReason`/`RelayFormat` 在 `relay/constant/`）。
-- `internal/i18n/`: 后端 API 响应消息多语言翻译。
-- `pkg/`: 可独立复用且无业务依赖的基础库（`jsonx`、`cachex`），进入前必须通过依赖核查，详见 [pkg/AGENTS.md](pkg/AGENTS.md)。
-- `web/`: 前端 UI，React 19 + TypeScript + Rsbuild；`web/embed.go` 是 `web/dist` 的 Go embed 声明载体，经 `internal/app/webdist` 暴露给启动装配层。
+- **后端**：Go（版本以 `go.mod` 为准），使用标准 Go 工具链。
+- **前端**：Bun（工作目录 `web/`），严格使用 `bun` 作为唯一包管理器，禁止混用 npm/pnpm/yarn。
 
 ## 全局工作规则
 
 - 先建立证据链再改代码：现象、入口、相关代码/配置、根因层级、最小修复点、验证方式。
+- 终态干净交付：代码修改、注释、文档与提交信息只呈现最终目标设计，严禁残留"之前写错了/多加了逻辑，在此处删掉"等历史纠错痕迹与自我辩解（详见下文反模式警示）。
 - 保持工作区脏改隔离。不要回滚、覆盖或格式化与当前任务无关的用户改动。
 - 不做破坏性 Git 操作，不自动 commit/push；需要提交时只 add 相关具体文件。
+- 严禁用 sed、awk、正则脚本或自动化批处理脚本盲改源码，一律使用行级精准编辑工具，防止隐式破坏。
+- 禁止在命令行中内联（inline）拼接超长 Bash 或多行复杂脚本；复杂诊断、验证或工具脚本须先写入工作区临时文件再执行。
+- 成熟数据格式（JSON、YAML、Markdown、HTML 等）解析必须使用标准库或成熟生态库，严禁手动通过正则或切片自造简易 parser。
+- 任务执行必须完整闭环：实施、运行、测试并迭代直至正确可用，严禁初步改完代码就停下并转嫁给用户测试。
+- 严禁未经本地 CI 等价门禁验证直接提交。提交时由 `.githooks/pre-commit`（秒级增量）、推送时由 `.githooks/pre-push`（全量，对齐 CI）自动把关，如遇拦截必须立刻定位并修复，严禁使用 `--no-verify` 绕过。
 - 不写入 secrets。环境变量、数据库 DSN、OAuth 密钥、API key 都不得硬编码到源码或文档示例的真实值。
 - 不用模拟成功、静默降级、吞错或假数据让流程"看起来能跑"。失败必须清晰暴露。
 - 外部输入必须在系统边界校验：HTTP 参数、表单、文件、网络、数据库、缓存、权限、安全逻辑。
 - 新增通用能力前先搜索现有工具函数；确有复用价值再放入 `internal/common/` 或对应前端 `lib/`。
 - 不要顺手删除、替换或改名项目标识、AGPL/版权头、Go module path、Docker/CI 镜像名等元数据。
+
+### 行为反模式警示：拒绝纠错残留
+
+严厉禁止以下“纠偏后残留历史痕迹与自我辩解”的行为模式：
+
+> 用户让做一盘“番茄炒蛋”，Agent 擅自加了“东坡肉”；被指出后虽然去掉了，但提交/PR 时写着「番茄炒蛋（无东坡肉）」，并在注释中大篇幅解释为什么本道菜不需要加东坡肉。
+
+**交付要求**：任何代码、注释、文档、提交信息及回复，都必须直接呈现对齐后的**干净终态设计**（Clean final-state design），严禁包含任何前序错误、自我辩解或“在此删掉某逻辑”的纠错痕迹。
 
 ## 后端规则
 
@@ -105,11 +119,17 @@ Azure、AWS Bedrock 等上游能力，提供用户、渠道、计费、限速、
 新增需要审计的资源类型时，按 `internal/httpapi/controller/AGENTS.md` 中的检查清单同步更新 store（audit 常量）、
 config、前端常量和 i18n。
 
-常用验证:
+## 本地 CI 门禁检查
 
-- `go test ./...`
-- `go test ./internal/domain/... ./internal/infra/... ./internal/relay/... ./internal/httpapi/...`
-- `go build -ldflags "-X 'github.com/NookMux/NookMux/internal/common.Version=$(git rev-parse HEAD)'" -o NookMux ./cmd/server`
+提交代码前必须保证本地门禁全绿（严禁使用 `--no-verify` 绕过）。优先使用项目封装的一键脚本复核（已集成 fmt / tidy / vet / lint / test -race / build 及 Web 校验）：
+
+- **一键复核脚本**：
+  - `./scripts/ci-check.sh`：全量复核（对齐 ci.yml，由 pre-push hook 自动执行）。
+  - `./scripts/ci-check.sh --staged`：增量复核（仅针对暂存区秒级校验，由 pre-commit hook 自动执行）。
+  - `./scripts/ci-check.sh --backend` / `--frontend`：按端定向复核后端或前端门禁。
+- **Git Hook 与提交闭环**：
+  - 执行 `git config core.hooksPath .githooks` 激活本地拦截；推送后若 Actions 失败须当场修复，不留坏提交。
+
 
 ## 前端规则
 
@@ -128,3 +148,24 @@ config、前端常量和 i18n。
 - 跨模块详细开发规范文档放在 `docs/开发规范/`，根 `AGENTS.md` 和子目录
   `AGENTS.md` 通过链接引用，避免在 AGENTS.md 中堆砌长篇规范正文。
 - `docs/AGENTS.md` 中的规则适用于 `docs/` 目录下的所有文档文件。
+
+## AI协助开发声明
+
+凡使用了 AI 辅助生成或修改的代码，必须在 **commit 信息结尾**（以及对应 **PR 描述**中）按以下格式注明所使用的工具环境和模型：
+
+```
+assisted-by：{agent_name}：{model}
+```
+
+- `{agent_name}`：使用的 AI 编码工具/环境，如 `opencode`、`codex`、`cursor`
+- `{model}`：实际使用的模型（含供应商，格式可参考 `供应商/模型`），如 `Zhipu/GLM-5.3[Max]`
+
+示例：
+
+```bash
+git commit -m "feat(channel): support batch model pulling
+
+assisted-by：opencode：Zhipu/GLM-5.3[Max]"
+```
+
+多个模型/工具参与时逐行列出。纯人工改动无需此声明，但需在 PR 描述中说明。

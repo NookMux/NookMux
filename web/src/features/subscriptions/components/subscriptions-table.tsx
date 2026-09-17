@@ -18,15 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import {
+  appTableFeatures,
   type SortingState,
   type VisibilityState,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
-import { useTranslation } from 'react-i18next'
+  useTable,
+} from '@/lib/tanstack-table'
 import { DataTablePage } from '@/components/data-table'
 import { getAdminPlans } from '../api'
 import { useSubscriptionsColumns } from './subscriptions-columns'
@@ -50,15 +48,13 @@ export function SubscriptionsTable() {
 
   const plans = useMemo(() => data || [], [data])
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: plans,
     columns,
     state: { sorting, columnVisibility },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   })
 
   return (

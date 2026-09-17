@@ -1,0 +1,207 @@
+name: CI
+
+# 所有 push（任意分支与标签）必须先通过本工作流。Docker 发布工作流
+# （docker-image.yml）已收口为两个入口：本工作流全绿后的 workflow_dispatch
+# 派发（见 trigger-docker job），或维护者手动触发。
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web-checks:
+    name: Web checks (typecheck / lint / format / audit / test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Format check
+        run: bun run format:check
+
+      # high 及以上漏洞直接卡 CI；新增漏洞通告出现时需升级依赖或加 overrides
+      - name: Dependency audit
+        run: bun audit --audit-level=high
+
+      - name: Unit tests
+        run: bun test
+
+  web-build:
+    name: Web production build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # 完整 rsbuild 生产构建：低内存环境（本地沙箱等）可能 OOM 跑不完，
+      # 前端产物的完整性必须在这里验证。
+      - name: Build
+        run: VITE_REACT_APP_VERSION=ci bun run build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 1
+          if-no-files-found: error
+
+  go-checks:
+    name: Go checks (fmt / tidy / lint / vet / build / test)
+    needs: web-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # web/embed.go 的 //go:embed dist 要求产物真实存在，且
+      # internal/app/webdist 有测试校验嵌入的 index.html 非空合法，
+      # 因此 Go 检查复用 web-build 的真实产物而非占位文件。
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: Go fmt check
+        run: |
+          unformatted=$(gofmt -l $(git ls-files '*.go'))
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt-clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Go mod tidy check
+        run: go mod tidy -diff
+
+      # 门禁 errcheck / ineffassign / unused / staticcheck(SA+S)，配置见 .golangci.yml
+      - name: Golangci lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.13.2
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -race ./...
+
+  trigger-docker:
+    name: Trigger docker publish
+    needs: [web-checks, web-build, go-checks]
+    # 仅发布分支与标签在 CI 全绿后派发 Docker 发布；其余分支只做检查。
+    if: >-
+      github.event_name == 'push' && (
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/beta' ||
+        github.ref == 'refs/heads/dev' ||
+        github.ref == 'refs/heads/test' ||
+        startsWith(github.ref, 'refs/tags/')
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      # 用 GitHub App installation token 派发 workflow_dispatch。
+      # App 未配置时回退 GITHUB_TOKEN，Docker 发布仍会继续。
+      # 飞书通知现在由 docker-image.yml 内部直接调用共享 action，
+      # 后续 CI 也可以复用同一套通知逻辑。
+      #
+      # 所需仓库配置（Settings → Secrets and variables → Actions）：
+      #   Variables → GH_APP_CLIENT_ID    = GitHub App 的 Client ID
+      #   Secrets   → GH_APP_PRIVATE_KEY  = App 私钥（PEM 全文）
+      # App 本体只需一项仓库权限：Actions - Read and write，并安装到本仓库。
+      - name: Generate GitHub App token
+        id: app-token
+        if: vars.GH_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.GH_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          # 仅授权派发 workflow_dispatch 所需的最小权限
+          permission-actions: write
+
+      - name: Dispatch docker publish workflow
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          APP_TOKEN_PRESENT: ${{ steps.app-token.outputs.token != '' }}
+          REF: ${{ github.ref_name }}
+        run: |
+          if [ "$APP_TOKEN_PRESENT" != "true" ]; then
+            echo "::warning::GH_APP_CLIENT_ID / GH_APP_PRIVATE_KEY 未配置，使用 GITHUB_TOKEN 派发：Docker 发布仍会继续"
+          fi
+          gh workflow run docker-image.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$REF"
+          echo "Dispatched docker publish for $REF"
+
+  # CI 检查结果通知（成功使用 AAqv27Ca6iyuE，失败使用 AAqv27ClgkT3l 卡片）。
+  # 所需仓库配置（Settings → Secrets and variables → Actions）：
+  #   Secrets → FEISHU_APP_ID / FEISHU_APP_SECRET / FEISHU_USER_ID
+  notify_feishu:
+    name: Notify Feishu
+    needs: [web-checks, web-build, go-checks]
+    # 被取消的 run（concurrency 抢占）不打扰。
+    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'cancelled') }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Send Feishu notification
+        uses: ./.github/actions/feishu-notify
+        with:
+          notify_type: ci
+          workflow_name: ${{ github.workflow }}
+          project_name: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          conclusion: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
+          app_id: ${{ secrets.FEISHU_APP_ID }}
+          app_secret: ${{ secrets.FEISHU_APP_SECRET }}
+          user_id: ${{ secrets.FEISHU_USER_ID }}

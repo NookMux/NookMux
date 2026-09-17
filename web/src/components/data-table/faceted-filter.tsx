@@ -17,9 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as React from 'react'
-import { type Column } from '@tanstack/react-table'
 import { Check as CheckIcon, PlusCircle as PlusCircledIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type RowData, type Column } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 
-type DataTableFacetedFilterProps<TData, TValue> = {
+type DataTableFacetedFilterProps<TData extends RowData, TValue> = {
   column?: Column<TData, TValue>
   title?: string
   options: {
@@ -53,7 +53,7 @@ type DataTableFacetedFilterProps<TData, TValue> = {
   singleSelect?: boolean
 }
 
-export function DataTableFacetedFilter<TData, TValue>({
+export function DataTableFacetedFilter<TData extends RowData, TValue>({
   column,
   title,
   options,

@@ -239,9 +239,7 @@ export function BalanceQueryDialog({
           {/* Balance Update Button */}
           <Button
             className='w-full'
-            onClick={
-              isZhipu ? handleQueryGlmAccountReport : handleQueryBalance
-            }
+            onClick={isZhipu ? handleQueryGlmAccountReport : handleQueryBalance}
             disabled={isQuerying}
           >
             {isQuerying && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}

@@ -17,8 +17,6 @@ func newOpenRouterRoutingInfo(channelType int, routing *shared.OpenRouterRouting
 	}}
 }
 
-func boolPtr(v bool) *bool { return &v }
-
 func TestApplyProviderRoutingStripsClientProviderForNonOpenRouterChannels(t *testing.T) {
 	// 客户端 provider 只对 OpenRouter 上游有意义；其余渠道必须剥离，保持
 	// DTO 加字段之前"未知字段被丢弃"的既有行为。

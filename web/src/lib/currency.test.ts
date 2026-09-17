@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, test } from 'node:test'
 import {
-  formatCompactCurrencyFromUSD,
-  formatCompactQuotaWithCurrency,
-  formatCurrencyFromUSD,
-} from './currency'
-import {
   DEFAULT_CURRENCY_CONFIG,
   useSystemConfigStore,
   type CurrencyConfig,
 } from '@/stores/system-config-store'
+import {
+  formatCompactCurrencyFromUSD,
+  formatCompactQuotaWithCurrency,
+  formatCurrencyFromUSD,
+} from './currency'
 
 const initialConfig = useSystemConfigStore.getState().config
 

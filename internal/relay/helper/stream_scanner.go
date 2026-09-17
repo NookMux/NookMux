@@ -54,10 +54,15 @@ func getScannerBufferSize() int {
 	return DefaultMaxScannerBufferSize
 }
 
-func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo, dataHandler func(data string) bool) {
+// StreamScannerHandler 逐行读取上游 SSE 流并转发给 dataHandler。
+// 返回值标记流的异常终止原因（超时 / 连接错误），正常结束（EOF、[DONE]、
+// 客户端断开、handler 主动停止）返回 nil。调用方应将异常终止作为上游错误
+// 上报，而不是把半途而废的响应当作成功，导致计费阶段因 usage 为空伪造
+// 「502 上游没有返回计费信息」掩盖真实错误。
+func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo, dataHandler func(data string) bool) *shared.NookMuxError {
 
 	if resp == nil || dataHandler == nil {
-		return
+		return nil
 	}
 
 	// 确保响应体总是被关闭
@@ -114,6 +119,9 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	defer close(stop)
 	dataChan := make(chan string, 16)
 	done := make(chan struct{})
+	// scannerErr 在 close(done) 前写入、在 <-done 后读取，close/receive 建立
+	// happens-before，无需额外同步。
+	var scannerErr error
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -158,10 +166,9 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			}
 		}
 
-		if err := scanner.Err(); err != nil {
-			if err != io.EOF {
-				log.LogError(c, "scanner error: "+err.Error())
-			}
+		if err := scanner.Err(); err != nil && err != io.EOF {
+			log.LogError(c, "scanner error: "+err.Error())
+			scannerErr = err
 		}
 	}()
 
@@ -170,7 +177,7 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 		case data := <-dataChan:
 			resetTimer(timeoutTimer, streamingTimeout)
 			if !safeStreamDataHandler(c, dataHandler, data) {
-				return
+				return nil
 			}
 		case <-done:
 			for {
@@ -178,27 +185,34 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 				case data := <-dataChan:
 					resetTimer(timeoutTimer, streamingTimeout)
 					if !safeStreamDataHandler(c, dataHandler, data) {
-						return
+						return nil
 					}
 				default:
 					log.LogDebug(c, "streaming finished")
-					return
+					if scannerErr != nil {
+						return shared.NewErrorWithStatusCode(
+							fmt.Errorf("upstream stream terminated with read error: %w", scannerErr),
+							shared.ErrorCodeBadResponse, http.StatusBadGateway)
+					}
+					return nil
 				}
 			}
 		case <-ping:
 			if err := PingData(c); err != nil {
 				log.LogError(c, "ping data error: "+err.Error())
-				return
+				return nil
 			}
 			if common.DebugEnabled {
 				println("ping data sent")
 			}
 		case <-timeout:
 			log.LogError(c, "streaming timeout")
-			return
+			return shared.NewErrorWithStatusCode(
+				fmt.Errorf("upstream stream timeout after no data for %s", streamingTimeout),
+				shared.ErrorCodeBadResponse, http.StatusGatewayTimeout)
 		case <-c.Request.Context().Done():
 			log.LogDebug(c, "client disconnected")
-			return
+			return nil
 		}
 	}
 }

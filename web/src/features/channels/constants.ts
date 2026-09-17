@@ -343,7 +343,7 @@ export const FIELD_DESCRIPTIONS = {
 // ============================================================================
 
 export const MODEL_FETCHABLE_TYPES = new Set([
-  1, 4, 14, 20, 24, 25, 26, 40, 43, 44,
+  1, 4, 14, 20, 24, 25, 26, 33, 40, 43, 44,
 ])
 
 export const TYPE_TO_KEY_PROMPT: Record<number, string> = {

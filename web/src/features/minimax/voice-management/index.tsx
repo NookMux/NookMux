@@ -7,10 +7,10 @@ published by the Free Software Foundation, version 3 of the License.
 */
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { OnChangeFn, PaginationState } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import type { OnChangeFn, PaginationState } from '@/lib/tanstack-table'
 import {
   AlertDialog,
   AlertDialogAction,

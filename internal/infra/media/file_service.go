@@ -448,7 +448,9 @@ func decodeImageConfig(data []byte) (image.Config, string, error) {
 		return config, format, nil
 	}
 
-	reader.Seek(0, io.SeekStart)
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return image.Config{}, "", fmt.Errorf("failed to seek image reader: %w", err)
+	}
 	config, err = webp.DecodeConfig(reader)
 	if err == nil {
 		return config, "webp", nil

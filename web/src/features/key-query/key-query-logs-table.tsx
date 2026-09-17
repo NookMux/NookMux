@@ -18,13 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import {
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { ChevronRight, Download, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -32,6 +25,13 @@ import {
   formatTimestampToDate,
   formatUseTime,
 } from '@/lib/format'
+import {
+  appTableFeatures,
+  type ColumnDef,
+  flexRender,
+  type Row,
+  useTable,
+} from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -59,7 +59,7 @@ import {
 import { ModelBadge } from '@/features/usage-logs/components/model-badge'
 import {
   getFirstResponseTimeColor,
-  getResponseTimeColor,
+  getTimeColor,
   parseLogOther,
 } from '@/features/usage-logs/lib/format'
 import { fetchKeyLogs } from './api'
@@ -284,12 +284,7 @@ export function KeyQueryLogsTable({ rawKey }: KeyQueryLogsTableProps) {
                 <span
                   className={cn(
                     'font-medium',
-                    timingTextColorClass(
-                      getResponseTimeColor(
-                        log.use_time / 1000,
-                        log.completion_tokens
-                      )
-                    )
+                    timingTextColorClass(getTimeColor(log.use_time / 1000))
                   )}
                 >
                   {formatUseTime(log.use_time / 1000)}
@@ -394,7 +389,8 @@ export function KeyQueryLogsTable({ rawKey }: KeyQueryLogsTableProps) {
     [expandedRowId, t]
   )
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: logs,
     columns,
     state: {
@@ -404,8 +400,6 @@ export function KeyQueryLogsTable({ rawKey }: KeyQueryLogsTableProps) {
     manualPagination: true,
     manualFiltering: true,
     pageCount: Math.ceil(total / pageSize) || 1,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     onPaginationChange: (updater) => {
       const next =
         typeof updater === 'function'
@@ -678,9 +672,7 @@ function DateTimeRangeInput(props: {
 }
 
 interface LogRowProps {
-  row: ReturnType<
-    ReturnType<typeof useReactTable<KeyQueryLog>>['getRowModel']
-  >['rows'][number]
+  row: Row<KeyQueryLog>
   isExpanded: boolean
   onToggle: () => void
   visibility: UsageLogDetailsVisibility

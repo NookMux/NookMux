@@ -16,9 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type Table } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { type Table } from '@/lib/tanstack-table'
 import { Button } from '@/components/ui/button'
 import { DataTableBulkActions } from '@/components/data-table'
 import type { StoredMediaItem } from '../types'

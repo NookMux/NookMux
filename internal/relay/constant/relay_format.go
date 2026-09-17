@@ -6,15 +6,15 @@ type RelayFormat string
 
 const (
 	RelayFormatOpenAI                    RelayFormat = "openai"
-	RelayFormatClaude                                = "claude"
-	RelayFormatGemini                                = "gemini"
-	RelayFormatOpenAIResponses                       = "openai_responses"
-	RelayFormatOpenAIResponsesCompaction             = "openai_responses_compaction"
-	RelayFormatOpenAIAudio                           = "openai_audio"
-	RelayFormatOpenAIImage                           = "openai_image"
-	RelayFormatOpenAIRealtime                        = "openai_realtime"
-	RelayFormatRerank                                = "rerank"
-	RelayFormatEmbedding                             = "embedding"
+	RelayFormatClaude                    RelayFormat = "claude"
+	RelayFormatGemini                    RelayFormat = "gemini"
+	RelayFormatOpenAIResponses           RelayFormat = "openai_responses"
+	RelayFormatOpenAIResponsesCompaction RelayFormat = "openai_responses_compaction"
+	RelayFormatOpenAIAudio               RelayFormat = "openai_audio"
+	RelayFormatOpenAIImage               RelayFormat = "openai_image"
+	RelayFormatOpenAIRealtime            RelayFormat = "openai_realtime"
+	RelayFormatRerank                    RelayFormat = "rerank"
+	RelayFormatEmbedding                 RelayFormat = "embedding"
 )
 
 // RelayFormatToPreferredAPIType returns the preferred API type for a given relay format.

@@ -14,6 +14,7 @@ import (
 	"github.com/NookMux/NookMux/internal/i18n"
 	httpclient "github.com/NookMux/NookMux/internal/infra/httpclient"
 	"github.com/NookMux/NookMux/internal/infra/security"
+	awschannel "github.com/NookMux/NookMux/internal/relay/channel/aws"
 	"github.com/NookMux/NookMux/internal/relay/channel/gemini"
 	"github.com/NookMux/NookMux/internal/relay/channel/ollama"
 	"github.com/NookMux/NookMux/internal/store/audit"
@@ -403,6 +404,21 @@ func FetchUpstreamModels(c *gin.Context) {
 			"message": "",
 			"data":    ids,
 		})
+		return
+	}
+
+	if channel.Type == constant.ChannelTypeAws {
+		key, _, apiErr := channel.GetNextEnabledKey()
+		if apiErr != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": apiErr.Error()})
+			return
+		}
+		models, err := awschannel.FetchClaudeModels(c.Request.Context(), key, channel.GetOtherSettings().AwsKeyType, channel.GetSetting().Proxy)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": models})
 		return
 	}
 
@@ -1259,9 +1275,11 @@ func validateFetchModelsURL(url string) error {
 
 func FetchModels(c *gin.Context) {
 	var req struct {
-		BaseURL string `json:"base_url"`
-		Type    int    `json:"type"`
-		Key     string `json:"key"`
+		BaseURL    string            `json:"base_url"`
+		Type       int               `json:"type"`
+		Key        string            `json:"key"`
+		AwsKeyType shared.AwsKeyType `json:"aws_key_type"`
+		Proxy      string            `json:"proxy"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1304,6 +1322,16 @@ func FetchModels(c *gin.Context) {
 			"success": true,
 			"data":    names,
 		})
+		return
+	}
+
+	if req.Type == constant.ChannelTypeAws {
+		models, err := awschannel.FetchClaudeModels(c.Request.Context(), key, req.AwsKeyType, strings.TrimSpace(req.Proxy))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": models})
 		return
 	}
 

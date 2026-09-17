@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	modelconfig "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/NookMux/NookMux/internal/relay/channel"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
@@ -57,11 +58,19 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 }
 
 func CommonClaudeHeadersOperation(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) {
+	if c == nil || c.Request == nil || req == nil {
+		return
+	}
 	// common headers operation
 	anthropicBeta := c.Request.Header.Get("anthropic-beta")
 	if anthropicBeta != "" {
 		req.Set("anthropic-beta", anthropicBeta)
 	}
+	originModel := ""
+	if info != nil {
+		originModel = info.OriginModelName
+	}
+	modelconfig.GetClaudeSettings().WriteHeaders(originModel, req)
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) error {

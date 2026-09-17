@@ -17,14 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState, useCallback } from 'react'
-import {
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-  type PaginationState,
-} from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
+import {
+  appTableFeatures,
+  flexRender,
+  useTable,
+  type PaginationState,
+} from '@/lib/tanstack-table'
 import {
   Table,
   TableBody,
@@ -73,14 +72,13 @@ export function PricingTable(props: PricingTableProps) {
     showRechargePrice,
   })
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: models,
     columns,
     pageCount: Math.ceil(models.length / pagination.pageSize),
     state: { pagination },
     onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     manualPagination: false,
   })
 

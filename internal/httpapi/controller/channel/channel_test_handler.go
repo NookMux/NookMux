@@ -103,6 +103,7 @@ func testChannel(channel *channelstore.Channel, testUserID int, testModel string
 	}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	httpapi.SetContextKey(c, common.ContextKeyRequestStartTime, tik)
 	c.Request = &http.Request{Header: make(http.Header)}
 	if lo.Contains(unsupportedTestChannelTypes, channel.Type) {
 		channelTypeName := channelconstant.GetChannelTypeName(channel.Type)

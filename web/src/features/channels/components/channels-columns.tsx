@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 /* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { type ColumnDef } from '@tanstack/react-table'
 import {
   AlertTriangle,
   ChevronDown,
@@ -35,6 +34,7 @@ import {
   formatQuotaCompact,
 } from '@/lib/format'
 import { getLobeIcon } from '@/lib/lobe-icon'
+import { type ColumnDef } from '@/lib/tanstack-table'
 import { truncateText } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -292,7 +292,10 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
       header: ({ table }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
+          indeterminate={
+            table.getIsSomePageRowsSelected() &&
+            !table.getIsAllPageRowsSelected()
+          }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label={t('channels.placeholders.selectAll')}
         />

@@ -73,6 +73,7 @@ token.no_auth_header: "缺少 Authorization 请求头"
 token.invalid_bearer: "无效的 Bearer 令牌"
 token.authorized: "已授权"
 token.max_limit_reached: "已达到最大令牌数量限制 ({{.Max}})"
+token.invalid_model_mapping: "模型重定向配置格式错误，必须为键值均为非空字符串的 JSON 对象"
 
 # Redemption messages
 redemption.name_length: "兑换码名称长度必须在1-20之间"

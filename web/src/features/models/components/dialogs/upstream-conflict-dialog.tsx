@@ -19,13 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-  type RowSelectionState,
-} from '@tanstack/react-table'
-import {
   Search,
   Info,
   MousePointerClick,
@@ -34,6 +27,13 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import {
+  appTableFeatures,
+  flexRender,
+  useTable,
+  type ColumnDef,
+  type RowSelectionState,
+} from '@/lib/tanstack-table'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -301,7 +301,10 @@ export function UpstreamConflictDialog({
       header: ({ table }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
-          indeterminate={table.getIsSomePageRowsSelected()}
+          indeterminate={
+            table.getIsSomePageRowsSelected() &&
+            !table.getIsAllPageRowsSelected()
+          }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label={t('channels.placeholders.selectAll')}
         />
@@ -348,7 +351,8 @@ export function UpstreamConflictDialog({
     ]
   }, [isMobile, t])
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: conflictRows,
     columns,
     state: {
@@ -356,7 +360,6 @@ export function UpstreamConflictDialog({
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.id,
   })
 

@@ -1,14 +1,9 @@
 name: Publish Docker image (AMD64 only)
 
+# 发布入口已收口为两个：CI 工作流（ci.yml）全绿后通过 workflow_dispatch
+# 派发（见 ci.yml 的 trigger-docker job），或维护者手动触发。
+# 直接 push 不再触发本工作流——所有提交必须先过 CI 门禁。
 on:
-  push:
-    branches:
-      - main
-      - beta
-      - dev
-      - test
-    tags:
-      - '*'
   workflow_dispatch:
 
 jobs:
@@ -81,7 +76,7 @@ jobs:
           VITE_REACT_APP_VERSION="${VERSION}" bun run build
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -126,3 +121,25 @@ jobs:
           echo "${{ steps.tags.outputs.TAGS }}" >> "$GITHUB_STEP_SUMMARY"
           echo "${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  notify_feishu:
+    name: Notify Feishu
+    needs: [build_amd64]
+    if: ${{ always() && (needs.build_amd64.result == 'success' || needs.build_amd64.result == 'failure') }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Send Feishu notification
+        uses: ./.github/actions/feishu-notify
+        with:
+          notify_type: docker
+          workflow_name: ${{ github.workflow }}
+          project_name: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          conclusion: ${{ needs.build_amd64.result }}
+          app_id: ${{ secrets.FEISHU_APP_ID }}
+          app_secret: ${{ secrets.FEISHU_APP_SECRET }}
+          user_id: ${{ secrets.FEISHU_USER_ID }}

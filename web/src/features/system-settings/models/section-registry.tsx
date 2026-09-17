@@ -71,6 +71,9 @@ const MODELS_SECTIONS = [
           claude: {
             model_headers_settings: settings['claude.model_headers_settings'],
             default_max_tokens: settings['claude.default_max_tokens'],
+            remove_claude_code_billing_header_enabled:
+              settings['claude.remove_claude_code_billing_header_enabled'] ??
+              true,
           },
         }}
       />

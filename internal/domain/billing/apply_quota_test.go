@@ -8,6 +8,7 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	redis "github.com/NookMux/NookMux/internal/infra/redis"
+	"github.com/NookMux/NookMux/internal/infra/runtime"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
 	channelstore "github.com/NookMux/NookMux/internal/store/channel"
 	dbstore "github.com/NookMux/NookMux/internal/store/db"
@@ -83,6 +84,10 @@ func setupApplyQuotaTestDB(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
+		// RecordConsumeLog 等落账逻辑经 RelayGo 异步执行，会读取下方的全局
+		// 开关。必须先排空任务，再关闭测试库并恢复全局量，否则 race detector
+		// 会把 cleanup 写入与后台读取判为竞争。
+		runtime.WaitRelayTasks()
 		if sqlDB, err := testDB.DB(); err == nil {
 			_ = sqlDB.Close()
 		}

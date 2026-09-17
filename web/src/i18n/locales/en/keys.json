@@ -106,5 +106,11 @@
   "keys.errors.windowStartHourMustBeBetween0And23": "Window start hour must be between 0 and 23",
   "keys.fields.windowStartHourFrom0To23": "Window start hour, from 0 to 23",
   "keys.tips.aboutToDeleteCountApiKeyS": "You are about to delete {{count}} API key(s).",
-  "keys.errors.apiKeyIsLoadingPleaseTryAgainInAMoment": "API key is loading, please try again in a moment"
+  "keys.errors.apiKeyIsLoadingPleaseTryAgainInAMoment": "API key is loading, please try again in a moment",
+  "keys.fields.modelMapping": "Model Redirect",
+  "keys.fields.clientRequestModel": "Client Request Model",
+  "keys.fields.redirectTargetModel": "Redirect Target Model",
+  "keys.tips.modelMappingRedirectsRequestsToTheTarget": "Inbound rewrite: when the request matches a model on the left, billing, channel routing and stats follow the target model on the right",
+  "keys.errors.invalidModelMapping": "Model redirect must be a JSON object with non-empty string keys and values",
+  "keys.errors.modelMappingEntryTooLong": "Each model mapping key and value must be at most 256 characters, and the total config at most 64KB"
 }

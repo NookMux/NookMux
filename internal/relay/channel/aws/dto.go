@@ -18,10 +18,10 @@ type AwsClaudeRequest struct {
 	AnthropicBeta     json.RawMessage        `json:"anthropic_beta,omitempty"`
 	System            any                    `json:"system,omitempty"`
 	Messages          []shared.ClaudeMessage `json:"messages"`
-	MaxTokens         uint                   `json:"max_tokens,omitempty"`
+	MaxTokens         *uint                  `json:"max_tokens,omitempty"`
 	Temperature       *float64               `json:"temperature,omitempty"`
-	TopP              float64                `json:"top_p,omitempty"`
-	TopK              int                    `json:"top_k,omitempty"`
+	TopP              *float64               `json:"top_p,omitempty"`
+	TopK              *int                   `json:"top_k,omitempty"`
 	StopSequences     []string               `json:"stop_sequences,omitempty"`
 	Tools             any                    `json:"tools,omitempty"`
 	ToolChoice        any                    `json:"tool_choice,omitempty"`
@@ -71,10 +71,10 @@ type NovaRequest struct {
 }
 
 type NovaInferenceConfig struct {
-	MaxTokens     int      `json:"maxTokens,omitempty"`     // 最大生成的 token 数
-	Temperature   float64  `json:"temperature,omitempty"`   // 随机性 (默认 0.7, 范围 0-1)
-	TopP          float64  `json:"topP,omitempty"`          // nucleus sampling (默认 0.9, 范围 0-1)
-	TopK          int      `json:"topK,omitempty"`          // 限制候选 token 数 (默认 50, 范围 0-128)
+	MaxTokens     *int     `json:"maxTokens,omitempty"`     // 最大生成的 token 数
+	Temperature   *float64 `json:"temperature,omitempty"`   // 随机性 (默认 0.7, 范围 0-1)
+	TopP          *float64 `json:"topP,omitempty"`          // nucleus sampling (默认 0.9, 范围 0-1)
+	TopK          *int     `json:"topK,omitempty"`          // 限制候选 token 数 (默认 50, 范围 0-128)
 	StopSequences []string `json:"stopSequences,omitempty"` // 停止生成的序列
 }
 
@@ -97,16 +97,19 @@ func convertToNovaRequest(req *shared.GeneralOpenAIRequest) *NovaRequest {
 	if req.MaxTokens != 0 || (req.Temperature != nil && *req.Temperature != 0) || req.TopP != 0 || req.TopK != 0 || req.Stop != nil {
 		novaReq.InferenceConfig = &NovaInferenceConfig{}
 		if req.MaxTokens != 0 {
-			novaReq.InferenceConfig.MaxTokens = int(req.MaxTokens)
+			maxTokens := int(req.MaxTokens)
+			novaReq.InferenceConfig.MaxTokens = &maxTokens
 		}
 		if req.Temperature != nil && *req.Temperature != 0 {
-			novaReq.InferenceConfig.Temperature = *req.Temperature
+			novaReq.InferenceConfig.Temperature = req.Temperature
 		}
 		if req.TopP != 0 {
-			novaReq.InferenceConfig.TopP = req.TopP
+			topP := req.TopP
+			novaReq.InferenceConfig.TopP = &topP
 		}
 		if req.TopK != 0 {
-			novaReq.InferenceConfig.TopK = req.TopK
+			topK := req.TopK
+			novaReq.InferenceConfig.TopK = &topK
 		}
 		if req.Stop != nil {
 			if stopSequences := parseStopSequences(req.Stop); len(stopSequences) > 0 {

@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
 import {
   Blend,
   FileText,
@@ -38,6 +37,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatTimestampToDate } from '@/lib/format'
+import type { ColumnDef } from '@/lib/tanstack-table'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
 import { MJ_TASK_TYPES } from '../../constants'

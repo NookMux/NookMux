@@ -86,6 +86,7 @@ const (
 	MsgTokenInvalidBearer        = "token.invalid_bearer"
 	MsgTokenAuthorized           = "token.authorized"
 	MsgTokenMaxLimitReached      = "token.max_limit_reached"
+	MsgTokenInvalidModelMapping  = "token.invalid_model_mapping"
 )
 
 // Redemption related messages

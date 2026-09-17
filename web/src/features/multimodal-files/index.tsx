@@ -18,18 +18,17 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  type ColumnDef,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { Copy, RefreshCw, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import dayjs from '@/lib/dayjs'
 import { ROLE } from '@/lib/roles'
+import {
+  appTableFeatures,
+  type ColumnDef,
+  useTable,
+} from '@/lib/tanstack-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -205,7 +204,8 @@ export function MultimodalFiles() {
     columnActions
   ) as ColumnDef<StoredMediaItem>[]
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: items,
     columns,
     state: {
@@ -215,8 +215,6 @@ export function MultimodalFiles() {
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
     pageCount: Math.ceil(total / pagination.pageSize),
   })

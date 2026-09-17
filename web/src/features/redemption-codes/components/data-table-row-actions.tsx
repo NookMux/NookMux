@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type Row } from '@tanstack/react-table'
 import {
   Trash2,
   Edit,
@@ -26,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { type RowData, type Row } from '@/lib/tanstack-table'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -41,11 +41,11 @@ import { isRedemptionExpired } from '../lib'
 import { redemptionSchema } from '../types'
 import { useRedemptions } from './redemptions-provider'
 
-interface DataTableRowActionsProps<TData> {
+interface DataTableRowActionsProps<TData extends RowData> {
   row: Row<TData>
 }
 
-export function DataTableRowActions<TData>({
+export function DataTableRowActions<TData extends RowData>({
   row,
 }: DataTableRowActionsProps<TData>) {
   const { t } = useTranslation()

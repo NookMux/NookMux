@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Table } from '@tanstack/react-table'
+import type { RowData, Table } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TableRow, TableCell } from '@/components/ui/table'
@@ -34,14 +34,14 @@ const SKELETON_WIDTHS = [
   '45%',
 ]
 
-interface TableSkeletonProps<TData> {
+interface TableSkeletonProps<TData extends RowData> {
   table: Table<TData>
   rowCount?: number
   rowHeight?: string
   keyPrefix?: string
 }
 
-export function TableSkeleton<TData>({
+export function TableSkeleton<TData extends RowData>({
   table,
   rowCount,
   rowHeight = 'h-[52px]',
@@ -50,7 +50,7 @@ export function TableSkeleton<TData>({
   const visibleColumns = table.getVisibleLeafColumns()
 
   const finalRowCount =
-    rowCount ?? Math.min(table.getState().pagination?.pageSize || 20, 20)
+    rowCount ?? Math.min(table.state.pagination?.pageSize || 20, 20)
 
   return (
     <>

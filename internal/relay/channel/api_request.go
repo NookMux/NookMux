@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	common2 "github.com/NookMux/NookMux/internal/common"
+	modelconfig "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	httpclient "github.com/NookMux/NookMux/internal/infra/httpclient"
 	"github.com/NookMux/NookMux/internal/infra/log"
@@ -133,6 +134,9 @@ func shouldSkipPassthroughHeader(name string) bool {
 	if name == "" {
 		return true
 	}
+	if modelconfig.ShouldRemoveClaudeCodeBillingHeader(name) {
+		return true
+	}
 	lower := strings.ToLower(name)
 	if _, ok := passthroughSkipHeaderNamesLower[lower]; ok {
 		return true
@@ -189,6 +193,12 @@ func mergeClientHeadersToHeader(c *gin.Context, header http.Header) {
 			header.Add(name, value)
 		}
 	}
+}
+
+// MergeClientHeadersToHeader exposes the common safe client-header merge for
+// transports that construct an upstream payload without using DoApiRequest.
+func MergeClientHeadersToHeader(c *gin.Context, header http.Header) {
+	mergeClientHeadersToHeader(c, header)
 }
 
 func applyHeaderOverridePlaceholders(template string, c *gin.Context, apiKey string) (string, bool, error) {
@@ -324,6 +334,12 @@ func processHeaderOverride(info *common.RelayInfo, c *gin.Context) (map[string]s
 		headerOverride[key] = value
 	}
 	return headerOverride, nil
+}
+
+// ResolveHeaderOverride exposes the common header override resolution for
+// transports that do not build an *http.Request through DoApiRequest.
+func ResolveHeaderOverride(info *common.RelayInfo, c *gin.Context) (map[string]string, error) {
+	return processHeaderOverride(info, c)
 }
 
 func applyHeaderOverrideToRequest(req *http.Request, headerOverride map[string]string) {

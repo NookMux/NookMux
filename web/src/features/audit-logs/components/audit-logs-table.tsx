@@ -19,19 +19,18 @@ For commercial licensing, please contact support@quantumnous.com
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import {
-  type ColumnDef,
-  type PaginationState,
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { useMediaQuery } from '@/hooks'
 import { Eye } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import dayjs from '@/lib/dayjs'
+import {
+  appTableFeatures,
+  type ColumnDef,
+  type PaginationState,
+  flexRender,
+  useTable,
+} from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -309,7 +308,8 @@ export function AuditLogsTable({ search }: AuditLogsTableProps) {
 
   const logs = data?.items || []
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: logs,
     columns,
     state: {
@@ -317,8 +317,6 @@ export function AuditLogsTable({ search }: AuditLogsTableProps) {
     },
     enableRowSelection: false,
     onPaginationChange: handlePageChange,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
     pageCount: Math.ceil((data?.total || 0) / pageSize),
   })

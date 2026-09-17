@@ -16,14 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Database } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
+  type RowData,
   flexRender,
   type Cell,
   type Row,
   type Table,
-} from '@tanstack/react-table'
-import { Database } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+} from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import {
   Empty,
@@ -34,7 +35,7 @@ import {
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 
-interface MobileCardListProps<TData> {
+interface MobileCardListProps<TData extends RowData> {
   table: Table<TData>
   isLoading?: boolean
   emptyTitle?: string
@@ -50,20 +51,24 @@ interface MobileColumnMeta {
   mobileHidden?: boolean
 }
 
-function getCellMeta<TData>(
+function getCellMeta<TData extends RowData>(
   cell: Cell<TData, unknown>
 ): MobileColumnMeta | undefined {
   return cell.column.columnDef.meta as MobileColumnMeta | undefined
 }
 
-function getCellLabel<TData>(cell: Cell<TData, unknown>): string | null {
+function getCellLabel<TData extends RowData>(
+  cell: Cell<TData, unknown>
+): string | null {
   const meta = getCellMeta(cell)
   if (meta?.label) return meta.label
   const header = cell.column.columnDef.header
   return typeof header === 'string' ? header : null
 }
 
-function renderCellContent<TData>(cell: Cell<TData, unknown>): React.ReactNode {
+function renderCellContent<TData extends RowData>(
+  cell: Cell<TData, unknown>
+): React.ReactNode {
   const cellRenderer = cell.column.columnDef.cell
   if (cellRenderer) {
     return flexRender(cellRenderer, cell.getContext())
@@ -123,7 +128,7 @@ function FallbackListSkeleton() {
  *   [Field1 value] [Field2 value]
  *                          [Actions ⋯]
  */
-function CompactRow<TData>({ row }: { row: Row<TData> }) {
+function CompactRow<TData extends RowData>({ row }: { row: Row<TData> }) {
   const allCells = row
     .getVisibleCells()
     .filter((cell) => cell.column.id !== 'select')
@@ -189,7 +194,7 @@ function CompactRow<TData>({ row }: { row: Row<TData> }) {
  * Fallback list row — condensed label:value pairs for tables without
  * mobileTitle/mobileBadge. Still respects mobileHidden.
  */
-function FallbackRow<TData>({ row }: { row: Row<TData> }) {
+function FallbackRow<TData extends RowData>({ row }: { row: Row<TData> }) {
   const allCells = row
     .getVisibleCells()
     .filter((cell) => cell.column.id !== 'select')
@@ -251,7 +256,9 @@ function FallbackRow<TData>({ row }: { row: Row<TData> }) {
  * two-tier layout: title+badge header, then 2 key fields side-by-side.
  * Otherwise falls back to a condensed single-column label:value list.
  */
-export function MobileCardList<TData>(props: MobileCardListProps<TData>) {
+export function MobileCardList<TData extends RowData>(
+  props: MobileCardListProps<TData>
+) {
   const {
     table,
     isLoading = false,

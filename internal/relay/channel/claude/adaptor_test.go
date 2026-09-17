@@ -2,9 +2,11 @@ package claude
 
 import (
 	"encoding/json"
+	"net/http"
 	"testing"
 
 	"github.com/NookMux/NookMux/internal/common"
+	modelconfig "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/domain/channel/constant"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
@@ -12,7 +14,29 @@ import (
 	"github.com/NookMux/NookMux/pkg/jsonx"
 
 	relayconstant "github.com/NookMux/NookMux/internal/relay/constant"
+	"github.com/gin-gonic/gin"
 )
+
+func TestCommonClaudeHeadersOperationRemovesBillingHeader(t *testing.T) {
+	settings := modelconfig.GetClaudeSettings()
+	original := settings.RemoveClaudeCodeBillingHeaderEnabled
+	settings.RemoveClaudeCodeBillingHeaderEnabled = true
+	t.Cleanup(func() { settings.RemoveClaudeCodeBillingHeaderEnabled = original })
+
+	request := &http.Request{Header: http.Header{}}
+	request.Header.Set(modelconfig.ClaudeCodeBillingHeader, "client-billing")
+	request.Header.Set("anthropic-beta", "computer-use-2025-01-24")
+	ctx := &gin.Context{Request: request}
+	headers := http.Header{}
+	CommonClaudeHeadersOperation(ctx, &headers, &relaycommon.RelayInfo{OriginModelName: "claude-opus-4-8"})
+
+	if headers.Get(modelconfig.ClaudeCodeBillingHeader) != "" {
+		t.Fatal("billing header was forwarded")
+	}
+	if headers.Get("anthropic-beta") != "computer-use-2025-01-24" {
+		t.Fatalf("anthropic-beta = %q", headers.Get("anthropic-beta"))
+	}
+}
 
 func TestAdaptorConvertGeminiRequestPreservesThinkingAndToolResults(t *testing.T) {
 	budget := 2048
@@ -193,6 +217,59 @@ func TestAdaptorConvertOpenAIResponsesRequestUsesSharedRulesForTools(t *testing.
 	}
 }
 
+func TestAdaptorConvertOpenAIResponsesRequestRemovesUnsupportedComputerCallHistory(t *testing.T) {
+	inputRaw, err := jsonx.Marshal([]map[string]any{
+		{
+			"type":    "computer_call",
+			"call_id": "call_computer",
+			"action":  map[string]any{"type": "screenshot"},
+		},
+		{
+			"type":    "computer_call_output",
+			"call_id": "call_computer",
+			"output": map[string]any{
+				"type":      "input_image",
+				"image_url": "data:image/png;base64,AAAA",
+			},
+		},
+		{
+			"type":    "message",
+			"role":    "user",
+			"content": "continue",
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal input error: %v", err)
+	}
+
+	info := &relaycommon.RelayInfo{
+		RelayFormat:            relayconstant.RelayFormatOpenAIResponses,
+		RequestConversionChain: []relayconstant.RelayFormat{relayconstant.RelayFormatOpenAIResponses},
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelType:       constant.ChannelTypeAnthropic,
+			UpstreamModelName: "claude-opus-4-8",
+		},
+	}
+	convertedAny, err := (&Adaptor{}).ConvertOpenAIResponsesRequest(nil, info, shared.OpenAIResponsesRequest{
+		Model:           "claude-opus-4-8",
+		Input:           inputRaw,
+		MaxOutputTokens: 128,
+	})
+	if err != nil {
+		t.Fatalf("ConvertOpenAIResponsesRequest error: %v", err)
+	}
+	converted, ok := convertedAny.(*shared.ClaudeRequest)
+	if !ok {
+		t.Fatalf("converted type = %T, want *shared.ClaudeRequest", convertedAny)
+	}
+	if len(converted.Messages) != 1 {
+		t.Fatalf("messages len = %d, want only the supported user message: %#v", len(converted.Messages), converted.Messages)
+	}
+	if converted.Messages[0].Role != "user" || converted.Messages[0].GetStringContent() != "continue" {
+		t.Fatalf("converted message = %#v, want user message %q", converted.Messages[0], "continue")
+	}
+}
+
 func TestAdaptorConvertOpenAIRequestClaudeEffortToolCallThinkingEnabled(t *testing.T) {
 	info := &relaycommon.RelayInfo{
 		ChannelMeta: &relaycommon.ChannelMeta{
@@ -295,6 +372,37 @@ func TestAdaptorConvertOpenAIRequestClaudeOpus47ThinkingSuffixUsesHighEffort(t *
 	}
 	if converted.Thinking == nil || converted.Thinking.Type != "adaptive" || converted.Thinking.Display != "summarized" {
 		t.Fatalf("thinking = %+v, want adaptive summarized", converted.Thinking)
+	}
+	var outputConfig shared.ClaudeOutputConfig
+	if err := jsonx.Unmarshal(converted.OutputConfig, &outputConfig); err != nil {
+		t.Fatalf("unmarshal output_config error = %v", err)
+	}
+	if outputConfig.Effort != "high" {
+		t.Fatalf("output_config.effort = %q, want high", outputConfig.Effort)
+	}
+}
+
+func TestAdaptorConvertOpenAIRequestClaudeOpus48UsesAdaptiveThinking(t *testing.T) {
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelType:       constant.ChannelTypeAnthropic,
+			UpstreamModelName: "claude-opus-4-8-high",
+		},
+	}
+
+	convertedAny, err := (&Adaptor{}).ConvertOpenAIRequest(nil, info, buildOpenAIWeatherToolRequest("claude-opus-4-8-high", ""))
+	if err != nil {
+		t.Fatalf("ConvertOpenAIRequest error = %v", err)
+	}
+	converted, ok := convertedAny.(*shared.ClaudeRequest)
+	if !ok {
+		t.Fatalf("converted type = %T, want *shared.ClaudeRequest", convertedAny)
+	}
+	if converted.Model != "claude-opus-4-8" {
+		t.Fatalf("model = %q, want claude-opus-4-8", converted.Model)
+	}
+	if converted.Thinking == nil || converted.Thinking.Type != "adaptive" || converted.Thinking.BudgetTokens != nil {
+		t.Fatalf("thinking = %+v, want adaptive without budget_tokens", converted.Thinking)
 	}
 	var outputConfig shared.ClaudeOutputConfig
 	if err := jsonx.Unmarshal(converted.OutputConfig, &outputConfig); err != nil {

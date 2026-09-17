@@ -17,13 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as React from 'react'
+import { useMediaQuery } from '@/hooks'
 import {
+  type RowData,
   flexRender,
   type ColumnDef,
   type Row,
   type Table as TanstackTable,
-} from '@tanstack/react-table'
-import { useMediaQuery } from '@/hooks'
+} from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import {
   Table,
@@ -44,14 +45,14 @@ import { DataTableToolbar } from './toolbar'
  * Pass-through configuration for the default {@link DataTableToolbar}.
  * Pass `toolbar` (ReactNode) instead to fully replace the default toolbar.
  */
-export type DataTablePageToolbarProps<TData> = Omit<
+export type DataTablePageToolbarProps<TData extends RowData> = Omit<
   React.ComponentProps<typeof DataTableToolbar<TData>>,
   'table'
 >
 
-export type DataTablePageProps<TData> = {
+export type DataTablePageProps<TData extends RowData> = {
   /**
-   * TanStack Table instance returned from `useReactTable`.
+   * TanStack Table instance returned from `useTable`.
    */
   table: TanstackTable<TData>
 
@@ -215,7 +216,9 @@ export type DataTablePageProps<TData> = {
  * For complex layouts (custom mobile, expanded rows, custom toolbar), use the
  * `toolbar` / `mobile` / `renderRow` slots instead of the `*Props` variants.
  */
-export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
+export function DataTablePage<TData extends RowData>(
+  props: DataTablePageProps<TData>
+) {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const showMobile = isMobile && !props.hideMobile
 
@@ -250,7 +253,7 @@ export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
   )
 }
 
-function renderToolbar<TData>(
+function renderToolbar<TData extends RowData>(
   props: DataTablePageProps<TData>
 ): React.ReactNode {
   if (props.toolbar !== undefined) {
@@ -265,7 +268,7 @@ function renderToolbar<TData>(
   return null
 }
 
-function renderMobile<TData>(
+function renderMobile<TData extends RowData>(
   props: DataTablePageProps<TData>,
   showMobile: boolean
 ): React.ReactNode {
@@ -291,7 +294,7 @@ function renderMobile<TData>(
   )
 }
 
-function renderDesktop<TData>(
+function renderDesktop<TData extends RowData>(
   props: DataTablePageProps<TData>,
   showMobile: boolean
 ): React.ReactNode {
@@ -368,7 +371,7 @@ function renderDesktop<TData>(
   )
 }
 
-function DefaultRow<TData>({
+function DefaultRow<TData extends RowData>({
   row,
   className,
 }: {

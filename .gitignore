@@ -4,6 +4,7 @@
 upload
 *.exe
 *.db
+*.log
 build
 *.db-journal
 logs
@@ -16,16 +17,14 @@ NookMux
 tiktoken_cache
 .eslintcache
 .gocache
-.gomodcache/
+.gomodcache
 .cache
 web/bun.lock
 plans
 data/
-.gomodcache/
 .gocache-temp
 .gopath
-.npm-cache*/
-.gomodcache*/
+.npm-cache
 null
 nul
 
@@ -36,3 +35,5 @@ nul
 # subdirectory files such as .serena/memories/core.md)
 /core.*
 /core
+.codegraph/
+.codebuddy/teams/

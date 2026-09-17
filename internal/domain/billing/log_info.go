@@ -45,6 +45,9 @@ func AppendStreamMetrics(other map[string]interface{}, relayInfo *relaycommon.Re
 	}
 
 	frtMs := relayInfo.FirstResponseTime.Sub(relayInfo.StartTime).Milliseconds()
+	if frtMs < 0 {
+		frtMs = 0
+	}
 	if speed, ok := CalculateStreamSpeed(useTimeMs, frtMs, completionTokens, relayInfo.ReceivedResponseCount); ok {
 		other["speed"] = speed
 	}
@@ -82,7 +85,12 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	if dynamicRatio > 0 {
 		other["dynamic_ratio"] = dynamicRatio
 	}
-	other["frt"] = float64(relayInfo.FirstResponseTime.UnixMilli() - relayInfo.StartTime.UnixMilli())
+	if relayInfo.HasSendResponse() {
+		frt := float64(relayInfo.FirstResponseTime.UnixMilli() - relayInfo.StartTime.UnixMilli())
+		if frt >= 0 {
+			other["frt"] = frt
+		}
+	}
 	if relayInfo.ReasoningEffort != "" {
 		other["reasoning_effort"] = relayInfo.ReasoningEffort
 	}
