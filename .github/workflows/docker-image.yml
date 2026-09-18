@@ -1,79 +1,167 @@
-name: Publish Docker image (AMD64 only)
+name: Publish Docker image (multi-arch)
 
-# 发布入口已收口为两个：CI 工作流（ci.yml）全绿后通过 workflow_dispatch
-# 派发（见 ci.yml 的 trigger-docker job），或维护者手动触发。
-# 直接 push 不再触发本工作流——所有提交必须先过 CI 门禁。
+# 发布入口保持收口：CI 工作流（ci.yml）全绿后通过 workflow_dispatch 派发
+# （见 ci.yml 的 trigger-docker job），或维护者手动触发。直接 push 不再
+# 触发本工作流——所有提交必须先过 CI 门禁。
+#
+# 流水线分四段：
+#   prepare           计算镜像名、渠道 tag（latest/beta/dev/test/<git tag>）、
+#                     不可变 tag（YYYYMMDD-<sha7>）与构建矩阵
+#   build_frontend    构建一次 web/dist（架构无关），经 artifact 分发给各架构
+#                     构建 job，避免每个架构重复构建前端
+#   build_single_arch 每架构独占一个 runner 并行构建，推送 per-arch tag
+#                     （<tag>-amd64 / <tag>-arm64），GHA 缓存按架构分 scope
+#   create_manifests  imagetools create 合成多架构 manifest，cosign 签名
+#
+# arm64 构建机：本仓库为公开仓库，默认使用免费的原生 arm64 runner
+# （ubuntu-24.04-arm），无需 QEMU 模拟；若需回退 QEMU 模拟（例如仓库转
+# 私有后失去原生 arm 配额），配置仓库
+# Settings → Secrets and variables → Actions → Variables:
+#   DOCKER_ARM64_QEMU_FALLBACK = true
+#
+# 供应链：per-arch 构建携带 provenance(mode=max) 与 SBOM attestation；
+# imagetools create 合并时会保留两架构的 attestation 条目；cosign 无密签名
+# 覆盖最终多架构 manifest 的 digest。
 on:
   workflow_dispatch:
 
+concurrency:
+  # 同一 ref 上新的发布请求取代进行中的旧发布，避免旧提交的镜像覆盖新提交
+  group: docker-image-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build_amd64:
-    name: Build & push (amd64)
+  prepare:
+    name: Prepare image metadata
     runs-on: ubuntu-latest
 
     permissions:
-      packages: write
       contents: read
-      id-token: write
+
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      channel: ${{ steps.vars.outputs.channel }}
+      tags_json: ${{ steps.vars.outputs.tags_json }}
+      matrix_json: ${{ steps.vars.outputs.matrix_json }}
+
+    steps:
+      - name: Prepare image metadata
+        id: vars
+        shell: bash
+        env:
+          DOCKER_ARM64_QEMU_FALLBACK: ${{ vars.DOCKER_ARM64_QEMU_FALLBACK }}
+        run: |
+          repo="${GITHUB_REPOSITORY,,}"
+          image="ghcr.io/${repo}"
+          immutable="$(date -u +'%Y%m%d')-${GITHUB_SHA::7}"
+
+          ref="${GITHUB_REF}"
+          case "$ref" in
+            refs/tags/*)
+              # tag 发布：镜像 tag 用 git tag 名（转小写），本身即不可变
+              channel="${GITHUB_REF_NAME,,}"
+              ;;
+            refs/heads/main) channel="latest" ;;
+            refs/heads/beta) channel="beta" ;;
+            refs/heads/dev)  channel="dev"  ;;
+            refs/heads/test) channel="test" ;;
+            *)
+              echo "::error::Unsupported ref '$ref'. Supported: main/beta/dev/test branches and tags."
+              exit 1
+              ;;
+          esac
+
+          # 每次发布额外打不可变 tag（YYYYMMDD-<sha7>），供精确回滚定位
+          tags_json=$(jq -nc --arg channel "$channel" --arg immutable "$immutable" \
+            '[$channel, $immutable]')
+
+          if [ "${DOCKER_ARM64_QEMU_FALLBACK:-}" = "true" ]; then
+            arm64_runner="ubuntu-latest"
+            arm64_qemu=true
+          else
+            arm64_runner="ubuntu-24.04-arm"
+            arm64_qemu=false
+          fi
+
+          matrix_json=$(jq -nc --arg arm64_runner "$arm64_runner" --argjson arm64_qemu "$arm64_qemu" \
+            '{
+              include: [
+                {arch: "amd64", platform: "linux/amd64", runner: "ubuntu-latest", qemu: false},
+                {arch: "arm64", platform: "linux/arm64", runner: $arm64_runner, qemu: $arm64_qemu}
+              ]
+            }')
+
+          {
+            echo "image=$image"
+            echo "channel=$channel"
+            echo "tags_json=$tags_json"
+            echo "matrix_json=$matrix_json"
+          } >> "$GITHUB_OUTPUT"
+
+  build_frontend:
+    name: Build frontend
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-
-      - name: Determine image tags
-        id: tags
-        run: |
-          # Normalize repository name to lowercase
-          GHCR_REPO="${GITHUB_REPOSITORY,,}"
-          echo "GHCR_REPO=$GHCR_REPO" >> $GITHUB_ENV
-
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            # Tag push: use tag name (lowercase)
-            TAG="${GITHUB_REF#refs/tags/}"
-            VERSION="${TAG,,}"
-            echo "TAGS=ghcr.io/${GHCR_REPO}:${VERSION}" >> $GITHUB_OUTPUT
-            echo "VERSION=$VERSION" >> $GITHUB_ENV
-            echo "Building tag: $TAG -> $VERSION"
-
-          elif [[ "${{ github.ref }}" == refs/heads/main ]]; then
-            # Main branch: tag as latest
-            echo "TAGS=ghcr.io/${GHCR_REPO}:latest" >> $GITHUB_OUTPUT
-            echo "VERSION=latest" >> $GITHUB_ENV
-            echo "Building main branch -> latest"
-
-          elif [[ "${{ github.ref }}" == refs/heads/beta ]]; then
-            # Beta branch: tag as beta
-            echo "TAGS=ghcr.io/${GHCR_REPO}:beta" >> $GITHUB_OUTPUT
-            echo "VERSION=beta" >> $GITHUB_ENV
-            echo "Building beta branch -> beta"
-
-          elif [[ "${{ github.ref }}" == refs/heads/dev ]]; then
-            # Dev branch: tag as dev
-            echo "TAGS=ghcr.io/${GHCR_REPO}:dev" >> $GITHUB_OUTPUT
-            echo "VERSION=dev" >> $GITHUB_ENV
-            echo "Building dev branch -> dev"
-
-          elif [[ "${{ github.ref }}" == refs/heads/test ]]; then
-            # Test branch: tag as test
-            echo "TAGS=ghcr.io/${GHCR_REPO}:test" >> $GITHUB_OUTPUT
-            echo "VERSION=test" >> $GITHUB_ENV
-            echo "Building test branch -> test"
-
-          else
-            echo "Unknown ref: ${{ github.ref }}"
-            exit 1
-          fi
+          fetch-depth: 1
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
+      - name: Install dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
       - name: Build frontend
         working-directory: web
-        run: |
-          bun install
-          VITE_REACT_APP_VERSION="${VERSION}" bun run build
+        env:
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+        run: VITE_REACT_APP_VERSION="${CHANNEL}" bun run build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docker-web-dist
+          path: web/dist
+          retention-days: 1
+          if-no-files-found: error
+
+  build_single_arch:
+    name: Build & push (${{ matrix.arch }})
+    needs: [prepare, build_frontend]
+    strategy:
+      # 单架构失败不取消另一架构，便于定位与部分产出；但 manifest 合成
+      # 要求全部成功，避免 latest 被静默降级为单架构
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix_json) }}
+    runs-on: ${{ matrix.runner }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: docker-web-dist
+          path: web/dist
+
+      - name: Set up QEMU
+        if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
@@ -89,45 +177,131 @@ jobs:
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
-          images: |
-            ghcr.io/${{ env.GHCR_REPO }}
+          images: ${{ needs.prepare.outputs.image }}
 
-      - name: Build & push (amd64)
+      - name: Prepare per-arch tags
+        id: tags
+        shell: bash
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          {
+            echo "tags<<ARCH_TAGS_EOF"
+            jq -r --arg image "$IMAGE" --arg suffix "-$ARCH" \
+              '.[] | "\($image):\(.)\($suffix)"' <<< "$TAGS_JSON"
+            echo "ARCH_TAGS_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build & push (${{ matrix.arch }})
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
-          platforms: linux/amd64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ steps.tags.outputs.TAGS }}
+          tags: ${{ steps.tags.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             COMMIT_HASH=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=ghcr-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=ghcr-${{ matrix.arch }}
           provenance: mode=max
           sbom: true
+
+      - name: Output image tags
+        env:
+          TAGS: ${{ steps.tags.outputs.tags }}
+        run: |
+          echo "### Published image (${{ matrix.arch }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "$TAGS" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  create_manifests:
+    name: Create manifests & sign
+    needs: [prepare, build_single_arch]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifests
+        shell: bash
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+        run: |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            docker buildx imagetools create \
+              -t "$IMAGE:$tag" \
+              "$IMAGE:$tag-amd64" \
+              "$IMAGE:$tag-arm64"
+          done < <(jq -r '.[]' <<< "$TAGS_JSON")
+
+      - name: Resolve final manifest digest
+        id: digest
+        shell: bash
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+        run: |
+          primary_tag=$(jq -r '.[0]' <<< "$TAGS_JSON")
+          # 所有 final tag 由相同 per-arch 源合成，指向同一 manifest，取其一即可
+          digest=$(docker buildx imagetools inspect "$IMAGE:$primary_tag" \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
-      - name: Sign image with cosign
-        run: cosign sign --yes ghcr.io/${GHCR_REPO}@${{ steps.build.outputs.digest }}
+      - name: Sign multi-arch manifest with cosign
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: cosign sign --yes "$IMAGE@$DIGEST"
 
-      - name: Output digest
+      - name: Output manifest details
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
         run: |
-          echo "### Docker Image Digest" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Published multi-arch manifests" >> "$GITHUB_STEP_SUMMARY"
+          echo "Digest: \`$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tags:" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.tags.outputs.TAGS }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          jq -r --arg image "$IMAGE" '.[] | "\($image):\(.)"' <<< "$TAGS_JSON" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Manifest contents:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   notify_feishu:
     name: Notify Feishu
-    needs: [build_amd64]
-    if: ${{ always() && (needs.build_amd64.result == 'success' || needs.build_amd64.result == 'failure') }}
+    needs: [prepare, build_frontend, build_single_arch, create_manifests]
+    # 被取消的 run（concurrency 抢占）不打扰；上游任一失败都要通知
+    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'cancelled') }}
     continue-on-error: true
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -139,7 +313,7 @@ jobs:
           workflow_name: ${{ github.workflow }}
           project_name: ${{ github.repository }}
           branch: ${{ github.ref_name }}
-          conclusion: ${{ needs.build_amd64.result }}
+          conclusion: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
           app_id: ${{ secrets.FEISHU_APP_ID }}
           app_secret: ${{ secrets.FEISHU_APP_SECRET }}
           user_id: ${{ secrets.FEISHU_USER_ID }}

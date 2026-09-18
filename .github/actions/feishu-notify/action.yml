@@ -104,7 +104,7 @@ runs:
               }
             }')
         else
-          ACTIONS_NAME="${WF_NAME:-Publish Docker image (AMD64 only)}"
+          ACTIONS_NAME="${WF_NAME:-Publish Docker image (multi-arch)}"
           CONTENT=$(jq -nc \
             --arg template_id "$TEMPLATE_ID" \
             --arg template_version "$TEMPLATE_VERSION" \
