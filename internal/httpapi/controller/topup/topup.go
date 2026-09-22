@@ -246,7 +246,7 @@ func EpayNotify(c *gin.Context) {
 		log.Println(verifyInfo)
 		payment.LockOrder(verifyInfo.ServiceTradeNo)
 		defer payment.UnlockOrder(verifyInfo.ServiceTradeNo)
-		if err := topupstore.CompleteEpayTopUp(verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.Money); err != nil {
+		if err := topupstore.CompleteEpayTopUp(verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.Money, c.ClientIP()); err != nil {
 			log.Printf("易支付回调完成订单失败: trade_no=%s type=%s money=%s err=%v", verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.Money, err)
 			// 订单已非 pending（通常是重复回调且此前已入账），确认 success
 			// 避免平台无限重试；其余入账失败写 fail 让平台重试。
@@ -365,7 +365,7 @@ func AdminCompleteTopUp(c *gin.Context) {
 	payment.LockOrder(req.TradeNo)
 	defer payment.UnlockOrder(req.TradeNo)
 
-	if err := topupstore.ManualCompleteTopUp(req.TradeNo); err != nil {
+	if err := topupstore.ManualCompleteTopUp(req.TradeNo, c.ClientIP()); err != nil {
 		common.SysError("manual complete topup failed: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return

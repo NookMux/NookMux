@@ -52,7 +52,7 @@ func TestCompleteEpayTopUpQuotaOverflowFailsClosed(t *testing.T) {
 	createTopUpCallbackUser(t, 1)
 	createOverflowTopUp(t, "epay-wrap", PaymentProviderEpay, "alipay", 8599.0, 8599)
 
-	err := CompleteEpayTopUp("epay-wrap", "alipay", "8599")
+	err := CompleteEpayTopUp("epay-wrap", "alipay", "8599", testCallerIp)
 	if strconv.IntSize == 32 {
 		if err == nil {
 			t.Fatal("CompleteEpayTopUp succeeded on 32-bit build with wrapped quota 4532704, want explicit error")
@@ -79,7 +79,7 @@ func TestManualCompleteTopUpQuotaOverflowFailsClosed(t *testing.T) {
 	// 易支付分支：Amount × QuotaPerUnit
 	createOverflowTopUp(t, "manual-wrap-epay", PaymentProviderEpay, "alipay", 8599.0, 8599)
 
-	err := ManualCompleteTopUp("manual-wrap-epay")
+	err := ManualCompleteTopUp("manual-wrap-epay", testCallerIp)
 	if strconv.IntSize == 32 {
 		if err == nil {
 			t.Fatal("ManualCompleteTopUp succeeded on 32-bit build with wrapped quota 4532704, want explicit error")
@@ -106,7 +106,7 @@ func TestManualCompleteTopUpStripeQuotaOverflowFailsClosed(t *testing.T) {
 	// Stripe 分支：Money × QuotaPerUnit（Amount 不参与换算）
 	createOverflowTopUp(t, "manual-wrap-stripe", PaymentProviderStripe, PaymentMethodStripe, 8599.0, 0)
 
-	err := ManualCompleteTopUp("manual-wrap-stripe")
+	err := ManualCompleteTopUp("manual-wrap-stripe", testCallerIp)
 	if strconv.IntSize == 32 {
 		if err == nil {
 			t.Fatal("ManualCompleteTopUp(stripe) succeeded on 32-bit build with wrapped quota 4532704, want explicit error")
@@ -136,7 +136,7 @@ func TestRechargeQuotaOverflowFailsClosedOn32Bit(t *testing.T) {
 	createTopUpCallbackUser(t, 1)
 	createOverflowTopUp(t, "recharge-wrap", PaymentProviderStripe, PaymentMethodStripe, 8599.0, 0)
 
-	err := Recharge("recharge-wrap", "cus_overflow")
+	err := Recharge("recharge-wrap", "cus_overflow", testCallerIp)
 	if strconv.IntSize == 32 {
 		if err == nil {
 			t.Fatal("Recharge succeeded on 32-bit build and wrote quota beyond int range (account poisoned for later reads), want explicit error")
