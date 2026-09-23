@@ -57,6 +57,7 @@
 
 ### 前端与文档
 - [web/](web/AGENTS.md)：前端单页应用（React 19 + TypeScript + Rsbuild + Tailwind CSS 4）。
+- [DESIGN.md](DESIGN.md)：前端外观与感受的唯一设计规范（调性、颜色、字体、组件、布局、动效），修改任何 UI 前必读。
 - [docs/](docs/AGENTS.md)：跨模块详细规范、系统设计与开发参考文档。
 
 `参考项目/` 是本地参考源码，已被忽略；除非用户明确要求，不要修改其中内容。
