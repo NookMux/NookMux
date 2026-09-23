@@ -4,6 +4,17 @@
 
 基于 [newapi](https://github.com/QuantumNous/new-api) 的自用定制版 AI API 网关/代理项目。内置支持各大厂商CodingPlan套餐渠道，方便便捷对接使用、额度查询等服务
 
+相较于原版NewAPI-v0.10.9-alpha.3，我做了下列优化
+
+1. 优化UI
+2. 适配了中国一部分AI厂商的套餐对接、额度查询等功能
+3. 优化了渠道对接，例如基础URL、多协议原生适配、移除部分冗余协议
+4. 优化了协议转换，使得原本不支持Responses的渠道，也能自主的将Responses转换为上游支持的Chat接口
+5. 丰富了TTS的使用适配，可以变成商业化平台进行运营
+...
+
+或许还有更多功能的优化，只是由于记忆原因没法较为详细的在此地方表述。
+
 本项目主要用于个人学习、研究与自用场景。使用、部署或二次分发本项目时，应遵守 AGPL-3.0 许可证、本项目及上游项目的版权声明，并自行确保不违反相关上游服务提供商的服务条款；不得将本项目用于中转、分发、倒卖厂商 Plan 或其他违反第三方服务条款的行为。
 
 [Zread](https://zread.ai/NookMux/NookMux) · [DeepWiki](https://deepwiki.com/NookMux/NookMux)
