@@ -110,6 +110,11 @@ user.topup_processing: "充值处理中，请稍后重试"
 user.register_failed: "用户注册失败或用户ID获取失败"
 user.default_token_failed: "生成默认令牌失败"
 user.banned: "用户已被封禁"
+user.ban.invalid_identifier: "标识类型或取值不合法"
+user.ban.github_user_not_found: "GitHub 上不存在该用户名"
+user.ban.github_rate_limited: "GitHub API 请求过于频繁（无凭证限流 60 次/小时/IP），请稍后重试"
+user.ban.github_lookup_failed: "查询 GitHub 用户信息失败，请稍后重试"
+user.ban.placeholder_failed: "创建拉黑占位用户失败，请重试"
 
 # Prefill group messages
 prefill_group.name_type_required: "组名称和类型不能为空"

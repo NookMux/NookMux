@@ -127,6 +127,11 @@ const (
 	MsgUserRegisterFailed            = "user.register_failed"
 	MsgUserDefaultTokenFailed        = "user.default_token_failed"
 	MsgUserBanned                    = "user.banned"
+	MsgUserBanInvalidIdentifier      = "user.ban.invalid_identifier"
+	MsgUserBanGitHubUserNotFound     = "user.ban.github_user_not_found"
+	MsgUserBanGitHubRateLimited      = "user.ban.github_rate_limited"
+	MsgUserBanGitHubLookupFailed     = "user.ban.github_lookup_failed"
+	MsgUserBanPlaceholderFailed      = "user.ban.placeholder_failed"
 )
 
 // Prefill group related messages

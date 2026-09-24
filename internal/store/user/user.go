@@ -423,6 +423,21 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	}
 }
 
+// InsertBannedPlaceholder inserts an admin pre-created, already-banned placeholder user
+// (used by /api/user/ban to block OAuth identifiers of users who never logged in).
+// Unlike Insert/InsertWithTx it grants no new-user quota and writes no bonus logs.
+// The placeholder has no password (empty string is a valid not-null value, same as
+// OAuth-registered users) so it can never pass password login.
+func (user *User) InsertBannedPlaceholder() error {
+	user.Quota = 0
+	user.AffCode = common.GetRandomString(4)
+	user.CreatedAt = common.GetTimestamp()
+	if user.Setting == "" {
+		user.SetSetting(shared.UserSetting{})
+	}
+	return dbstore.DB.Create(user).Error
+}
+
 func (user *User) Update(updatePassword bool) error {
 	var err error
 	if updatePassword {
@@ -890,6 +905,33 @@ func (user *User) FillUserByLinuxDOId() error {
 	}
 	err := dbstore.DB.Where("linux_do_id = ?", user.LinuxDOId).First(user).Error
 	return err
+}
+
+// 以下查询服务于管理员「按一键登录标识拉黑」（/api/user/ban）。
+// 与 Is*AlreadyTaken 的布尔语义不同，这里返回完整行集合（含软删用户），
+// 供调用方区分 0 / 1 / N 命中并决定预创建、封禁还是返回候选清单。
+func GetUsersByEmailUnscoped(email string) ([]User, error) {
+	var users []User
+	err := dbstore.DB.Unscoped().Where("email = ?", email).Find(&users).Error
+	return users, err
+}
+
+func GetUsersByGitHubIdUnscoped(githubId string) ([]User, error) {
+	var users []User
+	err := dbstore.DB.Unscoped().Where("github_id = ?", githubId).Find(&users).Error
+	return users, err
+}
+
+func GetUsersByLinuxDOIdUnscoped(linuxDOId string) ([]User, error) {
+	var users []User
+	err := dbstore.DB.Unscoped().Where("linux_do_id = ?", linuxDOId).Find(&users).Error
+	return users, err
+}
+
+func IsUsernameTakenUnscoped(username string) bool {
+	var count int64
+	dbstore.DB.Unscoped().Model(&User{}).Where("username = ?", username).Count(&count)
+	return count > 0
 }
 
 // UpdateLastLoginAt updates the user's last login timestamp

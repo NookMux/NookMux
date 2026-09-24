@@ -109,6 +109,11 @@ user.topup_processing: "Top-up is processing, please try again later"
 user.register_failed: "User registration failed or user ID retrieval failed"
 user.default_token_failed: "Failed to generate default token"
 user.banned: "User has been banned"
+user.ban.invalid_identifier: "Invalid identifier type or value"
+user.ban.github_user_not_found: "This GitHub username does not exist"
+user.ban.github_rate_limited: "GitHub API rate limit reached (60 requests/hour/IP unauthenticated), please try again later"
+user.ban.github_lookup_failed: "Failed to look up GitHub user info, please try again later"
+user.ban.placeholder_failed: "Failed to create the banned placeholder user, please try again"
 
 # Prefill group messages
 prefill_group.name_type_required: "Group name and type cannot be empty"

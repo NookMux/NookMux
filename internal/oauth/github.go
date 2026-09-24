@@ -3,6 +3,7 @@ package oauth
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/i18n"
@@ -157,6 +158,68 @@ func (p *GitHubProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*O
 			"legacy_id": githubUser.Login, // Store login for migration from old accounts
 		},
 	}, nil
+}
+
+// Sentinel errors for LookupGitHubLogin, mapped by the caller to i18n messages.
+var (
+	// ErrGitHubLookupNotFound indicates the GitHub username does not exist.
+	ErrGitHubLookupNotFound = errors.New("github lookup: user not found")
+	// ErrGitHubLookupRateLimited indicates GitHub's unauthenticated rate limit
+	// (60 req/h per IP) was hit.
+	ErrGitHubLookupRateLimited = errors.New("github lookup: rate limited")
+	// ErrGitHubLookupFailed indicates the request failed (network error, 5xx
+	// or malformed response).
+	ErrGitHubLookupFailed = errors.New("github lookup: request failed")
+)
+
+// githubAPIBaseURL is a package-level variable so tests can point it at an httptest server.
+var githubAPIBaseURL = "https://api.github.com"
+
+// LookupGitHubLogin resolves a GitHub username (login) to its permanent numeric
+// account ID via the unauthenticated GET /users/{login} endpoint. The login must
+// be pre-validated by the caller (^[a-zA-Z0-9-]+$) so it cannot alter the URL path.
+func LookupGitHubLogin(ctx context.Context, login string) (int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, githubAPIBaseURL+"/users/"+login, nil)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %v", ErrGitHubLookupFailed, err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	client := http.Client{
+		Timeout: 20 * time.Second,
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		log.LogError(ctx, fmt.Sprintf("[OAuth-GitHub] LookupGitHubLogin error: %s", err.Error()))
+		return 0, fmt.Errorf("%w: %v", ErrGitHubLookupFailed, err)
+	}
+	defer res.Body.Close()
+
+	switch res.StatusCode {
+	case http.StatusOK:
+	case http.StatusNotFound:
+		return 0, ErrGitHubLookupNotFound
+	case http.StatusForbidden:
+		log.LogError(ctx, fmt.Sprintf("[OAuth-GitHub] LookupGitHubLogin rate limited, X-RateLimit-Remaining=%s",
+			res.Header.Get("X-RateLimit-Remaining")))
+		return 0, ErrGitHubLookupRateLimited
+	default:
+		log.LogError(ctx, fmt.Sprintf("[OAuth-GitHub] LookupGitHubLogin failed: status=%d", res.StatusCode))
+		return 0, fmt.Errorf("%w: status %d", ErrGitHubLookupFailed, res.StatusCode)
+	}
+
+	var githubUser gitHubUser
+	if err := jsonx.DecodeJson(res.Body, &githubUser); err != nil {
+		log.LogError(ctx, fmt.Sprintf("[OAuth-GitHub] LookupGitHubLogin decode error: %s", err.Error()))
+		return 0, fmt.Errorf("%w: %v", ErrGitHubLookupFailed, err)
+	}
+	if githubUser.Id == 0 {
+		log.LogError(ctx, "[OAuth-GitHub] LookupGitHubLogin failed: empty id field")
+		return 0, fmt.Errorf("%w: empty id", ErrGitHubLookupFailed)
+	}
+
+	log.LogDebug(ctx, "[OAuth-GitHub] LookupGitHubLogin success: login=%s, id=%d", login, githubUser.Id)
+	return githubUser.Id, nil
 }
 
 func (p *GitHubProvider) IsUserIDTaken(providerUserID string) bool {
