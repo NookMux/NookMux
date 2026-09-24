@@ -49,6 +49,7 @@ export const channelsQueryKeys = {
     [...channelsQueryKeys.lists(), params] as const,
   details: () => [...channelsQueryKeys.all, 'detail'] as const,
   detail: (id: number) => [...channelsQueryKeys.details(), id] as const,
+  builtinUrls: () => [...channelsQueryKeys.all, 'builtin-urls'] as const,
 }
 
 // ============================================================================

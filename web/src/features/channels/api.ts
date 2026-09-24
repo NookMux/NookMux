@@ -23,6 +23,7 @@ import type {
   AddChannelRequest,
   BatchDeleteParams,
   BatchSetTagParams,
+  BuiltinChannelUrlsResponse,
   Channel,
   ChannelBalanceResponse,
   ChannelTestResponse,
@@ -337,6 +338,16 @@ export async function getCodexUsage(
     disableDuplicate: true,
   }
   const res = await api.get(`/api/channel/${channelId}/codex/usage`, config)
+  return res.data
+}
+
+// ============================================================================
+// Builtin Channel URL Presets
+// ============================================================================
+
+/** 内置渠道类型的 base_url 预设选项（官方站点/套餐的数据源） */
+export async function getBuiltinChannelUrls(): Promise<BuiltinChannelUrlsResponse> {
+  const res = await api.get('/api/channel/builtin_urls')
   return res.data
 }
 

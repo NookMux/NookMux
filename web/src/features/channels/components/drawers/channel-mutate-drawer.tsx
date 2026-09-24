@@ -116,6 +116,7 @@ import {
   fetchModels,
   fetchProviders,
   getAllModels,
+  getBuiltinChannelUrls,
   getChannel,
   getChannelKey,
   getGroups,
@@ -156,7 +157,11 @@ import {
   collectInvalidStatusCodeEntries,
   collectNewDisallowedStatusCodeRedirects,
 } from '../../lib/status-code-risk-guard'
-import type { Channel, ProxyTestResultData } from '../../types'
+import type {
+  BuiltinUrlOption,
+  Channel,
+  ProxyTestResultData,
+} from '../../types'
 import { FetchModelsDialog } from '../dialogs/fetch-models-dialog'
 import {
   MissingModelsConfirmationDialog,
@@ -225,6 +230,9 @@ const MODEL_MAPPING_PREVIEW_FALLBACK: Array<{
 }> = [{ source: 'client-model', target: 'upstream-model' }]
 
 const OPENAI_WIRE_API_CHANNEL_TYPES = new Set([1, 4, 6, 25, 26, 35, 44])
+
+// base_url 预设下拉中"自定义"项的哨兵值，仅用于渲染切换，不落入表单
+const BASE_URL_CUSTOM_OPTION = '__custom__'
 
 function CardHeading({ title, icon }: { title: string; icon?: ReactNode }) {
   return (
@@ -306,6 +314,7 @@ export function ChannelMutateDrawer({
   const [proxyTestLoading, setProxyTestLoading] = useState(false)
   const [proxyTestResult, setProxyTestResult] =
     useState<ProxyTestResultData | null>(null)
+  const [baseUrlCustomSelected, setBaseUrlCustomSelected] = useState(false)
 
   const isEditing = Boolean(currentRow)
   const channelId = currentRow?.id ?? null
@@ -333,6 +342,13 @@ export function ChannelMutateDrawer({
   const { data: prefillGroupsData } = useQuery({
     queryKey: ['prefill_groups', 'model'],
     queryFn: () => getPrefillGroups('model'),
+  })
+
+  // Fetch built-in base_url presets for the current channel type
+  const { data: builtinUrlsData, isError: isBuiltinUrlsError } = useQuery({
+    queryKey: channelsQueryKeys.builtinUrls(),
+    queryFn: getBuiltinChannelUrls,
+    staleTime: 5 * 60 * 1000,
   })
 
   const { copyToClipboard } = useCopyToClipboard()
@@ -429,6 +445,20 @@ export function ChannelMutateDrawer({
         ?.label || `#${currentType}`,
     [currentType]
   )
+
+  // Built-in base_url presets available for the current channel type
+  const baseUrlPresetOptions = useMemo(
+    () => builtinUrlsData?.data?.[String(currentType)] ?? [],
+    [builtinUrlsData, currentType]
+  )
+  const currentBaseUrlMatchesPreset = baseUrlPresetOptions.some(
+    (option) => option.value === currentBaseUrl
+  )
+
+  // Reset the explicit "custom" toggle when the channel type changes
+  useEffect(() => {
+    setBaseUrlCustomSelected(false)
+  }, [currentType])
 
   const channelTypeOptions = useMemo(() => {
     const options = CHANNEL_TYPE_OPTIONS.map((option) => ({
@@ -560,8 +590,10 @@ export function ChannelMutateDrawer({
   }, [isEditing, channelData, form])
 
   // Validate base_url - warn if it ends with /v1
+  // (official presets like MiniMax's default legitimately end with /v1)
   useEffect(() => {
     if (!currentBaseUrl || !currentBaseUrl.endsWith('/v1')) return
+    if (currentBaseUrlMatchesPreset) return
 
     // Show warning toast
     const timer = setTimeout(() => {
@@ -572,7 +604,7 @@ export function ChannelMutateDrawer({
 
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBaseUrl])
+  }, [currentBaseUrl, currentBaseUrlMatchesPreset])
 
   // Handle key deduplication
   const handleDeduplicateKeys = () => {
@@ -1004,6 +1036,7 @@ export function ChannelMutateDrawer({
       onOpenChange(v)
       if (!v) {
         form.reset(CHANNEL_FORM_DEFAULT_VALUES)
+        setBaseUrlCustomSelected(false)
       }
     },
     [onOpenChange, form]
@@ -1579,28 +1612,98 @@ export function ChannelMutateDrawer({
                   </>
                 )}
 
-                {/* General base_url for other types */}
+                {/* General base_url for other types: preset select or custom input */}
                 {![3, 8].includes(currentType) && (
                   <FormField
                     control={form.control}
                     name='base_url'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('channels.fields.baseUrl')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t(
-                            'channels.tips.customApiBaseUrlForOfficialChannelsNewApi'
+                    render={({ field }) => {
+                      const matchesPreset = baseUrlPresetOptions.some(
+                        (option) => option.value === field.value
+                      )
+                      // 无预设（含加载失败）、显式选择"自定义"、或存量值不匹配任何预设
+                      // （如手填代理地址）时渲染可编辑输入框，其余走预设下拉
+                      const showCustomInput =
+                        baseUrlPresetOptions.length === 0 ||
+                        baseUrlCustomSelected ||
+                        (field.value != null &&
+                          field.value !== '' &&
+                          !matchesPreset)
+                      const presetLabel = (option: BuiltinUrlOption) =>
+                        option.value.startsWith('http')
+                          ? `${t(option.label_key)} (${option.value})`
+                          : t(option.label_key)
+
+                      return (
+                        <FormItem>
+                          <FormLabel>{t('channels.fields.baseUrl')}</FormLabel>
+                          {showCustomInput ? (
+                            <FormControl>
+                              <Input
+                                placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
+                                {...field}
+                              />
+                            </FormControl>
+                          ) : (
+                            <Select
+                              items={[
+                                ...baseUrlPresetOptions.map((option) => ({
+                                  value: option.value,
+                                  label: presetLabel(option),
+                                })),
+                                {
+                                  value: BASE_URL_CUSTOM_OPTION,
+                                  label: t('channels.fields.baseUrlCustom'),
+                                },
+                              ]}
+                              value={field.value || null}
+                              onValueChange={(value) => {
+                                if (value === BASE_URL_CUSTOM_OPTION) {
+                                  // 保留当前值进入可编辑输入框，便于在预设基础上修改
+                                  setBaseUrlCustomSelected(true)
+                                  return
+                                }
+                                field.onChange(value ?? '')
+                              }}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue
+                                    placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
+                                  />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent alignItemWithTrigger={false}>
+                                <SelectGroup>
+                                  {baseUrlPresetOptions.map((option) => (
+                                    <SelectItem
+                                      key={option.value}
+                                      value={option.value}
+                                    >
+                                      {presetLabel(option)}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value={BASE_URL_CUSTOM_OPTION}>
+                                    {t('channels.fields.baseUrlCustom')}
+                                  </SelectItem>
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
                           )}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                          <FormDescription>
+                            {t(
+                              'channels.tips.customApiBaseUrlForOfficialChannelsNewApi'
+                            )}
+                          </FormDescription>
+                          {isBuiltinUrlsError && (
+                            <p className='text-destructive text-xs'>
+                              {t('channels.errors.builtinUrlOptionsLoadFailed')}
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )
+                    }}
                   />
                 )}
 

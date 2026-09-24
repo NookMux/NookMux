@@ -767,4 +767,13 @@ export const STATIC_I18N_KEYS = [
   'channels.fields.planMinimaxCodingPlan',
   'channels.fields.planMinimaxCodingPlanInternational',
   'channels.fields.planOllamaCodingPlan',
+  'channels.fields.planXiaomiCodingPlan',
+  'channels.fields.planXiaomiCodingPlanSingapore',
+  'channels.fields.planXiaomiCodingPlanAmsterdam',
+
+  // Channel form base_url preset select (dynamic option labels)
+  'channels.fields.baseUrlDefault',
+  'channels.fields.baseUrlDomestic',
+  'channels.fields.baseUrlInternational',
+  'channels.fields.baseUrlOfficial',
 ] as const

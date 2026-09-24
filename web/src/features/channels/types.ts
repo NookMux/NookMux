@@ -109,6 +109,19 @@ export interface ChannelOtherSettings {
 // API Response Types
 // ============================================================================
 
+/** 内置渠道类型的 base_url 预设选项（value=渠道存储值，label_key=i18n key） */
+export interface BuiltinUrlOption {
+  value: string
+  label_key: string
+}
+
+export interface BuiltinChannelUrlsResponse {
+  success: boolean
+  message?: string
+  /** 渠道类型（字符串化的数字）→ 预设选项列表 */
+  data?: Record<string, BuiltinUrlOption[]>
+}
+
 export interface GetChannelsResponse {
   success: boolean
   message?: string
