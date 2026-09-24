@@ -528,7 +528,10 @@ export function OllamaModelsDialog({
                                 onCheckedChange={(v) =>
                                   toggleSelected(m.id, !!v)
                                 }
-                                aria-label={`Select model ${m.id}`}
+                                aria-label={t(
+                                  'channels.placeholders.selectModelModel',
+                                  { model: m.id }
+                                )}
                               />
                               <div className='min-w-0'>
                                 <div className='truncate font-mono text-sm'>

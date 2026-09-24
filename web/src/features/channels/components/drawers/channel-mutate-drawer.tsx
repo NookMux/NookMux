@@ -136,7 +136,7 @@ import {
 } from '../../constants'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
-  channelFormSchema,
+  getChannelFormSchema,
   channelsQueryKeys,
   transformChannelToFormDefaults,
   transformFormDataToCreatePayload,
@@ -379,7 +379,7 @@ export function ChannelMutateDrawer({
 
   // Form setup
   const form = useForm<ChannelFormValues>({
-    resolver: zodResolver(channelFormSchema),
+    resolver: zodResolver(getChannelFormSchema(t)),
     defaultValues: CHANNEL_FORM_DEFAULT_VALUES,
   })
 
@@ -636,7 +636,7 @@ export function ChannelMutateDrawer({
 
   const fetchChannelKey = useCallback(async () => {
     if (!channelId) {
-      throw new Error('Channel is not selected')
+      throw new Error(t('channels.errors.channelNotSelected'))
     }
 
     setIsChannelKeyLoading(true)
@@ -663,16 +663,15 @@ export function ChannelMutateDrawer({
     try {
       await withVerification(fetchChannelKey, {
         preferredMethod: 'passkey',
-        title: 'Verify to view channel key',
-        description:
-          'Use Passkey or 2FA to confirm your identity before revealing this channel key.',
+        title: t('channels.titles.verifyToViewChannelKey'),
+        description: t('channels.tips.verifyIdentityToRevealKey'),
       })
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message)
       }
     }
-  }, [channelId, withVerification, fetchChannelKey])
+  }, [channelId, withVerification, fetchChannelKey, t])
 
   // Unified function to update models
   const updateModels = useCallback(
@@ -744,8 +743,10 @@ export function ChannelMutateDrawer({
         typeof m === 'string' ? m : String(m ?? '')
       )
     }
-    throw new Error(response.message || 'No models fetched from upstream')
-  }, [form])
+    throw new Error(
+      response.message || t('channels.errors.noModelsFetchedFromUpstream')
+    )
+  }, [form, t])
 
   const createModeProviderFetcher = useCallback(async () => {
     const response = await fetchProviders({
@@ -943,7 +944,9 @@ export function ChannelMutateDrawer({
       if (hasModelMapping) {
         const validation = validateModelMappingJson(data.model_mapping!)
         if (!validation.valid) {
-          toast.error(t(validation.error || 'Invalid model mapping'))
+          toast.error(
+            t(validation.error || 'common.errors.invalidModelMappingFormat')
+          )
           return
         }
       }
@@ -2218,7 +2221,6 @@ export function ChannelMutateDrawer({
                                 <div className='text-[11px] opacity-70'>
                                   +{remainingMappingCount}{' '}
                                   {t('channels.fields.moreMapping')}
-                                  {remainingMappingCount > 1 ? 's' : ''}
                                 </div>
                               )}
                             </div>
@@ -3050,8 +3052,8 @@ export function ChannelMutateDrawer({
                               disabled={isSubmitting}
                               keyPlaceholder='400'
                               valuePlaceholder='500'
-                              keyLabel='Original Code'
-                              valueLabel='Mapped Code'
+                              keyLabel={t('channels.fields.originalCode')}
+                              valueLabel={t('channels.fields.mappedCode')}
                               emptyMessage={t(
                                 'channels.tips.noStatusCodeMappingsConfigured'
                               )}
@@ -3140,8 +3142,8 @@ export function ChannelMutateDrawer({
                               disabled={isSubmitting}
                               keyPlaceholder='temperature'
                               valuePlaceholder='0.7'
-                              keyLabel='Parameter'
-                              valueLabel='Value'
+                              keyLabel={t('channels.fields.parameter')}
+                              valueLabel={t('channels.fields.value')}
                               emptyMessage={t(
                                 'channels.tips.noParameterOverridesConfigured'
                               )}

@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
 import {
   formatCompactCurrencyFromUSD,
   formatCurrencyFromUSD,
@@ -41,7 +42,10 @@ import type { Channel, ChannelSettings, ChannelOtherSettings } from '../types'
  * Get human-readable channel type label
  */
 export function getChannelTypeLabel(type: number): string {
-  return CHANNEL_TYPES[type as keyof typeof CHANNEL_TYPES] || 'Unknown'
+  return (
+    CHANNEL_TYPES[type as keyof typeof CHANNEL_TYPES] ||
+    'channels.fields.unknown'
+  )
 }
 
 /**
@@ -364,27 +368,34 @@ export function getResponseTimeConfig(timeMs: number) {
 /**
  * Format Unix timestamp to relative time
  * e.g., "2 hours ago", "3 days ago"
+ * Pass `t` from useTranslation() to localize the "Never"/"Unknown" fallbacks;
+ * the relative phrase follows the current i18next language.
  */
-export function formatRelativeTime(timestamp: number): string {
-  if (!timestamp || timestamp === 0) return 'Never'
+export function formatRelativeTime(timestamp: number, t?: TFunction): string {
+  if (!timestamp || timestamp === 0)
+    return t ? t('common.status.never') : 'Never'
 
   try {
-    return dayjs(timestamp * 1000).fromNow()
+    const locale = i18next.language === 'zh' ? 'zh-cn' : 'en'
+    return dayjs(timestamp * 1000)
+      .locale(locale)
+      .fromNow()
   } catch {
-    return 'Unknown'
+    return t ? t('channels.fields.unknown') : 'Unknown'
   }
 }
 
 /**
  * Format Unix timestamp to date string
  */
-export function formatTimestamp(timestamp: number): string {
-  if (!timestamp || timestamp === 0) return 'N/A'
+export function formatTimestamp(timestamp: number, t?: TFunction): string {
+  if (!timestamp || timestamp === 0)
+    return t ? t('common.status.notAvailable') : 'N/A'
 
   try {
     return formatTimestampToDate(timestamp)
   } catch {
-    return 'Invalid date'
+    return t ? t('common.status.invalidDate') : 'Invalid date'
   }
 }
 
@@ -645,5 +656,8 @@ export function deduplicateKeys(keysText: string): {
  * Get key prompt based on channel type
  */
 export function getKeyPromptForType(type: number): string {
-  return TYPE_TO_KEY_PROMPT[type] || 'Enter API key for this channel'
+  return (
+    TYPE_TO_KEY_PROMPT[type] ||
+    'channels.placeholders.enterApiKeyForThisChannel'
+  )
 }

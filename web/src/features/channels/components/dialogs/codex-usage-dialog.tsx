@@ -192,21 +192,21 @@ const PLAN_TYPE_BADGE: Record<
   string,
   { label: string; variant: StatusBadgeProps['variant'] }
 > = {
-  enterprise: { label: 'Enterprise', variant: 'success' },
-  team: { label: 'Team', variant: 'info' },
-  pro: { label: 'Pro', variant: 'blue' },
-  plus: { label: 'Plus', variant: 'purple' },
-  free: { label: 'Free', variant: 'warning' },
+  enterprise: { label: 'channels.tips.planTypeEnterprise', variant: 'success' },
+  team: { label: 'channels.tips.planTypeTeam', variant: 'info' },
+  pro: { label: 'channels.tips.planTypePro', variant: 'blue' },
+  plus: { label: 'channels.tips.planTypePlus', variant: 'purple' },
+  free: { label: 'channels.tips.planTypeFree', variant: 'warning' },
 }
 
-function getAccountTypeBadge(
-  value: unknown,
-  t: (key: string) => string
-): { label: string; variant: StatusBadgeProps['variant'] } {
+function getAccountTypeBadge(value: unknown): {
+  label: string
+  variant: StatusBadgeProps['variant']
+} {
   const normalized = normalizePlanType(value)
   return (
     PLAN_TYPE_BADGE[normalized] ?? {
-      label: String(value || '') || t('channels.fields.unknown'),
+      label: String(value || '') || 'channels.fields.unknown',
       variant: 'neutral' as const,
     }
   )
@@ -241,7 +241,10 @@ function RateLimitWindow(props: RateLimitWindowProps) {
       <div className='mt-3'>
         <Progress
           value={percent}
-          aria-label={`${props.title} usage: ${percent}%`}
+          aria-label={t('channels.tips.usageProgressAria', {
+            title: props.title,
+            percent,
+          })}
         />
       </div>
       {hasData ? (
@@ -372,7 +375,7 @@ export function CodexUsageDialog({
 
   const rateLimit = payload?.rate_limit
   const accountType = payload?.plan_type ?? rateLimit?.plan_type
-  const accountBadge = getAccountTypeBadge(accountType, t)
+  const accountBadge = getAccountTypeBadge(accountType)
   const additionalRateLimits = (payload?.additional_rate_limits ?? []).filter(
     (item) => item && Object.keys(item).length > 0
   )
@@ -456,7 +459,7 @@ export function CodexUsageDialog({
             <div className='flex flex-wrap items-center justify-between gap-2'>
               <div className='flex flex-wrap items-center gap-2'>
                 <StatusBadge
-                  label={accountBadge.label}
+                  label={t(accountBadge.label)}
                   variant={accountBadge.variant}
                   copyable={false}
                 />
@@ -487,7 +490,7 @@ export function CodexUsageDialog({
             <div className='bg-muted/30 mt-3 rounded-md px-3 py-2'>
               <CopyableField
                 icon={<User className='h-3.5 w-3.5' />}
-                label='User ID'
+                label={t('channels.fields.userId')}
                 value={payload?.user_id}
                 mono
               />
@@ -498,7 +501,7 @@ export function CodexUsageDialog({
               />
               <CopyableField
                 icon={<Hash className='h-3.5 w-3.5' />}
-                label='Account ID'
+                label={t('channels.fields.accountId')}
                 value={payload?.account_id}
                 mono
               />

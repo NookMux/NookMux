@@ -147,9 +147,12 @@ export async function handleUpdateChannelField(
   try {
     const response = await updateChannel(id, { [fieldName]: value })
     if (response.success) {
-      // Show success toast with field name
-      const fieldLabel =
-        fieldName.charAt(0).toUpperCase() + fieldName.slice(1).toLowerCase()
+      // Show success toast with localized field label
+      const fieldLabelKeys: Record<string, string> = {
+        priority: 'channels.fields.priority',
+        weight: 'channels.fields.weight',
+      }
+      const fieldLabel = i18next.t(fieldLabelKeys[fieldName] || fieldName)
       toast.success(
         i18next.t('channels.status.fieldUpdatedToValue', {
           field: fieldLabel,

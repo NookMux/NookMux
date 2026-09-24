@@ -123,7 +123,9 @@ export function CopyChannelDialog({
           </Button>
           <Button onClick={handleCopy} disabled={isCopying}>
             {isCopying && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {isCopying ? 'Copying...' : 'Copy Channel'}
+            {isCopying
+              ? t('channels.status.copying')
+              : t('channels.actions.copyChannel')}
           </Button>
         </DialogFooter>
       </DialogContent>

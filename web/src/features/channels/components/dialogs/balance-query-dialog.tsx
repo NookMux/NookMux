@@ -181,7 +181,7 @@ export function BalanceQueryDialog({
       : `¥${Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(value)}`
 
   const formatDate = (timestamp: number) => {
-    if (!timestamp) return 'Never'
+    if (!timestamp) return t('common.status.never')
     return formatTimestampToDate(timestamp)
   }
 

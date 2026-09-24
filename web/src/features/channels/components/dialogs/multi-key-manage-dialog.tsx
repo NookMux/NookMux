@@ -226,7 +226,7 @@ export function MultiKeyManageDialog({
 
   const formatKeyTimestamp = (timestamp?: number) => {
     if (!timestamp) return '-'
-    return formatTimestamp(timestamp)
+    return formatTimestamp(timestamp, t)
   }
 
   if (!currentRow) return null

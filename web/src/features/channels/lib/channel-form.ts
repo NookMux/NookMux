@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { z } from 'zod'
+import type { TFunction } from 'i18next'
 import { CHANNEL_STATUS } from '../constants'
 import type { Channel, UpdateChannelParams } from '../types'
 
@@ -24,108 +25,117 @@ import type { Channel, UpdateChannelParams } from '../types'
 // Form Validation Schema
 // ============================================================================
 
-export const channelFormSchema = z
-  .object({
-    name: z.string().min(1, 'Channel name is required'),
-    type: z.number().min(0, 'Channel type is required'),
-    base_url: z.string().optional(),
-    key: z.string(),
-    openai_organization: z.string().optional(),
-    models: z.string().min(1, 'At least one model is required'),
-    group: z.array(z.string()).min(1, 'At least one group is required'),
-    model_mapping: z.string().optional(),
-    priority: z.number().optional(),
-    weight: z.number().optional(),
-    test_model: z.string().optional(),
-    auto_ban: z.number().optional(),
-    status: z.number(),
-    status_code_mapping: z.string().optional(),
-    tag: z.string().optional(),
-    remark: z
-      .string()
-      .max(255, 'Remark must be less than 255 characters')
-      .optional(),
-    setting: z.string().optional(),
-    param_override: z.string().optional(),
-    header_override: z.string().optional(),
-    settings: z.string().optional(),
-    other: z.string().optional(),
-    // Multi-key options (not sent to backend directly)
-    multi_key_mode: z.enum(['single', 'batch', 'multi_to_single']).optional(),
-    multi_key_type: z.enum(['random', 'polling']).optional(),
-    batch_add_set_key_prefix_2_name: z.boolean().optional(),
-    key_mode: z.enum(['append', 'replace']).optional(), // For editing multi-key channels
-    // Channel extra settings (stored in setting JSON, not sent directly)
-    force_format: z.boolean().optional(),
-    proxy: z.string().optional(),
-    pass_through_body_enabled: z.boolean().optional(),
-    pass_through_headers_enabled: z.boolean().optional(),
-    openai_wire_api: z.enum(['both', 'chat', 'responses']).optional(),
-    // Type-specific settings (stored in settings JSON)
-    is_enterprise_account: z.boolean().optional(), // OpenRouter specific
-    vertex_key_type: z.enum(['json', 'api_key']).optional(), // Vertex AI specific
-    aws_key_type: z.enum(['ak_sk', 'api_key']).optional(), // AWS specific
-    azure_responses_version: z.string().optional(), // Azure specific
-    image_auto_convert_to_url_mode: z.enum(['off', 'mcp']).optional(),
-    // OpenRouter provider routing preferences (stored in settings JSON).
-    // Tri-state booleans use '' (unset / follow client), 'true', 'false'.
-    or_order: z.string().optional(), // comma-separated provider slugs, ordered
-    or_only: z.string().optional(),
-    or_ignore: z.string().optional(),
-    or_allow_fallbacks: z.enum(['', 'true', 'false']).optional(),
-    or_require_parameters: z.enum(['', 'true', 'false']).optional(),
-    or_data_collection: z.enum(['', 'allow', 'deny']).optional(),
-    or_zdr: z.enum(['', 'true', 'false']).optional(),
-    or_enforce_distillable_text: z.enum(['', 'true', 'false']).optional(),
-    or_quantizations: z.string().optional(), // comma-separated
-    or_sort: z.enum(['', 'price', 'throughput', 'latency']).optional(),
-    or_sort_partition: z.enum(['', 'model', 'none']).optional(),
-    or_pref_min_throughput: z.string().optional(),
-    or_pref_min_throughput_percentile: z
-      .enum(['', 'p50', 'p75', 'p90', 'p99'])
-      .optional(),
-    or_pref_max_latency: z.string().optional(),
-    or_pref_max_latency_percentile: z
-      .enum(['', 'p50', 'p75', 'p90', 'p99'])
-      .optional(),
-    or_max_price_prompt: z.string().optional(),
-    or_max_price_completion: z.string().optional(),
-    or_max_price_request: z.string().optional(),
-    or_max_price_image: z.string().optional(),
-    // Field passthrough controls (stored in settings JSON)
-    allow_cache_control: z.boolean().optional(), // Anthropic cache_control
-    allow_speed: z.boolean().optional(), // Anthropic speed
-    allow_service_tier: z.boolean().optional(), // OpenAI/Anthropic
-    disable_store: z.boolean().optional(), // OpenAI only
-    allow_safety_identifier: z.boolean().optional(), // OpenAI only
-    claude_beta_query: z.boolean().optional(), // Anthropic: beta query passthrough
-  })
-  .superRefine((value, ctx) => {
-    for (const field of OPENROUTER_NUMERIC_FIELDS) {
-      const trimmed = (value[field] || '').trim()
-      if (trimmed === '') continue
-      const num = Number(trimmed)
-      if (!(Number.isFinite(num) && num >= 0)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: [field],
-          message: 'Must be a number >= 0',
-        })
+export function getChannelFormSchema(t: TFunction) {
+  return z
+    .object({
+      name: z.string().min(1, t('channels.errors.channelNameRequired')),
+      type: z.number().min(0, t('channels.errors.channelTypeRequired')),
+      base_url: z.string().optional(),
+      key: z.string(),
+      openai_organization: z.string().optional(),
+      models: z.string().min(1, t('channels.errors.atLeastOneModelRequired')),
+      group: z
+        .array(z.string())
+        .min(1, t('channels.errors.atLeastOneGroupRequired')),
+      model_mapping: z.string().optional(),
+      priority: z.number().optional(),
+      weight: z.number().optional(),
+      test_model: z.string().optional(),
+      auto_ban: z.number().optional(),
+      status: z.number(),
+      status_code_mapping: z.string().optional(),
+      tag: z.string().optional(),
+      remark: z
+        .string()
+        .max(255, t('channels.errors.remarkMustBeLessThan255Characters'))
+        .optional(),
+      setting: z.string().optional(),
+      param_override: z.string().optional(),
+      header_override: z.string().optional(),
+      settings: z.string().optional(),
+      other: z.string().optional(),
+      // Multi-key options (not sent to backend directly)
+      multi_key_mode: z.enum(['single', 'batch', 'multi_to_single']).optional(),
+      multi_key_type: z.enum(['random', 'polling']).optional(),
+      batch_add_set_key_prefix_2_name: z.boolean().optional(),
+      key_mode: z.enum(['append', 'replace']).optional(), // For editing multi-key channels
+      // Channel extra settings (stored in setting JSON, not sent directly)
+      force_format: z.boolean().optional(),
+      proxy: z.string().optional(),
+      pass_through_body_enabled: z.boolean().optional(),
+      pass_through_headers_enabled: z.boolean().optional(),
+      openai_wire_api: z.enum(['both', 'chat', 'responses']).optional(),
+      // Type-specific settings (stored in settings JSON)
+      is_enterprise_account: z.boolean().optional(), // OpenRouter specific
+      vertex_key_type: z.enum(['json', 'api_key']).optional(), // Vertex AI specific
+      aws_key_type: z.enum(['ak_sk', 'api_key']).optional(), // AWS specific
+      azure_responses_version: z.string().optional(), // Azure specific
+      image_auto_convert_to_url_mode: z.enum(['off', 'mcp']).optional(),
+      // OpenRouter provider routing preferences (stored in settings JSON).
+      // Tri-state booleans use '' (unset / follow client), 'true', 'false'.
+      or_order: z.string().optional(), // comma-separated provider slugs, ordered
+      or_only: z.string().optional(),
+      or_ignore: z.string().optional(),
+      or_allow_fallbacks: z.enum(['', 'true', 'false']).optional(),
+      or_require_parameters: z.enum(['', 'true', 'false']).optional(),
+      or_data_collection: z.enum(['', 'allow', 'deny']).optional(),
+      or_zdr: z.enum(['', 'true', 'false']).optional(),
+      or_enforce_distillable_text: z.enum(['', 'true', 'false']).optional(),
+      or_quantizations: z.string().optional(), // comma-separated
+      or_sort: z.enum(['', 'price', 'throughput', 'latency']).optional(),
+      or_sort_partition: z.enum(['', 'model', 'none']).optional(),
+      or_pref_min_throughput: z.string().optional(),
+      or_pref_min_throughput_percentile: z
+        .enum(['', 'p50', 'p75', 'p90', 'p99'])
+        .optional(),
+      or_pref_max_latency: z.string().optional(),
+      or_pref_max_latency_percentile: z
+        .enum(['', 'p50', 'p75', 'p90', 'p99'])
+        .optional(),
+      or_max_price_prompt: z.string().optional(),
+      or_max_price_completion: z.string().optional(),
+      or_max_price_request: z.string().optional(),
+      or_max_price_image: z.string().optional(),
+      // Field passthrough controls (stored in settings JSON)
+      allow_cache_control: z.boolean().optional(), // Anthropic cache_control
+      allow_speed: z.boolean().optional(), // Anthropic speed
+      allow_service_tier: z.boolean().optional(), // OpenAI/Anthropic
+      disable_store: z.boolean().optional(), // OpenAI only
+      allow_safety_identifier: z.boolean().optional(), // OpenAI only
+      claude_beta_query: z.boolean().optional(), // Anthropic: beta query passthrough
+    })
+    .superRefine((value, ctx) => {
+      for (const field of OPENROUTER_NUMERIC_FIELDS) {
+        const trimmed = (value[field] || '').trim()
+        if (trimmed === '') continue
+        const num = Number(trimmed)
+        if (!(Number.isFinite(num) && num >= 0)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [field],
+            message: t('channels.errors.mustBeANumberGreaterThanOrEqualToZero'),
+          })
+        }
       }
-    }
-    for (const [numberField, percentileField] of OPENROUTER_PERCENTILE_PAIRS) {
-      if (!value[percentileField]) continue
-      const trimmed = (value[numberField] || '').trim()
-      const num = trimmed === '' ? Number.NaN : Number(trimmed)
-      if (!(Number.isFinite(num) && num >= 0)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: [numberField],
-          message: 'A percentile selection requires a numeric value',
-        })
+      for (const [
+        numberField,
+        percentileField,
+      ] of OPENROUTER_PERCENTILE_PAIRS) {
+        if (!value[percentileField]) continue
+        const trimmed = (value[numberField] || '').trim()
+        const num = trimmed === '' ? Number.NaN : Number(trimmed)
+        if (!(Number.isFinite(num) && num >= 0)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [numberField],
+            message: t(
+              'channels.errors.percentileSelectionRequiresANumericValue'
+            ),
+          })
+        }
       }
-    }
-  })
+    })
+}
 
 // OpenRouter routing numeric fields: non-empty values must be finite numbers
 // >= 0, and selecting a percentile requires its paired number, so incomplete
@@ -144,7 +154,7 @@ const OPENROUTER_PERCENTILE_PAIRS = [
   ['or_pref_max_latency', 'or_pref_max_latency_percentile'],
 ] as const
 
-export type ChannelFormValues = z.infer<typeof channelFormSchema>
+export type ChannelFormValues = z.infer<ReturnType<typeof getChannelFormSchema>>
 
 // ============================================================================
 // Default Form Values
