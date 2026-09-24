@@ -314,15 +314,18 @@ export async function handleUpdateChannelBalance(
 
 /**
  * Batch delete channels
+ *
+ * @returns Whether the batch deletion succeeded, so callers can keep
+ *          confirmation dialogs open on failure.
  */
 export async function handleBatchDelete(
   ids: number[],
   queryClient?: QueryClient,
   onSuccess?: (deletedCount: number) => void
-): Promise<void> {
+): Promise<boolean> {
   if (ids.length === 0) {
     toast.error(i18next.t('channels.titles.noChannelsSelected'))
-    return
+    return false
   }
 
   try {
@@ -335,10 +338,13 @@ export async function handleBatchDelete(
       )
       queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
       onSuccess?.(response.data || ids.length)
+      return true
     }
+    toast.error(response.message || i18next.t(ERROR_MESSAGES.DELETE_FAILED))
   } catch (_error) {
     toast.error(i18next.t(ERROR_MESSAGES.DELETE_FAILED))
   }
+  return false
 }
 
 /**

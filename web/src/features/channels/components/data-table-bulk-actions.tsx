@@ -37,6 +37,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
 import {
   handleBatchDelete,
@@ -45,6 +46,9 @@ import {
   handleBatchSetTag,
 } from '../lib'
 import type { Channel } from '../types'
+
+/** Max channel names listed in the delete confirmation dialog */
+const MAX_DELETE_LIST_ITEMS = 20
 
 interface DataTableBulkActionsProps<TData extends RowData> {
   table: Table<TData>
@@ -57,6 +61,7 @@ export function DataTableBulkActions<TData extends RowData>({
   const queryClient = useQueryClient()
   const [showTagDialog, setShowTagDialog] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [tagValue, setTagValue] = useState('')
 
   const selectedRows = table.getFilteredSelectedRowModel().rows
@@ -69,6 +74,14 @@ export function DataTableBulkActions<TData extends RowData>({
 
     return ids
   }, [])
+  const selectedNames = selectedRows.map(
+    (row) => (row.original as Channel).name
+  )
+  const visibleNames = selectedNames.slice(0, MAX_DELETE_LIST_ITEMS)
+  const hiddenNamesCount = Math.max(
+    0,
+    selectedNames.length - visibleNames.length
+  )
 
   const handleClearSelection = () => {
     table.resetRowSelection()
@@ -82,11 +95,13 @@ export function DataTableBulkActions<TData extends RowData>({
     handleBatchDisable(selectedIds, queryClient, handleClearSelection)
   }
 
-  const handleDeleteAll = () => {
-    handleBatchDelete(selectedIds, queryClient, () => {
+  const handleDeleteAll = async () => {
+    setIsDeleting(true)
+    await handleBatchDelete(selectedIds, queryClient, () => {
       setShowDeleteConfirm(false)
       handleClearSelection()
     })
+    setIsDeleting(false)
   }
 
   const handleSetTag = () => {
@@ -234,29 +249,43 @@ export function DataTableBulkActions<TData extends RowData>({
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('channels.actions.deleteChannels')}</DialogTitle>
-            <DialogDescription>
-              {t('channels.fields.sureYouWantToDelete')} {selectedIds.length}{' '}
-              {t('channels.errors.channelSThisActionCannotBeUndone')}
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => setShowDeleteConfirm(false)}
-            >
-              {t('common.actions.cancel')}
-            </Button>
-            <Button variant='destructive' onClick={handleDeleteAll}>
-              {t('common.actions.delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        destructive
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        handleConfirm={handleDeleteAll}
+        isLoading={isDeleting}
+        className='max-w-md'
+        title={t('channels.actions.deleteCountChannelS', {
+          count: selectedIds.length,
+        })}
+        desc={
+          <div className='space-y-2'>
+            <p>
+              {t('channels.tips.aboutToDeleteFollowingChannelS', {
+                count: selectedIds.length,
+              })}
+            </p>
+            <div className='flex max-h-32 flex-wrap gap-1 overflow-y-auto'>
+              {visibleNames.map((name, index) => (
+                <span
+                  key={`${name}-${index}`}
+                  className='bg-muted text-muted-foreground rounded-md px-1.5 py-0.5 text-xs'
+                >
+                  {name}
+                </span>
+              ))}
+              {hiddenNamesCount > 0 && (
+                <span className='text-muted-foreground px-1 py-0.5 text-xs'>
+                  {t('channels.tips.andCountMore', { count: hiddenNamesCount })}
+                </span>
+              )}
+            </div>
+            <p>{t('channels.errors.actionCannotBeUndone')}</p>
+          </div>
+        }
+        confirmText={t('common.actions.delete')}
+      />
     </>
   )
 }
