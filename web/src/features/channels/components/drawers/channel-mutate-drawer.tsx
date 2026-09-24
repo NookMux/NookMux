@@ -458,7 +458,10 @@ export function ChannelMutateDrawer({
   // Reset the explicit "custom" toggle when the channel type changes
   useEffect(() => {
     setBaseUrlCustomSelected(false)
-  }, [currentType])
+    if (!isEditing) {
+      form.setValue('base_url', '')
+    }
+  }, [currentType, isEditing, form])
 
   const channelTypeOptions = useMemo(() => {
     const options = CHANNEL_TYPE_OPTIONS.map((option) => ({
@@ -587,6 +590,7 @@ export function ChannelMutateDrawer({
       initialModelMappingRef.current = ''
       initialStatusCodeMappingRef.current = ''
     }
+    setBaseUrlCustomSelected(false)
   }, [isEditing, channelData, form])
 
   // Validate base_url - warn if it ends with /v1
@@ -1612,23 +1616,28 @@ export function ChannelMutateDrawer({
                   </>
                 )}
 
-                {/* General base_url for other types: preset select or custom input */}
+                {/* General base_url for other types: preset select with custom input */}
                 {![3, 8].includes(currentType) && (
                   <FormField
                     control={form.control}
                     name='base_url'
                     render={({ field }) => {
+                      const hasPresets = baseUrlPresetOptions.length > 0
                       const matchesPreset = baseUrlPresetOptions.some(
                         (option) => option.value === field.value
                       )
-                      // 无预设（含加载失败）、显式选择"自定义"、或存量值不匹配任何预设
-                      // （如手填代理地址）时渲染可编辑输入框，其余走预设下拉
-                      const showCustomInput =
-                        baseUrlPresetOptions.length === 0 ||
-                        baseUrlCustomSelected ||
-                        (field.value != null &&
-                          field.value !== '' &&
-                          !matchesPreset)
+                      // 是否处于自定义模式：显式选择"自定义"，或当前值非空且不匹配任何内置预设（如手填代理地址）
+                      const isCustom =
+                        hasPresets &&
+                        (baseUrlCustomSelected ||
+                          (field.value != null &&
+                            field.value !== '' &&
+                            !matchesPreset))
+                      const selectValue = isCustom
+                        ? BASE_URL_CUSTOM_OPTION
+                        : matchesPreset
+                          ? field.value
+                          : null
                       const presetLabel = (option: BuiltinUrlOption) =>
                         option.value.startsWith('http')
                           ? `${t(option.label_key)} (${option.value})`
@@ -1637,14 +1646,7 @@ export function ChannelMutateDrawer({
                       return (
                         <FormItem>
                           <FormLabel>{t('channels.fields.baseUrl')}</FormLabel>
-                          {showCustomInput ? (
-                            <FormControl>
-                              <Input
-                                placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
-                                {...field}
-                              />
-                            </FormControl>
-                          ) : (
+                          {hasPresets && (
                             <Select
                               items={[
                                 ...baseUrlPresetOptions.map((option) => ({
@@ -1656,23 +1658,24 @@ export function ChannelMutateDrawer({
                                   label: t('channels.fields.baseUrlCustom'),
                                 },
                               ]}
-                              value={field.value || null}
+                              value={selectValue}
                               onValueChange={(value) => {
                                 if (value === BASE_URL_CUSTOM_OPTION) {
-                                  // 保留当前值进入可编辑输入框，便于在预设基础上修改
                                   setBaseUrlCustomSelected(true)
+                                  if (!isCustom) {
+                                    field.onChange('')
+                                  }
                                   return
                                 }
+                                setBaseUrlCustomSelected(false)
                                 field.onChange(value ?? '')
                               }}
                             >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue
-                                    placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
+                              <SelectTrigger className='w-full'>
+                                <SelectValue
+                                  placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
+                                />
+                              </SelectTrigger>
                               <SelectContent alignItemWithTrigger={false}>
                                 <SelectGroup>
                                   {baseUrlPresetOptions.map((option) => (
@@ -1690,6 +1693,18 @@ export function ChannelMutateDrawer({
                               </SelectContent>
                             </Select>
                           )}
+                          <FormControl>
+                            <Input
+                              placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
+                              {...field}
+                              value={field.value ?? ''}
+                              disabled={hasPresets && !isCustom}
+                              onChange={(e) => {
+                                setBaseUrlCustomSelected(true)
+                                field.onChange(e)
+                              }}
+                            />
+                          </FormControl>
                           <FormDescription>
                             {t(
                               'channels.tips.customApiBaseUrlForOfficialChannelsNewApi'
