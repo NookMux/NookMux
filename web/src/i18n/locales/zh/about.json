@@ -8,7 +8,7 @@
   "about.fields.newApi": "NookMux",
   "about.titles.noAboutContentSet": "未设置关于内容",
   "about.fields.oneApi": "One API",
-  "about.fields.nookMux": "NookMux（努克穆克斯）",
+  "about.fields.nookMux": "NookMux",
   "about.tips.administratorHasNotConfiguredAnyAboutContentYetYou": "管理员尚未配置任何关于内容。您可以在设置页面中进行设置，支持 HTML 或 URL。",
   "about.errors.projectMustBeUsedInComplianceWithThe": "此项目的使用必须遵守"
 }
