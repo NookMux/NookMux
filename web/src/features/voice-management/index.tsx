@@ -130,7 +130,7 @@ export function VoiceManagement() {
   )
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['minimax-voices', queryParams],
+    queryKey: ['voice-management', queryParams],
     queryFn: () => listVoices(queryParams),
   })
 
@@ -138,7 +138,7 @@ export function VoiceManagement() {
   const total = data?.data?.total ?? 0
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ['minimax-voices'] })
+    queryClient.invalidateQueries({ queryKey: ['voice-management'] })
 
   const handlePaginationChange: OnChangeFn<PaginationState> = (updater) => {
     setPagination((current) =>
@@ -151,14 +151,14 @@ export function VoiceManagement() {
       draftFilters.operatorId.trim() &&
       !normalizeOperatorId(draftFilters.operatorId)
     ) {
-      toast.error(t('minimax.errors.operatorIdMustBeAPositiveInteger'))
+      toast.error(t('voiceManagement.errors.operatorIdMustBeAPositiveInteger'))
       return
     }
 
     const startTimestamp = toUnixSeconds(draftFilters.startTime)
     const endTimestamp = toUnixSeconds(draftFilters.endTime)
     if (startTimestamp && endTimestamp && startTimestamp > endTimestamp) {
-      toast.error(t('minimax.errors.startTimeCannotBeLaterThanEndTime'))
+      toast.error(t('voiceManagement.errors.startTimeCannotBeLaterThanEndTime'))
       return
     }
 
@@ -192,7 +192,7 @@ export function VoiceManagement() {
 
   const handleSubmit = async () => {
     if (!form.voice_id.trim()) {
-      toast.error(t('minimax.errors.voiceIdIsRequired'))
+      toast.error(t('voiceManagement.errors.voiceIdIsRequired'))
       return
     }
 
@@ -201,17 +201,21 @@ export function VoiceManagement() {
       if (editing) {
         const response = await updateVoice(editing.id, form)
         if (!response.success) {
-          toast.error(response.message || t('minimax.status.updateFailed'))
+          toast.error(
+            response.message || t('voiceManagement.status.updateFailed')
+          )
           return
         }
-        toast.success(t('minimax.status.voiceUpdated'))
+        toast.success(t('voiceManagement.status.voiceUpdated'))
       } else {
         const response = await createVoice(form)
         if (!response.success) {
-          toast.error(response.message || t('minimax.actions.createFailed'))
+          toast.error(
+            response.message || t('voiceManagement.actions.createFailed')
+          )
           return
         }
-        toast.success(t('minimax.status.voiceCreated'))
+        toast.success(t('voiceManagement.status.voiceCreated'))
       }
 
       setDialogOpen(false)
@@ -231,16 +235,18 @@ export function VoiceManagement() {
     try {
       const response = await deleteVoice(deleteTarget.id)
       if (!response.success) {
-        toast.error(response.message || t('minimax.actions.deleteFailed'))
+        toast.error(
+          response.message || t('voiceManagement.actions.deleteFailed')
+        )
         return
       }
 
-      toast.success(t('minimax.status.voiceDeleted'))
+      toast.success(t('voiceManagement.status.voiceDeleted'))
       setDeleteTarget(null)
       invalidate()
     } catch (error) {
       const message = extractApiErrorMessage(error)
-      toast.error(message || t('minimax.actions.deleteFailed'))
+      toast.error(message || t('voiceManagement.actions.deleteFailed'))
     } finally {
       setIsDeleting(false)
     }
@@ -250,10 +256,12 @@ export function VoiceManagement() {
     <>
       <SectionPageLayout>
         <SectionPageLayout.Title>
-          {t('minimax.titles.voiceManagement')}
+          {t('voiceManagement.titles.voiceManagement')}
         </SectionPageLayout.Title>
         <SectionPageLayout.Actions>
-          <Button onClick={openCreate}>{t('minimax.actions.addVoice')}</Button>
+          <Button onClick={openCreate}>
+            {t('voiceManagement.actions.addVoice')}
+          </Button>
         </SectionPageLayout.Actions>
 
         <SectionPageLayout.Content>
@@ -300,10 +308,10 @@ export function VoiceManagement() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('minimax.actions.deleteVoice')}
+              {t('voiceManagement.actions.deleteVoice')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('minimax.errors.sureYouWantToDeleteVoiceVoiceIdThis', {
+              {t('voiceManagement.errors.sureYouWantToDeleteVoiceVoiceIdThis', {
                 voiceId: deleteTarget?.voice_id ?? '-',
               })}
             </AlertDialogDescription>

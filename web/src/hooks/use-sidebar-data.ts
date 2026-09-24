@@ -174,8 +174,8 @@ export function useSidebarData(): SidebarData {
             icon: SlidersHorizontal,
             items: [
               {
-                title: t('minimax.titles.voiceManagement'),
-                url: '/minimax/voice-management',
+                title: t('voiceManagement.titles.value'),
+                url: '/voice-management',
               },
             ],
           },

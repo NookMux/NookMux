@@ -390,14 +390,14 @@ const (
 	MsgCommonGetUserGroupFailed = "common.get_user_group_failed"
 )
 
-// MiniMax TTS related messages
+// Voice management related messages
 const (
-	MsgMiniMaxVoiceNotAuthorized       = "minimax.voice_not_authorized"
-	MsgMiniMaxVoiceNotAuthorizedWithID = "minimax.voice_not_authorized_with_id"
-	MsgMiniMaxVoiceIDRequired          = "minimax.voice_id_required"
-	MsgMiniMaxVoiceInvalidType         = "minimax.voice_invalid_type"
-	MsgMiniMaxVoiceInvalidID           = "minimax.voice_invalid_id"
-	MsgMiniMaxVoiceNotFound            = "minimax.voice_not_found"
+	MsgVoiceNotAuthorized       = "voice.not_authorized"
+	MsgVoiceNotAuthorizedWithID = "voice.not_authorized_with_id"
+	MsgVoiceIDRequired          = "voice.voice_id_required"
+	MsgVoiceInvalidType         = "voice.voice_invalid_type"
+	MsgVoiceInvalidID           = "voice.voice_invalid_id"
+	MsgVoiceNotFound            = "voice.voice_not_found"
 )
 
 // Passkey related messages

@@ -398,12 +398,12 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		// 音色管理（管理员）：列表/新增（Admin），修改/删除（Root）
-		minimaxVoiceRoute := apiRouter.Group("/minimax/voices")
+		voiceRoute := apiRouter.Group("/custom_voice/voices")
 		{
-			minimaxVoiceRoute.GET("/", middleware.AdminAuth(), customvoicecontroller.GetMiniMaxVoices)
-			minimaxVoiceRoute.POST("/", middleware.AdminAuth(), customvoicecontroller.CreateMiniMaxVoice)
-			minimaxVoiceRoute.PUT("/:id", middleware.RootAuth(), customvoicecontroller.UpdateMiniMaxVoice)
-			minimaxVoiceRoute.DELETE("/:id", middleware.RootAuth(), customvoicecontroller.DeleteMiniMaxVoice)
+			voiceRoute.GET("/", middleware.AdminAuth(), customvoicecontroller.GetVoices)
+			voiceRoute.POST("/", middleware.AdminAuth(), customvoicecontroller.CreateVoice)
+			voiceRoute.PUT("/:id", middleware.RootAuth(), customvoicecontroller.UpdateVoice)
+			voiceRoute.DELETE("/:id", middleware.RootAuth(), customvoicecontroller.DeleteVoice)
 		}
 	}
 }

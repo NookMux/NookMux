@@ -12,8 +12,8 @@ import (
 	httpclient "github.com/NookMux/NookMux/internal/infra/httpclient"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/log"
-	"github.com/NookMux/NookMux/internal/store/minimax_voice"
 	"github.com/NookMux/NookMux/internal/store/user"
+	"github.com/NookMux/NookMux/internal/store/voice"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -81,7 +81,7 @@ type customVoiceConfirmContext struct {
 	voiceId      string
 	group        string
 	billingModel string
-	voice        *minimaxvoicestore.MiniMaxVoice
+	voice        *voicestore.Voice
 }
 
 // customVoiceFileID preserves the upstream JSON type while exposing a safe
@@ -192,7 +192,7 @@ type minimaxUpstream struct {
 // group 来自系统设置 CustomVoiceGroup；GroupId 从渠道 Other 字段读取（管理员填写）。
 func resolveMiniMaxUpstream(group string) (*minimaxUpstream, error) {
 	group = strings.TrimSpace(group)
-	ch, err := minimaxvoicestore.GetEnabledMiniMaxChannelForGroup(group)
+	ch, err := voicestore.GetEnabledMiniMaxChannelForGroup(group)
 	if err != nil || ch == nil {
 		return nil, errors.New("未找到可用的渠道，请联系管理员")
 	}
@@ -524,7 +524,7 @@ func CustomVoicePreview(c *gin.Context, userId int, req CustomVoicePreviewReques
 	}
 
 	// 查重：已存在则提示不合规（不暴露“重复”）。
-	exists, err := minimaxvoicestore.IsMiniMaxVoiceIdExists(req.VoiceId)
+	exists, err := voicestore.IsVoiceIdExists(req.VoiceId)
 	if err != nil {
 		return nil, errors.New("音色校验失败，请稍后重试")
 	}
@@ -551,14 +551,14 @@ func CustomVoicePreview(c *gin.Context, userId int, req CustomVoicePreviewReques
 	}
 
 	// 写入“试听中”记录（用户创建，不审计）。
-	voice := &minimaxvoicestore.MiniMaxVoice{
-		Type:         minimaxvoicestore.MiniMaxVoiceTypePreview,
+	voice := &voicestore.Voice{
+		Type:         voicestore.VoiceTypePreview,
 		OperatorId:   userId,
 		OperatorKind: "user",
 		VoiceId:      req.VoiceId,
 		Allowed:      false,
 	}
-	if err := minimaxvoicestore.InsertMiniMaxVoice(voice); err != nil {
+	if err := voicestore.InsertVoice(voice); err != nil {
 		// 唯一索引冲突也归一为“不合规”，避免暴露重复。
 		if isDuplicateKeyErr(err) {
 			// 记录写入失败时退还试听扣费，避免用户已付费却拿不到试听记录。
@@ -715,11 +715,11 @@ func prepareCustomVoiceConfirm(userId int, voiceId string) (*customVoiceConfirmC
 	}
 
 	// 必须命中本用户的试听中记录，防止越权报价或确认他人音色。
-	voice, err := minimaxvoicestore.GetMiniMaxVoiceByVoiceId(voiceId)
+	voice, err := voicestore.GetVoiceByVoiceId(voiceId)
 	if err != nil || voice == nil {
 		return nil, errors.New("音色ID不合规")
 	}
-	if voice.Type != minimaxvoicestore.MiniMaxVoiceTypePreview {
+	if voice.Type != voicestore.VoiceTypePreview {
 		return nil, errors.New("该音色无需确认或已处理")
 	}
 	if voice.OperatorId != userId {
@@ -773,7 +773,7 @@ func CustomVoiceConfirm(c *gin.Context, userId int, voiceId string) (*CustomVoic
 	}
 
 	// 原子地把 preview -> created 并写入扣费额度，杜绝状态回滚风险。
-	ok, err := minimaxvoicestore.ConfirmMiniMaxVoice(confirmContext.voice.Id, userId, quota)
+	ok, err := voicestore.ConfirmVoice(confirmContext.voice.Id, userId, quota)
 	if err != nil {
 		// 状态更新失败：尽力退还额度，避免无音色却扣费。
 		refundQuota(userId, quota)
@@ -787,7 +787,7 @@ func CustomVoiceConfirm(c *gin.Context, userId int, voiceId string) (*CustomVoic
 
 	return &CustomVoiceConfirmResult{
 		VoiceId: confirmContext.voiceId,
-		Status:  minimaxvoicestore.MiniMaxVoiceTypeCreated,
+		Status:  voicestore.VoiceTypeCreated,
 	}, nil
 }
 
@@ -803,7 +803,7 @@ func isCustomVoiceConfigReady() bool {
 // 清理失败时显式返回错误，避免后续查重/确认逻辑基于脏数据做出错误决策。
 func cleanupExpiredCustomVoicePreviews() error {
 	cutoff := time.Now().Add(-customVoicePreviewTTL).Unix()
-	if _, err := minimaxvoicestore.DeleteExpiredMiniMaxVoicePreviews(cutoff); err != nil {
+	if _, err := voicestore.DeleteExpiredVoicePreviews(cutoff); err != nil {
 		return errors.New("音色校验失败，请稍后重试")
 	}
 	return nil

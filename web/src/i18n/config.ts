@@ -37,7 +37,6 @@ import enHome from './locales/en/home.json'
 import enKeyQuery from './locales/en/key-query.json'
 import enKeys from './locales/en/keys.json'
 import enLayout from './locales/en/layout.json'
-import enMinimax from './locales/en/minimax.json'
 import enModels from './locales/en/models.json'
 import enMultimodalFiles from './locales/en/multimodal-files.json'
 import enMultimodal from './locales/en/multimodal.json'
@@ -53,6 +52,7 @@ import enSystemSettings from './locales/en/system-settings.json'
 import enTickets from './locales/en/tickets.json'
 import enUsageLogs from './locales/en/usage-logs.json'
 import enUsers from './locales/en/users.json'
+import enVoiceManagement from './locales/en/voice-management.json'
 import enWallet from './locales/en/wallet.json'
 import zhAbout from './locales/zh/about.json'
 import zhAuditLogs from './locales/zh/audit-logs.json'
@@ -65,7 +65,6 @@ import zhHome from './locales/zh/home.json'
 import zhKeyQuery from './locales/zh/key-query.json'
 import zhKeys from './locales/zh/keys.json'
 import zhLayout from './locales/zh/layout.json'
-import zhMinimax from './locales/zh/minimax.json'
 import zhModels from './locales/zh/models.json'
 import zhMultimodalFiles from './locales/zh/multimodal-files.json'
 import zhMultimodal from './locales/zh/multimodal.json'
@@ -81,6 +80,7 @@ import zhSystemSettings from './locales/zh/system-settings.json'
 import zhTickets from './locales/zh/tickets.json'
 import zhUsageLogs from './locales/zh/usage-logs.json'
 import zhUsers from './locales/zh/users.json'
+import zhVoiceManagement from './locales/zh/voice-management.json'
 import zhWallet from './locales/zh/wallet.json'
 
 const en = {
@@ -96,7 +96,6 @@ const en = {
     ...enKeyQuery,
     ...enKeys,
     ...enLayout,
-    ...enMinimax,
     ...enModels,
     ...enMultimodalFiles,
     ...enMultimodal,
@@ -112,6 +111,7 @@ const en = {
     ...enTickets,
     ...enUsageLogs,
     ...enUsers,
+    ...enVoiceManagement,
     ...enWallet,
   },
 } as const
@@ -129,7 +129,6 @@ const zh = {
     ...zhKeyQuery,
     ...zhKeys,
     ...zhLayout,
-    ...zhMinimax,
     ...zhModels,
     ...zhMultimodalFiles,
     ...zhMultimodal,
@@ -145,6 +144,7 @@ const zh = {
     ...zhTickets,
     ...zhUsageLogs,
     ...zhUsers,
+    ...zhVoiceManagement,
     ...zhWallet,
   },
 } as const

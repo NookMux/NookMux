@@ -8,7 +8,6 @@ import (
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/db/cleanup"
 	"github.com/NookMux/NookMux/internal/store/log"
-	"github.com/NookMux/NookMux/internal/store/minimax_voice"
 	"github.com/NookMux/NookMux/internal/store/option"
 	"github.com/NookMux/NookMux/internal/store/passkey"
 	"github.com/NookMux/NookMux/internal/store/prefill_group"
@@ -21,6 +20,7 @@ import (
 	"github.com/NookMux/NookMux/internal/store/usedata"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"github.com/NookMux/NookMux/internal/store/vendor_meta"
+	"github.com/NookMux/NookMux/internal/store/voice"
 	"gorm.io/gorm"
 )
 
@@ -65,7 +65,7 @@ func autoMigrateTargetMainSchema(db *gorm.DB) error {
 		&ticketstore.TicketEntry{},
 		&channelstore.DynamicRatioRule{},
 		&auditstore.AuditLog{},
-		&minimaxvoicestore.MiniMaxVoice{},
+		&voicestore.Voice{},
 	); err != nil {
 		return err
 	}

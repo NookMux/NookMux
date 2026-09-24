@@ -320,7 +320,7 @@ export function SSRFSection({ defaultValues }: SSRFSectionProps) {
                 <FormLabel>
                   {t('systemSettings.fields.domain')}{' '}
                   {domainFilterMode
-                    ? t('minimax.fields.whitelist')
+                    ? t('systemSettings.fields.whitelist')
                     : t('systemSettings.fields.blacklist')}
                 </FormLabel>
                 <FormControl>
@@ -395,7 +395,7 @@ export function SSRFSection({ defaultValues }: SSRFSectionProps) {
                 <FormLabel>
                   {t('auditLogs.fields.ip')}{' '}
                   {ipFilterMode
-                    ? t('minimax.fields.whitelist')
+                    ? t('systemSettings.fields.whitelist')
                     : t('systemSettings.fields.blacklist')}
                 </FormLabel>
                 <FormControl>

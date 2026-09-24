@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { api } from '@/lib/api'
 
 export type VoiceRecord = {
@@ -38,7 +56,7 @@ export type VoiceListResponse = {
 export async function listVoices(
   params: VoiceListParams
 ): Promise<VoiceListResponse> {
-  const res = await api.get<VoiceListResponse>('/api/minimax/voices/', {
+  const res = await api.get<VoiceListResponse>('/api/custom_voice/voices/', {
     params,
   })
   return res.data
@@ -55,7 +73,7 @@ export type VoiceUpsertParams = {
 export async function createVoice(
   params: VoiceUpsertParams
 ): Promise<{ success: boolean; message: string; data: VoiceRecord }> {
-  const res = await api.post('/api/minimax/voices/', params)
+  const res = await api.post('/api/custom_voice/voices/', params)
   return res.data
 }
 
@@ -63,14 +81,14 @@ export async function updateVoice(
   id: number,
   params: VoiceUpsertParams
 ): Promise<{ success: boolean; message: string; data: VoiceRecord }> {
-  const res = await api.put(`/api/minimax/voices/${id}`, params)
+  const res = await api.put(`/api/custom_voice/voices/${id}`, params)
   return res.data
 }
 
 export async function deleteVoice(
   id: number
 ): Promise<{ success: boolean; message: string }> {
-  const res = await api.delete(`/api/minimax/voices/${id}`)
+  const res = await api.delete(`/api/custom_voice/voices/${id}`)
   return res.data
 }
 

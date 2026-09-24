@@ -4,7 +4,7 @@ import (
 	"errors"
 	configmodel "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/i18n"
-	"github.com/NookMux/NookMux/internal/store/minimax_voice"
+	"github.com/NookMux/NookMux/internal/store/voice"
 	"github.com/gin-gonic/gin"
 	"strings"
 )
@@ -45,18 +45,18 @@ func ResolveVoiceForTTSUpstream(c *gin.Context, voiceId string) (string, error) 
 	if voiceId == "" {
 		return "", nil
 	}
-	found, upstreamId, allowed, err := minimaxvoicestore.ResolveMiniMaxVoiceForTTS(voiceId)
+	found, upstreamId, allowed, err := voicestore.ResolveVoiceForTTS(voiceId)
 	if err != nil {
 		// DB 查询失败时，若白名单开启则 fail-closed，否则放行原 ID。
 		if configmodel.IsMiniMaxVoiceWhitelistEnabled() {
-			return "", errors.New(i18n.T(c, i18n.MsgMiniMaxVoiceNotAuthorizedWithID, map[string]any{"Voice": voiceId}))
+			return "", errors.New(i18n.T(c, i18n.MsgVoiceNotAuthorizedWithID, map[string]any{"Voice": voiceId}))
 		}
 		return voiceId, nil
 	}
 	if configmodel.IsMiniMaxVoiceWhitelistEnabled() {
 		// 白名单开启：必须命中且允许。
 		if !found || !allowed {
-			return "", newMiniMaxVoiceNotAllowedError(c, voiceId)
+			return "", newVoiceNotAllowedError(c, voiceId)
 		}
 	}
 	// 命中记录时优先使用 redirect_id；未命中且白名单关闭时用原 ID。
@@ -66,15 +66,15 @@ func ResolveVoiceForTTSUpstream(c *gin.Context, voiceId string) (string, error) 
 	return voiceId, nil
 }
 
-// newMiniMaxVoiceNotAllowedError returns a localized error for voice whitelist
+// newVoiceNotAllowedError returns a localized error for voice whitelist
 // rejection. The message language is chosen from the request's Accept-Language
 // header. When the voice is non-empty it is included for diagnostics.
-func newMiniMaxVoiceNotAllowedError(c *gin.Context, voice string) error {
+func newVoiceNotAllowedError(c *gin.Context, voice string) error {
 	trimmed := strings.TrimSpace(voice)
 	if trimmed == "" {
-		return errors.New(i18n.T(c, i18n.MsgMiniMaxVoiceNotAuthorized))
+		return errors.New(i18n.T(c, i18n.MsgVoiceNotAuthorized))
 	}
-	return errors.New(i18n.T(c, i18n.MsgMiniMaxVoiceNotAuthorizedWithID, map[string]any{
+	return errors.New(i18n.T(c, i18n.MsgVoiceNotAuthorizedWithID, map[string]any{
 		"Voice": trimmed,
 	}))
 }

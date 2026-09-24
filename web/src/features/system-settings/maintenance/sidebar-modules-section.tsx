@@ -188,11 +188,9 @@ export function SidebarModulesSection({
           'systemSettings.tips.reviewAdministrativeOperationRecords'
         ),
       },
-      minimax: {
-        title: t('systemSettings.fields.minimax'),
-        description: t(
-          'systemSettings.actions.configureMinimaxChannelSettings'
-        ),
+      voice_management: {
+        title: t('voiceManagement.titles.value'),
+        description: t('systemSettings.tips.manageVoiceWhitelistAndRedirects'),
       },
     },
   }

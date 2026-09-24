@@ -16,7 +16,7 @@
 - 模型（`features/models/`）
 - 用户（`features/users/`）
 - 审计日志（`features/audit-logs/`）
-- 音色管理（`features/minimax/voice-management/`）
+- 音色管理（`features/voice-management/`）
 
 ## 标准参照页面
 

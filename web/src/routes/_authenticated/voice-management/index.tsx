@@ -17,12 +17,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { useAuthStore } from '@/stores/auth-store'
+import { ROLE } from '@/lib/roles'
+import { VoiceManagement } from '@/features/voice-management'
 
-// 旧路由 /minimax/voice-management 的兼容重定向：音色管理已去供应商化。
-export const Route = createFileRoute(
-  '/_authenticated/minimax/voice-management/'
-)({
+export const Route = createFileRoute('/_authenticated/voice-management/')({
   beforeLoad: () => {
-    throw redirect({ to: '/voice-management', replace: true })
+    const { auth } = useAuthStore.getState()
+    if (!auth.user || auth.user.role < ROLE.ADMIN) {
+      throw redirect({ to: '/403' })
+    }
   },
+  component: VoiceManagement,
 })

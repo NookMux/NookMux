@@ -87,7 +87,7 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     user: true,
     setting: true,
     audit_log: true,
-    minimax: true,
+    voice_management: true,
   },
 }
 
@@ -218,8 +218,13 @@ export function parseSidebarModulesAdmin(
 
       Object.entries(defaultSection).forEach(([moduleKey, moduleValue]) => {
         if (moduleKey === 'enabled') return
+        // Legacy alias: voice_management was previously stored as "minimax"
+        // before the module was de-vendorized.
+        const alias = moduleKey === 'voice_management' ? 'minimax' : null
         sectionConfig[moduleKey] = toBoolean(
-          rawRecord[moduleKey],
+          alias && rawRecord[moduleKey] === undefined
+            ? rawRecord[alias]
+            : rawRecord[moduleKey],
           moduleValue ?? true
         )
       })

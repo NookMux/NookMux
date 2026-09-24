@@ -204,10 +204,10 @@ export function UpdateConfigDialog({
         onOpenChange(false)
         return
       }
-      toast.error(res.message || t('minimax.status.updateFailed'))
+      toast.error(res.message || t('common.status.updateFailed'))
     } catch (err: unknown) {
       const msg =
-        err instanceof Error ? err.message : t('minimax.status.updateFailed')
+        err instanceof Error ? err.message : t('common.status.updateFailed')
       toast.error(msg)
     }
   }

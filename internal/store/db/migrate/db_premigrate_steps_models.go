@@ -5,7 +5,6 @@ import (
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/checkin"
 	"github.com/NookMux/NookMux/internal/store/log"
-	"github.com/NookMux/NookMux/internal/store/minimax_voice"
 	"github.com/NookMux/NookMux/internal/store/option"
 	"github.com/NookMux/NookMux/internal/store/passkey"
 	"github.com/NookMux/NookMux/internal/store/prefill_group"
@@ -18,6 +17,7 @@ import (
 	"github.com/NookMux/NookMux/internal/store/usedata"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"github.com/NookMux/NookMux/internal/store/vendor_meta"
+	"github.com/NookMux/NookMux/internal/store/voice"
 )
 
 var dbPreMigrateMainSteps = []dbPreMigrateStep{
@@ -41,12 +41,12 @@ var dbPreMigrateMainSteps = []dbPreMigrateStep{
 	gormTableCopyStep[checkinstore.Checkin]{name: "checkins", batchSize: dbPreMigrateBatchDefault},
 	// Tables kept in sync with dbmigrate.migrateDB()'s AutoMigrate list. They were
 	// previously omitted here, which would drop their data on a pre-/same-type DB
-	// migration. MiniMaxVoice uses a custom TableName ("minimax_voices").
+	// migration. Voice uses a custom TableName ("voices").
 	gormTableCopyStep[ticketstore.Ticket]{name: "tickets", batchSize: dbPreMigrateBatchDefault},
 	gormTableCopyStep[ticketstore.TicketEntry]{name: "ticket_entries", batchSize: dbPreMigrateBatchDefault},
 	gormTableCopyStep[channelstore.DynamicRatioRule]{name: "dynamic_ratio_rules", batchSize: dbPreMigrateBatchDefault},
 	gormTableCopyStep[auditstore.AuditLog]{name: "audit_logs", batchSize: dbPreMigrateBatchDefault},
-	gormTableCopyStep[minimaxvoicestore.MiniMaxVoice]{name: "minimax_voices", batchSize: dbPreMigrateBatchDefault},
+	gormTableCopyStep[voicestore.Voice]{name: "voices", batchSize: dbPreMigrateBatchDefault},
 }
 
 var dbPreMigrateLogStep = gormTableCopyStep[logstore.Log]{name: "logs", batchSize: dbPreMigrateBatchLog}

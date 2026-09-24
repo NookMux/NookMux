@@ -38,8 +38,8 @@ type VoiceManagementTableProps = {
 }
 
 function getVoiceTypeLabelKey(type: string): string {
-  if (type === 'created') return 'minimax.fields.voiceStatusPaid'
-  if (type === 'preview') return 'minimax.fields.voiceStatusPreview'
+  if (type === 'created') return 'voiceManagement.fields.voiceStatusPaid'
+  if (type === 'preview') return 'voiceManagement.fields.voiceStatusPreview'
   return type || '-'
 }
 
@@ -89,7 +89,7 @@ export function VoiceManagementTable(props: VoiceManagementTableProps) {
       },
       {
         accessorKey: 'operator_id',
-        header: t('minimax.fields.operatorId'),
+        header: t('voiceManagement.fields.operatorId'),
         size: 150,
         cell: ({ row }) => (
           <div className='space-y-0.5'>
@@ -104,7 +104,7 @@ export function VoiceManagementTable(props: VoiceManagementTableProps) {
       },
       {
         accessorKey: 'voice_id',
-        header: t('minimax.fields.voiceId'),
+        header: t('voiceManagement.fields.voiceId'),
         size: 230,
         cell: ({ row }) => <MonoValue value={row.original.voice_id} />,
       },
@@ -120,19 +120,19 @@ export function VoiceManagementTable(props: VoiceManagementTableProps) {
       },
       {
         accessorKey: 'redirect_id',
-        header: t('minimax.fields.redirectId'),
+        header: t('voiceManagement.fields.redirectId'),
         size: 230,
         cell: ({ row }) => <MonoValue value={row.original.redirect_id} />,
       },
       {
         accessorKey: 'allowed',
-        header: t('minimax.fields.whitelist'),
+        header: t('voiceManagement.fields.whitelist'),
         size: 120,
         cell: ({ row }) => (
           <Badge variant={row.original.allowed ? 'default' : 'outline'}>
             {row.original.allowed
-              ? t('minimax.fields.allowed')
-              : t('minimax.fields.notAllowed')}
+              ? t('voiceManagement.fields.allowed')
+              : t('voiceManagement.fields.notAllowed')}
           </Badge>
         ),
       },
@@ -201,11 +201,11 @@ export function VoiceManagementTable(props: VoiceManagementTableProps) {
       columns={columns}
       isLoading={props.isLoading}
       isFetching={props.isFetching}
-      emptyTitle={t('minimax.fields.noVoicesFound')}
+      emptyTitle={t('voiceManagement.fields.noVoicesFound')}
       emptyDescription={t(
-        'minimax.tips.voiceRecordsWillAppearHereAfterUsersCreateVoices'
+        'voiceManagement.tips.voiceRecordsWillAppearHereAfterUsersCreateVoices'
       )}
-      skeletonKeyPrefix='minimax-voice-skeleton'
+      skeletonKeyPrefix='voice-management-skeleton'
       tableClassName='overflow-x-auto'
       tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
       toolbar={props.toolbar}

@@ -49,14 +49,14 @@ export function VoiceDialog(props: VoiceDialogProps) {
         <DialogHeader>
           <DialogTitle>
             {props.editing
-              ? t('minimax.actions.editVoice')
-              : t('minimax.actions.addVoice')}
+              ? t('voiceManagement.actions.editVoice')
+              : t('voiceManagement.actions.addVoice')}
           </DialogTitle>
         </DialogHeader>
 
         <div className='space-y-4'>
           <div className='space-y-2'>
-            <Label>{t('minimax.fields.voiceId')}</Label>
+            <Label>{t('voiceManagement.fields.voiceId')}</Label>
             <Input
               className='font-mono'
               value={props.form.voice_id}
@@ -77,20 +77,22 @@ export function VoiceDialog(props: VoiceDialogProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value='created'>
-                  {t('minimax.fields.voiceStatusPaid')}
+                  {t('voiceManagement.fields.voiceStatusPaid')}
                 </SelectItem>
                 <SelectItem value='preview'>
-                  {t('minimax.fields.voiceStatusPreview')}
+                  {t('voiceManagement.fields.voiceStatusPreview')}
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className='space-y-2'>
-            <Label>{t('minimax.fields.redirectId')}</Label>
+            <Label>{t('voiceManagement.fields.redirectId')}</Label>
             <Input
               className='font-mono'
-              placeholder={t('minimax.tips.leaveEmptyToSendVoiceIdUpstream')}
+              placeholder={t(
+                'voiceManagement.tips.leaveEmptyToSendVoiceIdUpstream'
+              )}
               value={props.form.redirect_id || ''}
               onChange={(event) =>
                 updateForm({ redirect_id: event.target.value })
@@ -107,10 +109,12 @@ export function VoiceDialog(props: VoiceDialogProps) {
             />
             <span>
               <span className='block font-medium'>
-                {t('minimax.fields.allowedForTts')}
+                {t('voiceManagement.fields.allowedForTts')}
               </span>
               <span className='text-muted-foreground'>
-                {t('minimax.status.onlyPaidVoicesWithTtsEnabledCanPassThe')}
+                {t(
+                  'voiceManagement.status.onlyPaidVoicesWithTtsEnabledCanPassThe'
+                )}
               </span>
             </span>
           </label>

@@ -20,7 +20,7 @@ import (
 	relayconstant "github.com/NookMux/NookMux/internal/relay/constant"
 	"github.com/NookMux/NookMux/internal/relay/helper"
 	"github.com/NookMux/NookMux/internal/relay/wire/convert"
-	"github.com/NookMux/NookMux/internal/store/minimax_voice"
+	"github.com/NookMux/NookMux/internal/store/voice"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -373,24 +373,24 @@ func (a *Adaptor) ConvertEmbeddingRequest(c *gin.Context, info *relaycommon.Rela
 	return request, nil
 }
 
-// resolveMiniMaxVoiceOpenAI 按原始音色 ID 查库解析白名单/重定向。
+// resolveVoiceForTTS 按原始音色 ID 查库解析白名单/重定向。
 // 与 minimax.ResolveVoiceForTTSUpstream 等价，但内联在 openai 包内以避免
 // relay/channel/minimax 与 relay/channel/openai 之间的循环依赖。
-func resolveMiniMaxVoiceOpenAI(c *gin.Context, voiceId string) (string, error) {
+func resolveVoiceForTTS(c *gin.Context, voiceId string) (string, error) {
 	voiceId = strings.TrimSpace(voiceId)
 	if voiceId == "" {
 		return "", nil
 	}
-	found, upstreamId, allowed, err := minimaxvoicestore.ResolveMiniMaxVoiceForTTS(voiceId)
+	found, upstreamId, allowed, err := voicestore.ResolveVoiceForTTS(voiceId)
 	if err != nil {
 		if configmodel.IsMiniMaxVoiceWhitelistEnabled() {
-			return "", errors.New(i18n.T(c, i18n.MsgMiniMaxVoiceNotAuthorizedWithID, map[string]any{"Voice": voiceId}))
+			return "", errors.New(i18n.T(c, i18n.MsgVoiceNotAuthorizedWithID, map[string]any{"Voice": voiceId}))
 		}
 		return voiceId, nil
 	}
 	if configmodel.IsMiniMaxVoiceWhitelistEnabled() {
 		if !found || !allowed {
-			return "", errors.New(i18n.T(c, i18n.MsgMiniMaxVoiceNotAuthorizedWithID, map[string]any{"Voice": voiceId}))
+			return "", errors.New(i18n.T(c, i18n.MsgVoiceNotAuthorizedWithID, map[string]any{"Voice": voiceId}))
 		}
 	}
 	if found {
@@ -404,7 +404,7 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 	if info.RelayMode == relayconstant.RelayModeAudioSpeech {
 		if info.ChannelType == channelconstant.ChannelTypeMiniMax {
 			// 音色白名单/重定向已迁移到数据库音色表。
-			resolvedVoice, vErr := resolveMiniMaxVoiceOpenAI(c, request.Voice)
+			resolvedVoice, vErr := resolveVoiceForTTS(c, request.Voice)
 			if vErr != nil {
 				return nil, vErr
 			}
