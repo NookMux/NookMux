@@ -18,11 +18,9 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/stores/auth-store'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PublicLayout } from '@/components/layout'
 import { PageTransition } from '@/components/page-transition'
-import { DashboardRecalculateDialog } from '@/features/dashboard/components/dashboard-recalculate-dialog'
 import {
   MarketShareSection,
   ModelsSection,
@@ -36,10 +34,8 @@ const VALID_PERIODS: RankingPeriod[] = ['today', 'week', 'month', 'year', 'all']
 
 export function Rankings() {
   const { t } = useTranslation()
-  const userRole = useAuthStore((state) => state.auth.user?.role)
   const search = useSearch({ from: '/rankings/' })
   const navigate = useNavigate()
-  const isAdmin = Boolean(userRole && userRole >= 10)
 
   const period: RankingPeriod = VALID_PERIODS.includes(
     search.period as RankingPeriod
@@ -78,11 +74,6 @@ export function Rankings() {
         <PageTransition className='relative mx-auto w-full max-w-[1280px] space-y-8 px-3 pt-16 pb-10 sm:px-6 sm:pt-20 sm:pb-12 xl:px-8'>
           <div className='flex flex-col gap-4'>
             <RankingsHero period={period} onPeriodChange={handlePeriodChange} />
-            {isAdmin && (
-              <div className='flex justify-end'>
-                <DashboardRecalculateDialog />
-              </div>
-            )}
           </div>
 
           {rankingsQuery.isLoading ? (
