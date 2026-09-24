@@ -17,12 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { Construction } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Markdown } from '@/components/ui/markdown'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PublicLayout } from '@/components/layout'
 import { getAboutContent } from './api'
+import { AboutLandingPage } from './components'
 
 function isValidUrl(value: string) {
   try {
@@ -35,91 +35,6 @@ function isValidUrl(value: string) {
 
 function isLikelyHtml(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value)
-}
-
-function EmptyAboutState() {
-  const { t } = useTranslation()
-  const currentYear = new Date().getFullYear()
-
-  return (
-    <div className='flex min-h-[60vh] items-center justify-center p-8'>
-      <div className='max-w-2xl space-y-6 text-center'>
-        <div className='flex justify-center'>
-          <Construction className='text-muted-foreground h-24 w-24' />
-        </div>
-        <div className='space-y-2'>
-          <h2 className='text-2xl font-bold'>
-            {t('about.titles.noAboutContentSet')}
-          </h2>
-          <p className='text-muted-foreground'>
-            {t('about.tips.administratorHasNotConfiguredAnyAboutContentYetYou')}
-          </p>
-        </div>
-        <div className='space-y-4 text-sm'>
-          <p>
-            {t('about.fields.newApiProjectRepository')}{' '}
-            <a
-              href='https://github.com/NookMux/NookMux'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('about.placeholders.urlGithubComNookMuxNookMux')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            <a
-              href='https://github.com/NookMux/NookMux'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('about.fields.newApi')}
-            </a>{' '}
-            © {currentYear}{' '}
-            <a
-              href='https://github.com/NookMux'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('about.fields.nookMux')}
-            </a>{' '}
-            {t('about.fields.basedOn')}{' '}
-            <a
-              href='https://github.com/songquanpeng/one-api'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('about.fields.oneApi')}
-            </a>{' '}
-            © 2023{' '}
-            <a
-              href='https://github.com/songquanpeng'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('about.fields.justSong')}
-            </a>
-          </p>
-          <p className='text-muted-foreground'>
-            {t('about.errors.projectMustBeUsedInComplianceWithThe')}{' '}
-            <a
-              href='https://github.com/NookMux/NookMux/blob/main/LICENSE'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='text-primary hover:underline'
-            >
-              {t('about.tips.agplV30License')}
-            </a>
-            .
-          </p>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 export function About() {
@@ -149,8 +64,8 @@ export function About() {
 
   if (!hasContent) {
     return (
-      <PublicLayout>
-        <EmptyAboutState />
+      <PublicLayout showMainContainer={false}>
+        <AboutLandingPage />
       </PublicLayout>
     )
   }

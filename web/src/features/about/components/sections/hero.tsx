@@ -19,58 +19,50 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useSystemConfig } from '@/hooks/use-system-config'
 import { GrainField } from '@/components/landing/grain-field'
-import { FlipWords } from '../flip-words'
-import { HubFlipCard } from '../hub-flip-card'
 
-interface HeroProps {
-  className?: string
+interface AboutHeroProps {
   isAuthenticated?: boolean
+  className?: string
 }
 
 /**
- * Editorial hero: oversized left-aligned display type over a full-bleed grainy
- * purple field, with the two-faced routing card holding the right column.
+ * About page hero: mirrors the home hero's editorial type and grainy purple
+ * field, with a declarative accent line in place of the rotating words.
  */
-export function Hero(props: HeroProps) {
+export function AboutHero(props: AboutHeroProps) {
   const { t } = useTranslation()
+  const { systemName } = useSystemConfig()
 
   return (
     <section className='relative flex min-h-[calc(100svh-var(--app-header-height,3rem))] flex-col justify-center overflow-hidden px-6'>
       <GrainField className='[mask-image:linear-gradient(to_bottom,black_55%,transparent)] opacity-45' />
-      <div className='relative mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-10'>
+      <div className='relative mx-auto w-full max-w-6xl'>
         <div className='max-w-3xl'>
           <p
             className='landing-animate-fade-up text-muted-foreground text-xs font-medium tracking-[0.2em] uppercase opacity-0'
             style={{ animationDelay: '0ms' }}
           >
-            {t('home.fields.aiApplicationInfrastructureFoundation')}
+            {t('about.fields.heroEyebrow', { name: systemName })}
           </p>
 
           <h1
             className='landing-animate-fade-up mt-8 text-4xl font-medium tracking-tight opacity-0 sm:text-5xl lg:text-6xl'
             style={{ animationDelay: '60ms' }}
           >
-            {t('home.fields.unifiedApiGatewayFor')}
+            {t('about.titles.heroHeadline')}
             <span className='block h-4' />
-            <FlipWords
-              className='text-[#7300ff] dark:text-[#cf9fff]'
-              words={[
-                t('home.titles.everyAiModel'),
-                t('home.titles.fortyPlusProviders'),
-                t('home.titles.claudeGptAndMore'),
-                t('home.titles.yourEntireLlmStack'),
-              ]}
-            />
+            <span className='text-[#7300ff] dark:text-[#cf9fff]'>
+              {t('about.titles.heroHeadlineAccent')}
+            </span>
           </h1>
 
           <p
             className='landing-animate-fade-up text-muted-foreground mt-6 max-w-xl text-lg leading-relaxed opacity-0 md:text-xl'
             style={{ animationDelay: '120ms' }}
           >
-            {t(
-              'home.tips.powerAiApplicationsManageDigitalAssetsConnectTheFuture'
-            )}
+            {t('about.tips.heroDescription')}
           </p>
 
           <div
@@ -104,7 +96,6 @@ export function Hero(props: HeroProps) {
             )}
           </div>
         </div>
-        <HubFlipCard className='hidden lg:block' />
       </div>
     </section>
   )
