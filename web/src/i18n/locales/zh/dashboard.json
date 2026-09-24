@@ -6,7 +6,7 @@
   "dashboard.tips.answersForCommonAccessAndBillingQuestions": "访问与计费常见问题解答",
   "dashboard.fields.apiInfo": "API 信息",
   "dashboard.fields.apiKeyRequired": "需要 API 密钥",
-  "dashboard.fields.apiKeys": "API 密钥列表",
+  "dashboard.fields.apiKeys": "密钥",
   "dashboard.fields.applyFilters": "应用筛选器",
   "dashboard.fields.averageRpm": "平均 RPM",
   "dashboard.fields.averageTpm": "平均 TPM",

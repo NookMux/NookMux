@@ -134,7 +134,7 @@ func TestDeleteExpiredVoicePreviews_NoopOnNilDB(t *testing.T) {
 //  2. quota_cost 被写入；
 //  3. 再次确认返回 false（幂等，防止重复扣费）。
 //
-// 这是回归保护：旧实现先 UpdateVoiceType 再 UpdateVoice(voice)，
+// 这是回归保护：先仅更新状态、再整条保存记录的两步写法中，
 // 内存里的 voice.Type 仍是 preview，DB.Save 会把 type 覆盖回 preview。
 func TestConfirmVoice_AtomicTransitionAndQuotaCost(t *testing.T) {
 	setupVoiceTestDB(t)

@@ -3,7 +3,18 @@ Copyright (C) 2023-2026 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, version 3 of the License.
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -201,18 +212,14 @@ export function VoiceManagement() {
       if (editing) {
         const response = await updateVoice(editing.id, form)
         if (!response.success) {
-          toast.error(
-            response.message || t('voiceManagement.status.updateFailed')
-          )
+          toast.error(response.message || t('common.status.updateFailed'))
           return
         }
         toast.success(t('voiceManagement.status.voiceUpdated'))
       } else {
         const response = await createVoice(form)
         if (!response.success) {
-          toast.error(
-            response.message || t('voiceManagement.actions.createFailed')
-          )
+          toast.error(response.message || t('common.actions.createFailed'))
           return
         }
         toast.success(t('voiceManagement.status.voiceCreated'))
@@ -235,9 +242,7 @@ export function VoiceManagement() {
     try {
       const response = await deleteVoice(deleteTarget.id)
       if (!response.success) {
-        toast.error(
-          response.message || t('voiceManagement.actions.deleteFailed')
-        )
+        toast.error(response.message || t('common.actions.deleteFailed'))
         return
       }
 
@@ -246,7 +251,7 @@ export function VoiceManagement() {
       invalidate()
     } catch (error) {
       const message = extractApiErrorMessage(error)
-      toast.error(message || t('voiceManagement.actions.deleteFailed'))
+      toast.error(message || t('common.actions.deleteFailed'))
     } finally {
       setIsDeleting(false)
     }
@@ -256,7 +261,7 @@ export function VoiceManagement() {
     <>
       <SectionPageLayout>
         <SectionPageLayout.Title>
-          {t('voiceManagement.titles.voiceManagement')}
+          {t('voiceManagement.titles.value')}
         </SectionPageLayout.Title>
         <SectionPageLayout.Actions>
           <Button onClick={openCreate}>

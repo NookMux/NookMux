@@ -332,13 +332,13 @@ oauth.token_failed: "{{.Provider}} 获取 Token 失败，请检查设置"
 oauth.user_info_empty: "{{.Provider}} 获取用户信息为空，请检查设置"
 oauth.trust_level_low: "Linux DO 信任等级未达到管理员设置的最低信任等级"
 
-# MiniMax TTS messages
-minimax.voice_not_authorized: "音色ID未授权"
-minimax.voice_not_authorized_with_id: "音色ID未授权: {{.Voice}}"
-minimax.voice_id_required: "音色ID不能为空"
-minimax.voice_invalid_type: "音色类型不合规"
-minimax.voice_invalid_id: "音色ID不合规"
-minimax.voice_not_found: "音色不存在"
+# Voice management messages
+voice.not_authorized: "音色ID未授权"
+voice.not_authorized_with_id: "音色ID未授权: {{.Voice}}"
+voice.voice_id_required: "音色ID不能为空"
+voice.voice_invalid_type: "音色类型不合规"
+voice.voice_invalid_id: "音色ID不合规"
+voice.voice_not_found: "音色不存在"
 
 # Passkey messages
 passkey.login_disabled: "管理员未启用 Passkey 登录"

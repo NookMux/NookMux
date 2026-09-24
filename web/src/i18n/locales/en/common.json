@@ -215,6 +215,7 @@
   "common.actions.copyToClipboard": "Copy to clipboard",
   "common.errors.countMustBeBetweenMinAndMax": "Count must be between {{min}} and {{max}}",
   "common.actions.createCredentialsForTheRootUser": "Create credentials for the root user",
+  "common.actions.createFailed": "Create failed",
   "common.actions.createMultipleChannelsFromMultipleKeys": "Create multiple channels from multiple keys",
   "common.fields.custom": "Custom",
   "common.tips.customApiBaseUrlLeaveEmptyToUseProvider": "Custom API base URL. Leave empty to use provider default.",

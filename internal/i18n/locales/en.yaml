@@ -331,13 +331,13 @@ oauth.token_failed: "Failed to get token from {{.Provider}}, please check settin
 oauth.user_info_empty: "{{.Provider}} returned empty user info, please check settings"
 oauth.trust_level_low: "Linux DO trust level does not meet the minimum required by administrator"
 
-# MiniMax TTS messages
-minimax.voice_not_authorized: "Voice ID is not authorized"
-minimax.voice_not_authorized_with_id: "Voice ID is not authorized: {{.Voice}}"
-minimax.voice_id_required: "Voice ID cannot be empty"
-minimax.voice_invalid_type: "Invalid voice type"
-minimax.voice_invalid_id: "Invalid voice ID"
-minimax.voice_not_found: "Voice does not exist"
+# Voice management messages
+voice.not_authorized: "Voice ID is not authorized"
+voice.not_authorized_with_id: "Voice ID is not authorized: {{.Voice}}"
+voice.voice_id_required: "Voice ID cannot be empty"
+voice.voice_invalid_type: "Invalid voice type"
+voice.voice_invalid_id: "Invalid voice ID"
+voice.voice_not_found: "Voice does not exist"
 
 # Passkey messages
 passkey.login_disabled: "Passkey login is not enabled by administrator"

@@ -21,28 +21,34 @@ var legacyMinimaxVoiceIndexes = []string{
 // renameLegacyMinimaxVoicesTable 把旧表 minimax_voices 重命名为 voices。
 // 定制音色不再绑定 MiniMax 单一供应商，表名同步去供应商化；列结构不变，仅表与索引改名。
 // 必须在 AutoMigrate(&voicestore.Voice{}) 之前执行，幂等可重复运行。
+// 旧名索引的清理不依赖旧表存在：RenameTable 成功后若 DropIndex 中途失败，
+// 下次启动时旧表已不存在，凭 voices 表上的残留旧名索引继续完成清理。
 func renameLegacyMinimaxVoicesTable() error {
 	m := dbstore.DB.Migrator()
-	if !m.HasTable(legacyMinimaxVoicesTable) {
-		return nil
+	if m.HasTable(legacyMinimaxVoicesTable) {
+		if m.HasTable(voicestore.Voice{}) {
+			// 新旧表并存不是正常升级路径（通常是先升级、回滚旧版本、再升级）。
+			// 旧表为空则清理；仍有数据则直接失败，避免静默丢弃数据。
+			var cnt int64
+			if err := dbstore.DB.Table(legacyMinimaxVoicesTable).Count(&cnt).Error; err != nil {
+				return fmt.Errorf("检查旧表 %s 行数失败: %w", legacyMinimaxVoicesTable, err)
+			}
+			if cnt > 0 {
+				return fmt.Errorf("表 %s 与 voices 同时存在且旧表仍有 %d 行数据，请先手动处理后再启动", legacyMinimaxVoicesTable, cnt)
+			}
+			if err := m.DropTable(legacyMinimaxVoicesTable); err != nil {
+				return fmt.Errorf("清理空的旧表 %s 失败: %w", legacyMinimaxVoicesTable, err)
+			}
+		} else {
+			if err := m.RenameTable(legacyMinimaxVoicesTable, voicestore.Voice{}); err != nil {
+				return fmt.Errorf("重命名表 %s 为 voices 失败: %w", legacyMinimaxVoicesTable, err)
+			}
+			common.SysLog("renamed table minimax_voices to voices")
+		}
 	}
-	if m.HasTable(voicestore.Voice{}) {
-		// 新旧表并存不是正常升级路径（通常是先升级、回滚旧版本、再升级）。
-		// 旧表为空则清理；仍有数据则直接失败，避免静默丢弃数据。
-		var cnt int64
-		if err := dbstore.DB.Table(legacyMinimaxVoicesTable).Count(&cnt).Error; err != nil {
-			return fmt.Errorf("检查旧表 %s 行数失败: %w", legacyMinimaxVoicesTable, err)
-		}
-		if cnt > 0 {
-			return fmt.Errorf("表 %s 与 voices 同时存在且旧表仍有 %d 行数据，请先手动处理后再启动", legacyMinimaxVoicesTable, cnt)
-		}
-		if err := m.DropTable(legacyMinimaxVoicesTable); err != nil {
-			return fmt.Errorf("清理空的旧表 %s 失败: %w", legacyMinimaxVoicesTable, err)
-		}
+	// voices 表尚未创建（全新安装）时无从清理索引，交给 AutoMigrate 建表建索引。
+	if !m.HasTable(voicestore.Voice{}) {
 		return nil
-	}
-	if err := m.RenameTable(legacyMinimaxVoicesTable, voicestore.Voice{}); err != nil {
-		return fmt.Errorf("重命名表 %s 为 voices 失败: %w", legacyMinimaxVoicesTable, err)
 	}
 	for _, idx := range legacyMinimaxVoiceIndexes {
 		if !m.HasIndex(voicestore.Voice{}, idx) {
@@ -52,6 +58,5 @@ func renameLegacyMinimaxVoicesTable() error {
 			return fmt.Errorf("删除旧索引 %s 失败: %w", idx, err)
 		}
 	}
-	common.SysLog("renamed table minimax_voices to voices")
 	return nil
 }

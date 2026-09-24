@@ -172,7 +172,7 @@ export function SubscriptionPlansCard({
         const normalized = res.data?.billing_preference || pref
         setBillingPreference(normalized)
       } else {
-        toast.error(res.message || t('minimax.status.updateFailed'))
+        toast.error(res.message || t('common.status.updateFailed'))
         setBillingPreference(previous)
       }
     } catch {

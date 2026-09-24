@@ -215,6 +215,7 @@
   "common.actions.copyToClipboard": "复制到剪贴板",
   "common.errors.countMustBeBetweenMinAndMax": "计数必须介于{{min}}和{{max}}之间",
   "common.actions.createCredentialsForTheRootUser": "为管理员创建登录凭据",
+  "common.actions.createFailed": "创建失败",
   "common.actions.createMultipleChannelsFromMultipleKeys": "从多个密钥创建多个渠道",
   "common.fields.custom": "自定义",
   "common.tips.customApiBaseUrlLeaveEmptyToUseProvider": "自定义 API 基础 URL。留空以使用提供商默认值。",

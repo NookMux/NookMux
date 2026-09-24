@@ -15,6 +15,7 @@ import (
 	"github.com/NookMux/NookMux/internal/relay/channel/openai"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
 	"github.com/NookMux/NookMux/internal/relay/constant"
+	"github.com/NookMux/NookMux/internal/relay/helper"
 
 	"github.com/NookMux/NookMux/pkg/jsonx"
 
@@ -91,14 +92,14 @@ func (a *Adaptor) ConvertAudioRequest(c *gin.Context, info *relaycommon.RelayInf
 	// 音色白名单/重定向已迁移到数据库音色表：始终按用户原始音色 ID 查库，
 	// 校验通过后再用 redirect_id 替换发给上游，避免直接传 redirect_id 绕过白名单。
 	if request.Voice != "" {
-		resolvedRequestVoice, vErr := ResolveVoiceForTTSUpstream(c, request.Voice)
+		resolvedRequestVoice, vErr := helper.ResolveVoiceForTTSUpstream(c, request.Voice)
 		if vErr != nil {
 			return nil, vErr
 		}
 		minimaxRequest.VoiceSetting.VoiceID = resolvedRequestVoice
 	}
 	if clientVoice != "" && clientVoice != request.Voice {
-		resolvedClientVoice, vErr := ResolveVoiceForTTSUpstream(c, clientVoice)
+		resolvedClientVoice, vErr := helper.ResolveVoiceForTTSUpstream(c, clientVoice)
 		if vErr != nil {
 			return nil, vErr
 		}

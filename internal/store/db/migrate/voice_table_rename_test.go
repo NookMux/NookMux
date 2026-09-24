@@ -105,6 +105,11 @@ func TestRenameLegacyMinimaxVoicesTable_RenamesAndKeepsData(t *testing.T) {
 			t.Fatalf("new index %s should exist after AutoMigrate", idx)
 		}
 	}
+	for _, idx := range legacyMinimaxVoiceIndexes {
+		if db.Migrator().HasIndex(&voicestore.Voice{}, idx) {
+			t.Fatalf("legacy index %s should be dropped", idx)
+		}
+	}
 
 	// 幂等：再次运行不应报错。
 	if err := renameLegacyMinimaxVoicesTable(); err != nil {
@@ -144,5 +149,22 @@ func TestRenameLegacyMinimaxVoicesTable_DropsEmptyLegacyWhenBothExist(t *testing
 	}
 	if db.Migrator().HasTable("minimax_voices") {
 		t.Fatalf("empty legacy table should be dropped")
+	}
+}
+
+func TestRenameLegacyMinimaxVoicesTable_CleansResidualLegacyIndexesWithoutLegacyTable(t *testing.T) {
+	db := setupRenameTestDB(t)
+	if err := db.AutoMigrate(&voicestore.Voice{}); err != nil {
+		t.Fatalf("AutoMigrate: %v", err)
+	}
+	// 模拟改名成功后 DropIndex 中途失败：旧表已不存在，voices 上残留旧名索引。
+	if err := db.Exec("CREATE INDEX idx_minimax_voice_type ON voices (type)").Error; err != nil {
+		t.Fatalf("seed residual legacy index: %v", err)
+	}
+	if err := renameLegacyMinimaxVoicesTable(); err != nil {
+		t.Fatalf("expected residual legacy index cleanup, got: %v", err)
+	}
+	if db.Migrator().HasIndex(&voicestore.Voice{}, "idx_minimax_voice_type") {
+		t.Fatalf("residual legacy index should be dropped")
 	}
 }

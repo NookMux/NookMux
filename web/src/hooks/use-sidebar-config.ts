@@ -83,9 +83,14 @@ const mergeWithDefaultSidebarModules = (
 
       merged[sectionKey] = { ...defaultSection, ...existingSection }
       Object.keys(defaultSection).forEach((moduleKey) => {
-        if (merged[sectionKey][moduleKey] === undefined) {
-          merged[sectionKey][moduleKey] = defaultSection[moduleKey]
-        }
+        if (existingSection[moduleKey] !== undefined) return
+        // Legacy alias: voice_management was previously stored as "minimax"
+        // before the module was de-vendorized.
+        const alias = moduleKey === 'voice_management' ? 'minimax' : null
+        merged[sectionKey][moduleKey] =
+          alias && existingSection[alias] !== undefined
+            ? existingSection[alias]
+            : defaultSection[moduleKey]
       })
     }
   )

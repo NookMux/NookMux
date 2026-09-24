@@ -1,6 +1,7 @@
 package voicestore
 
 import (
+	channelconstant "github.com/NookMux/NookMux/internal/domain/channel/constant"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"gorm.io/gorm"
@@ -97,18 +98,11 @@ func UpdateVoice(voice *Voice) error {
 	return dbstore.DB.Save(voice).Error
 }
 
-// UpdateVoiceType 仅更新状态字段（用于确认定制时的 preview -> created 流转）。
-// 通过条件更新避免并发覆盖其他字段。
-func UpdateVoiceType(id int64, newType string) error {
-	return dbstore.DB.Model(&Voice{}).Where("id = ?", id).
-		Updates(map[string]interface{}{"type": newType, "updated_at": time.Now().Unix()}).Error
-}
-
 // ConfirmVoice 原子地把“试听中”记录流转为“已创建”并写入扣费额度。
 // 仅当当前 type=preview 且操作人匹配时更新成功，避免并发/越权覆盖。
 // 返回是否更新成功（rowsAffected>0）。
 //
-// 修复要点：旧实现先 UpdateVoiceType 再 UpdateVoice(voice)，
+// 修复要点：先仅更新状态、再整条保存记录的两步写法中，
 // 内存里的 voice.Type 仍是 preview，DB.Save 会把 type 覆盖回 preview。
 // 这里改为一次性条件更新 type + quota_cost，杜绝状态回滚风险。
 func ConfirmVoice(id int64, operatorId int, quotaCost int) (bool, error) {
@@ -248,20 +242,11 @@ func ResolveVoiceForTTS(voiceId string) (found bool, upstreamVoiceId string, all
 	return true, upstream, allowed, nil
 }
 
-// CountVoices 返回音色总数（用于统计展示）。
-func CountVoices() (int64, error) {
-	var cnt int64
-	if err := dbstore.DB.Model(&Voice{}).Count(&cnt).Error; err != nil {
-		return 0, err
-	}
-	return cnt, nil
-}
-
 // GetEnabledMiniMaxChannelForGroup 查找一个启用中的 MiniMax 类型渠道，其所属分组包含指定 group。
 // 用于定制音色流程的上游调用（文件上传、voice_clone）。返回的渠道包含 key 等敏感字段。
 // group 为空时匹配默认分组。
 func GetEnabledMiniMaxChannelForGroup(group string) (*channelstore.Channel, error) {
-	query := dbstore.DB.Model(&channelstore.Channel{}).Where("type = ?", 35).Where("status = ?", 1)
+	query := dbstore.DB.Model(&channelstore.Channel{}).Where("type = ?", channelconstant.ChannelTypeMiniMax).Where("status = ?", 1)
 	query = channelstore.ApplyChannelGroupFilter(query, group)
 	var channel channelstore.Channel
 	if err := query.Order("priority desc, id asc").First(&channel).Error; err != nil {
