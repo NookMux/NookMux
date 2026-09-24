@@ -52,8 +52,9 @@ var (
 var lookupGitHubLogin = oauth.LookupGitHubLogin
 
 type BanIdentifierRequest struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
+	Type   string `json:"type"`
+	Value  string `json:"value"`
+	Remark string `json:"remark"` // optional admin note stored on the banned user, ≤255 chars
 }
 
 type BanIdentifier struct {
@@ -103,6 +104,11 @@ func BanUserByIdentifier(c *gin.Context) {
 		return
 	}
 	req.Value = strings.TrimSpace(req.Value)
+	req.Remark = strings.TrimSpace(req.Remark)
+	if len(req.Remark) > 255 {
+		httpapi.ApiErrorI18n(c, i18n.MsgUserBanRemarkTooLong)
+		return
+	}
 	if !validateBanIdentifier(&req) {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserBanInvalidIdentifier)
 		return
@@ -149,7 +155,7 @@ func BanUserByIdentifier(c *gin.Context) {
 			resp.User = toBanCandidateDTO(target)
 			break
 		}
-		if !banResolvedUser(c, target) {
+		if !banResolvedUser(c, target, req.Remark) {
 			return // error response already written
 		}
 		resp.Result = banResultBannedExisting
@@ -247,9 +253,9 @@ func mergeUniqueUsers(groups ...[]userstore.User) []userstore.User {
 }
 
 // banResolvedUser disables the located user with the same permission checks as
-// ManageUser's "disable" action. It writes the error response and returns false
-// on failure.
-func banResolvedUser(c *gin.Context, target *userstore.User) bool {
+// ManageUser's "disable" action. A non-empty remark replaces the user's remark.
+// It writes the error response and returns false on failure.
+func banResolvedUser(c *gin.Context, target *userstore.User, remark string) bool {
 	myRole := c.GetInt("role")
 	if myRole <= target.Role && myRole != common.RoleRootUser {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserNoPermissionHigherLevel)
@@ -262,8 +268,12 @@ func banResolvedUser(c *gin.Context, target *userstore.User) bool {
 	before := map[string]any{
 		"id": target.Id, "username": target.Username, "status": target.Status,
 		"github_id": target.GitHubId, "linux_do_id": target.LinuxDOId, "email": target.Email,
+		"remark": target.Remark,
 	}
 	target.Status = common.UserStatusDisabled
+	if remark != "" {
+		target.Remark = remark
+	}
 	if err := target.Update(false); err != nil {
 		common.SysError("failed to update user during ban: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
@@ -272,7 +282,7 @@ func banResolvedUser(c *gin.Context, target *userstore.User) bool {
 	invalidateSecuritySensitiveUserCaches(target.Id)
 	audit.RecordAudit(c, auditstore.AuditModuleUser, auditstore.AuditActionUpdate,
 		"拉黑用户: "+target.Username, before,
-		map[string]any{"id": target.Id, "username": target.Username, "status": target.Status})
+		map[string]any{"id": target.Id, "username": target.Username, "status": target.Status, "remark": target.Remark})
 	return true
 }
 
@@ -294,6 +304,9 @@ func createBannedPlaceholder(c *gin.Context, req *BanIdentifierRequest, resolved
 		Status:      common.UserStatusDisabled,
 		Remark:      fmt.Sprintf("admin ban placeholder: %s=%s", req.Type, req.Value),
 	}
+	if req.Remark != "" {
+		placeholder.Remark = req.Remark
+	}
 	switch req.Type {
 	case banTypeGitHubId:
 		placeholder.GitHubId = req.Value
@@ -314,7 +327,7 @@ func createBannedPlaceholder(c *gin.Context, req *BanIdentifierRequest, resolved
 		"拉黑用户（新建占位）: "+placeholder.Username, nil,
 		map[string]any{
 			"id": placeholder.Id, "username": placeholder.Username, "status": placeholder.Status,
-			"type": req.Type, "value": req.Value,
+			"type": req.Type, "value": req.Value, "remark": placeholder.Remark,
 		})
 	return placeholder
 }

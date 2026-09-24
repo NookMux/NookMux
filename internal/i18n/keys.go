@@ -132,6 +132,7 @@ const (
 	MsgUserBanGitHubRateLimited      = "user.ban.github_rate_limited"
 	MsgUserBanGitHubLookupFailed     = "user.ban.github_lookup_failed"
 	MsgUserBanPlaceholderFailed      = "user.ban.placeholder_failed"
+	MsgUserBanRemarkTooLong          = "user.ban.remark_too_long"
 )
 
 // Prefill group related messages

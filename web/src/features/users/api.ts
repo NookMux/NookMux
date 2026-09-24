@@ -121,9 +121,11 @@ export async function deleteUser(id: number): Promise<ApiResponse> {
  */
 export async function manageUser(
   id: number,
-  action: ManageUserAction
+  action: ManageUserAction,
+  /** Optional ban note (≤255 chars) stored on the user when disabling */
+  remark?: string
 ): Promise<ApiResponse<Partial<User>>> {
-  const res = await api.post('/api/user/manage', { id, action })
+  const res = await api.post('/api/user/manage', { id, action, remark })
   return res.data
 }
 

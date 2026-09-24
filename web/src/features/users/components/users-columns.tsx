@@ -97,27 +97,12 @@ export function useUsersColumns(): ColumnDef<User>[] {
       cell: ({ row }) => {
         const username = row.getValue('username') as string
         const displayName = row.original.display_name
-        const remark = row.original.remark
 
         return (
           <div className='flex min-w-[160px] flex-col gap-1'>
-            <div className='flex items-center gap-2'>
-              <LongText className='max-w-[140px] font-medium'>
-                {username}
-              </LongText>
-              {remark && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<StatusBadge variant='success' copyable={false} />}
-                  >
-                    <LongText className='max-w-[80px]'>{remark}</LongText>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className='text-xs'>{remark}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
+            <LongText className='max-w-[140px] font-medium'>
+              {username}
+            </LongText>
             {displayName && displayName !== username && (
               <LongText className='text-muted-foreground max-w-[180px] text-xs'>
                 {displayName}
@@ -373,6 +358,37 @@ export function useUsersColumns(): ColumnDef<User>[] {
       },
       enableSorting: false,
       meta: { label: t('users.fields.inviteInfo'), mobileHidden: true },
+    },
+    {
+      accessorKey: 'remark',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('users.fields.remark')}
+        />
+      ),
+      cell: ({ row }) => {
+        const remark = row.original.remark
+        if (!remark) {
+          return <span className='text-muted-foreground text-sm'>-</span>
+        }
+        return (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <span className='block w-[200px] cursor-help truncate text-sm' />
+              }
+            >
+              {remark}
+            </TooltipTrigger>
+            <TooltipContent className='max-w-xs'>
+              <p className='text-xs text-wrap break-all'>{remark}</p>
+            </TooltipContent>
+          </Tooltip>
+        )
+      },
+      enableSorting: false,
+      meta: { label: t('users.fields.remark'), mobileHidden: true },
     },
     {
       accessorKey: 'created_at',

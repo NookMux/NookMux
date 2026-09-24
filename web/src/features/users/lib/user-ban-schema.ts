@@ -29,6 +29,7 @@ export const banIdentifierTypeSchema = z.enum([
 export const banUserSchema = z.object({
   type: banIdentifierTypeSchema,
   value: z.string().trim().min(1).max(64),
+  remark: z.string().trim().max(255).optional(),
 })
 
 export type BanUserFormValues = z.infer<typeof banUserSchema>
@@ -36,6 +37,7 @@ export type BanUserFormValues = z.infer<typeof banUserSchema>
 export const BAN_USER_FORM_DEFAULT_VALUES: BanUserFormValues = {
   type: 'github_id',
   value: '',
+  remark: '',
 }
 
 /**

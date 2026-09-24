@@ -94,6 +94,7 @@ export function UserBanDialog() {
   const [banningId, setBanningId] = useState<number | null>(null)
   const [banningAll, setBanningAll] = useState(false)
   const [hasBanned, setHasBanned] = useState(false)
+  const [banRemark, setBanRemark] = useState('')
   const [doneResult, setDoneResult] = useState<{
     result: BanResult
     user?: BanCandidateUser
@@ -113,6 +114,7 @@ export function UserBanDialog() {
     setBanningId(null)
     setBanningAll(false)
     setHasBanned(false)
+    setBanRemark('')
     setDoneResult(null)
     form.reset(BAN_USER_FORM_DEFAULT_VALUES)
   }
@@ -133,14 +135,24 @@ export function UserBanDialog() {
       form.setError('value', { message: t('users.ban.errors.invalidValue') })
       return
     }
+    const remark = values.remark?.trim() ?? ''
+    if (remark.length > 255) {
+      form.setError('remark', { message: t('users.ban.errors.remarkTooLong') })
+      return
+    }
     try {
-      const result = await banUserByIdentifier({ type: values.type, value })
+      const result = await banUserByIdentifier({
+        type: values.type,
+        value,
+        remark: remark || undefined,
+      })
       if (!result.success || !result.data) {
         toast.error(result.message || t('users.ban.errors.failedToBan'))
         return
       }
       const data = result.data
       if (data.result === 'ambiguous') {
+        setBanRemark(remark)
         setCandidates(data.candidates ?? [])
         setView('candidates')
         return
@@ -169,7 +181,11 @@ export function UserBanDialog() {
     candidate: BanCandidateUser
   ): Promise<boolean> => {
     try {
-      const result = await manageUser(candidate.id, 'disable')
+      const result = await manageUser(
+        candidate.id,
+        'disable',
+        banRemark || undefined
+      )
       if (result.success) {
         setBannedIds((prev) => new Set(prev).add(candidate.id))
         setHasBanned(true)
@@ -346,6 +362,19 @@ export function UserBanDialog() {
               {form.formState.errors.value && (
                 <p className='text-destructive text-sm'>
                   {form.formState.errors.value.message}
+                </p>
+              )}
+            </div>
+            <div className='space-y-2'>
+              <Label>{t('users.ban.fields.remark')}</Label>
+              <Input
+                placeholder={t('users.placeholders.banRemark')}
+                maxLength={255}
+                {...form.register('remark')}
+              />
+              {form.formState.errors.remark && (
+                <p className='text-destructive text-sm'>
+                  {form.formState.errors.remark.message}
                 </p>
               )}
             </div>

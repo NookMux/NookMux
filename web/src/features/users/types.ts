@@ -143,6 +143,8 @@ export type BanIdentifierType =
 export interface BanIdentifierPayload {
   type: BanIdentifierType
   value: string
+  /** Optional admin note (≤255 chars) stored on the banned user */
+  remark?: string
 }
 
 export type BanResult =

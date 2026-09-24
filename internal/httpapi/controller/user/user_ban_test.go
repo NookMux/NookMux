@@ -410,3 +410,106 @@ func TestGeneratePlaceholderUsernameCollisionRetry(t *testing.T) {
 		t.Fatalf("username %q is still taken", username)
 	}
 }
+
+func TestBanUserWithRemarkUpdatesExistingUser(t *testing.T) {
+	testsupport.SetupSecureVerificationTestDB(t)
+	createBanTestUser(t, 2014, func(u *userstore.User) {
+		u.GitHubId = "583231"
+		u.Remark = "old note"
+	})
+
+	_, parsed := requestBan(t, common.RoleRootUser, `{"type":"github_id","value":"583231","remark":" 恶意注册，多次滥用 "}`)
+
+	if !parsed.Success || parsed.Data.Result != banResultBannedExisting {
+		t.Fatalf("response = %s, want %q", parsed.Data.Result, banResultBannedExisting)
+	}
+	if got := getBanTestUser(t, 2014).Remark; got != "恶意注册，多次滥用" {
+		t.Fatalf("remark = %q, want trimmed admin note", got)
+	}
+}
+
+func TestBanUserWithoutRemarkKeepsExistingRemark(t *testing.T) {
+	testsupport.SetupSecureVerificationTestDB(t)
+	createBanTestUser(t, 2015, func(u *userstore.User) {
+		u.GitHubId = "583231"
+		u.Remark = "keep me"
+	})
+
+	_, parsed := requestBan(t, common.RoleRootUser, `{"type":"github_id","value":"583231"}`)
+
+	if !parsed.Success || parsed.Data.Result != banResultBannedExisting {
+		t.Fatalf("response result = %q, want %q", parsed.Data.Result, banResultBannedExisting)
+	}
+	if got := getBanTestUser(t, 2015).Remark; got != "keep me" {
+		t.Fatalf("remark = %q, want preserved", got)
+	}
+}
+
+func TestBanUserWithRemarkOnPlaceholder(t *testing.T) {
+	testsupport.SetupSecureVerificationTestDB(t)
+
+	_, parsed := requestBan(t, common.RoleRootUser, `{"type":"github_id","value":"583231","remark":"spam bot"}`)
+
+	if !parsed.Success || parsed.Data.Result != banResultCreatedPlaceholder {
+		t.Fatalf("response result = %q, want %q", parsed.Data.Result, banResultCreatedPlaceholder)
+	}
+	if got := getBanTestUser(t, parsed.Data.User.Id).Remark; got != "spam bot" {
+		t.Fatalf("remark = %q, want admin note", got)
+	}
+}
+
+func TestBanUserRemarkTooLong(t *testing.T) {
+	testsupport.SetupSecureVerificationTestDB(t)
+
+	body := `{"type":"github_id","value":"583231","remark":"` + strings.Repeat("x", 256) + `"}`
+	_, parsed := requestBan(t, common.RoleRootUser, body)
+
+	if parsed.Success {
+		t.Fatal("over-length remark must fail")
+	}
+	if want := expectMsg(t, i18n.MsgUserBanRemarkTooLong); parsed.Message != want {
+		t.Fatalf("message = %q, want %q", parsed.Message, want)
+	}
+}
+
+func TestManageUserDisableWithRemark(t *testing.T) {
+	testsupport.SetupSecureVerificationTestDB(t)
+	createBanTestUser(t, 2016, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/manage",
+		strings.NewReader(`{"id":2016,"action":"disable","remark":"abusive API usage"}`))
+	c.Set("role", common.RoleRootUser)
+	ManageUser(c)
+
+	if !strings.Contains(recorder.Body.String(), `"success":true`) {
+		t.Fatalf("response = %s, want success", recorder.Body.String())
+	}
+	u := getBanTestUser(t, 2016)
+	if u.Status != common.UserStatusDisabled {
+		t.Fatalf("status = %d, want disabled", u.Status)
+	}
+	if u.Remark != "abusive API usage" {
+		t.Fatalf("remark = %q, want admin note", u.Remark)
+	}
+}
+
+func TestManageUserDisableWithoutRemarkKeepsRemark(t *testing.T) {
+	testsupport.SetupSecureVerificationTestDB(t)
+	createBanTestUser(t, 2017, func(u *userstore.User) { u.Remark = "keep me" })
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/manage",
+		strings.NewReader(`{"id":2017,"action":"disable"}`))
+	c.Set("role", common.RoleRootUser)
+	ManageUser(c)
+
+	if !strings.Contains(recorder.Body.String(), `"success":true`) {
+		t.Fatalf("response = %s, want success", recorder.Body.String())
+	}
+	if got := getBanTestUser(t, 2017).Remark; got != "keep me" {
+		t.Fatalf("remark = %q, want preserved", got)
+	}
+}
