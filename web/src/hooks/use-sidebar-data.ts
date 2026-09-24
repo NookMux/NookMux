@@ -26,11 +26,11 @@ import {
   Key,
   LayoutDashboard,
   LifeBuoy,
-  Mic,
   Radio,
   ReceiptText,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Ticket,
   User,
   Users,
@@ -170,8 +170,8 @@ export function useSidebarData(): SidebarData {
             icon: ShieldCheck,
           },
           {
-            title: t('common.fields.miniMax'),
-            icon: Mic,
+            title: t('layout.titles.moreSettings'),
+            icon: SlidersHorizontal,
             items: [
               {
                 title: t('minimax.titles.voiceManagement'),
