@@ -18,8 +18,7 @@
 | `quota_data` | [quota_data.md](quota_data.md) | 数据看板按小时聚合的用量 |
 | `redemptions` | [redemptions.md](redemptions.md) | 额度兑换码 |
 | `setups` | [setups.md](setups.md) | 系统初始化完成标记 |
-| `stored_images` | [stored_images.md](stored_images.md) | 图片转 URL 功能的二进制图片 |
-| `stored_videos` | [stored_videos.md](stored_videos.md) | 视频转 URL 功能的二进制视频 |
+| `stored_media` | [stored_media.md](stored_media.md) | 图片/视频转 URL 功能的二进制媒体（原 `stored_images` + `stored_videos`，已合并） |
 | `ticket_entries` | [ticket_entries.md](ticket_entries.md) | 工单回复和状态变更记录 |
 | `tickets` | [tickets.md](tickets.md) | 用户提交的工单 |
 | `tokens` | [tokens.md](tokens.md) | API 令牌、配额和调用限制 |
@@ -37,7 +36,7 @@
 
 ### 可合并的表
 
-- **`stored_images` + `stored_videos` → `stored_media`**：两表 8 列完全同构（`id` / `user_id` / `channel_id` / `created_at` / `mime_type` / `size_bytes` / `sha256` / `data`）。`storedmediastore` 已通过 `UNION ALL` 模拟单表查询并运行时合成 `media_type` 列，统计与清理逻辑要对两表各跑一遍。合并为单表加 `media_type` 判别列后，去重唯一键相应调整为 `(user_id, media_type, sha256)`，查询、统计、清理、管理界面各收敛为一套代码。
+- **已完成**：`stored_images` + `stored_videos` 已合并为 `stored_media`（`media_type` 判别列），启动迁移自动搬数据并删除旧表。
 - **明确不合并**：`two_fas` 与 `two_fa_backup_codes`（1:N，备用码需要行级 `is_used` 原子标记）；`tickets` 与 `ticket_entries`（主表/流水）；`logs` 与 `quota_data`（明细 vs 小时聚合）；`options` 与 `setups`（初始化占位锁）；`abilities` 并回 `channels`（调度索引核心，改动风险远大于收益）；`audit_logs` 并入 `logs`（审计要求独立保留策略）。
 
 ### 可优化的列
@@ -48,7 +47,7 @@
    - `other`（渠道类型专用参数，如 Vertex 区域/服务账号）保留，但与 `other_info` 命名易混淆，长远可考虑改名。
 2. **`tokens.unlimited_quota` 与 `quota_type` 双真值收编**：`quota_type=0` 与 `unlimited_quota=true` 语义重叠，代码中存在多处 `quotaType == 0 && !token.UnlimitedQuota` 兼容判断，写入侧也要同步维护两份。建议一次性数据迁移（`quota_type=0 && unlimited_quota=false` 的行改为 `quota_type=1`）后，`unlimited_quota` 降级为只读兼容列，新代码只认 `quota_type`。另外 `tokens.model_limits` 用逗号分隔文本而 `dynamic_ratio_rules.models` 用 JSON 数组，同为“模型集合”建议统一为 JSON 数组。
 3. **`logs.id` 升为 `bigint`**：`logs` 是写入量最大的表，`int` 自增 ID 上限约 21.4 亿，按每日 1000 万条约 7 个月耗尽。同项目 `audit_logs`、`dynamic_ratio_rules`、`voices` 的主键均已是 `int64`。MySQL 存量大表需评估 ALTER 锁表成本。
-4. **约定统一**（存量不强改，新表遵循）：状态列存储方式（`topups.status` 用字符串枚举，其余表用 int + 常量，新表统一 int）；时间哨兵（`0` 与 `NULL` 两种风格并存，如 `tickets.closed_at` vs `two_fas.locked_until`）；时间列命名（`created_at` / `created_time` / `create_time` 三种后缀并存）；`users.aff_history` 列名与 Go 字段 `AffHistoryQuota` 不一致；`two_fa_backup_codes.deleted_at` 软删除几乎没有业务场景（`is_used` 已足够）；`users.image_converted_count` / `video_converted_count` 与 `stored_*` 表的 COUNT 统计功能重叠（仅展示用，不参与限额判断），若合并 `stored_media` 可顺势收敛。
+4. **约定统一**（存量不强改，新表遵循）：状态列存储方式（`topups.status` 用字符串枚举，其余表用 int + 常量，新表统一 int）；时间哨兵（`0` 与 `NULL` 两种风格并存，如 `tickets.closed_at` vs `two_fas.locked_until`）；时间列命名（`created_at` / `created_time` / `create_time` 三种后缀并存）；`users.aff_history` 列名与 Go 字段 `AffHistoryQuota` 不一致；`two_fa_backup_codes.deleted_at` 软删除几乎没有业务场景（`is_used` 已足够）；`users.image_converted_count` / `video_converted_count` 与 `stored_media` 表的 COUNT 统计功能重叠（仅展示用，不参与限额判断），可顺势收敛。
 
 ### 明确不建议动的项
 
@@ -59,4 +58,4 @@
 
 ### 优先级
 
-`stored_images` / `stored_videos` 合表 > `channels.setting` / `settings` 合并与 `other_info` 消灭 > `tokens.unlimited_quota` 收编 > `logs.id` 升 `bigint` > 约定统一。
+`channels.setting` / `settings` 合并与 `other_info` 消灭 > `tokens.unlimited_quota` 收编 > `logs.id` 升 `bigint` > 约定统一。

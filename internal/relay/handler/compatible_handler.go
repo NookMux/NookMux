@@ -116,62 +116,56 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *share
 				return existing, nil
 			}
 
-			if isImage {
-				// Cross-request dedupe: same user + same sha -> reuse existing asset URL.
-				if existing, err := storedmediastore.GetStoredImageByUserAndSha(c.Request.Context(), info.UserId, sha); err == nil && existing != nil && existing.Id != "" {
-					u := core.BuildStoredImageURL(c, existing.Id)
-					storedURLBySHA[cacheKey] = u
-					return u, nil
-				} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-					return "", shared.NewError(fmt.Errorf("query stored image failed: %w", err), shared.ErrorCodeQueryDataError, shared.ErrOptionWithSkipRetry())
-				}
-
-				img := &storedmediastore.StoredImage{
-					UserId:    info.UserId,
-					ChannelId: info.ChannelId,
-					MimeType:  mimeType,
-					SizeBytes: len(data),
-					Sha256:    sha,
-					Data:      storedmediastore.LargeBlob(data),
-				}
-				if err := img.Insert(c.Request.Context()); err != nil {
-					return "", shared.NewError(fmt.Errorf("store image failed: %w", err), shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry())
-				}
-				if _, err := storedmediastore.EnsureStoredImagesPoolLimit(c.Request.Context(), imagePoolMaxBytes, 100); err != nil {
-					return "", shared.NewError(fmt.Errorf("enforce stored image pool limit failed: %w", err), shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry())
-				}
-
-				newImageCount++
-				u := core.BuildStoredImageURL(c, img.Id)
-				storedURLBySHA[cacheKey] = u
-				return u, nil
+			mediaType := storedmediastore.MediaTypeImage
+			if isVideo {
+				mediaType = storedmediastore.MediaTypeVideo
 			}
 
-			if existing, err := storedmediastore.GetStoredVideoByUserAndSha(c.Request.Context(), info.UserId, sha); err == nil && existing != nil && existing.Id != "" {
-				u := core.BuildStoredVideoURL(c, existing.Id)
+			// Cross-request dedupe: same user + same type + same sha -> reuse existing asset URL.
+			if existing, err := storedmediastore.GetStoredMediaByUserAndSha(c.Request.Context(), info.UserId, mediaType, sha); err == nil && existing != nil && existing.Id != "" {
+				var u string
+				if isVideo {
+					u = core.BuildStoredVideoURL(c, existing.Id)
+				} else {
+					u = core.BuildStoredImageURL(c, existing.Id)
+				}
 				storedURLBySHA[cacheKey] = u
 				return u, nil
 			} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				return "", shared.NewError(fmt.Errorf("query stored video failed: %w", err), shared.ErrorCodeQueryDataError, shared.ErrOptionWithSkipRetry())
+				return "", shared.NewError(fmt.Errorf("query stored media failed: %w", err), shared.ErrorCodeQueryDataError, shared.ErrOptionWithSkipRetry())
 			}
 
-			v := &storedmediastore.StoredVideo{
+			media := &storedmediastore.StoredMedia{
 				UserId:    info.UserId,
+				MediaType: mediaType,
 				ChannelId: info.ChannelId,
 				MimeType:  mimeType,
 				SizeBytes: len(data),
 				Sha256:    sha,
 				Data:      storedmediastore.LargeBlob(data),
 			}
-			if err := v.Insert(c.Request.Context()); err != nil {
-				return "", shared.NewError(fmt.Errorf("store video failed: %w", err), shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry())
-			}
-			if _, err := storedmediastore.EnsureStoredVideosPoolLimit(c.Request.Context(), videoPoolMaxBytes, 50); err != nil {
-				return "", shared.NewError(fmt.Errorf("enforce stored video pool limit failed: %w", err), shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry())
+			if err := media.Insert(c.Request.Context()); err != nil {
+				return "", shared.NewError(fmt.Errorf("store media failed: %w", err), shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry())
 			}
 
-			newVideoCount++
-			u := core.BuildStoredVideoURL(c, v.Id)
+			poolMaxBytes := imagePoolMaxBytes
+			poolBatchSize := 100
+			if isVideo {
+				poolMaxBytes = videoPoolMaxBytes
+				poolBatchSize = 50
+			}
+			if _, err := storedmediastore.EnsureStoredMediaPoolLimit(c.Request.Context(), mediaType, poolMaxBytes, poolBatchSize); err != nil {
+				return "", shared.NewError(fmt.Errorf("enforce stored media pool limit failed: %w", err), shared.ErrorCodeUpdateDataError, shared.ErrOptionWithSkipRetry())
+			}
+
+			var u string
+			if isVideo {
+				newVideoCount++
+				u = core.BuildStoredVideoURL(c, media.Id)
+			} else {
+				newImageCount++
+				u = core.BuildStoredImageURL(c, media.Id)
+			}
 			storedURLBySHA[cacheKey] = u
 			return u, nil
 		}

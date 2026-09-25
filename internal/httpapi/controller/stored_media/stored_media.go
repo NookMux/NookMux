@@ -106,156 +106,90 @@ func GetSelfStoredMedia(c *gin.Context) {
 	httpapi.ApiSuccess(c, pageInfo)
 }
 
-func GetStoredMediaDetail(c *gin.Context) {
-	mediaType := strings.TrimSpace(strings.ToLower(c.Param("media_type")))
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaIDRequired)
-		return
+// loadStoredMediaMeta 读取指定类型的媒体元数据并完成归属校验。
+// 类型不匹配或记录不存在均按未找到处理，与分表时期 /image/:id 查不到视频记录的行为一致。
+func loadStoredMediaMeta(c *gin.Context, mediaType string, id string) (*storedmediastore.StoredMedia, bool) {
+	meta, err := storedmediastore.GetStoredMediaMetaByID(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaNotFound)
+			return nil, false
+		}
+		common.SysError("get stored media meta failed: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return nil, false
 	}
-	if mediaType != "image" && mediaType != "video" {
-		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaMediaTypeInvalid)
-		return
+	if meta.MediaType != mediaType {
+		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaNotFound)
+		return nil, false
 	}
 
 	userId := c.GetInt("id")
 	role := c.GetInt("role")
-	isAdminUser := role >= common.RoleAdminUser
-
-	if mediaType == "image" {
-		meta, err := storedmediastore.GetStoredImageMetaByID(c.Request.Context(), id)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaNotFound)
-				return
-			}
-			common.SysError("get stored image meta failed: " + err.Error())
-			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-			return
-		}
-		if !isAdminUser && meta.UserId != userId {
-			httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaForbidden)
-			return
-		}
-
-		img, err := storedmediastore.GetStoredImageByID(c.Request.Context(), id)
-		if err != nil {
-			common.SysError("get stored image failed: " + err.Error())
-			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "",
-			"data": storedMediaDetailResponse{
-				Id:        img.Id,
-				MediaType: "image",
-				CreatedAt: img.CreatedAt,
-				MimeType:  img.MimeType,
-				SizeBytes: img.SizeBytes,
-				Url:       buildStoredMediaURL(c, "image", img.Id),
-			},
-		})
-		return
-	}
-
-	meta, err := storedmediastore.GetStoredVideoMetaByID(c.Request.Context(), id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaNotFound)
-			return
-		}
-		common.SysError("get stored video meta failed: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-		return
-	}
-	if !isAdminUser && meta.UserId != userId {
+	if role < common.RoleAdminUser && meta.UserId != userId {
 		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaForbidden)
+		return nil, false
+	}
+	return meta, true
+}
+
+func parseStoredMediaPathParams(c *gin.Context) (mediaType string, id string, ok bool) {
+	mediaType = strings.TrimSpace(strings.ToLower(c.Param("media_type")))
+	id = strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaIDRequired)
+		return "", "", false
+	}
+	if !storedmediastore.ValidMediaType(mediaType) {
+		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaMediaTypeInvalid)
+		return "", "", false
+	}
+	return mediaType, id, true
+}
+
+func GetStoredMediaDetail(c *gin.Context) {
+	mediaType, id, ok := parseStoredMediaPathParams(c)
+	if !ok {
 		return
 	}
 
-	v, err := storedmediastore.GetStoredVideoByID(c.Request.Context(), id)
-	if err != nil {
-		common.SysError("get stored video failed: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+	meta, ok := loadStoredMediaMeta(c, mediaType, id)
+	if !ok {
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data": storedMediaDetailResponse{
-			Id:        v.Id,
-			MediaType: "video",
-			CreatedAt: v.CreatedAt,
-			MimeType:  v.MimeType,
-			SizeBytes: v.SizeBytes,
-			Url:       buildStoredMediaURL(c, "video", v.Id),
+			Id:        meta.Id,
+			MediaType: meta.MediaType,
+			CreatedAt: meta.CreatedAt,
+			MimeType:  meta.MimeType,
+			SizeBytes: meta.SizeBytes,
+			Url:       buildStoredMediaURL(c, meta.MediaType, meta.Id),
 		},
 	})
 }
 
 func DeleteStoredMedia(c *gin.Context) {
-	mediaType := strings.TrimSpace(strings.ToLower(c.Param("media_type")))
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaIDRequired)
+	mediaType, id, ok := parseStoredMediaPathParams(c)
+	if !ok {
 		return
 	}
-	if mediaType != "image" && mediaType != "video" {
-		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaMediaTypeInvalid)
+
+	if _, ok := loadStoredMediaMeta(c, mediaType, id); !ok {
 		return
 	}
 
 	userId := c.GetInt("id")
 	role := c.GetInt("role")
-	isAdminUser := role >= common.RoleAdminUser
-
-	var deleted int64
-	var err error
-
-	if mediaType == "image" {
-		meta, metaErr := storedmediastore.GetStoredImageMetaByID(c.Request.Context(), id)
-		if metaErr != nil {
-			if errors.Is(metaErr, gorm.ErrRecordNotFound) {
-				httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaNotFound)
-				return
-			}
-			common.SysError("get stored image meta failed: " + metaErr.Error())
-			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-			return
-		}
-		if !isAdminUser && meta.UserId != userId {
-			httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaForbidden)
-			return
-		}
-		if isAdminUser {
-			deleted, err = storedmediastore.DeleteStoredImagesByIDs(c.Request.Context(), []string{id}, 0)
-		} else {
-			deleted, err = storedmediastore.DeleteStoredImagesByIDs(c.Request.Context(), []string{id}, userId)
-		}
-	} else {
-		meta, metaErr := storedmediastore.GetStoredVideoMetaByID(c.Request.Context(), id)
-		if metaErr != nil {
-			if errors.Is(metaErr, gorm.ErrRecordNotFound) {
-				httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaNotFound)
-				return
-			}
-			common.SysError("get stored video meta failed: " + metaErr.Error())
-			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-			return
-		}
-		if !isAdminUser && meta.UserId != userId {
-			httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaForbidden)
-			return
-		}
-		if isAdminUser {
-			deleted, err = storedmediastore.DeleteStoredVideosByIDs(c.Request.Context(), []string{id}, 0)
-		} else {
-			deleted, err = storedmediastore.DeleteStoredVideosByIDs(c.Request.Context(), []string{id}, userId)
-		}
+	ownerId := userId
+	if role >= common.RoleAdminUser {
+		ownerId = 0
 	}
 
+	deleted, err := storedmediastore.DeleteStoredMediaByIDs(c.Request.Context(), []string{id}, ownerId)
 	if err != nil {
 		common.SysError("delete stored media failed: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
@@ -278,58 +212,35 @@ func DeleteStoredMediaBatch(c *gin.Context) {
 
 	userId := c.GetInt("id")
 	role := c.GetInt("role")
-	isAdminUser := role >= common.RoleAdminUser
 
-	imageIDs := make([]string, 0, len(req.Items))
-	videoIDs := make([]string, 0, len(req.Items))
-
+	ids := make([]string, 0, len(req.Items))
 	for i := range req.Items {
 		id := strings.TrimSpace(req.Items[i].Id)
-		typ := strings.TrimSpace(strings.ToLower(req.Items[i].MediaType))
 		if id == "" {
 			continue
 		}
-		switch typ {
-		case "image":
-			imageIDs = append(imageIDs, id)
-		case "video":
-			videoIDs = append(videoIDs, id)
-		default:
+		if !storedmediastore.ValidMediaType(strings.TrimSpace(strings.ToLower(req.Items[i].MediaType))) {
 			// ignore unknown types
+			continue
 		}
+		ids = append(ids, id)
 	}
 
-	if len(imageIDs) == 0 && len(videoIDs) == 0 {
+	if len(ids) == 0 {
 		httpapi.ApiErrorI18n(c, i18n.MsgStoredMediaNoValidIDs)
 		return
 	}
 
-	var totalDeleted int64 = 0
-
-	imgUser := userId
-	videoUser := userId
-	if isAdminUser {
-		imgUser = 0
-		videoUser = 0
+	ownerId := userId
+	if role >= common.RoleAdminUser {
+		ownerId = 0
 	}
 
-	if len(imageIDs) > 0 {
-		n, err := storedmediastore.DeleteStoredImagesByIDs(c.Request.Context(), imageIDs, imgUser)
-		if err != nil {
-			common.SysError("batch delete stored images failed: " + err.Error())
-			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-			return
-		}
-		totalDeleted += n
-	}
-	if len(videoIDs) > 0 {
-		n, err := storedmediastore.DeleteStoredVideosByIDs(c.Request.Context(), videoIDs, videoUser)
-		if err != nil {
-			common.SysError("batch delete stored videos failed: " + err.Error())
-			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-			return
-		}
-		totalDeleted += n
+	totalDeleted, err := storedmediastore.DeleteStoredMediaByIDs(c.Request.Context(), ids, ownerId)
+	if err != nil {
+		common.SysError("batch delete stored media failed: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -348,9 +259,9 @@ func buildStoredMediaURL(c *gin.Context, mediaType string, id string) string {
 
 	var scope string
 	switch mediaType {
-	case "image":
+	case storedmediastore.MediaTypeImage:
 		scope = "stored_image"
-	case "video":
+	case storedmediastore.MediaTypeVideo:
 		scope = "stored_video"
 	default:
 		return ""

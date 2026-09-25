@@ -144,8 +144,7 @@ func migrateDB() error {
 		&redemptionstore.Redemption{},
 		&channelstore.Ability{},
 		&logstore.Log{},
-		&storedmediastore.StoredImage{},
-		&storedmediastore.StoredVideo{},
+		&storedmediastore.StoredMedia{},
 		&topupstore.TopUp{},
 		&usedatastore.QuotaData{},
 		&vendormetastore.Model{},
@@ -164,6 +163,11 @@ func migrateDB() error {
 	}
 
 	if err := userstore.CleanupEmptyAccessTokens(); err != nil {
+		return err
+	}
+	// 旧版 stored_images / stored_videos 分表合并为 stored_media 单表，须在
+	// AutoMigrate 创建 stored_media 之后执行。
+	if err := mergeLegacyStoredMediaTables(); err != nil {
 		return err
 	}
 	if err := dbcleanup.CleanupRemovedChatPlaygroundData(); err != nil {
