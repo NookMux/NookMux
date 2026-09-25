@@ -73,7 +73,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, misccontroller.ResetPassword)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.GET("/oauth/state", middleware.CriticalRateLimit(), oauthcontroller.GenerateOAuthCode)
-		apiRouter.POST("/oauth/email/bind", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, usercontroller.EmailBind)
+		apiRouter.POST("/oauth/email/bind", middleware.UserAuth(), middleware.CriticalRateLimit(), anonymousRequestBodyLimit, usercontroller.EmailBind)
 		// Standard OAuth providers (GitHub, LinuxDO) - unified route
 		apiRouter.GET("/oauth/:provider", middleware.CriticalRateLimit(), oauthcontroller.HandleOAuth)
 

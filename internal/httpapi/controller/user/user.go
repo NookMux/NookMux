@@ -934,9 +934,16 @@ func EmailBind(c *gin.Context) {
 		return
 	}
 	session := sessions.Default(c)
-	id := session.Get("id")
+	id, ok := session.Get("id").(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": i18n.T(c, i18n.MsgNotLoggedIn),
+		})
+		return
+	}
 	user := userstore.User{
-		Id: id.(int),
+		Id: id,
 	}
 	err := user.FillUserById()
 	if err != nil {
