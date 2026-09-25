@@ -59,10 +59,9 @@ func relayStoredMedia(c *gin.Context, mediaType string, sigScope string, notFoun
 		return
 	}
 
-	contentType := strings.TrimSpace(m.MimeType)
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
+	// 以字节内容重新嗅探 Content-Type，不信任入库时声明的 MimeType：
+	// 存量数据可能声明为 image/* 而实际是 SVG 等可承载脚本的内容。
+	contentType := http.DetectContentType(m.Data)
 
 	// Basic caching: keep private; if exp is present align to it, otherwise use a fixed max-age.
 	maxAge := int64(24 * 60 * 60)
@@ -77,6 +76,12 @@ func relayStoredMedia(c *gin.Context, mediaType string, sigScope string, notFoun
 	}
 	c.Writer.Header().Set("Cache-Control", fmt.Sprintf("private, max-age=%d", maxAge))
 	c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// 嗅探结果不是栅格图像也不是视频时（如 SVG 嗅探出的 text/xml、text/plain），
+	// 附加 attachment 阻止浏览器同源内联执行；正常栅格图与视频保持内联行为。
+	if !isInlineSafeStoredContentType(contentType) {
+		c.Writer.Header().Set("Content-Disposition", "attachment")
+	}
 
 	c.Data(http.StatusOK, contentType, []byte(m.Data))
 }

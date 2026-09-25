@@ -84,8 +84,10 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *share
 			lowerMime := strings.ToLower(mimeType)
 			isImage := mediaContentType == shared.ContentTypeImageURL
 			isVideo := mediaContentType == shared.ContentTypeVideoUrl
-			if isImage && !strings.HasPrefix(lowerMime, "image/") {
-				return "", shared.NewErrorWithStatusCode(fmt.Errorf("invalid image mime type: %q", mimeType), shared.ErrorCodeInvalidRequest, http.StatusBadRequest, shared.ErrOptionWithSkipRetry())
+			if isImage {
+				if err := validateStoredImageMIME(mimeType); err != nil {
+					return "", shared.NewErrorWithStatusCode(err, shared.ErrorCodeInvalidRequest, http.StatusBadRequest, shared.ErrOptionWithSkipRetry())
+				}
 			}
 			if isVideo && !strings.HasPrefix(lowerMime, "video/") {
 				return "", shared.NewErrorWithStatusCode(fmt.Errorf("invalid video mime type: %q", mimeType), shared.ErrorCodeInvalidRequest, http.StatusBadRequest, shared.ErrOptionWithSkipRetry())
