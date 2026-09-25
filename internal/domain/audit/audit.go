@@ -2,17 +2,21 @@ package audit
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/operation"
 	"github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/store/audit"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
-	"strings"
+	"github.com/go-sql-driver/mysql"
 )
 
 // sensitiveFieldSuffixes 字段名包含这些子串（小写匹配）时需要脱敏。
-// 覆盖精确名称（如 key、password）和变体（如 api_key、x-goog-api-key、proxy-authorization）。
+// 覆盖精确名称（如 key、password）和变体（如 api_key、x-goog-api-key、proxy-authorization），
+// dsn 覆盖迁移目标库等内嵌连接串的字段。
 var sensitiveFieldSubstrings = []string{
 	"key",
 	"password",
@@ -21,6 +25,7 @@ var sensitiveFieldSubstrings = []string{
 	"credential",
 	"authorization",
 	"private_key",
+	"dsn",
 }
 
 // isSensitiveField 判断字段名是否匹配敏感模式。
@@ -32,6 +37,72 @@ func isSensitiveField(fieldName string) bool {
 		}
 	}
 	return false
+}
+
+// maskedPasswordPlaceholder 是 DSN/带凭据 URL 中口令被遮蔽后的占位文本。
+const maskedPasswordPlaceholder = "***"
+
+// MaskCredential 遮蔽字符串中 DSN 或带凭据 URL 的口令部分，供审计链路在字段名
+// 之外按值兜底识别凭据。识别与解析分别使用 net/url（scheme://user:pass@host 形态）
+// 和 go-sql-driver/mysql（user:pass@tcp(host:port)/db 形态），不使用正则。
+// 口令替换为 ***，scheme、用户名、主机、端口等非敏感骨架保留以便审计排查；
+// 非上述形态的输入原样返回。
+func MaskCredential(raw string) string {
+	if raw == "" {
+		return raw
+	}
+	// "://" 归 URL 形态专属，MySQL 驱动 DSN 不含该序列，以此互斥避免误判。
+	if strings.Contains(raw, "://") {
+		return maskCredentialURLPassword(raw)
+	}
+	if !strings.Contains(raw, "@") {
+		return raw
+	}
+	return maskDriverDSNPassword(raw)
+}
+
+// maskCredentialURLPassword 遮蔽 URL userinfo 中的口令，用户名与无口令形态原样返回。
+// 以 url.Parse 的解析结论校验形态，再对原始串中口令所在片段做定点替换，
+// 不重新序列化整个 URL，避免查询参数与转义序列被改写、*** 占位文本被二次转义。
+func maskCredentialURLPassword(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	if u.User == nil {
+		return raw
+	}
+	if _, hasPassword := u.User.Password(); !hasPassword {
+		return raw
+	}
+	// 与 net/url 解析规则一致：authority 位于 "://" 之后、首个 / ? # 之前；
+	// userinfo 以最后一个 @ 结尾，用户名与口令以首个 : 分隔。
+	authorityStart := strings.Index(raw, "://") + len("://")
+	authorityLen := strings.IndexAny(raw[authorityStart:], "/?#")
+	if authorityLen < 0 {
+		authorityLen = len(raw) - authorityStart
+	}
+	authority := raw[authorityStart : authorityStart+authorityLen]
+	at := strings.LastIndex(authority, "@")
+	if at < 0 {
+		return raw
+	}
+	colon := strings.Index(authority[:at], ":")
+	if colon < 0 {
+		return raw
+	}
+	return raw[:authorityStart+colon+1] + maskedPasswordPlaceholder + raw[authorityStart+at:]
+}
+
+// maskDriverDSNPassword 遮蔽 go-sql-driver 形态 MySQL DSN 的口令部分；
+// 无法按驱动语义解析或不含口令时原样返回。
+func maskDriverDSNPassword(raw string) string {
+	cfg, err := mysql.ParseDSN(raw)
+	if err != nil || cfg.Passwd == "" {
+		return raw
+	}
+	cfg.Passwd = maskedPasswordPlaceholder
+	return cfg.FormatDSN()
 }
 
 // RecordAudit 记录审计日志。
@@ -255,7 +326,8 @@ func sanitizeValue(v interface{}) interface{} {
 				}
 			}
 		}
-		return child
+		// 值级兜底：字符串本身形如 DSN/带凭据 URL 时遮蔽口令，不依赖字段名。
+		return MaskCredential(child)
 	default:
 		return child
 	}
