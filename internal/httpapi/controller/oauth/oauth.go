@@ -215,8 +215,12 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		return user, nil
 	}
 
-	// Try to find user with legacy ID (for GitHub migration from login to numeric ID)
-	if legacyID, ok := oauthUser.Extra["legacy_id"].(string); ok && legacyID != "" {
+	// Try to find user with legacy ID (for migration from an old provider ID to the
+	// current numeric ID). Only a pure numeric legacy ID (a provider numeric ID) may
+	// serve as a migration key: provider-side mutable identifiers (e.g. GitHub login,
+	// which can be renamed or re-registered by others) must never authenticate a
+	// local account, so non-numeric values fall through to the normal login path.
+	if legacyID, ok := oauthUser.Extra["legacy_id"].(string); ok && isNumericProviderID(legacyID) {
 		if provider.IsUserIDTaken(legacyID) {
 			err := provider.FillUserByProviderID(user, legacyID)
 			if err != nil {
@@ -356,6 +360,20 @@ func handleOAuthError(c *gin.Context, err error) {
 }
 
 const maxUsernameLen = 20
+
+// isNumericProviderID reports whether s is a non-empty decimal digit string,
+// i.e. the textual form of a provider numeric ID.
+func isNumericProviderID(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
 
 // buildOAuthUsername creates a unique username from the provider username and provider user ID.
 // Format: "providerUsername_providerUserID". When truncation is needed, the providerUserID
