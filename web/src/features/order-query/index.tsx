@@ -43,11 +43,13 @@ export function OrderQuery() {
     keyword,
     loading,
     completing,
+    checking,
     isAdmin,
     handlePageChange,
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
+    handleCheckOrder,
     refresh,
   } = useBillingHistory()
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
@@ -56,8 +58,10 @@ export function OrderQuery() {
     () => ({
       onComplete: (tradeNo: string) => setConfirmTradeNo(tradeNo),
       completing,
+      onCheck: handleCheckOrder,
+      checking,
     }),
-    [completing]
+    [completing, checking, handleCheckOrder]
   )
 
   const columns = useOrderQueryColumns(

@@ -372,3 +372,68 @@ func AdminCompleteTopUp(c *gin.Context) {
 	}
 	httpapi.ApiSuccess(c, nil)
 }
+
+type CheckTopupRequest struct {
+	TradeNo string `json:"trade_no"`
+}
+
+// CheckTopUp 用户自助检查易支付订单支付状态：网关已支付时按回调同路径入账，
+// 用于补回丢失的支付回调。普通用户仅能检查本人订单，管理员可检查全部订单。
+func CheckTopUp(c *gin.Context) {
+	var req CheckTopupRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.TradeNo == "" {
+		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+
+	topUp := topupstore.GetTopUpByTradeNo(req.TradeNo)
+	// 非本人订单与不存在的订单返回相同错误，避免泄露其他用户的订单号
+	if topUp == nil || (topUp.UserId != c.GetInt("id") && c.GetInt("role") < common.RoleAdminUser) {
+		respondTopupError(c, i18n.MsgTopupOrderNotFound)
+		return
+	}
+	if topUp.PaymentProvider != topupstore.PaymentProviderEpay {
+		respondTopupError(c, i18n.MsgTopupCheckProviderUnsupported)
+		return
+	}
+	if topUp.Status != common.TopUpStatusPending {
+		respondTopupError(c, i18n.MsgTopupCheckStatusNotPending)
+		return
+	}
+	if GetEpayClient() == nil {
+		respondTopupError(c, i18n.MsgTopupPaymentConfigMissing)
+		return
+	}
+
+	result, err := payment.QueryEpayOrder(req.TradeNo)
+	if err != nil {
+		common.SysError("query epay order failed: " + err.Error())
+		respondTopupError(c, i18n.MsgTopupCheckGatewayFailed)
+		return
+	}
+	if result.Code != 1 {
+		common.SysError(fmt.Sprintf("query epay order rejected by gateway: trade_no=%s code=%d msg=%s", req.TradeNo, result.Code, result.Msg))
+		respondTopupError(c, i18n.MsgTopupCheckGatewayFailed)
+		return
+	}
+	if result.Status != 1 {
+		// 网关确认订单尚未支付，属正常查询结果
+		httpapi.ApiSuccess(c, gin.H{"status": common.TopUpStatusPending})
+		return
+	}
+
+	// 网关已支付：与回调同路径入账（订单锁 + 金额/支付方式校验 + 原子状态翻转）
+	payment.LockOrder(req.TradeNo)
+	defer payment.UnlockOrder(req.TradeNo)
+	if err := topupstore.CompleteEpayTopUp(req.TradeNo, result.Type, result.Money, c.ClientIP()); err != nil {
+		if errors.Is(err, topupstore.ErrTopUpStatusInvalid) {
+			// 查单期间支付回调并发完成入账，视为已支付成功
+			httpapi.ApiSuccess(c, gin.H{"status": common.TopUpStatusSuccess})
+			return
+		}
+		common.SysError("check topup complete failed: trade_no=" + req.TradeNo + " err=" + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return
+	}
+	httpapi.ApiSuccess(c, gin.H{"status": common.TopUpStatusSuccess})
+}

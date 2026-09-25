@@ -489,20 +489,24 @@ const (
 
 // Top-up related messages
 const (
-	MsgTopupAmountExceedMax       = "topup.amount_exceed_max"
-	MsgTopupSuccessUrlUntrusted   = "topup.success_url_untrusted"
-	MsgTopupCancelUrlUntrusted    = "topup.cancel_url_untrusted"
-	MsgTopupUnsupportedChannel    = "topup.unsupported_channel"
-	MsgTopupAmountBelowMin        = "topup.amount_below_min"
-	MsgTopupGetGroupFailed        = "topup.get_group_failed"
-	MsgTopupPayAmountTooLow       = "topup.pay_amount_too_low"
-	MsgTopupPaymentMethodNotFound = "topup.payment_method_not_found"
-	MsgTopupPaymentConfigMissing  = "topup.payment_config_missing"
-	MsgTopupPaymentInitFailed     = "topup.payment_init_failed"
-	MsgTopupOrderCreateFailed     = "topup.order_create_failed"
-	MsgTopupInvalidParams         = "topup.invalid_params"
-	MsgTopupSuccess               = "topup.success"
-	MsgTopupFailed                = "topup.failed"
+	MsgTopupAmountExceedMax          = "topup.amount_exceed_max"
+	MsgTopupSuccessUrlUntrusted      = "topup.success_url_untrusted"
+	MsgTopupCancelUrlUntrusted       = "topup.cancel_url_untrusted"
+	MsgTopupUnsupportedChannel       = "topup.unsupported_channel"
+	MsgTopupAmountBelowMin           = "topup.amount_below_min"
+	MsgTopupGetGroupFailed           = "topup.get_group_failed"
+	MsgTopupPayAmountTooLow          = "topup.pay_amount_too_low"
+	MsgTopupPaymentMethodNotFound    = "topup.payment_method_not_found"
+	MsgTopupPaymentConfigMissing     = "topup.payment_config_missing"
+	MsgTopupPaymentInitFailed        = "topup.payment_init_failed"
+	MsgTopupOrderCreateFailed        = "topup.order_create_failed"
+	MsgTopupInvalidParams            = "topup.invalid_params"
+	MsgTopupSuccess                  = "topup.success"
+	MsgTopupFailed                   = "topup.failed"
+	MsgTopupOrderNotFound            = "topup.order_not_found"
+	MsgTopupCheckProviderUnsupported = "topup.check_provider_unsupported"
+	MsgTopupCheckStatusNotPending    = "topup.check_status_not_pending"
+	MsgTopupCheckGatewayFailed       = "topup.check_gateway_failed"
 )
 
 // Channel affinity related messages

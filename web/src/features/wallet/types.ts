@@ -265,6 +265,8 @@ export interface TopupRecord {
   trade_no: string
   /** Payment method type */
   payment_method: string
+  /** Payment provider (epay/stripe) */
+  payment_provider?: string
   /** Creation timestamp */
   create_time: number
   /** Completion timestamp */
@@ -286,4 +288,18 @@ export interface BillingHistoryResponse {
  */
 export interface CompleteOrderRequest {
   trade_no: string
+}
+
+/**
+ * Check order request (order owner or admin)
+ */
+export interface CheckOrderRequest {
+  trade_no: string
+}
+
+/**
+ * Check order response data: latest order status reported by the gateway
+ */
+export interface CheckOrderResponseData {
+  status: TopupStatus
 }

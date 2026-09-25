@@ -2,6 +2,7 @@
   "orderQuery.fields.amount": "Amount",
   "orderQuery.tips.sureYouWantToManuallyCompleteThisOrderThe": "Are you sure you want to manually complete this order? The user will be credited with the corresponding quota.",
   "orderQuery.fields.completeOrder": "Complete Order",
+  "orderQuery.fields.checkOrder": "Check",
   "orderQuery.actions.copyOrderNumber": "Copy order number",
   "orderQuery.fields.noOrdersFound": "No orders found",
   "orderQuery.fields.number": "Order number",

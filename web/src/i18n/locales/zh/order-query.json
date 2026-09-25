@@ -2,6 +2,7 @@
   "orderQuery.fields.amount": "金额",
   "orderQuery.tips.sureYouWantToManuallyCompleteThisOrderThe": "您确定要手动完成此订单吗？用户将获得相应的配额。",
   "orderQuery.fields.completeOrder": "补单",
+  "orderQuery.fields.checkOrder": "检查",
   "orderQuery.actions.copyOrderNumber": "复制订单号",
   "orderQuery.fields.noOrdersFound": "未找到订单",
   "orderQuery.fields.number": "订单号",
