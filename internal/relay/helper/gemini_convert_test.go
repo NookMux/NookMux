@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/domain/channel/constant"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
+	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
 func TestResponseOpenAI2GeminiPreservesReasoningAndUsage(t *testing.T) {
@@ -126,5 +128,70 @@ func TestStreamResponseOpenAI2GeminiBuffersToolCallArguments(t *testing.T) {
 	args, ok := part.FunctionCall.Arguments.(map[string]interface{})
 	if !ok || args["city"] != "Shanghai" {
 		t.Fatalf("function call args = %#v, want {city: Shanghai}", part.FunctionCall.Arguments)
+	}
+}
+
+func TestGeminiToOpenAIRequestStopSequencesTruncateByActualLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		payload  string
+		expected []string
+	}{
+		{
+			name:     "single stop sequence",
+			payload:  `{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"stopSequences":["A"]}}`,
+			expected: []string{"A"},
+		},
+		{
+			name:     "two stop sequences",
+			payload:  `{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"stopSequences":["A","B"]}}`,
+			expected: []string{"A", "B"},
+		},
+		{
+			name:     "three stop sequences",
+			payload:  `{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"stopSequences":["A","B","C"]}}`,
+			expected: []string{"A", "B", "C"},
+		},
+		{
+			name:     "five stop sequences truncated to four",
+			payload:  `{"contents":[{"role":"user","parts":[{"text":"hi"}]}],"generationConfig":{"stopSequences":["A","B","C","D","E"]}}`,
+			expected: []string{"A", "B", "C", "D"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var geminiReq shared.GeminiChatRequest
+			if err := jsonx.UnmarshalJsonStr(tt.payload, &geminiReq); err != nil {
+				t.Fatalf("unmarshal gemini request failed: %v", err)
+			}
+
+			info := &relaycommon.RelayInfo{
+				OriginModelName: "gemini-2.5-pro",
+				ChannelMeta: &relaycommon.ChannelMeta{
+					ChannelType:       constant.ChannelTypeGemini,
+					UpstreamModelName: "gemini-2.5-pro",
+				},
+			}
+			openaiReq, err := GeminiToOpenAIRequest(&geminiReq, info)
+			if err != nil {
+				t.Fatalf("GeminiToOpenAIRequest returned error: %v", err)
+			}
+			if openaiReq.Stop == nil {
+				t.Fatal("stop is nil, want converted stop sequences")
+			}
+			got, ok := openaiReq.Stop.([]string)
+			if !ok {
+				t.Fatalf("stop type = %T, want []string", openaiReq.Stop)
+			}
+			if len(got) != len(tt.expected) {
+				t.Fatalf("stop = %v, want %v", got, tt.expected)
+			}
+			for i := range tt.expected {
+				if got[i] != tt.expected[i] {
+					t.Fatalf("stop[%d] = %q, want %q", i, got[i], tt.expected[i])
+				}
+			}
+		})
 	}
 }

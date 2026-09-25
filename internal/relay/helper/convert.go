@@ -1180,9 +1180,13 @@ func GeminiToOpenAIRequest(geminiRequest *shared.GeminiChatRequest, info *relayc
 	if geminiRequest.GenerationConfig.MaxOutputTokens > 0 {
 		openaiRequest.MaxTokens = geminiRequest.GenerationConfig.MaxOutputTokens
 	}
-	// gemini stop sequences 最多 5 个，openai stop 最多 4 个
-	if len(geminiRequest.GenerationConfig.StopSequences) > 0 {
-		openaiRequest.Stop = geminiRequest.GenerationConfig.StopSequences[:4]
+	// gemini stop sequences 最多 5 个，openai stop 最多 4 个，按实际长度截断到 min(len, 4)
+	if seqs := geminiRequest.GenerationConfig.StopSequences; len(seqs) > 0 {
+		n := len(seqs)
+		if n > 4 {
+			n = 4
+		}
+		openaiRequest.Stop = seqs[:n]
 	}
 	if geminiRequest.GenerationConfig.CandidateCount > 0 {
 		openaiRequest.N = geminiRequest.GenerationConfig.CandidateCount
