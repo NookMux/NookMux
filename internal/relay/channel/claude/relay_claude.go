@@ -269,8 +269,8 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, info *relaycommon.RelayInfo, te
 				Description: tool.Function.Description,
 			}
 			claudeTool.InputSchema = make(map[string]interface{})
-			if params["type"] != nil {
-				claudeTool.InputSchema["type"] = params["type"].(string)
+			if t, ok := params["type"].(string); ok {
+				claudeTool.InputSchema["type"] = t
 			}
 			claudeTool.InputSchema["properties"] = params["properties"]
 			claudeTool.InputSchema["required"] = params["required"]
@@ -371,7 +371,9 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, info *relaycommon.RelayInfo, te
 		case []interface{}:
 			stopSequences := make([]string, 0)
 			for _, stop := range textRequest.Stop.([]interface{}) {
-				stopSequences = append(stopSequences, stop.(string))
+				if s, ok := stop.(string); ok {
+					stopSequences = append(stopSequences, s)
+				}
 			}
 			claudeRequest.StopSequences = stopSequences
 		}
