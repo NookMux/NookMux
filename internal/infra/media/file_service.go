@@ -526,6 +526,10 @@ func parseHEIFDimensions(data []byte) (int, int, bool) {
 	return 0, 0, false
 }
 
+// maxImageDimension 采信的图片宽高上限。图片头部声明的尺寸来自不受信来源，
+// 超大声明值会使下游基于面积的计费计算溢出，超限即视为非法尺寸、解析未命中。
+const maxImageDimension = 30000
+
 func findISPE(data []byte) (int, int, bool) {
 	offset := 0
 	size := len(data)
@@ -545,6 +549,9 @@ func findISPE(data []byte) (int, int, bool) {
 			if len(content) >= 12 {
 				w := int(binary.BigEndian.Uint32(content[4:8]))
 				h := int(binary.BigEndian.Uint32(content[8:12]))
+				if w > maxImageDimension || h > maxImageDimension {
+					return 0, 0, false
+				}
 				if w > 0 && h > 0 {
 					return w, h, true
 				}
