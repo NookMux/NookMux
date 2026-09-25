@@ -139,7 +139,7 @@ export function DatabaseMaintenanceSection() {
 
   return (
     <SettingsSection title={t('systemSettings.fields.databaseMaintenance')}>
-      <Alert>
+      <Alert variant='danger'>
         <AlertTriangle className='size-4' />
         <AlertTitle>{t('systemSettings.fields.highRiskOperation')}</AlertTitle>
         <AlertDescription>
