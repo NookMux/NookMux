@@ -10,6 +10,7 @@ import (
 	relaychannel "github.com/NookMux/NookMux/internal/relay/channel"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
 	"github.com/NookMux/NookMux/pkg/jsonx"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/gin-gonic/gin"
 )
@@ -106,5 +107,98 @@ func TestDoAwsClientRequestPassesSafeHeadersAndFiltersBillingHeader(t *testing.T
 	relaychannel.MergeClientHeadersToHeader(ctx, filtered)
 	if filtered.Get("x-anthropic-billing-header") != "" || filtered.Get("x-trace-id") != "trace-123" {
 		t.Fatalf("safe header merge = %#v", filtered)
+	}
+}
+
+type novaStubRoundTripper struct {
+	statusCode int
+	body       []byte
+}
+
+func (t *novaStubRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	recorder := httptest.NewRecorder()
+	recorder.Code = t.statusCode
+	recorder.Header().Set("Content-Type", "application/json")
+	recorder.Body.Write(t.body)
+	return recorder.Result(), nil
+}
+
+func newNovaTestAdaptor(t *testing.T, responseBody []byte) *Adaptor {
+	t.Helper()
+	credential, err := parseAwsCredential("test-api-key|us-east-1", shared.AwsKeyTypeApiKey)
+	if err != nil {
+		t.Fatalf("parseAwsCredential: %v", err)
+	}
+	httpClient := &http.Client{Transport: &novaStubRoundTripper{statusCode: http.StatusOK, body: responseBody}}
+	return &Adaptor{
+		AwsClient: newAwsRuntimeClient(credential, httpClient),
+		AwsReq: &bedrockruntime.InvokeModelInput{
+			ModelId:     aws.String("us.amazon.nova-pro-v1:0"),
+			Accept:      aws.String("application/json"),
+			ContentType: aws.String("application/json"),
+			Body:        []byte(`{"messages":[{"role":"user","content":[{"text":"hi"}]}]}`),
+		},
+	}
+}
+
+func newNovaTestContext() (*gin.Context, *httptest.ResponseRecorder) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	return ctx, recorder
+}
+
+func TestHandleNovaRequestEmptyContentReturnsBadResponseError(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "empty content array", body: `{"output":{"message":{"content":[]}},"usage":{"inputTokens":3,"outputTokens":5,"totalTokens":8}}`},
+		{name: "missing message", body: `{"output":{},"usage":{"inputTokens":3,"outputTokens":5,"totalTokens":8}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, _ := newNovaTestContext()
+			info := newAwsHeaderTestInfo(nil, false)
+			adaptor := newNovaTestAdaptor(t, []byte(tc.body))
+
+			err, usage := handleNovaRequest(ctx, info, adaptor)
+
+			if err == nil {
+				t.Fatal("handleNovaRequest() error = nil, want bad response error for empty content")
+			}
+			if usage != nil {
+				t.Fatalf("usage = %#v, want nil when handler fails", usage)
+			}
+			if err.GetErrorCode() != shared.ErrorCodeBadResponseBody {
+				t.Fatalf("error code = %q, want %q", err.GetErrorCode(), shared.ErrorCodeBadResponseBody)
+			}
+		})
+	}
+}
+
+func TestHandleNovaRequestSingleContentSucceeds(t *testing.T) {
+	ctx, recorder := newNovaTestContext()
+	info := newAwsHeaderTestInfo(nil, false)
+	adaptor := newNovaTestAdaptor(t, []byte(`{"output":{"message":{"content":[{"text":"hello nova"}]}},"usage":{"inputTokens":3,"outputTokens":5,"totalTokens":8}}`))
+
+	err, usage := handleNovaRequest(ctx, info, adaptor)
+
+	if err != nil {
+		t.Fatalf("handleNovaRequest: %v", err)
+	}
+	if usage == nil || usage.PromptTokens != 3 || usage.CompletionTokens != 5 || usage.TotalTokens != 8 {
+		t.Fatalf("usage = %#v, want prompt 3 completion 5 total 8", usage)
+	}
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	var response shared.OpenAITextResponse
+	if err := jsonx.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("unmarshal response body: %v", err)
+	}
+	if len(response.Choices) != 1 || response.Choices[0].Message.Content != "hello nova" {
+		t.Fatalf("choices = %#v, want single choice with content %q", response.Choices, "hello nova")
 	}
 }
