@@ -1561,6 +1561,9 @@ func testAllChannels(c *gin.Context, notify bool) error {
 	if disableThreshold == 0 {
 		disableThreshold = 10000000 // a impossible value
 	}
+	// gin 在 HTTP handler 返回后会将请求级 Context 归还对象池并被后续请求复用，
+	// 后台 goroutine 不得再触碰；因此在派生前同步解析语言，闭包内改用按语言翻译入口。
+	lang := i18n.GetLangFromContext(c)
 	runtime.RelayGo(func() {
 		// 使用 defer 确保无论如何都会重置运行状态，防止死锁
 		defer func() {
@@ -1586,7 +1589,7 @@ func testAllChannels(c *gin.Context, notify bool) error {
 			// 当错误检查通过，才检查响应时间
 			if common.AutomaticDisableChannelEnabled && !shouldBanChannel {
 				if milliseconds > disableThreshold {
-					err := fmt.Errorf("%s", i18n.T(c, i18n.MsgChannelResponseTimeExceeded, map[string]any{
+					err := fmt.Errorf("%s", i18n.Translate(lang, i18n.MsgChannelResponseTimeExceeded, map[string]any{
 						"Response":  fmt.Sprintf("%.2f", float64(milliseconds)/1000.0),
 						"Threshold": fmt.Sprintf("%.2f", float64(disableThreshold)/1000.0),
 					}))
