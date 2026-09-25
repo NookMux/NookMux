@@ -114,6 +114,10 @@ func QueryEpayOrder(outTradeNo string) (*EpayOrderQueryResult, error) {
 	if operation.PayAddress == "" || operation.EpayId == "" || operation.EpayKey == "" {
 		return nil, errors.New("易支付配置不完整")
 	}
+	// 防御直改库等绕过选项保存校验的配置：商户密钥明文外发前强制复验网关为 https
+	if err := operation.ValidatePayAddress(operation.PayAddress); err != nil {
+		return nil, err
+	}
 
 	u, err := url.Parse(operation.PayAddress)
 	if err != nil {

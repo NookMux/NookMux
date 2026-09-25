@@ -6,6 +6,10 @@ This file is the old version of the payment settings file. If you need to add ne
 package operation
 
 import (
+	"errors"
+	"fmt"
+	"net/url"
+
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
@@ -15,6 +19,23 @@ var EpayId = ""
 var EpayKey = ""
 var Price = 7.3
 var MinTopUp = 1
+
+// ValidatePayAddress 校验易支付网关地址：非空时 scheme 必须为 https。
+// 易支付 V1 协议将商户密钥拼入下单/查单请求明文外发，http 网关或被劫持链路
+// 会直接泄露密钥，进而被伪造 MD5 签名回调与查单响应；空值表示未启用易支付，允许保留。
+func ValidatePayAddress(address string) error {
+	if address == "" {
+		return nil
+	}
+	u, err := url.Parse(address)
+	if err != nil {
+		return fmt.Errorf("易支付网关地址无效: %w", err)
+	}
+	if u.Scheme != "https" {
+		return errors.New("易支付网关地址必须使用 https 协议")
+	}
+	return nil
+}
 
 var PayMethods = []map[string]string{
 	{

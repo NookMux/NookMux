@@ -10,18 +10,23 @@ import (
 )
 
 // setupEpayQueryGateway 启动模拟易支付网关并注入查单配置，清理自动注册。
+// 查单强制 https，网关使用自签 TLS 证书的 httptest 服务，并临时把查单客户端
+// 替换为信任该证书的 server.Client()。
 func setupEpayQueryGateway(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	t.Helper()
 
-	server := httptest.NewServer(handler)
+	server := httptest.NewTLSServer(handler)
 	t.Cleanup(server.Close)
 
 	oldPayAddress, oldEpayId, oldEpayKey := operation.PayAddress, operation.EpayId, operation.EpayKey
 	operation.PayAddress = server.URL
 	operation.EpayId = "1001"
 	operation.EpayKey = "test-merchant-key"
+	oldClient := epayQueryClient
+	epayQueryClient = server.Client()
 	t.Cleanup(func() {
 		operation.PayAddress, operation.EpayId, operation.EpayKey = oldPayAddress, oldEpayId, oldEpayKey
+		epayQueryClient = oldClient
 	})
 
 	return server
@@ -190,5 +195,35 @@ func TestQueryEpayOrderErrorRedactsMerchantKey(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "REDACTED") {
 		t.Fatalf("QueryEpayOrder() error should contain redacted key marker: %s", err.Error())
+	}
+}
+
+// TestQueryEpayOrderRejectsInsecurePayAddress 防御直改库绕过选项保存校验的场景：
+// PayAddress 为 http:// 时必须直接失败，且不得向网关发出任何携带商户密钥的请求。
+func TestQueryEpayOrderRejectsInsecurePayAddress(t *testing.T) {
+	requested := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = true
+		_, _ = w.Write([]byte(`{"code":1,"msg":"查询订单号成功！","out_trade_no":"USR1NO123","status":1}`))
+	}))
+	t.Cleanup(server.Close)
+
+	oldPayAddress, oldEpayId, oldEpayKey := operation.PayAddress, operation.EpayId, operation.EpayKey
+	operation.PayAddress = server.URL
+	operation.EpayId = "1001"
+	operation.EpayKey = "test-merchant-key"
+	t.Cleanup(func() {
+		operation.PayAddress, operation.EpayId, operation.EpayKey = oldPayAddress, oldEpayId, oldEpayKey
+	})
+
+	_, err := QueryEpayOrder("USR1NO123")
+	if err == nil {
+		t.Fatal("QueryEpayOrder() expected error for http:// PayAddress, got nil")
+	}
+	if !strings.Contains(err.Error(), "https") {
+		t.Fatalf("QueryEpayOrder() error should mention https requirement: %s", err.Error())
+	}
+	if requested {
+		t.Fatal("QueryEpayOrder() must not send any request to insecure http:// gateway")
 	}
 }

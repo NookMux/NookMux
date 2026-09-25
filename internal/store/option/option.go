@@ -257,6 +257,13 @@ func UpdateOption(key string, value string) error {
 	if err := validateConfigUpdate(key, value); err != nil {
 		return err
 	}
+	// PayAddress 是易支付商户密钥明文外发的目标网关，保存前强制 https 校验，
+	// 非 https 直接拒绝落库。
+	if key == "PayAddress" {
+		if err := operation.ValidatePayAddress(value); err != nil {
+			return err
+		}
+	}
 	// Save to database first
 	option := Option{
 		Key: key,
