@@ -352,12 +352,15 @@ func SendPasswordResetEmail(c *gin.Context) {
 type PasswordResetRequest struct {
 	Email string `json:"email"`
 	Token string `json:"token"`
+	// NewPassword 由请求者自行设置，服务端校验强度后哈希入库，
+	// 响应体不再返回任何凭据。
+	NewPassword string `json:"new_password"`
 }
 
 func ResetPassword(c *gin.Context) {
 	var req PasswordResetRequest
 	err := jsonx.DecodeJson(c.Request.Body, &req)
-	if err != nil || req.Email == "" || req.Token == "" {
+	if err != nil || req.Email == "" || req.Token == "" || req.NewPassword == "" {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
@@ -365,19 +368,18 @@ func ResetPassword(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgMiscPasswordResetLinkInvalid)
 		return
 	}
-	password := security.GenerateVerificationCode(12)
-	err = userstore.ResetUserPasswordByEmail(req.Email, password)
-	if err != nil {
+	// 复用注册/更新用户时 userstore.User Password 字段的长度约束。
+	if err := security.Validate.Var(req.NewPassword, "min=8,max=20"); err != nil {
+		httpapi.ApiErrorI18n(c, i18n.MsgMiscPasswordInvalid)
+		return
+	}
+	if err := userstore.ResetUserPasswordByEmail(req.Email, req.NewPassword); err != nil {
 		common.SysError("reset user password by email failed: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
 	security.DeleteKey(req.Email, security.PasswordResetPurpose)
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    password,
-	})
+	httpapi.ApiSuccessI18n(c, i18n.MsgMiscPasswordResetSuccess, nil)
 }
 
 // GetUsageLogFieldsVisible 公开接口：返回当前用户角色下使用日志详情弹窗的字段可见性配置。

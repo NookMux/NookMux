@@ -20,6 +20,8 @@ misc.email_alias_rejected: "管理员已启用邮箱地址别名限制，您的�
 misc.email_taken: "邮箱地址已被占用"
 misc.email_send_failed: "邮件发送失败，请稍后重试或联系管理员"
 misc.password_reset_link_invalid: "重置链接非法或已过期"
+misc.password_reset_success: "密码重置成功，请使用新密码登录"
+misc.password_invalid: "密码长度必须在 8 到 20 个字符之间"
 misc.usage_log_fields_parse_failed: "使用日志字段配置解析失败"
 misc.server_running: "服务运行中"
 misc.email_domain_whitelist_rejected: "管理员已启用邮箱域名白名单，您的邮箱地址由于不在白名单或包含特殊符号而被拒绝。"
