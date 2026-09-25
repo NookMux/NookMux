@@ -66,6 +66,7 @@ export function OrderQuery() {
 
   const columns = useOrderQueryColumns(
     isAdmin,
+    records,
     columnActions
   ) as ColumnDef<TopupRecord>[]
 

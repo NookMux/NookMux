@@ -3,13 +3,13 @@ package payment
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/NookMux/NookMux/internal/config/operation"
-	"github.com/NookMux/NookMux/internal/infra/httpclient"
 )
 
-// setupEpayQueryGateway 启动模拟易支付网关并注入查单配置，返回清理函数。
+// setupEpayQueryGateway 启动模拟易支付网关并注入查单配置，清理自动注册。
 func setupEpayQueryGateway(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	t.Helper()
 
@@ -24,7 +24,6 @@ func setupEpayQueryGateway(t *testing.T, handler http.HandlerFunc) *httptest.Ser
 		operation.PayAddress, operation.EpayId, operation.EpayKey = oldPayAddress, oldEpayId, oldEpayKey
 	})
 
-	httpclient.InitHttpClient()
 	return server
 }
 
@@ -133,5 +132,63 @@ func TestQueryEpayOrderMissingConfig(t *testing.T) {
 func TestQueryEpayOrderEmptyTradeNo(t *testing.T) {
 	if _, err := QueryEpayOrder(""); err == nil {
 		t.Fatal("QueryEpayOrder() expected error for empty trade_no, got nil")
+	}
+}
+
+func TestQueryEpayOrderStringNumberFields(t *testing.T) {
+	setupEpayQueryGateway(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"code":"1","msg":"查询订单号成功！","out_trade_no":"USR1NO123","type":"alipay","money":1.00,"status":"1"}`))
+	})
+
+	result, err := QueryEpayOrder("USR1NO123")
+	if err != nil {
+		t.Fatalf("QueryEpayOrder() error = %v", err)
+	}
+	if result.Code != 1 || result.Status != 1 {
+		t.Errorf("Code/Status = %d/%d, want 1/1 (string-serialized numbers)", result.Code, result.Status)
+	}
+	if result.Money != "1" {
+		t.Errorf("Money = %q, want \"1\" (number-serialized amount)", result.Money)
+	}
+}
+
+func TestQueryEpayOrderOutTradeNoMismatch(t *testing.T) {
+	setupEpayQueryGateway(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"code":1,"msg":"查询订单号成功！","trade_no":"2016080622555342651","out_trade_no":"USR1NO999","type":"alipay","money":"1.00","status":1}`))
+	})
+
+	_, err := QueryEpayOrder("USR1NO123")
+	if err == nil {
+		t.Fatal("QueryEpayOrder() expected error for out_trade_no mismatch, got nil")
+	}
+}
+
+func TestQueryEpayOrderPreservesGatewayQuery(t *testing.T) {
+	server := setupEpayQueryGateway(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("mch"); got != "42" {
+			t.Errorf("mch = %q, want 42 (gateway query param must be preserved)", got)
+		}
+		_, _ = w.Write([]byte(`{"code":1,"msg":"查询订单号成功！","out_trade_no":"USR1NO123","type":"alipay","money":"1.00","status":0}`))
+	})
+	operation.PayAddress = server.URL + "/?mch=42"
+
+	if _, err := QueryEpayOrder("USR1NO123"); err != nil {
+		t.Fatalf("QueryEpayOrder() error = %v", err)
+	}
+}
+
+func TestQueryEpayOrderErrorRedactsMerchantKey(t *testing.T) {
+	server := setupEpayQueryGateway(t, func(w http.ResponseWriter, r *http.Request) {})
+	server.Close()
+
+	_, err := QueryEpayOrder("USR1NO123")
+	if err == nil {
+		t.Fatal("QueryEpayOrder() expected error after gateway shutdown, got nil")
+	}
+	if strings.Contains(err.Error(), "test-merchant-key") {
+		t.Fatalf("QueryEpayOrder() error leaks merchant key: %s", err.Error())
+	}
+	if !strings.Contains(err.Error(), "REDACTED") {
+		t.Fatalf("QueryEpayOrder() error should contain redacted key marker: %s", err.Error())
 	}
 }

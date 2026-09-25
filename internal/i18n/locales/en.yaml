@@ -439,6 +439,7 @@ topup.order_not_found: "Order not found"
 topup.check_provider_unsupported: "Online order check is not supported for this payment method"
 topup.check_status_not_pending: "Only pending orders can be checked"
 topup.check_gateway_failed: "Failed to query the payment gateway, please try again later"
+topup.check_order_mismatch: "Order amount or payment method does not match the payment gateway, please contact the administrator"
 
 # Channel affinity messages
 channel_affinity.rule_name_required: "Missing parameter: rule_name"

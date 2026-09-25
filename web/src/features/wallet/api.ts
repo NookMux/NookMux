@@ -244,6 +244,8 @@ export async function completeOrder(
 export async function checkOrder(
   request: CheckOrderRequest
 ): Promise<ApiResponse<CheckOrderResponseData>> {
-  const res = await api.post('/api/user/topup/check', request)
+  const res = await api.post('/api/user/topup/check', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
   return res.data
 }

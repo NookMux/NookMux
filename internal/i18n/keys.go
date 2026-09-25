@@ -507,6 +507,7 @@ const (
 	MsgTopupCheckProviderUnsupported = "topup.check_provider_unsupported"
 	MsgTopupCheckStatusNotPending    = "topup.check_status_not_pending"
 	MsgTopupCheckGatewayFailed       = "topup.check_gateway_failed"
+	MsgTopupCheckOrderMismatch       = "topup.check_order_mismatch"
 )
 
 // Channel affinity related messages

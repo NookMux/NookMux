@@ -66,13 +66,18 @@ func GetTopUpById(id int) *TopUp {
 	return topUp
 }
 
-func GetTopUpByTradeNo(tradeNo string) *TopUp {
+// GetTopUpByTradeNo 按订单号查询充值订单；订单不存在时返回 (nil, nil)，
+// 其余数据库错误原样上抛，由调用方区分处理。
+func GetTopUpByTradeNo(tradeNo string) (*TopUp, error) {
 	var topUp *TopUp
 	err := dbstore.DB.Where("trade_no = ?", tradeNo).First(&topUp).Error
-	if err != nil {
-		return nil
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
 	}
-	return topUp
+	if err != nil {
+		return nil, err
+	}
+	return topUp, nil
 }
 
 func validateTopUpCallback(topUp *TopUp, expectedProvider string, expectedMethod string, expectedMoney string) error {
@@ -285,6 +290,10 @@ func topUpQueryCutoff() int64 {
 	return common.GetTimestamp() - topUpQueryWindowSeconds
 }
 
+// userTopUpListWhere 普通用户订单列表的过滤条件：历史记录限制在时间窗口内，
+// 但待支付订单不受窗口限制——回调丢失的滞留订单需保持可见，供用户自查支付状态。
+const userTopUpListWhere = "user_id = ? AND (create_time >= ? OR status = ?)"
+
 func GetUserTopUps(userId int, pageInfo *common.PageInfo) (topups []*TopUp, total int64, err error) {
 	// Start transaction
 	tx := dbstore.DB.Begin()
@@ -300,14 +309,14 @@ func GetUserTopUps(userId int, pageInfo *common.PageInfo) (topups []*TopUp, tota
 	cutoff := topUpQueryCutoff()
 
 	// Get total count within transaction
-	err = tx.Model(&TopUp{}).Where("user_id = ? AND create_time >= ?", userId, cutoff).Count(&total).Error
+	err = tx.Model(&TopUp{}).Where(userTopUpListWhere, userId, cutoff, common.TopUpStatusPending).Count(&total).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
 	}
 
 	// Get paginated topups within same transaction
-	err = tx.Where("user_id = ? AND create_time >= ?", userId, cutoff).Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error
+	err = tx.Where(userTopUpListWhere, userId, cutoff, common.TopUpStatusPending).Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
@@ -364,7 +373,7 @@ func SearchUserTopUps(userId int, keyword string, pageInfo *common.PageInfo) (to
 		}
 	}()
 
-	query := tx.Model(&TopUp{}).Where("user_id = ? AND create_time >= ?", userId, topUpQueryCutoff())
+	query := tx.Model(&TopUp{}).Where(userTopUpListWhere, userId, topUpQueryCutoff(), common.TopUpStatusPending)
 	if keyword != "" {
 		pattern, perr := tokenstore.SanitizeLikePattern(keyword)
 		if perr != nil {

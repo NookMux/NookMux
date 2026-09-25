@@ -83,7 +83,10 @@ func createPaymentProviderGuardTopUp(t *testing.T, tradeNo string, provider stri
 func paymentProviderGuardTopUpStatus(t *testing.T, tradeNo string) string {
 	t.Helper()
 
-	topUp := GetTopUpByTradeNo(tradeNo)
+	topUp, err := GetTopUpByTradeNo(tradeNo)
+	if err != nil {
+		t.Fatalf("get topup %s: %v", tradeNo, err)
+	}
 	if topUp == nil {
 		t.Fatalf("topup %s not found", tradeNo)
 	}

@@ -440,6 +440,7 @@ topup.order_not_found: "订单不存在"
 topup.check_provider_unsupported: "该订单的支付方式不支持在线检查"
 topup.check_status_not_pending: "仅待支付的订单支持检查"
 topup.check_gateway_failed: "支付网关查询失败，请稍后重试"
+topup.check_order_mismatch: "订单金额或支付方式与网关不一致，请联系管理员核对处理"
 
 # Channel affinity messages
 channel_affinity.rule_name_required: "缺少参数 rule_name"

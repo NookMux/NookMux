@@ -30,7 +30,7 @@ func setupTopUpSearchTestDB(t *testing.T) {
 	})
 }
 
-func createTopUpSearchTestOrder(t *testing.T, userID int, tradeNo string, createdAt int64) {
+func createTopUpSearchTestOrder(t *testing.T, userID int, tradeNo string, createdAt int64, status string) {
 	t.Helper()
 
 	topUp := &TopUp{
@@ -39,7 +39,7 @@ func createTopUpSearchTestOrder(t *testing.T, userID int, tradeNo string, create
 		Money:      1,
 		TradeNo:    tradeNo,
 		CreateTime: createdAt,
-		Status:     common.TopUpStatusPending,
+		Status:     status,
 	}
 	if err := topUp.Insert(); err != nil {
 		t.Fatalf("create topup: %v", err)
@@ -54,8 +54,8 @@ func TestGetUserTopUpsLimitsResultsToRecentWindow(t *testing.T) {
 	setupTopUpSearchTestDB(t)
 
 	now := common.GetTimestamp()
-	createTopUpSearchTestOrder(t, 1, "recent-order", now)
-	createTopUpSearchTestOrder(t, 1, "old-order", now-topUpQueryWindowSeconds-1)
+	createTopUpSearchTestOrder(t, 1, "recent-order", now, common.TopUpStatusSuccess)
+	createTopUpSearchTestOrder(t, 1, "old-order", now-topUpQueryWindowSeconds-1, common.TopUpStatusSuccess)
 
 	topups, total, err := GetUserTopUps(1, topUpSearchPageInfo())
 	if err != nil {
@@ -66,6 +66,27 @@ func TestGetUserTopUpsLimitsResultsToRecentWindow(t *testing.T) {
 	}
 	if len(topups) != 1 || topups[0].TradeNo != "recent-order" {
 		t.Fatalf("topups = %#v, want only recent-order", topups)
+	}
+}
+
+// TestGetUserTopUpsKeepsPendingOrdersBeyondWindow 验证待支付订单不受时间窗口限制：
+// 回调丢失的滞留订单需保持可见，供用户自查支付状态。
+func TestGetUserTopUpsKeepsPendingOrdersBeyondWindow(t *testing.T) {
+	setupTopUpSearchTestDB(t)
+
+	now := common.GetTimestamp()
+	createTopUpSearchTestOrder(t, 1, "old-pending", now-topUpQueryWindowSeconds-1, common.TopUpStatusPending)
+	createTopUpSearchTestOrder(t, 1, "old-success", now-topUpQueryWindowSeconds-1, common.TopUpStatusSuccess)
+
+	topups, total, err := GetUserTopUps(1, topUpSearchPageInfo())
+	if err != nil {
+		t.Fatalf("GetUserTopUps error = %v", err)
+	}
+	if total != 1 {
+		t.Fatalf("total = %d, want 1", total)
+	}
+	if len(topups) != 1 || topups[0].TradeNo != "old-pending" {
+		t.Fatalf("topups = %#v, want only old-pending", topups)
 	}
 }
 
@@ -82,9 +103,9 @@ func TestSearchUserTopUpsUsesEscapedPatternAndRecentWindow(t *testing.T) {
 	setupTopUpSearchTestDB(t)
 
 	now := common.GetTimestamp()
-	createTopUpSearchTestOrder(t, 1, "abc_123", now)
-	createTopUpSearchTestOrder(t, 1, "abcX123", now)
-	createTopUpSearchTestOrder(t, 1, "old_123", now-topUpQueryWindowSeconds-1)
+	createTopUpSearchTestOrder(t, 1, "abc_123", now, common.TopUpStatusSuccess)
+	createTopUpSearchTestOrder(t, 1, "abcX123", now, common.TopUpStatusSuccess)
+	createTopUpSearchTestOrder(t, 1, "old_123", now-topUpQueryWindowSeconds-1, common.TopUpStatusSuccess)
 
 	topups, total, err := SearchUserTopUps(1, "abc_%", topUpSearchPageInfo())
 	if err != nil {
