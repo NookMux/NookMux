@@ -14,6 +14,7 @@ import (
 	"github.com/NookMux/NookMux/internal/httpapi/middleware"
 	"github.com/NookMux/NookMux/internal/i18n"
 	infraemail "github.com/NookMux/NookMux/internal/infra/email"
+	infraruntime "github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/infra/security"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/user"
@@ -339,14 +340,16 @@ func SendPasswordResetEmail(c *gin.Context) {
 			"<p>点击 <a href='%s'>此处</a> 进行密码重置。</p>"+
 			"<p>如果链接无法点击，请尝试点击下面的链接或将其复制到浏览器中打开：<br> %s </p>"+
 			"<p>重置链接 %d 分钟内有效，如果不是本人操作，请忽略。</p>", common.SystemName, link, link, security.VerificationValidMinutes)
-		if err := infraemail.SendEmail(subject, email, content); err != nil {
-			common.SysError(fmt.Sprintf("failed to send password reset email to %s: %v", email, err))
-		}
+		// 发信转后台有界协程池执行，请求立即返回统一响应：
+		// 已注册/未注册邮箱的响应时序一致，SMTP 往返不构成账号存在预言机；
+		// 投递失败记入 SysError，不影响已返回的响应。
+		infraruntime.RelayGo(func() {
+			if err := infraemail.SendEmail(subject, email, content); err != nil {
+				common.SysError(fmt.Sprintf("failed to send password reset email to %s: %v", email, err))
+			}
+		})
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
+	httpapi.ApiSuccessI18n(c, i18n.MsgMiscPasswordResetEmailSent, nil)
 }
 
 type PasswordResetRequest struct {

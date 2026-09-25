@@ -19,6 +19,7 @@ misc.email_alias_rejected: "Email alias restriction is enabled. Your email addre
 misc.email_taken: "Email address is already taken"
 misc.email_send_failed: "Failed to send email, please try again later or contact the administrator"
 misc.password_reset_link_invalid: "Reset link is invalid or expired"
+misc.password_reset_email_sent: "If the account exists, a password reset email has been sent. Please check your inbox"
 misc.password_reset_success: "Password has been reset. Please sign in with your new password"
 misc.password_invalid: "Password length must be between 8 and 20 characters"
 misc.usage_log_fields_parse_failed: "Failed to parse usage log field configuration"

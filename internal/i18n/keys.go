@@ -25,6 +25,7 @@ const (
 	MsgMiscEmailTaken                   = "misc.email_taken"
 	MsgMiscEmailSendFailed              = "misc.email_send_failed"
 	MsgMiscPasswordResetLinkInvalid     = "misc.password_reset_link_invalid"
+	MsgMiscPasswordResetEmailSent       = "misc.password_reset_email_sent"
 	MsgMiscPasswordResetSuccess         = "misc.password_reset_success"
 	MsgMiscPasswordInvalid              = "misc.password_invalid"
 	MsgMiscUsageLogFieldsParseFailed    = "misc.usage_log_fields_parse_failed"

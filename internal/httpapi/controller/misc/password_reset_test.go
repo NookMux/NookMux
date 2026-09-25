@@ -2,6 +2,7 @@ package misccontroller
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +21,9 @@ import (
 func TestSendPasswordResetEmailHidesUnknownEmail(t *testing.T) {
 	testsupport.SetupSecureVerificationTestDB(t)
 	gin.SetMode(gin.TestMode)
+	if err := i18n.Init(); err != nil {
+		t.Fatalf("init i18n: %v", err)
+	}
 
 	router := gin.New()
 	router.GET("/api/reset_password", SendPasswordResetEmail)
@@ -43,8 +47,8 @@ func TestSendPasswordResetEmailHidesUnknownEmail(t *testing.T) {
 	if !body.Success {
 		t.Fatalf("expected success response, got: %s", recorder.Body.String())
 	}
-	if body.Message != "" {
-		t.Fatalf("message = %q, want empty", body.Message)
+	if body.Message != expectMsg(t, i18n.MsgMiscPasswordResetEmailSent) {
+		t.Fatalf("message = %q, want %q", body.Message, expectMsg(t, i18n.MsgMiscPasswordResetEmailSent))
 	}
 }
 
@@ -256,6 +260,9 @@ func TestResetPasswordRejectsInvalidToken(t *testing.T) {
 func TestSendPasswordResetEmailReturnsSuccessWhenDeliveryFails(t *testing.T) {
 	testsupport.SetupSecureVerificationTestDB(t)
 	gin.SetMode(gin.TestMode)
+	if err := i18n.Init(); err != nil {
+		t.Fatalf("init i18n: %v", err)
+	}
 
 	createResetPasswordTestUser(t, "reset-user@example.com")
 
@@ -281,7 +288,60 @@ func TestSendPasswordResetEmailReturnsSuccessWhenDeliveryFails(t *testing.T) {
 	if !body.Success {
 		t.Fatalf("expected success response despite email delivery failure, got: %s", recorder.Body.String())
 	}
-	if body.Message != "" {
-		t.Fatalf("message = %q, want empty", body.Message)
+	if body.Message != expectMsg(t, i18n.MsgMiscPasswordResetEmailSent) {
+		t.Fatalf("message = %q, want %q", body.Message, expectMsg(t, i18n.MsgMiscPasswordResetEmailSent))
+	}
+}
+
+func TestSendPasswordResetEmailBothBranchesReturnSameResponse(t *testing.T) {
+	testsupport.SetupSecureVerificationTestDB(t)
+	gin.SetMode(gin.TestMode)
+	if err := i18n.Init(); err != nil {
+		t.Fatalf("init i18n: %v", err)
+	}
+
+	createResetPasswordTestUser(t, "registered@example.com")
+
+	router := gin.New()
+	router.GET("/api/reset_password", SendPasswordResetEmail)
+
+	requestReset := func(email string) (*http.Response, []byte) {
+		req := httptest.NewRequest(http.MethodGet, "/api/reset_password?email="+email, nil)
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		resp := recorder.Result()
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read response body: %v", err)
+		}
+		return resp, body
+	}
+
+	registeredResp, registeredBody := requestReset("registered@example.com")
+	unknownResp, unknownBody := requestReset("unknown@example.com")
+
+	if registeredResp.StatusCode != unknownResp.StatusCode {
+		t.Fatalf("status differs: registered = %d, unknown = %d", registeredResp.StatusCode, unknownResp.StatusCode)
+	}
+
+	var registeredParsed, unknownParsed struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(registeredBody, &registeredParsed); err != nil {
+		t.Fatalf("unmarshal registered response: %v", err)
+	}
+	if err := json.Unmarshal(unknownBody, &unknownParsed); err != nil {
+		t.Fatalf("unmarshal unknown response: %v", err)
+	}
+	if registeredParsed.Success != unknownParsed.Success {
+		t.Fatalf("success differs: registered = %v, unknown = %v", registeredParsed.Success, unknownParsed.Success)
+	}
+	if registeredParsed.Message != unknownParsed.Message {
+		t.Fatalf("message differs: registered = %q, unknown = %q", registeredParsed.Message, unknownParsed.Message)
+	}
+	if registeredParsed.Message != expectMsg(t, i18n.MsgMiscPasswordResetEmailSent) {
+		t.Fatalf("message = %q, want %q", registeredParsed.Message, expectMsg(t, i18n.MsgMiscPasswordResetEmailSent))
 	}
 }
