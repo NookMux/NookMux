@@ -513,6 +513,22 @@ func (user *User) HardDelete() error {
 	return tokenstore.InvalidateUserTokensCache(user.Id)
 }
 
+// dummyLoginPassword 是哑哈希的固定占位口令，仅用于生成 dummyPasswordHash，
+// 不参与任何真实认证。
+const dummyLoginPassword = "NookMux-login-timing-equalizer-placeholder"
+
+// dummyPasswordHash 是登录失败路径的哑 bcrypt 哈希，与 Password2Hash 一致使用
+// bcrypt.DefaultCost 生成。账号不存在分支在返回凭据错误前用它执行一次等 KDF
+// 开销的口令比对，使"用户名未注册"与"密码错误"两条失败路径的耗时一致，
+// 消除以响应时间探测账号是否存在的侧信道。初始化失败时立即 panic 暴露问题。
+var dummyPasswordHash = func() string {
+	hash, err := security.Password2Hash(dummyLoginPassword)
+	if err != nil {
+		panic(fmt.Sprintf("generate login dummy password hash: %v", err))
+	}
+	return hash
+}()
+
 // ValidateAndFill check password & user status
 func (user *User) ValidateAndFill() (err error) {
 	// When querying with struct, GORM will only query with non-zero fields,
@@ -527,6 +543,9 @@ func (user *User) ValidateAndFill() (err error) {
 	err = dbstore.DB.Where("username = ? OR email = ?", username, username).First(user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 账号不存在分支执行一次与命中分支等 KDF 开销的口令比对，仅用于
+			// 时序均衡；错误语义不变，比对结果不参与判定。
+			_ = security.ValidatePasswordAndHash(password, dummyPasswordHash)
 			return dbstore.ErrInvalidCredentials
 		}
 		return fmt.Errorf("%w: %v", dbstore.ErrDatabase, err)
