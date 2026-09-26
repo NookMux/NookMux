@@ -133,31 +133,7 @@ func migrateDB() error {
 		return err
 	}
 
-	err := dbstore.DB.AutoMigrate(
-		&channelstore.Channel{},
-		&ticketstore.Ticket{},
-		&ticketstore.TicketEntry{},
-		&tokenstore.Token{},
-		&userstore.User{},
-		&passkeystore.PasskeyCredential{},
-		&optionstore.Option{},
-		&redemptionstore.Redemption{},
-		&channelstore.Ability{},
-		&logstore.Log{},
-		&storedmediastore.StoredMedia{},
-		&topupstore.TopUp{},
-		&usedatastore.QuotaData{},
-		&vendormetastore.Model{},
-		&vendormetastore.Vendor{},
-		&prefillgroupstore.PrefillGroup{},
-		&optionstore.Setup{},
-		&twofastore.TwoFA{},
-		&twofastore.TwoFABackupCode{},
-		&checkinstore.Checkin{},
-		&channelstore.DynamicRatioRule{},
-		&auditstore.AuditLog{},
-		&voicestore.Voice{},
-	)
+	err := dbstore.DB.AutoMigrate(mainDBModels()...)
 	if err != nil {
 		return err
 	}
@@ -188,6 +164,35 @@ func migrateLOGDB() error {
 		return err
 	}
 	return nil
+}
+
+// mainDBModels 主库 AutoMigrate 模型清单，由 migrateDB 与跨库 DDL 兼容性测试共用。
+func mainDBModels() []any {
+	return []any{
+		&channelstore.Channel{},
+		&ticketstore.Ticket{},
+		&ticketstore.TicketEntry{},
+		&tokenstore.Token{},
+		&userstore.User{},
+		&passkeystore.PasskeyCredential{},
+		&optionstore.Option{},
+		&redemptionstore.Redemption{},
+		&channelstore.Ability{},
+		&logstore.Log{},
+		&storedmediastore.StoredMedia{},
+		&topupstore.TopUp{},
+		&usedatastore.QuotaData{},
+		&vendormetastore.Model{},
+		&vendormetastore.Vendor{},
+		&prefillgroupstore.PrefillGroup{},
+		&optionstore.Setup{},
+		&twofastore.TwoFA{},
+		&twofastore.TwoFABackupCode{},
+		&checkinstore.Checkin{},
+		&channelstore.DynamicRatioRule{},
+		&auditstore.AuditLog{},
+		&voicestore.Voice{},
+	}
 }
 
 // cleanupLegacyUniqueIndexes 清理所有从旧版 uniqueIndex tag 迁移到新版复合/部分索引后
