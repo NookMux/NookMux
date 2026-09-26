@@ -32,9 +32,12 @@ import (
 )
 
 const (
-	legacyTokenKey     = "e2e-legacy-token-0000000000000000000000"
-	legacyModelLimits  = "gpt-4,claude-3-5-sonnet,gemini-1.5-pro"
-	longLimitsTokenKey = "e2e-long-limits-token-000000000000000000"
+	legacyTokenKey        = "e2e-legacy-token-0000000000000000000000"
+	legacyModelLimits     = "gpt-4,claude-3-5-sonnet,gemini-1.5-pro"
+	longLimitsTokenKey    = "e2e-long-limits-token-000000000000000000"
+	legacySharedVoiceId   = "e2e-voice-shared"
+	legacyFillerVoiceId   = "e2e-voice-filler"
+	legacyRollbackVoiceId = "e2e-voice-rollback-new"
 )
 
 // dropAllTables 清空当前 schema 下的全部数据表，为升级测试提供干净环境。
@@ -226,6 +229,129 @@ func openE2EDB(dsn, flavor string) (*gorm.DB, error) {
 	return gorm.Open(mysql.Open(dsn), &gorm.Config{})
 }
 
+// createE2ELegacyMinimaxVoicesTable 按旧版模型在真实库上重建 minimax_voices，
+// 模拟回滚到旧版本时旧版本 AutoMigrate 重新建表并写入的状态。主键由该表自身的
+// 自增序列分配，与生产写入路径一致（不显式指定 id）。
+func createE2ELegacyMinimaxVoicesTable(t *testing.T, db *gorm.DB, flavor string, voiceIds []string) {
+	t.Helper()
+
+	var ddl string
+	switch flavor {
+	case "mysql":
+		ddl = `CREATE TABLE minimax_voices (
+			id bigint NOT NULL AUTO_INCREMENT,
+			created_at bigint, updated_at bigint, type varchar(16) NOT NULL,
+			operator_id bigint, operator_kind varchar(16), voice_id varchar(256) NOT NULL,
+			quota_cost bigint DEFAULT 0, redirect_id varchar(256), allowed tinyint(1) DEFAULT 0,
+			remark varchar(255),
+			PRIMARY KEY (id), UNIQUE KEY uk_minimax_voice_id (voice_id),
+			KEY idx_minimax_voice_created_at (created_at), KEY idx_minimax_voice_type (type),
+			KEY idx_minimax_voice_operator_id (operator_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+	case "postgres":
+		ddl = `CREATE TABLE minimax_voices (
+			id bigserial PRIMARY KEY,
+			created_at bigint, updated_at bigint, type varchar(16) NOT NULL,
+			operator_id bigint, operator_kind varchar(16), voice_id varchar(256) NOT NULL,
+			quota_cost bigint DEFAULT 0, redirect_id varchar(256), allowed boolean DEFAULT false,
+			remark varchar(255)
+		)`
+	}
+	if err := db.Exec(ddl).Error; err != nil {
+		t.Fatalf("create legacy minimax_voices table (%s): %v", flavor, err)
+	}
+	if flavor == "postgres" {
+		for _, idx := range []string{
+			`CREATE UNIQUE INDEX uk_minimax_voice_id ON minimax_voices (voice_id)`,
+			`CREATE INDEX idx_minimax_voice_created_at ON minimax_voices (created_at)`,
+			`CREATE INDEX idx_minimax_voice_type ON minimax_voices (type)`,
+			`CREATE INDEX idx_minimax_voice_operator_id ON minimax_voices (operator_id)`,
+		} {
+			if err := db.Exec(idx).Error; err != nil {
+				t.Fatalf("create legacy index (%s): %v", flavor, err)
+			}
+		}
+	}
+	for _, voiceId := range voiceIds {
+		if err := db.Exec(
+			`INSERT INTO minimax_voices (voice_id, type, allowed, operator_kind, created_at, updated_at)
+			 VALUES (?, 'created', ?, 'admin', 1700000000, 1700000000)`,
+			voiceId, true,
+		).Error; err != nil {
+			t.Fatalf("seed legacy voice row (%s): %v", flavor, err)
+		}
+	}
+}
+
+// runVoiceRollbackMerge 模拟「升级 → 回滚旧版本重建 minimax_voices 并写入 →
+// 再次升级」的完整流程：两表并存时按 voice_id 去重合并、主键重新分配、旧表删除。
+func runVoiceRollbackMerge(t *testing.T, dsn, flavor string) {
+	t.Helper()
+
+	db, err := openE2EDB(dsn, flavor)
+	if err != nil {
+		t.Fatalf("open %s: %v", flavor, err)
+	}
+	dropAllTables(t, db, flavor)
+	// 首次升级：旧表整表重命名为 voices，voice-shared 保留。
+	createE2ELegacyMinimaxVoicesTable(t, db, flavor, []string{legacySharedVoiceId})
+
+	t.Setenv("SQL_DSN", dsn)
+	oldDB, oldMaster := dbstore.DB, common.IsMasterNode
+	oldUsingMySQL, oldUsingPG, oldUsingSQLite := infradb.UsingMySQL, infradb.UsingPostgreSQL, infradb.UsingSQLite
+	oldRedisEnabled := redis.RedisEnabled
+	common.IsMasterNode = true
+	redis.RedisEnabled = false
+	t.Cleanup(func() {
+		dbstore.DB, common.IsMasterNode = oldDB, oldMaster
+		infradb.UsingMySQL, infradb.UsingPostgreSQL, infradb.UsingSQLite = oldUsingMySQL, oldUsingPG, oldUsingSQLite
+		redis.RedisEnabled = oldRedisEnabled
+	})
+	if err := InitDB(); err != nil {
+		t.Fatalf("first InitDB (legacy rename) on %s failed: %v", flavor, err)
+	}
+
+	// 回滚前 voices 已积累第二条记录，占用旧表重建后将要撞上的主键。
+	if err := db.Exec(
+		`INSERT INTO voices (voice_id, type, allowed, operator_kind, created_at, updated_at)
+		 VALUES (?, 'created', ?, 'admin', 1, 1)`,
+		legacyFillerVoiceId, true,
+	).Error; err != nil {
+		t.Fatalf("seed filler voices row (%s): %v", flavor, err)
+	}
+
+	// 回滚窗口：旧版本重新建表写入。voice-shared 与 voices 重复，voice-rollback 为新增。
+	createE2ELegacyMinimaxVoicesTable(t, db, flavor, []string{legacySharedVoiceId, legacyRollbackVoiceId})
+
+	// 再次升级：合并后删除旧表，两侧数据均保留。
+	if err := migrateDB(); err != nil {
+		t.Fatalf("second upgrade after rollback on %s failed: %v", flavor, err)
+	}
+	if db.Migrator().HasTable("minimax_voices") {
+		t.Fatalf("legacy table should be dropped after merge (%s)", flavor)
+	}
+	var cnt int64
+	if err := db.Table("voices").Count(&cnt).Error; err != nil {
+		t.Fatalf("count voices: %v", err)
+	}
+	if cnt != 3 {
+		t.Fatalf("voices row count = %d, want 3 (duplicate skipped, rollback row merged)", cnt)
+	}
+	var rollbackId int64
+	if err := db.Raw(`SELECT id FROM voices WHERE voice_id = ?`, legacyRollbackVoiceId).Scan(&rollbackId).Error; err != nil || rollbackId <= 2 {
+		t.Fatalf("rollback voice should survive merge with a fresh primary key: id=%d err=%v", rollbackId, err)
+	}
+	var sharedCount int64
+	if err := db.Raw(`SELECT COUNT(1) FROM voices WHERE voice_id = ?`, legacySharedVoiceId).Scan(&sharedCount).Error; err != nil || sharedCount != 1 {
+		t.Fatalf("shared voice should exist exactly once: count=%d err=%v", sharedCount, err)
+	}
+
+	// 幂等：重复迁移不再报错。
+	if err := migrateDB(); err != nil {
+		t.Fatalf("third migrateDB run must be idempotent: %v", err)
+	}
+}
+
 func TestE2ELegacyUpgradeMySQL(t *testing.T) {
 	dsn := os.Getenv("E2E_MYSQL_DSN")
 	if dsn == "" {
@@ -256,4 +382,20 @@ func TestE2EFreshInstallPostgreSQL(t *testing.T) {
 		t.Skip("E2E_PG_DSN not set")
 	}
 	runFreshInstall(t, dsn, "postgres")
+}
+
+func TestE2EVoiceRollbackMergeMySQL(t *testing.T) {
+	dsn := os.Getenv("E2E_MYSQL_DSN")
+	if dsn == "" {
+		t.Skip("E2E_MYSQL_DSN not set")
+	}
+	runVoiceRollbackMerge(t, dsn, "mysql")
+}
+
+func TestE2EVoiceRollbackMergePostgreSQL(t *testing.T) {
+	dsn := os.Getenv("E2E_PG_DSN")
+	if dsn == "" {
+		t.Skip("E2E_PG_DSN not set")
+	}
+	runVoiceRollbackMerge(t, dsn, "postgres")
 }

@@ -55,7 +55,7 @@ func createLegacyMinimaxVoicesTable(t *testing.T, db *gorm.DB, rows int) {
 		}
 	}
 	for i := range rows {
-		if err := db.Exec(`INSERT INTO minimax_voices (voice_id, type, allowed) VALUES (?, ?, 1)`,
+		if err := db.Exec(`INSERT INTO minimax_voices (voice_id, type, allowed, created_at, updated_at) VALUES (?, ?, 1, 1700000000, 1700000000)`,
 			fmt.Sprintf("voice-%d", i), voicestore.VoiceTypeCreated).Error; err != nil {
 			t.Fatalf("seed legacy row: %v", err)
 		}
@@ -127,14 +127,53 @@ func TestRenameLegacyMinimaxVoicesTable_SkipsWhenAbsent(t *testing.T) {
 	}
 }
 
-func TestRenameLegacyMinimaxVoicesTable_FailsWhenBothTablesHaveData(t *testing.T) {
+func TestRenameLegacyMinimaxVoicesTable_MergesRowsWhenBothExist(t *testing.T) {
 	db := setupRenameTestDB(t)
 	createLegacyMinimaxVoicesTable(t, db, 1)
 	if err := db.AutoMigrate(&voicestore.Voice{}); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
-	if err := renameLegacyMinimaxVoicesTable(); err == nil {
-		t.Fatalf("expected error when both tables exist with data")
+	// voices 已有重命名迁移带来的记录（id=1，voice-0）与一条占用 id=2 的无关记录；
+	// 旧表含与 voices 重复的 voice-0 及回滚窗口新增的 legacy-only（旧表 id=2，
+	// 与 voices 的 id=2 冲突）。合并必须跳过重复 voice_id、为 legacy-only 重分配主键。
+	for _, vid := range []string{"voice-0", "filler"} {
+		v := voicestore.Voice{CreatedAt: 1, UpdatedAt: 1, Type: voicestore.VoiceTypeCreated, VoiceId: vid}
+		if err := db.Create(&v).Error; err != nil {
+			t.Fatalf("seed voices row %s: %v", vid, err)
+		}
+	}
+	if err := db.Exec(`INSERT INTO minimax_voices (voice_id, type, allowed, created_at, updated_at) VALUES (?, ?, 1, 1700000000, 1700000000)`,
+		"legacy-only", voicestore.VoiceTypeCreated).Error; err != nil {
+		t.Fatalf("seed legacy-only row: %v", err)
+	}
+
+	if err := renameLegacyMinimaxVoicesTable(); err != nil {
+		t.Fatalf("expected legacy rows to be merged, got: %v", err)
+	}
+	if db.Migrator().HasTable("minimax_voices") {
+		t.Fatalf("legacy table should be dropped after merge")
+	}
+	var cnt int64
+	if err := db.Model(&voicestore.Voice{}).Count(&cnt).Error; err != nil {
+		t.Fatalf("count voices: %v", err)
+	}
+	if cnt != 3 {
+		t.Fatalf("row count = %d, want 3 (duplicate skipped, legacy-only migrated)", cnt)
+	}
+	var migrated voicestore.Voice
+	if err := db.Where("voice_id = ?", "legacy-only").First(&migrated).Error; err != nil {
+		t.Fatalf("legacy-only row should survive merge: %v", err)
+	}
+	if migrated.Id == 2 {
+		t.Fatalf("migrated row should get a fresh primary key instead of the conflicting legacy id 2")
+	}
+	if migrated.Type != voicestore.VoiceTypeCreated || migrated.CreatedAt != 1700000000 || !migrated.Allowed {
+		t.Fatalf("migrated row fields should be preserved, got %+v", migrated)
+	}
+
+	// 幂等：再次运行不应报错。
+	if err := renameLegacyMinimaxVoicesTable(); err != nil {
+		t.Fatalf("second run should be a no-op, got: %v", err)
 	}
 }
 
