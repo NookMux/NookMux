@@ -423,6 +423,21 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	}
 }
 
+// InsertBannedPlaceholder inserts an admin pre-created, already-banned placeholder user
+// (used by /api/user/ban to block OAuth identifiers of users who never logged in).
+// Unlike Insert/InsertWithTx it grants no new-user quota and writes no bonus logs.
+// The placeholder has no password (empty string is a valid not-null value, same as
+// OAuth-registered users) so it can never pass password login.
+func (user *User) InsertBannedPlaceholder() error {
+	user.Quota = 0
+	user.AffCode = common.GetRandomString(4)
+	user.CreatedAt = common.GetTimestamp()
+	if user.Setting == "" {
+		user.SetSetting(shared.UserSetting{})
+	}
+	return dbstore.DB.Create(user).Error
+}
+
 func (user *User) Update(updatePassword bool) error {
 	var err error
 	if updatePassword {
@@ -498,6 +513,22 @@ func (user *User) HardDelete() error {
 	return tokenstore.InvalidateUserTokensCache(user.Id)
 }
 
+// dummyLoginPassword 是哑哈希的固定占位口令，仅用于生成 dummyPasswordHash，
+// 不参与任何真实认证。
+const dummyLoginPassword = "NookMux-login-timing-equalizer-placeholder"
+
+// dummyPasswordHash 是登录失败路径的哑 bcrypt 哈希，与 Password2Hash 一致使用
+// bcrypt.DefaultCost 生成。账号不存在分支在返回凭据错误前用它执行一次等 KDF
+// 开销的口令比对，使"用户名未注册"与"密码错误"两条失败路径的耗时一致，
+// 消除以响应时间探测账号是否存在的侧信道。初始化失败时立即 panic 暴露问题。
+var dummyPasswordHash = func() string {
+	hash, err := security.Password2Hash(dummyLoginPassword)
+	if err != nil {
+		panic(fmt.Sprintf("generate login dummy password hash: %v", err))
+	}
+	return hash
+}()
+
 // ValidateAndFill check password & user status
 func (user *User) ValidateAndFill() (err error) {
 	// When querying with struct, GORM will only query with non-zero fields,
@@ -512,6 +543,9 @@ func (user *User) ValidateAndFill() (err error) {
 	err = dbstore.DB.Where("username = ? OR email = ?", username, username).First(user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 账号不存在分支执行一次与命中分支等 KDF 开销的口令比对，仅用于
+			// 时序均衡；错误语义不变，比对结果不参与判定。
+			_ = security.ValidatePasswordAndHash(password, dummyPasswordHash)
 			return dbstore.ErrInvalidCredentials
 		}
 		return fmt.Errorf("%w: %v", dbstore.ErrDatabase, err)
@@ -890,6 +924,33 @@ func (user *User) FillUserByLinuxDOId() error {
 	}
 	err := dbstore.DB.Where("linux_do_id = ?", user.LinuxDOId).First(user).Error
 	return err
+}
+
+// 以下查询服务于管理员「按一键登录标识拉黑」（/api/user/ban）。
+// 与 Is*AlreadyTaken 的布尔语义不同，这里返回完整行集合（含软删用户），
+// 供调用方区分 0 / 1 / N 命中并决定预创建、封禁还是返回候选清单。
+func GetUsersByEmailUnscoped(email string) ([]User, error) {
+	var users []User
+	err := dbstore.DB.Unscoped().Where("email = ?", email).Find(&users).Error
+	return users, err
+}
+
+func GetUsersByGitHubIdUnscoped(githubId string) ([]User, error) {
+	var users []User
+	err := dbstore.DB.Unscoped().Where("github_id = ?", githubId).Find(&users).Error
+	return users, err
+}
+
+func GetUsersByLinuxDOIdUnscoped(linuxDOId string) ([]User, error) {
+	var users []User
+	err := dbstore.DB.Unscoped().Where("linux_do_id = ?", linuxDOId).Find(&users).Error
+	return users, err
+}
+
+func IsUsernameTakenUnscoped(username string) bool {
+	var count int64
+	dbstore.DB.Unscoped().Model(&User{}).Where("username = ?", username).Count(&count)
+	return count > 0
 }
 
 // UpdateLastLoginAt updates the user's last login timestamp

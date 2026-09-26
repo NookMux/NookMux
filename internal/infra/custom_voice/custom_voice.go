@@ -9,11 +9,12 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	configmodel "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/config/ratio"
+	"github.com/NookMux/NookMux/internal/i18n"
 	httpclient "github.com/NookMux/NookMux/internal/infra/httpclient"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/log"
-	"github.com/NookMux/NookMux/internal/store/minimax_voice"
 	"github.com/NookMux/NookMux/internal/store/user"
+	"github.com/NookMux/NookMux/internal/store/voice"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
@@ -81,7 +82,7 @@ type customVoiceConfirmContext struct {
 	voiceId      string
 	group        string
 	billingModel string
-	voice        *minimaxvoicestore.MiniMaxVoice
+	voice        *voicestore.Voice
 }
 
 // customVoiceFileID preserves the upstream JSON type while exposing a safe
@@ -151,31 +152,31 @@ func resolveCustomVoiceCloneModel(modelName string) string {
 }
 
 // validateCustomVoiceID 校验音色 ID：长度 8-256，字母开头，字母数字/下划线/连字符，不能以 _ - 结尾。
-func validateCustomVoiceID(voiceId string) error {
+func validateCustomVoiceID(lang string, voiceId string) error {
 	voiceId = strings.TrimSpace(voiceId)
 	if len(voiceId) < 8 || len(voiceId) > 256 {
-		return errors.New("音色ID不合规")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceIdInvalid))
 	}
 	if !customVoiceIDPattern.MatchString(voiceId) {
-		return errors.New("音色ID不合规")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceIdInvalid))
 	}
 	return nil
 }
 
 // validateCustomVoiceFile 校验上传文件大小与扩展名。
-func validateCustomVoiceFile(header *multipart.FileHeader) error {
+func validateCustomVoiceFile(lang string, header *multipart.FileHeader) error {
 	if header == nil {
-		return errors.New("请上传音频文件")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUploadAudioRequired))
 	}
 	if header.Size <= 0 {
-		return errors.New("音频文件为空")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceAudioFileEmpty))
 	}
 	if header.Size > customVoiceMaxFileSize {
-		return errors.New("音频文件过大，请压缩到 20MB 以内")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceAudioFileTooLarge))
 	}
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	if _, ok := customVoiceAllowedExts[ext]; !ok {
-		return errors.New("仅支持 mp3、m4a、wav 格式")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceAudioFormatUnsupported))
 	}
 	return nil
 }
@@ -190,11 +191,11 @@ type minimaxUpstream struct {
 
 // resolveMiniMaxUpstream 解析定制音色分组的上游 MiniMax 渠道信息。
 // group 来自系统设置 CustomVoiceGroup；GroupId 从渠道 Other 字段读取（管理员填写）。
-func resolveMiniMaxUpstream(group string) (*minimaxUpstream, error) {
+func resolveMiniMaxUpstream(lang string, group string) (*minimaxUpstream, error) {
 	group = strings.TrimSpace(group)
-	ch, err := minimaxvoicestore.GetEnabledMiniMaxChannelForGroup(group)
+	ch, err := voicestore.GetEnabledMiniMaxChannelForGroup(group)
 	if err != nil || ch == nil {
-		return nil, errors.New("未找到可用的渠道，请联系管理员")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceChannelNotFound))
 	}
 	baseURL := ""
 	if ch.BaseURL != nil {
@@ -207,7 +208,7 @@ func resolveMiniMaxUpstream(group string) (*minimaxUpstream, error) {
 	groupId := strings.TrimSpace(ch.Other)
 	keys := ch.GetKeys()
 	if len(keys) == 0 || keys[0] == "" {
-		return nil, errors.New("渠道凭证缺失，请联系管理员")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceChannelCredentialMissing))
 	}
 	return &minimaxUpstream{
 		baseURL: baseURL,
@@ -221,7 +222,7 @@ func resolveMiniMaxUpstream(group string) (*minimaxUpstream, error) {
 // 必须走渠道配置的代理（GetHttpClientWithProxy），redirect 由受控 client
 // 的 checkRedirect 复查，不允许裸 http.Client 出站。
 // 通过 request context 保留 90s 超时（relay client 全局超时可能为 0）。
-func doUpstreamRequest(up *minimaxUpstream, url string, contentType string, body io.Reader, apiKey string) (int, []byte, error) {
+func doUpstreamRequest(up *minimaxUpstream, lang string, url string, contentType string, body io.Reader, apiKey string) (int, []byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), customVoicePreviewTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
@@ -234,16 +235,16 @@ func doUpstreamRequest(up *minimaxUpstream, url string, contentType string, body
 	}
 	client, err := httpclient.GetHttpClientWithProxy(up.channel.GetSetting().Proxy)
 	if err != nil {
-		return 0, nil, errors.New("上游服务暂不可用，请稍后重试")
+		return 0, nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUpstreamUnavailable))
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, nil, errors.New("上游服务暂不可用，请稍后重试")
+		return 0, nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUpstreamUnavailable))
 	}
 	defer resp.Body.Close()
 	data, readErr := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if readErr != nil {
-		return resp.StatusCode, nil, errors.New("读取上游响应失败")
+		return resp.StatusCode, nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUpstreamResponseReadFail))
 	}
 	return resp.StatusCode, data, nil
 }
@@ -258,16 +259,16 @@ type upstreamBaseResp struct {
 
 // normalizeUpstreamError 把上游错误转成面向用户的普通业务提示，不暴露渠道名。
 // status 为 HTTP 状态码，rawBody 为上游响应体。
-func normalizeUpstreamError(status int, rawBody []byte) error {
-	msg := "音色处理失败，请稍后重试"
+func normalizeUpstreamError(lang string, status int, rawBody []byte) error {
+	msg := i18n.Translate(lang, i18n.MsgCustomVoiceProcessFailed)
 	if status >= 500 {
-		return errors.New("上游服务繁忙，请稍后重试")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUpstreamBusy))
 	}
 	if status == http.StatusUnauthorized || status == http.StatusForbidden {
-		return errors.New("服务凭证无效，请联系管理员")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceCredentialInvalid))
 	}
 	if status == http.StatusTooManyRequests {
-		return errors.New("请求过于频繁，请稍后重试")
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceTooManyRequests))
 	}
 	// 尝试解析上游 base_resp，进一步精简提示，但绝不回传完整原始信息。
 	var br upstreamBaseResp
@@ -279,7 +280,7 @@ func normalizeUpstreamError(status int, rawBody []byte) error {
 				if len([]rune(inner)) > 40 {
 					inner = string([]rune(inner)[:40]) + "..."
 				}
-				msg = "音色处理失败：" + inner
+				msg = i18n.Translate(lang, i18n.MsgCustomVoiceProcessFailedWithDetail, map[string]any{"Detail": inner})
 			}
 		}
 	}
@@ -287,10 +288,10 @@ func normalizeUpstreamError(status int, rawBody []byte) error {
 }
 
 // calculateModelOnceQuota 计算确认定制阶段的按次扣费额度，但不扣费。
-func calculateModelOnceQuota(modelName, group string) (int, error) {
+func calculateModelOnceQuota(lang string, modelName, group string) (int, error) {
 	modelName = strings.TrimSpace(modelName)
 	if modelName == "" {
-		return 0, errors.New("计费模型未配置，请联系管理员")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceBillingModelMissing))
 	}
 	groupRatio := resolveCustomVoiceGroupRatio(group, modelName)
 
@@ -303,14 +304,14 @@ func calculateModelOnceQuota(modelName, group string) (int, error) {
 		ratio, ratioOk, _ := ratio.GetModelRatio(modelName)
 		if !ratioOk {
 			// fail-closed：找不到计费配置时直接拒绝，避免无扣费使用。
-			return 0, errors.New("所选计费模型暂不可用，请联系管理员")
+			return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceBillingModelUnavailable))
 		}
 		// 按 1 千 token 计算一次调用的基准 quota（ratio 为每千 token 倍率）。
 		quota = int(ratio * common.QuotaPerUnit * groupRatio)
 	}
 	if quota <= 0 {
 		// 价格为 0 视为未正确配置，避免免费滥用。
-		return 0, errors.New("所选计费模型价格无效，请联系管理员")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceBillingPriceInvalid))
 	}
 	return quota, nil
 }
@@ -327,7 +328,8 @@ func calculateModelOnceQuota(modelName, group string) (int, error) {
 //
 // 返回扣减的 quota。
 func chargeModelOnce(c *gin.Context, userId int, channelId int, modelName, group string) (int, error) {
-	quota, err := calculateModelOnceQuota(modelName, group)
+	lang := i18n.GetLangFromContext(c)
+	quota, err := calculateModelOnceQuota(lang, modelName, group)
 	if err != nil {
 		return 0, err
 	}
@@ -335,14 +337,14 @@ func chargeModelOnce(c *gin.Context, userId int, channelId int, modelName, group
 	// 预检用户余额，避免无效的上游调用与负数额度。
 	remain, err := userstore.GetUserQuota(userId, true)
 	if err != nil {
-		return 0, errors.New("额度查询失败，请稍后重试")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceQuotaQueryFailed))
 	}
 	if remain < quota {
-		return 0, errors.New("额度不足，请充值后再试")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceQuotaInsufficient))
 	}
 
 	if err := userstore.DecreaseUserQuota(userId, quota); err != nil {
-		return 0, errors.New("扣费失败，请稍后重试")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceChargeFailed))
 	}
 	userstore.UpdateUserUsedQuotaAndRequestCount(userId, quota)
 	if channelId > 0 {
@@ -378,9 +380,10 @@ func chargeModelOnce(c *gin.Context, userId int, channelId int, modelName, group
 //
 // 返回扣减的 quota；返回 error 时不会扣减额度，也不会落消费日志。
 func chargePreviewTTS(c *gin.Context, userId, channelId int, modelName, group, previewText string) (int, error) {
+	lang := i18n.GetLangFromContext(c)
 	modelName = strings.TrimSpace(modelName)
 	if modelName == "" {
-		return 0, errors.New("试听模型未配置，请联系管理员")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoicePreviewModelMissing))
 	}
 	previewText = strings.TrimSpace(previewText)
 	// 没有试听文本时不产生 TTS usage，不扣费（voice_clone 仍可只克隆不合成 demo）。
@@ -402,7 +405,7 @@ func chargePreviewTTS(c *gin.Context, userId, channelId int, modelName, group, p
 	} else {
 		modelRatio, ratioOk, _ := ratio.GetModelRatio(modelName)
 		if !ratioOk {
-			return 0, errors.New("试听计费模型暂不可用，请联系管理员")
+			return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoicePreviewBillingUnavailable))
 		}
 		audioRatio := ratio.GetAudioRatio(modelName)
 		audioCompletionRatio := ratio.GetAudioCompletionRatio(modelName)
@@ -421,19 +424,19 @@ func chargePreviewTTS(c *gin.Context, userId, channelId int, modelName, group, p
 		quota = int(quotaVal.Round(0).IntPart())
 	}
 	if quota <= 0 {
-		return 0, errors.New("试听计费模型价格无效，请联系管理员")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoicePreviewBillingPriceBad))
 	}
 
 	remain, err := userstore.GetUserQuota(userId, true)
 	if err != nil {
-		return 0, errors.New("额度查询失败，请稍后重试")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceQuotaQueryFailed))
 	}
 	if remain < quota {
-		return 0, errors.New("额度不足，请充值后再试")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceQuotaInsufficient))
 	}
 
 	if err := userstore.DecreaseUserQuota(userId, quota); err != nil {
-		return 0, errors.New("扣费失败，请稍后重试")
+		return 0, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceChargeFailed))
 	}
 	userstore.UpdateUserUsedQuotaAndRequestCount(userId, quota)
 	if channelId > 0 {
@@ -498,38 +501,39 @@ func refundQuota(userId, quota int) {
 //
 // 该函数不写审计日志（用户创建音色不审计）。
 func CustomVoicePreview(c *gin.Context, userId int, req CustomVoicePreviewRequest, fileHeader *multipart.FileHeader) (*CustomVoicePreviewResult, error) {
-	if err := validateCustomVoiceID(req.VoiceId); err != nil {
+	lang := i18n.GetLangFromContext(c)
+	if err := validateCustomVoiceID(lang, req.VoiceId); err != nil {
 		return nil, err
 	}
-	if err := validateCustomVoiceFile(fileHeader); err != nil {
+	if err := validateCustomVoiceFile(lang, fileHeader); err != nil {
 		return nil, err
 	}
 	if req.PreviewText != "" && len([]rune(req.PreviewText)) > customVoicePreviewTextMax {
-		return nil, fmt.Errorf("试听文本过长，最多 %d 字", customVoicePreviewTextMax)
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoicePreviewTextTooLong, map[string]any{"Max": customVoicePreviewTextMax}))
 	}
 
 	// 区域开关与渠道解析。
 	if !isCustomVoiceConfigReady() {
-		return nil, errors.New("定制音色功能未开启，请联系管理员")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceFeatureDisabled))
 	}
 	group, _ := getCustomVoiceGroupAndBilling()
-	upstream, err := resolveMiniMaxUpstream(group)
+	upstream, err := resolveMiniMaxUpstream(lang, group)
 	if err != nil {
 		return nil, err
 	}
 
 	// 先清理超过 7 天未确认的试听记录，确保过期音色 ID 可被重新使用（系统自动清理，不写审计）。
-	if err := cleanupExpiredCustomVoicePreviews(); err != nil {
+	if err := cleanupExpiredCustomVoicePreviews(lang); err != nil {
 		return nil, err
 	}
 
 	// 查重：已存在则提示不合规（不暴露“重复”）。
-	exists, err := minimaxvoicestore.IsMiniMaxVoiceIdExists(req.VoiceId)
+	exists, err := voicestore.IsVoiceIdExists(req.VoiceId)
 	if err != nil {
-		return nil, errors.New("音色校验失败，请稍后重试")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceCheckFailed))
 	}
 	if exists {
-		return nil, errors.New("音色ID不合规")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceIdInvalid))
 	}
 
 	// 上传文件到上游。
@@ -538,7 +542,7 @@ func CustomVoicePreview(c *gin.Context, userId int, req CustomVoicePreviewReques
 		return nil, err
 	}
 	// 调用 voice_clone 生成 demo_audio。
-	demoAudio, err := cloneVoiceUpstream(upstream, fileId, req)
+	demoAudio, err := cloneVoiceUpstream(lang, upstream, fileId, req)
 	if err != nil {
 		return nil, err
 	}
@@ -551,22 +555,22 @@ func CustomVoicePreview(c *gin.Context, userId int, req CustomVoicePreviewReques
 	}
 
 	// 写入“试听中”记录（用户创建，不审计）。
-	voice := &minimaxvoicestore.MiniMaxVoice{
-		Type:         minimaxvoicestore.MiniMaxVoiceTypePreview,
+	voice := &voicestore.Voice{
+		Type:         voicestore.VoiceTypePreview,
 		OperatorId:   userId,
 		OperatorKind: "user",
 		VoiceId:      req.VoiceId,
 		Allowed:      false,
 	}
-	if err := minimaxvoicestore.InsertMiniMaxVoice(voice); err != nil {
+	if err := voicestore.InsertVoice(voice); err != nil {
 		// 唯一索引冲突也归一为“不合规”，避免暴露重复。
 		if isDuplicateKeyErr(err) {
 			// 记录写入失败时退还试听扣费，避免用户已付费却拿不到试听记录。
 			refundQuota(userId, previewQuota)
-			return nil, errors.New("音色ID不合规")
+			return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceIdInvalid))
 		}
 		refundQuota(userId, previewQuota)
-		return nil, errors.New("音色记录保存失败，请稍后重试")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceSaveFailed))
 	}
 
 	return &CustomVoicePreviewResult{
@@ -579,9 +583,10 @@ func CustomVoicePreview(c *gin.Context, userId int, req CustomVoicePreviewReques
 
 // uploadFileUpstream 把用户上传的音频转发到上游文件接口，返回上游 file_id。
 func uploadFileUpstream(c *gin.Context, up *minimaxUpstream, header *multipart.FileHeader) (customVoiceFileID, error) {
+	lang := i18n.GetLangFromContext(c)
 	src, err := header.Open()
 	if err != nil {
-		return customVoiceFileID{}, errors.New("音频文件读取失败")
+		return customVoiceFileID{}, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceAudioFileReadFailed))
 	}
 	defer src.Close()
 
@@ -589,29 +594,29 @@ func uploadFileUpstream(c *gin.Context, up *minimaxUpstream, header *multipart.F
 	writer := multipart.NewWriter(&buf)
 	// purpose=voice_clone
 	if werr := writer.WriteField("purpose", "voice_clone"); werr != nil {
-		return customVoiceFileID{}, errors.New("音频上传准备失败")
+		return customVoiceFileID{}, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUploadPrepareFailed))
 	}
 	part, err := writer.CreateFormFile("file", header.Filename)
 	if err != nil {
-		return customVoiceFileID{}, errors.New("音频上传准备失败")
+		return customVoiceFileID{}, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUploadPrepareFailed))
 	}
 	if _, err := io.Copy(part, src); err != nil {
-		return customVoiceFileID{}, errors.New("音频上传准备失败")
+		return customVoiceFileID{}, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUploadPrepareFailed))
 	}
 	if err := writer.Close(); err != nil {
-		return customVoiceFileID{}, errors.New("音频上传准备失败")
+		return customVoiceFileID{}, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUploadPrepareFailed))
 	}
 
 	url := up.baseURL + "/files/upload"
 	if up.groupId != "" {
 		url += "?" + buildGroupIdQuery(up.groupId)
 	}
-	status, body, err := doUpstreamRequest(up, url, writer.FormDataContentType(), &buf, up.apiKey)
+	status, body, err := doUpstreamRequest(up, lang, url, writer.FormDataContentType(), &buf, up.apiKey)
 	if err != nil {
 		return customVoiceFileID{}, err
 	}
 	if status != http.StatusOK {
-		return customVoiceFileID{}, normalizeUpstreamError(status, body)
+		return customVoiceFileID{}, normalizeUpstreamError(lang, status, body)
 	}
 	var resp struct {
 		File struct {
@@ -620,42 +625,42 @@ func uploadFileUpstream(c *gin.Context, up *minimaxUpstream, header *multipart.F
 		upstreamBaseResp
 	}
 	if err := jsonx.Unmarshal(body, &resp); err != nil {
-		return customVoiceFileID{}, errors.New("上游响应解析失败")
+		return customVoiceFileID{}, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUpstreamParseFailed))
 	}
 	if resp.BaseResp.StatusCode != 0 || resp.File.FileId.IsZero() {
-		return customVoiceFileID{}, normalizeUpstreamError(status, body)
+		return customVoiceFileID{}, normalizeUpstreamError(lang, status, body)
 	}
 	return resp.File.FileId, nil
 }
 
 // cloneVoiceUpstream 调用上游 voice_clone 接口生成试听音频，返回 demo_audio URL。
-func cloneVoiceUpstream(up *minimaxUpstream, fileId customVoiceFileID, req CustomVoicePreviewRequest) (string, error) {
+func cloneVoiceUpstream(lang string, up *minimaxUpstream, fileId customVoiceFileID, req CustomVoicePreviewRequest) (string, error) {
 	payload := buildVoiceClonePayload(fileId, req)
 	bodyBytes, err := jsonx.Marshal(payload)
 	if err != nil {
-		return "", errors.New("请求构建失败")
+		return "", errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceRequestBuildFailed))
 	}
 
 	url := up.baseURL + "/voice_clone"
 	if up.groupId != "" {
 		url += "?" + buildGroupIdQuery(up.groupId)
 	}
-	status, respBody, err := doUpstreamRequest(up, url, "application/json", bytes.NewReader(bodyBytes), up.apiKey)
+	status, respBody, err := doUpstreamRequest(up, lang, url, "application/json", bytes.NewReader(bodyBytes), up.apiKey)
 	if err != nil {
 		return "", err
 	}
 	if status != http.StatusOK {
-		return "", normalizeUpstreamError(status, respBody)
+		return "", normalizeUpstreamError(lang, status, respBody)
 	}
 	var resp struct {
 		DemoAudio string `json:"demo_audio"`
 		upstreamBaseResp
 	}
 	if err := jsonx.Unmarshal(respBody, &resp); err != nil {
-		return "", errors.New("上游响应解析失败")
+		return "", errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceUpstreamParseFailed))
 	}
 	if resp.BaseResp.StatusCode != 0 {
-		return "", normalizeUpstreamError(status, respBody)
+		return "", normalizeUpstreamError(lang, status, respBody)
 	}
 	return resp.DemoAudio, nil
 }
@@ -696,34 +701,34 @@ func buildVoiceClonePayload(fileId interface{}, req CustomVoicePreviewRequest) m
 	return payload
 }
 
-func prepareCustomVoiceConfirm(userId int, voiceId string) (*customVoiceConfirmContext, error) {
+func prepareCustomVoiceConfirm(lang string, userId int, voiceId string) (*customVoiceConfirmContext, error) {
 	voiceId = strings.TrimSpace(voiceId)
 	if voiceId == "" {
-		return nil, errors.New("音色ID不能为空")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceIdEmpty))
 	}
 	if !isCustomVoiceConfigReady() {
-		return nil, errors.New("定制音色功能未开启，请联系管理员")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceFeatureDisabled))
 	}
 	group, billingModel := getCustomVoiceGroupAndBilling()
 	if billingModel == "" {
-		return nil, errors.New("计费模型未配置，请联系管理员")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceBillingModelMissing))
 	}
 
 	// 先清理超过 7 天未确认的试听记录：过期试听不能再确认（系统自动清理，不写审计）。
-	if err := cleanupExpiredCustomVoicePreviews(); err != nil {
+	if err := cleanupExpiredCustomVoicePreviews(lang); err != nil {
 		return nil, err
 	}
 
 	// 必须命中本用户的试听中记录，防止越权报价或确认他人音色。
-	voice, err := minimaxvoicestore.GetMiniMaxVoiceByVoiceId(voiceId)
+	voice, err := voicestore.GetVoiceByVoiceId(voiceId)
 	if err != nil || voice == nil {
-		return nil, errors.New("音色ID不合规")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceIdInvalid))
 	}
-	if voice.Type != minimaxvoicestore.MiniMaxVoiceTypePreview {
-		return nil, errors.New("该音色无需确认或已处理")
+	if voice.Type != voicestore.VoiceTypePreview {
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceAlreadyProcessed))
 	}
 	if voice.OperatorId != userId {
-		return nil, errors.New("无权操作该音色")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceNoPermission))
 	}
 
 	return &customVoiceConfirmContext{
@@ -736,12 +741,12 @@ func prepareCustomVoiceConfirm(userId int, voiceId string) (*customVoiceConfirmC
 
 // CustomVoiceConfirmQuote 查询确认定制阶段应扣额度，只报价不扣费、不激活音色。
 func CustomVoiceConfirmQuote(c *gin.Context, userId int, voiceId string) (*CustomVoiceConfirmQuoteResult, error) {
-	confirmContext, err := prepareCustomVoiceConfirm(userId, voiceId)
+	confirmContext, err := prepareCustomVoiceConfirm(i18n.GetLangFromContext(c), userId, voiceId)
 	if err != nil {
 		return nil, err
 	}
 
-	quotaCost, err := calculateModelOnceQuota(confirmContext.billingModel, confirmContext.group)
+	quotaCost, err := calculateModelOnceQuota(i18n.GetLangFromContext(c), confirmContext.billingModel, confirmContext.group)
 	if err != nil {
 		return nil, err
 	}
@@ -761,7 +766,8 @@ func CustomVoiceConfirmQuote(c *gin.Context, userId int, voiceId string) (*Custo
 //   - 扣费与状态流转使用一次性条件更新，避免旧实现里 DB.Save(voice) 把内存中残留的
 //     preview 状态回写到数据库。
 func CustomVoiceConfirm(c *gin.Context, userId int, voiceId string) (*CustomVoiceConfirmResult, error) {
-	confirmContext, err := prepareCustomVoiceConfirm(userId, voiceId)
+	lang := i18n.GetLangFromContext(c)
+	confirmContext, err := prepareCustomVoiceConfirm(lang, userId, voiceId)
 	if err != nil {
 		return nil, err
 	}
@@ -773,21 +779,21 @@ func CustomVoiceConfirm(c *gin.Context, userId int, voiceId string) (*CustomVoic
 	}
 
 	// 原子地把 preview -> created 并写入扣费额度，杜绝状态回滚风险。
-	ok, err := minimaxvoicestore.ConfirmMiniMaxVoice(confirmContext.voice.Id, userId, quota)
+	ok, err := voicestore.ConfirmVoice(confirmContext.voice.Id, userId, quota)
 	if err != nil {
 		// 状态更新失败：尽力退还额度，避免无音色却扣费。
 		refundQuota(userId, quota)
-		return nil, errors.New("音色激活失败，已退还费用")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceActivateFailedRefunded))
 	}
 	if !ok {
 		// 并发场景下记录已不再是 preview（被他人确认或清理），退还本次扣费。
 		refundQuota(userId, quota)
-		return nil, errors.New("该音色无需确认或已处理")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceAlreadyProcessed))
 	}
 
 	return &CustomVoiceConfirmResult{
 		VoiceId: confirmContext.voiceId,
-		Status:  minimaxvoicestore.MiniMaxVoiceTypeCreated,
+		Status:  voicestore.VoiceTypeCreated,
 	}, nil
 }
 
@@ -801,10 +807,10 @@ func isCustomVoiceConfigReady() bool {
 // 业务规则：试听阶段超过 customVoicePreviewTTL 仍未确认的记录视为放弃，直接删除。
 // 该清理是系统自动行为，不走 controller 删除路径，因此不写审计日志。
 // 清理失败时显式返回错误，避免后续查重/确认逻辑基于脏数据做出错误决策。
-func cleanupExpiredCustomVoicePreviews() error {
+func cleanupExpiredCustomVoicePreviews(lang string) error {
 	cutoff := time.Now().Add(-customVoicePreviewTTL).Unix()
-	if _, err := minimaxvoicestore.DeleteExpiredMiniMaxVoicePreviews(cutoff); err != nil {
-		return errors.New("音色校验失败，请稍后重试")
+	if _, err := voicestore.DeleteExpiredVoicePreviews(cutoff); err != nil {
+		return errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceVoiceCheckFailed))
 	}
 	return nil
 }

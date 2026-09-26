@@ -606,3 +606,110 @@ func TestHandleStreamFinalResponseFallbackPreservesCacheUsage(t *testing.T) {
 	require.Greater(t, claudeInfo.Usage.CompletionTokens, 0, "fallback should backfill completion tokens")
 	require.Equal(t, claudeInfo.Usage.PromptTokens+claudeInfo.Usage.CompletionTokens, claudeInfo.Usage.TotalTokens)
 }
+
+// stop 混合数组中的非字符串元素应被跳过，客户端恶意类型不应触发断言 panic。
+func TestRequestOpenAI2ClaudeMessageSkipsNonStringStopElements(t *testing.T) {
+	request := shared.GeneralOpenAIRequest{
+		Model:    "claude-3-5-sonnet",
+		Messages: []shared.Message{{Role: "user", Content: "hi"}},
+		// 模拟 JSON 解码结果：数字为 float64，null 为 nil
+		Stop: []any{"a", float64(1), true, nil},
+	}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-3-5-sonnet"},
+	}
+
+	var claudeRequest *shared.ClaudeRequest
+	var err error
+	require.NotPanics(t, func() {
+		claudeRequest, err = RequestOpenAI2ClaudeMessage(nil, info, request)
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"a"}, claudeRequest.StopSequences)
+}
+
+// 纯字符串 stop 数组行为保持不变。
+func TestRequestOpenAI2ClaudeMessageKeepsPureStringStopArray(t *testing.T) {
+	request := shared.GeneralOpenAIRequest{
+		Model:    "claude-3-5-sonnet",
+		Messages: []shared.Message{{Role: "user", Content: "hi"}},
+		Stop:     []any{"end", "done"},
+	}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-3-5-sonnet"},
+	}
+
+	claudeRequest, err := RequestOpenAI2ClaudeMessage(nil, info, request)
+	require.NoError(t, err)
+	require.Equal(t, []string{"end", "done"}, claudeRequest.StopSequences)
+}
+
+// 工具参数 type 字段为非字符串时应跳过赋值，而非断言 panic。
+func TestRequestOpenAI2ClaudeMessageSkipsNonStringToolSchemaType(t *testing.T) {
+	request := shared.GeneralOpenAIRequest{
+		Model:    "claude-3-5-sonnet",
+		Messages: []shared.Message{{Role: "user", Content: "hi"}},
+		Tools: []shared.ToolCallRequest{
+			{
+				Type: "function",
+				Function: shared.FunctionRequest{
+					Name: "lookup",
+					// 模拟 JSON 解码结果：{"type":123} 解码为 float64
+					Parameters: map[string]any{
+						"type":       float64(123),
+						"properties": map[string]any{"q": map[string]any{"type": "string"}},
+					},
+				},
+			},
+		},
+	}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-3-5-sonnet"},
+	}
+
+	var claudeRequest *shared.ClaudeRequest
+	var err error
+	require.NotPanics(t, func() {
+		claudeRequest, err = RequestOpenAI2ClaudeMessage(nil, info, request)
+	})
+	require.NoError(t, err)
+	tools, ok := claudeRequest.Tools.([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 1)
+	claudeTool, ok := tools[0].(*shared.Tool)
+	require.True(t, ok)
+	require.NotContains(t, claudeTool.InputSchema, "type")
+	require.Contains(t, claudeTool.InputSchema, "properties")
+}
+
+// 工具参数 type 字段为字符串时正常映射到 InputSchema。
+func TestRequestOpenAI2ClaudeMessageKeepsStringToolSchemaType(t *testing.T) {
+	request := shared.GeneralOpenAIRequest{
+		Model:    "claude-3-5-sonnet",
+		Messages: []shared.Message{{Role: "user", Content: "hi"}},
+		Tools: []shared.ToolCallRequest{
+			{
+				Type: "function",
+				Function: shared.FunctionRequest{
+					Name: "lookup",
+					Parameters: map[string]any{
+						"type":       "object",
+						"properties": map[string]any{"q": map[string]any{"type": "string"}},
+					},
+				},
+			},
+		},
+	}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-3-5-sonnet"},
+	}
+
+	claudeRequest, err := RequestOpenAI2ClaudeMessage(nil, info, request)
+	require.NoError(t, err)
+	tools, ok := claudeRequest.Tools.([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 1)
+	claudeTool, ok := tools[0].(*shared.Tool)
+	require.True(t, ok)
+	require.Equal(t, "object", claudeTool.InputSchema["type"])
+}

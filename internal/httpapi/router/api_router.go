@@ -73,7 +73,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, misccontroller.ResetPassword)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.GET("/oauth/state", middleware.CriticalRateLimit(), oauthcontroller.GenerateOAuthCode)
-		apiRouter.POST("/oauth/email/bind", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, usercontroller.EmailBind)
+		apiRouter.POST("/oauth/email/bind", middleware.UserAuth(), middleware.CriticalRateLimit(), anonymousRequestBodyLimit, usercontroller.EmailBind)
 		// Standard OAuth providers (GitHub, LinuxDO) - unified route
 		apiRouter.GET("/oauth/:provider", middleware.CriticalRateLimit(), oauthcontroller.HandleOAuth)
 
@@ -117,6 +117,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/topup/self", topupcontroller.GetUserTopUps)
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), usercontroller.TopUp)
 				selfRoute.POST("/pay", middleware.CriticalRateLimit(), topupcontroller.RequestEpay)
+				selfRoute.POST("/topup/check", middleware.CriticalRateLimit(), topupcontroller.CheckTopUp)
 				selfRoute.POST("/amount", topupcontroller.RequestAmount)
 				selfRoute.POST("/stripe/pay", middleware.CriticalRateLimit(), topupcontroller.RequestStripePay)
 				selfRoute.POST("/stripe/amount", topupcontroller.RequestStripeAmount)
@@ -146,6 +147,7 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.GET("/:id", usercontroller.GetUser)
 				adminRoute.POST("/", usercontroller.CreateUser)
 				adminRoute.POST("/manage", usercontroller.ManageUser)
+				adminRoute.POST("/ban", usercontroller.BanUserByIdentifier)
 				adminRoute.PUT("/", usercontroller.UpdateUser)
 				adminRoute.DELETE("/:id", usercontroller.DeleteUser)
 				adminRoute.DELETE("/:id/reset_passkey", passkeycontroller.AdminResetPasskey)
@@ -226,6 +228,7 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.GET("/ollama/version/:id", channelcontroller.OllamaVersion)
 			channelRoute.POST("/batch/tag", channelcontroller.BatchSetChannelTag)
 			channelRoute.GET("/tag/models", channelcontroller.GetTagModels)
+			channelRoute.GET("/builtin_urls", channelcontroller.GetBuiltinChannelURLs)
 			channelRoute.POST("/copy/:id", channelcontroller.CopyChannel)
 			channelRoute.POST("/multi_key/manage", channelcontroller.ManageMultiKeys)
 			channelRoute.POST("/test_proxy", channelcontroller.TestProxy)
@@ -397,12 +400,12 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		// 音色管理（管理员）：列表/新增（Admin），修改/删除（Root）
-		minimaxVoiceRoute := apiRouter.Group("/minimax/voices")
+		voiceRoute := apiRouter.Group("/custom_voice/voices")
 		{
-			minimaxVoiceRoute.GET("/", middleware.AdminAuth(), customvoicecontroller.GetMiniMaxVoices)
-			minimaxVoiceRoute.POST("/", middleware.AdminAuth(), customvoicecontroller.CreateMiniMaxVoice)
-			minimaxVoiceRoute.PUT("/:id", middleware.RootAuth(), customvoicecontroller.UpdateMiniMaxVoice)
-			minimaxVoiceRoute.DELETE("/:id", middleware.RootAuth(), customvoicecontroller.DeleteMiniMaxVoice)
+			voiceRoute.GET("/", middleware.AdminAuth(), customvoicecontroller.GetVoices)
+			voiceRoute.POST("/", middleware.AdminAuth(), customvoicecontroller.CreateVoice)
+			voiceRoute.PUT("/:id", middleware.RootAuth(), customvoicecontroller.UpdateVoice)
+			voiceRoute.DELETE("/:id", middleware.RootAuth(), customvoicecontroller.DeleteVoice)
 		}
 	}
 }

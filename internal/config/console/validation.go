@@ -2,7 +2,7 @@ package console
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/url"
 	"regexp"
 	"sort"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
@@ -25,29 +26,42 @@ var (
 	slugRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 )
 
-func parseJSONArray(jsonStr string, typeName string) ([]map[string]interface{}, error) {
+func parseJSONArray(jsonStr string, lang string, typeNameKey string) ([]map[string]interface{}, error) {
 	var list []map[string]interface{}
 	if err := jsonx.UnmarshalJsonStr(jsonStr, &list); err != nil {
-		return nil, fmt.Errorf("%s格式错误：%s", typeName, err.Error())
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgConsoleParseFailed, map[string]any{
+			"Type":  i18n.Translate(lang, typeNameKey),
+			"Error": err.Error(),
+		}))
 	}
 	return list, nil
 }
 
-func validateURL(urlStr string, index int, itemType string) error {
+func validateURL(urlStr string, lang string, index int, itemTypeKey string) error {
 	if !urlRegex.MatchString(urlStr) {
-		return fmt.Errorf("第%d个%s的URL格式不正确", index, itemType)
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleURLFormatInvalid, map[string]any{
+			"Index": index,
+			"Type":  i18n.Translate(lang, itemTypeKey),
+		}))
 	}
 	if _, err := url.Parse(urlStr); err != nil {
-		return fmt.Errorf("第%d个%s的URL无法解析：%s", index, itemType, err.Error())
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleURLParseFailed, map[string]any{
+			"Index": index,
+			"Type":  i18n.Translate(lang, itemTypeKey),
+			"Error": err.Error(),
+		}))
 	}
 	return nil
 }
 
-func checkDangerousContent(content string, index int, itemType string) error {
+func checkDangerousContent(content string, lang string, index int, itemTypeKey string) error {
 	lower := strings.ToLower(content)
 	for _, d := range dangerousChars {
 		if strings.Contains(lower, d) {
-			return fmt.Errorf("第%d个%s包含不允许的内容", index, itemType)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleDangerousContent, map[string]any{
+				"Index": index,
+				"Type":  i18n.Translate(lang, itemTypeKey),
+			}))
 		}
 	}
 	return nil
@@ -66,24 +80,24 @@ func getJSONList(jsonStr string) []map[string]interface{} {
 	return list
 }
 
-func ValidateConsoleSettings(settingsStr string, settingType string) error {
+func ValidateConsoleSettings(lang string, settingsStr string, settingType string) error {
 	if settingsStr == "" {
 		return nil
 	}
 
 	switch settingType {
 	case "ApiInfo":
-		return validateApiInfo(settingsStr)
+		return validateApiInfo(lang, settingsStr)
 	case "Announcements":
-		return validateAnnouncements(settingsStr)
+		return validateAnnouncements(lang, settingsStr)
 	case "FAQ":
-		return validateFAQ(settingsStr)
+		return validateFAQ(lang, settingsStr)
 	case "UptimeKumaGroups":
-		return validateUptimeKumaGroups(settingsStr)
+		return validateUptimeKumaGroups(lang, settingsStr)
 	case "UsageLogFields":
-		return validateUsageLogFields(settingsStr)
+		return validateUsageLogFields(lang, settingsStr)
 	default:
-		return fmt.Errorf("未知的设置类型：%s", settingType)
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleUnknownSettingType, map[string]any{"Type": settingType}))
 	}
 }
 
@@ -91,11 +105,11 @@ func ValidateConsoleSettings(settingsStr string, settingType string) error {
 // 格式：{ "<fieldKey>": { "admin": bool, "user": bool }, ... }
 // 校验：JSON 格式合法，所有 key 在已知字段列表中，每个字段必须包含 admin 和 user 两个布尔成员。
 // 拒绝部分配置（如 {"channel":{}}），避免缺少 admin/user 导致字段被静默隐藏。
-func validateUsageLogFields(fieldsStr string) error {
+func validateUsageLogFields(lang string, fieldsStr string) error {
 	// 先解析为 map[string]json.RawMessage，确保每个字段对象显式包含 admin 和 user 键。
 	rawMap := make(map[string]json.RawMessage)
 	if err := jsonx.UnmarshalJsonStr(fieldsStr, &rawMap); err != nil {
-		return fmt.Errorf("使用日志字段配置格式错误：%s", err.Error())
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleUsageLogFieldsParseFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	// 构建已知字段集合
@@ -110,81 +124,82 @@ func validateUsageLogFields(fieldsStr string) error {
 			continue
 		}
 		if !knownFields[key] {
-			return fmt.Errorf("未知的字段标识：%s", key)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleUsageLogFieldUnknown, map[string]any{"Key": key}))
 		}
 		// 解析单个字段对象，检查 admin 和 user 都存在且为布尔值
 		var obj map[string]interface{}
 		if err := jsonx.Unmarshal(raw, &obj); err != nil {
-			return fmt.Errorf("字段 %s 的配置格式错误：%s", key, err.Error())
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleUsageLogFieldParseFailed, map[string]any{"Key": key, "Error": err.Error()}))
 		}
 		adminVal, hasAdmin := obj["admin"]
 		userVal, hasUser := obj["user"]
 		if !hasAdmin {
-			return fmt.Errorf("字段 %s 缺少 admin 配置", key)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleUsageLogFieldMissingAdmin, map[string]any{"Key": key}))
 		}
 		if !hasUser {
-			return fmt.Errorf("字段 %s 缺少 user 配置", key)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleUsageLogFieldMissingUser, map[string]any{"Key": key}))
 		}
 		if _, ok := adminVal.(bool); !ok {
-			return fmt.Errorf("字段 %s 的 admin 值必须为布尔类型", key)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleUsageLogFieldAdminNotBool, map[string]any{"Key": key}))
 		}
 		if _, ok := userVal.(bool); !ok {
-			return fmt.Errorf("字段 %s 的 user 值必须为布尔类型", key)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleUsageLogFieldUserNotBool, map[string]any{"Key": key}))
 		}
 	}
 	return nil
 }
 
-func validateApiInfo(apiInfoStr string) error {
-	apiInfoList, err := parseJSONArray(apiInfoStr, "API信息")
+func validateApiInfo(lang string, apiInfoStr string) error {
+	apiInfoList, err := parseJSONArray(apiInfoStr, lang, i18n.MsgConsoleTypeApiInfo)
 	if err != nil {
 		return err
 	}
 
 	if len(apiInfoList) > 50 {
-		return fmt.Errorf("API信息数量不能超过50个")
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoLimitExceeded))
 	}
 
 	for i, apiInfo := range apiInfoList {
+		index := i + 1
 		urlStr, ok := apiInfo["url"].(string)
 		if !ok || urlStr == "" {
-			return fmt.Errorf("第%d个API信息缺少URL字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoMissingURL, map[string]any{"Index": index}))
 		}
 		route, ok := apiInfo["route"].(string)
 		if !ok || route == "" {
-			return fmt.Errorf("第%d个API信息缺少线路描述字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoMissingRoute, map[string]any{"Index": index}))
 		}
 		description, ok := apiInfo["description"].(string)
 		if !ok || description == "" {
-			return fmt.Errorf("第%d个API信息缺少说明字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoMissingDescription, map[string]any{"Index": index}))
 		}
 		color, ok := apiInfo["color"].(string)
 		if !ok || color == "" {
-			return fmt.Errorf("第%d个API信息缺少颜色字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoMissingColor, map[string]any{"Index": index}))
 		}
 
-		if err := validateURL(urlStr, i+1, "API信息"); err != nil {
+		if err := validateURL(urlStr, lang, index, i18n.MsgConsoleTypeApiInfo); err != nil {
 			return err
 		}
 
 		if len(urlStr) > 500 {
-			return fmt.Errorf("第%d个API信息的URL长度不能超过500字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoURLTooLong, map[string]any{"Index": index}))
 		}
 		if len(route) > 100 {
-			return fmt.Errorf("第%d个API信息的线路描述长度不能超过100字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoRouteTooLong, map[string]any{"Index": index}))
 		}
 		if len(description) > 200 {
-			return fmt.Errorf("第%d个API信息的说明长度不能超过200字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoDescriptionTooLong, map[string]any{"Index": index}))
 		}
 
 		if !validColors[color] {
-			return fmt.Errorf("第%d个API信息的颜色值不合法", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleApiInfoColorInvalid, map[string]any{"Index": index}))
 		}
 
-		if err := checkDangerousContent(description, i+1, "API信息"); err != nil {
+		if err := checkDangerousContent(description, lang, index, i18n.MsgConsoleTypeApiInfo); err != nil {
 			return err
 		}
-		if err := checkDangerousContent(route, i+1, "API信息"); err != nil {
+		if err := checkDangerousContent(route, lang, index, i18n.MsgConsoleTypeApiInfo); err != nil {
 			return err
 		}
 	}
@@ -195,74 +210,76 @@ func GetApiInfo() []map[string]interface{} {
 	return getJSONList(GetConsoleSetting().ApiInfo)
 }
 
-func validateAnnouncements(announcementsStr string) error {
-	list, err := parseJSONArray(announcementsStr, "系统公告")
+func validateAnnouncements(lang string, announcementsStr string) error {
+	list, err := parseJSONArray(announcementsStr, lang, i18n.MsgConsoleTypeAnnouncement)
 	if err != nil {
 		return err
 	}
 	if len(list) > 100 {
-		return fmt.Errorf("系统公告数量不能超过100个")
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementLimitExceeded))
 	}
 	validTypes := map[string]bool{
 		"default": true, "ongoing": true, "success": true, "warning": true, "error": true,
 	}
 	for i, ann := range list {
+		index := i + 1
 		content, ok := ann["content"].(string)
 		if !ok || content == "" {
-			return fmt.Errorf("第%d个公告缺少内容字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementMissingContent, map[string]any{"Index": index}))
 		}
 		publishDateAny, exists := ann["publishDate"]
 		if !exists {
-			return fmt.Errorf("第%d个公告缺少发布日期字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementMissingDate, map[string]any{"Index": index}))
 		}
 		publishDateStr, ok := publishDateAny.(string)
 		if !ok || publishDateStr == "" {
-			return fmt.Errorf("第%d个公告的发布日期不能为空", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementDateEmpty, map[string]any{"Index": index}))
 		}
 		if _, err := time.Parse(time.RFC3339, publishDateStr); err != nil {
-			return fmt.Errorf("第%d个公告的发布日期格式错误", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementDateInvalid, map[string]any{"Index": index}))
 		}
 		if t, exists := ann["type"]; exists {
 			if typeStr, ok := t.(string); ok {
 				if !validTypes[typeStr] {
-					return fmt.Errorf("第%d个公告的类型值不合法", i+1)
+					return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementTypeInvalid, map[string]any{"Index": index}))
 				}
 			}
 		}
 		if len(content) > 500 {
-			return fmt.Errorf("第%d个公告的内容长度不能超过500字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementContentTooLong, map[string]any{"Index": index}))
 		}
 		if extra, exists := ann["extra"]; exists {
 			if extraStr, ok := extra.(string); ok && len(extraStr) > 200 {
-				return fmt.Errorf("第%d个公告的说明长度不能超过200字符", i+1)
+				return errors.New(i18n.Translate(lang, i18n.MsgConsoleAnnouncementExtraTooLong, map[string]any{"Index": index}))
 			}
 		}
 	}
 	return nil
 }
 
-func validateFAQ(faqStr string) error {
-	list, err := parseJSONArray(faqStr, "FAQ信息")
+func validateFAQ(lang string, faqStr string) error {
+	list, err := parseJSONArray(faqStr, lang, i18n.MsgConsoleTypeFaq)
 	if err != nil {
 		return err
 	}
 	if len(list) > 100 {
-		return fmt.Errorf("FAQ数量不能超过100个")
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleFaqLimitExceeded))
 	}
 	for i, faq := range list {
+		index := i + 1
 		question, ok := faq["question"].(string)
 		if !ok || question == "" {
-			return fmt.Errorf("第%d个FAQ缺少问题字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleFaqMissingQuestion, map[string]any{"Index": index}))
 		}
 		answer, ok := faq["answer"].(string)
 		if !ok || answer == "" {
-			return fmt.Errorf("第%d个FAQ缺少答案字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleFaqMissingAnswer, map[string]any{"Index": index}))
 		}
 		if len(question) > 200 {
-			return fmt.Errorf("第%d个FAQ的问题长度不能超过200字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleFaqQuestionTooLong, map[string]any{"Index": index}))
 		}
 		if len(answer) > 1000 {
-			return fmt.Errorf("第%d个FAQ的答案长度不能超过1000字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleFaqAnswerTooLong, map[string]any{"Index": index}))
 		}
 	}
 	return nil
@@ -291,65 +308,66 @@ func GetFAQ() []map[string]interface{} {
 	return getJSONList(GetConsoleSetting().FAQ)
 }
 
-func validateUptimeKumaGroups(groupsStr string) error {
-	groups, err := parseJSONArray(groupsStr, "Uptime Kuma分组配置")
+func validateUptimeKumaGroups(lang string, groupsStr string) error {
+	groups, err := parseJSONArray(groupsStr, lang, i18n.MsgConsoleTypeUptimeKuma)
 	if err != nil {
 		return err
 	}
 
 	if len(groups) > 20 {
-		return fmt.Errorf("Uptime Kuma分组数量不能超过20个")
+		return errors.New(i18n.Translate(lang, i18n.MsgConsoleUptimeKumaLimitExceeded))
 	}
 
 	nameSet := make(map[string]bool)
 
 	for i, group := range groups {
+		index := i + 1
 		categoryName, ok := group["categoryName"].(string)
 		if !ok || categoryName == "" {
-			return fmt.Errorf("第%d个分组缺少分类名称字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupMissingCategoryName, map[string]any{"Index": index}))
 		}
 		if nameSet[categoryName] {
-			return fmt.Errorf("第%d个分组的分类名称与其他分组重复", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupCategoryNameDuplicate, map[string]any{"Index": index}))
 		}
 		nameSet[categoryName] = true
 		urlStr, ok := group["url"].(string)
 		if !ok || urlStr == "" {
-			return fmt.Errorf("第%d个分组缺少URL字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupMissingURL, map[string]any{"Index": index}))
 		}
 		slug, ok := group["slug"].(string)
 		if !ok || slug == "" {
-			return fmt.Errorf("第%d个分组缺少Slug字段", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupMissingSlug, map[string]any{"Index": index}))
 		}
 		description, ok := group["description"].(string)
 		if !ok {
 			description = ""
 		}
 
-		if err := validateURL(urlStr, i+1, "分组"); err != nil {
+		if err := validateURL(urlStr, lang, index, i18n.MsgConsoleTypeGroup); err != nil {
 			return err
 		}
 
 		if len(categoryName) > 50 {
-			return fmt.Errorf("第%d个分组的分类名称长度不能超过50字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupCategoryNameTooLong, map[string]any{"Index": index}))
 		}
 		if len(urlStr) > 500 {
-			return fmt.Errorf("第%d个分组的URL长度不能超过500字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupURLTooLong, map[string]any{"Index": index}))
 		}
 		if len(slug) > 100 {
-			return fmt.Errorf("第%d个分组的Slug长度不能超过100字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupSlugTooLong, map[string]any{"Index": index}))
 		}
 		if len(description) > 200 {
-			return fmt.Errorf("第%d个分组的描述长度不能超过200字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupDescriptionTooLong, map[string]any{"Index": index}))
 		}
 
 		if !slugRegex.MatchString(slug) {
-			return fmt.Errorf("第%d个分组的Slug只能包含字母、数字、下划线和连字符", i+1)
+			return errors.New(i18n.Translate(lang, i18n.MsgConsoleGroupSlugInvalid, map[string]any{"Index": index}))
 		}
 
-		if err := checkDangerousContent(description, i+1, "分组"); err != nil {
+		if err := checkDangerousContent(description, lang, index, i18n.MsgConsoleTypeGroup); err != nil {
 			return err
 		}
-		if err := checkDangerousContent(categoryName, i+1, "分组"); err != nil {
+		if err := checkDangerousContent(categoryName, lang, index, i18n.MsgConsoleTypeGroup); err != nil {
 			return err
 		}
 	}

@@ -203,7 +203,7 @@ export function ChannelsPrimaryButtons() {
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         title={t('channels.actions.deleteAllDisabledChannels')}
-        desc='This will permanently delete all manually and automatically disabled channels. This action cannot be undone.'
+        desc={t('channels.tips.deleteAllDisabledChannelsWarning')}
         destructive
         handleConfirm={() => {
           handleDeleteAllDisabled(queryClient, (_count) => {

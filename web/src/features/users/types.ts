@@ -131,7 +131,51 @@ export interface ManageUserQuotaPayload {
 }
 
 // ============================================================================
+// Ban by Identifier (admin)
+// ============================================================================
+
+export type BanIdentifierType =
+  | 'github_id'
+  | 'linuxdo_id'
+  | 'email'
+  | 'github_username'
+
+export interface BanIdentifierPayload {
+  type: BanIdentifierType
+  value: string
+  /** Optional admin note (≤255 chars) stored on the banned user */
+  remark?: string
+}
+
+export type BanResult =
+  | 'banned_existing'
+  | 'created_placeholder'
+  | 'already_banned'
+  | 'already_deleted'
+  | 'ambiguous'
+
+export interface BanCandidateUser {
+  id: number
+  username: string
+  display_name: string
+  email: string
+  github_id: string
+  linux_do_id: string
+  role: number
+  status: number
+  deleted: boolean
+}
+
+export interface BanUserResponse {
+  result: BanResult
+  identifier: { type: BanIdentifierType; value: string }
+  resolved?: { login: string; id: number }
+  user?: BanCandidateUser
+  candidates?: BanCandidateUser[]
+}
+
+// ============================================================================
 // Dialog Types
 // ============================================================================
 
-export type UsersDialogType = 'create' | 'update' | 'delete'
+export type UsersDialogType = 'create' | 'update' | 'delete' | 'ban'

@@ -85,6 +85,53 @@ func TestRecordLogWithAdminInfoIsStrippedFromUserLogs(t *testing.T) {
 	}
 }
 
+// TestRecordTopupLogStoresAuditInfoAndStripsItFromUserLogs 验证充值日志写入
+// 服务器 IP / 回调 IP / 支付方式 / 系统版本等审计字段，并确认普通用户查询
+// 路径（FormatUserLogs）会剥离整块 admin_info。
+func TestRecordTopupLogStoresAuditInfoAndStripsItFromUserLogs(t *testing.T) {
+	setupLogAdminInfoTestDB(t)
+
+	user := &userstore.User{
+		Id:       1,
+		Username: "topup-audit-user",
+		Status:   common.UserStatusEnabled,
+		AffCode:  "log-topup-audit",
+	}
+	if err := dbstore.DB.Create(user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	userstore.RecordTopupLog(user.Id, "管理员补单成功，充值金额: 1，支付金额：1.000000", "198.51.100.7", "alipay", "admin")
+
+	var logs []*logstore.Log
+	if err := dbstore.LOG_DB.Where("user_id = ?", user.Id).Find(&logs).Error; err != nil {
+		t.Fatalf("query logs: %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("log count = %d, want 1", len(logs))
+	}
+	if logs[0].Type != logstore.LogTypeTopup {
+		t.Fatalf("log type = %d, want %d", logs[0].Type, logstore.LogTypeTopup)
+	}
+	for _, want := range []string{
+		`"admin_info"`,
+		`"server_ip"`,
+		`"caller_ip":"198.51.100.7"`,
+		`"payment_method":"alipay"`,
+		`"callback_payment_method":"admin"`,
+		`"version"`,
+	} {
+		if !strings.Contains(logs[0].Other, want) {
+			t.Fatalf("stored topup log %s missing %s", logs[0].Other, want)
+		}
+	}
+
+	logstore.FormatUserLogs(logs, 0)
+	if strings.Contains(logs[0].Other, "admin_info") || strings.Contains(logs[0].Other, "198.51.100.7") {
+		t.Fatalf("formatted user topup log leaked audit info: %s", logs[0].Other)
+	}
+}
+
 func TestRecordErrorLogStoresAndFiltersUpstreamRequestId(t *testing.T) {
 	setupLogAdminInfoTestDB(t)
 	gin.SetMode(gin.TestMode)

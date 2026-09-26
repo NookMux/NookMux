@@ -3,6 +3,7 @@ package customvoice
 import (
 	configmodel "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/config/system"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"net/http"
@@ -210,7 +211,7 @@ func TestCloneVoiceUpstreamEncodesGroupIdQuery(t *testing.T) {
 		channel: &channelstore.Channel{},
 	}
 
-	demoAudio, err := cloneVoiceUpstream(up, customVoiceFileID{Display: "1"}, CustomVoicePreviewRequest{
+	demoAudio, err := cloneVoiceUpstream(i18n.DefaultLang, up, customVoiceFileID{Display: "1"}, CustomVoicePreviewRequest{
 		Model:   "speech-02-hd",
 		VoiceId: "voice-id",
 	})
@@ -247,7 +248,7 @@ func TestCloneVoiceUpstreamNoGroupIdNoQuery(t *testing.T) {
 		channel: &channelstore.Channel{},
 	}
 
-	if _, err := cloneVoiceUpstream(up, customVoiceFileID{Display: "1"}, CustomVoicePreviewRequest{
+	if _, err := cloneVoiceUpstream(i18n.DefaultLang, up, customVoiceFileID{Display: "1"}, CustomVoicePreviewRequest{
 		Model:   "speech-02-hd",
 		VoiceId: "voice-id",
 	}); err != nil {

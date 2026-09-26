@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/token"
@@ -21,6 +22,10 @@ import (
 
 func setupAuthAccessTokenTestDB(t *testing.T) {
 	t.Helper()
+
+	if err := i18n.Init(); err != nil {
+		t.Fatalf("init i18n: %v", err)
+	}
 
 	oldDB := dbstore.DB
 	oldRedisEnabled := redis.RedisEnabled

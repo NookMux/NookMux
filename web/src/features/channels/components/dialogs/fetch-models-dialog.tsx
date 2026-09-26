@@ -251,7 +251,7 @@ export function FetchModelsDialog({
 
     models.forEach((model) => {
       if (typeof model !== 'string') return
-      let category = 'Other'
+      let category = t('common.fields.other')
 
       // Determine category based on model name
       if (
@@ -368,8 +368,12 @@ export function FetchModelsDialog({
           </div>
           <div className='flex items-center gap-2'>
             <span className='text-muted-foreground text-sm'>
-              {categoryModels.filter((m) => selectedModels.includes(m)).length}{' '}
-              / {categoryModels.length} selected
+              {t('channels.fields.selectedOutOfTotal', {
+                selected: categoryModels.filter((m) =>
+                  selectedModels.includes(m)
+                ).length,
+                total: categoryModels.length,
+              })}
             </span>
             <Checkbox
               checked={allSelected}

@@ -14,6 +14,7 @@ import (
 	"github.com/NookMux/NookMux/internal/httpapi/middleware"
 	"github.com/NookMux/NookMux/internal/i18n"
 	infraemail "github.com/NookMux/NookMux/internal/infra/email"
+	infraruntime "github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/infra/security"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/user"
@@ -339,25 +340,30 @@ func SendPasswordResetEmail(c *gin.Context) {
 			"<p>点击 <a href='%s'>此处</a> 进行密码重置。</p>"+
 			"<p>如果链接无法点击，请尝试点击下面的链接或将其复制到浏览器中打开：<br> %s </p>"+
 			"<p>重置链接 %d 分钟内有效，如果不是本人操作，请忽略。</p>", common.SystemName, link, link, security.VerificationValidMinutes)
-		if err := infraemail.SendEmail(subject, email, content); err != nil {
-			common.SysError(fmt.Sprintf("failed to send password reset email to %s: %v", email, err))
-		}
+		// 发信转后台有界协程池执行，请求立即返回统一响应：
+		// 已注册/未注册邮箱的响应时序一致，SMTP 往返不构成账号存在预言机；
+		// 投递失败记入 SysError，不影响已返回的响应。
+		infraruntime.RelayGo(func() {
+			if err := infraemail.SendEmail(subject, email, content); err != nil {
+				common.SysError(fmt.Sprintf("failed to send password reset email to %s: %v", email, err))
+			}
+		})
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-	})
+	httpapi.ApiSuccessI18n(c, i18n.MsgMiscPasswordResetEmailSent, nil)
 }
 
 type PasswordResetRequest struct {
 	Email string `json:"email"`
 	Token string `json:"token"`
+	// NewPassword 由请求者自行设置，服务端校验强度后哈希入库，
+	// 响应体不再返回任何凭据。
+	NewPassword string `json:"new_password"`
 }
 
 func ResetPassword(c *gin.Context) {
 	var req PasswordResetRequest
 	err := jsonx.DecodeJson(c.Request.Body, &req)
-	if err != nil || req.Email == "" || req.Token == "" {
+	if err != nil || req.Email == "" || req.Token == "" || req.NewPassword == "" {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
@@ -365,19 +371,18 @@ func ResetPassword(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgMiscPasswordResetLinkInvalid)
 		return
 	}
-	password := security.GenerateVerificationCode(12)
-	err = userstore.ResetUserPasswordByEmail(req.Email, password)
-	if err != nil {
+	// 复用注册/更新用户时 userstore.User Password 字段的长度约束。
+	if err := security.Validate.Var(req.NewPassword, "min=8,max=20"); err != nil {
+		httpapi.ApiErrorI18n(c, i18n.MsgMiscPasswordInvalid)
+		return
+	}
+	if err := userstore.ResetUserPasswordByEmail(req.Email, req.NewPassword); err != nil {
 		common.SysError("reset user password by email failed: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
 	security.DeleteKey(req.Email, security.PasswordResetPurpose)
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "",
-		"data":    password,
-	})
+	httpapi.ApiSuccessI18n(c, i18n.MsgMiscPasswordResetSuccess, nil)
 }
 
 // GetUsageLogFieldsVisible 公开接口：返回当前用户角色下使用日志详情弹窗的字段可见性配置。

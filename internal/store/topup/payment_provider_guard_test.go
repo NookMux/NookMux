@@ -83,7 +83,10 @@ func createPaymentProviderGuardTopUp(t *testing.T, tradeNo string, provider stri
 func paymentProviderGuardTopUpStatus(t *testing.T, tradeNo string) string {
 	t.Helper()
 
-	topUp := GetTopUpByTradeNo(tradeNo)
+	topUp, err := GetTopUpByTradeNo(tradeNo)
+	if err != nil {
+		t.Fatalf("get topup %s: %v", tradeNo, err)
+	}
 	if topUp == nil {
 		t.Fatalf("topup %s not found", tradeNo)
 	}
@@ -105,7 +108,7 @@ func TestCompleteEpayTopUpRejectsMismatchedProvider(t *testing.T) {
 	createPaymentProviderGuardUser(t, 1)
 	createPaymentProviderGuardTopUp(t, "provider-mismatch", PaymentProviderStripe, PaymentMethodStripe, 9.99)
 
-	err := CompleteEpayTopUp("provider-mismatch", "alipay", "9.99")
+	err := CompleteEpayTopUp("provider-mismatch", "alipay", "9.99", testCallerIp)
 	if err != ErrPaymentProviderMismatch {
 		t.Fatalf("CompleteEpayTopUp error = %v, want %v", err, ErrPaymentProviderMismatch)
 	}
@@ -122,7 +125,7 @@ func TestCompleteEpayTopUpRejectsMismatchedMethod(t *testing.T) {
 	createPaymentProviderGuardUser(t, 1)
 	createPaymentProviderGuardTopUp(t, "method-mismatch", PaymentProviderEpay, "wechat", 9.99)
 
-	err := CompleteEpayTopUp("method-mismatch", "alipay", "9.99")
+	err := CompleteEpayTopUp("method-mismatch", "alipay", "9.99", testCallerIp)
 	if err != ErrPaymentMethodMismatch {
 		t.Fatalf("CompleteEpayTopUp error = %v, want %v", err, ErrPaymentMethodMismatch)
 	}
@@ -136,7 +139,7 @@ func TestCompleteEpayTopUpRejectsMismatchedAmount(t *testing.T) {
 	createPaymentProviderGuardUser(t, 1)
 	createPaymentProviderGuardTopUp(t, "amount-mismatch", PaymentProviderEpay, "alipay", 9.99)
 
-	err := CompleteEpayTopUp("amount-mismatch", "alipay", "8.99")
+	err := CompleteEpayTopUp("amount-mismatch", "alipay", "8.99", testCallerIp)
 	if err != ErrPaymentAmountMismatch {
 		t.Fatalf("CompleteEpayTopUp error = %v, want %v", err, ErrPaymentAmountMismatch)
 	}
@@ -150,7 +153,7 @@ func TestCompleteEpayTopUpCreditsMatchingOrder(t *testing.T) {
 	createPaymentProviderGuardUser(t, 1)
 	createPaymentProviderGuardTopUp(t, "matching-epay", PaymentProviderEpay, "alipay", 9.99)
 
-	if err := CompleteEpayTopUp("matching-epay", "alipay", "9.99"); err != nil {
+	if err := CompleteEpayTopUp("matching-epay", "alipay", "9.99", testCallerIp); err != nil {
 		t.Fatalf("CompleteEpayTopUp error = %v", err)
 	}
 	if got := paymentProviderGuardTopUpStatus(t, "matching-epay"); got != common.TopUpStatusSuccess {

@@ -7,7 +7,6 @@ import (
 	infradb "github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/NookMux/NookMux/internal/infra/log"
 	"github.com/NookMux/NookMux/internal/store/db"
-	"github.com/NookMux/NookMux/internal/store/log"
 	"github.com/NookMux/NookMux/internal/store/token"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"github.com/shopspring/decimal"
@@ -37,6 +36,9 @@ const (
 	PaymentProviderStripe = "stripe"
 )
 
+// CallbackPaymentMethodAdmin 标记该充值由管理员手动补单完成，而非支付网关回调。
+const CallbackPaymentMethodAdmin = "admin"
+
 var (
 	ErrPaymentProviderMismatch = errors.New("payment provider mismatch")
 	ErrPaymentMethodMismatch   = errors.New("payment method mismatch")
@@ -64,13 +66,18 @@ func GetTopUpById(id int) *TopUp {
 	return topUp
 }
 
-func GetTopUpByTradeNo(tradeNo string) *TopUp {
+// GetTopUpByTradeNo 按订单号查询充值订单；订单不存在时返回 (nil, nil)，
+// 其余数据库错误原样上抛，由调用方区分处理。
+func GetTopUpByTradeNo(tradeNo string) (*TopUp, error) {
 	var topUp *TopUp
 	err := dbstore.DB.Where("trade_no = ?", tradeNo).First(&topUp).Error
-	if err != nil {
-		return nil
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
 	}
-	return topUp
+	if err != nil {
+		return nil, err
+	}
+	return topUp, nil
 }
 
 func validateTopUpCallback(topUp *TopUp, expectedProvider string, expectedMethod string, expectedMoney string) error {
@@ -130,7 +137,7 @@ func UpdatePendingTopUpStatus(tradeNo string, expectedPaymentProvider string, ta
 	})
 }
 
-func Recharge(referenceId string, customerId string) (err error) {
+func Recharge(referenceId string, customerId string, callerIp string) (err error) {
 	if referenceId == "" {
 		return errors.New("未提供支付单号")
 	}
@@ -204,12 +211,12 @@ func Recharge(referenceId string, customerId string) (err error) {
 		return errors.New("充值失败，请稍后重试")
 	}
 
-	userstore.RecordLog(topUp.UserId, logstore.LogTypeTopup, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", log.FormatQuota(quotaToAdd), topUp.Amount))
+	userstore.RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", log.FormatQuota(quotaToAdd), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentProviderStripe)
 
 	return nil
 }
 
-func CompleteEpayTopUp(tradeNo string, paymentMethod string, paidMoney string) error {
+func CompleteEpayTopUp(tradeNo string, paymentMethod string, paidMoney string, callerIp string) error {
 	if tradeNo == "" {
 		return errors.New("未提供订单号")
 	}
@@ -222,6 +229,7 @@ func CompleteEpayTopUp(tradeNo string, paymentMethod string, paidMoney string) e
 	var userId int
 	var quotaToAdd int
 	var payMoney float64
+	var orderPaymentMethod string
 
 	err := dbstore.DB.Transaction(func(tx *gorm.DB) error {
 		topUp := &TopUp{}
@@ -265,13 +273,14 @@ func CompleteEpayTopUp(tradeNo string, paymentMethod string, paidMoney string) e
 
 		userId = topUp.UserId
 		payMoney = topUp.Money
+		orderPaymentMethod = topUp.PaymentMethod
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	userstore.RecordLog(userId, logstore.LogTypeTopup, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%f", log.LogQuota(quotaToAdd), payMoney))
+	userstore.RecordTopupLog(userId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%f", log.LogQuota(quotaToAdd), payMoney), callerIp, orderPaymentMethod, PaymentProviderEpay)
 	return nil
 }
 
@@ -280,6 +289,10 @@ const topUpQueryWindowSeconds int64 = 30 * 24 * 60 * 60
 func topUpQueryCutoff() int64 {
 	return common.GetTimestamp() - topUpQueryWindowSeconds
 }
+
+// userTopUpListWhere 普通用户订单列表的过滤条件：历史记录限制在时间窗口内，
+// 但待支付订单不受窗口限制——回调丢失的滞留订单需保持可见，供用户自查支付状态。
+const userTopUpListWhere = "user_id = ? AND (create_time >= ? OR status = ?)"
 
 func GetUserTopUps(userId int, pageInfo *common.PageInfo) (topups []*TopUp, total int64, err error) {
 	// Start transaction
@@ -296,14 +309,14 @@ func GetUserTopUps(userId int, pageInfo *common.PageInfo) (topups []*TopUp, tota
 	cutoff := topUpQueryCutoff()
 
 	// Get total count within transaction
-	err = tx.Model(&TopUp{}).Where("user_id = ? AND create_time >= ?", userId, cutoff).Count(&total).Error
+	err = tx.Model(&TopUp{}).Where(userTopUpListWhere, userId, cutoff, common.TopUpStatusPending).Count(&total).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
 	}
 
 	// Get paginated topups within same transaction
-	err = tx.Where("user_id = ? AND create_time >= ?", userId, cutoff).Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error
+	err = tx.Where(userTopUpListWhere, userId, cutoff, common.TopUpStatusPending).Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
@@ -360,7 +373,7 @@ func SearchUserTopUps(userId int, keyword string, pageInfo *common.PageInfo) (to
 		}
 	}()
 
-	query := tx.Model(&TopUp{}).Where("user_id = ? AND create_time >= ?", userId, topUpQueryCutoff())
+	query := tx.Model(&TopUp{}).Where(userTopUpListWhere, userId, topUpQueryCutoff(), common.TopUpStatusPending)
 	if keyword != "" {
 		pattern, perr := tokenstore.SanitizeLikePattern(keyword)
 		if perr != nil {
@@ -429,7 +442,7 @@ func SearchAllTopUps(keyword string, pageInfo *common.PageInfo) (topups []*TopUp
 }
 
 // ManualCompleteTopUp 管理员手动完成订单并给用户充值
-func ManualCompleteTopUp(tradeNo string) error {
+func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	if tradeNo == "" {
 		return errors.New("未提供订单号")
 	}
@@ -442,6 +455,8 @@ func ManualCompleteTopUp(tradeNo string) error {
 	var userId int
 	var quotaToAdd int
 	var payMoney float64
+	var paymentMethod string
+	var credited bool
 
 	err := dbstore.DB.Transaction(func(tx *gorm.DB) error {
 		topUp := &TopUp{}
@@ -501,6 +516,8 @@ func ManualCompleteTopUp(tradeNo string) error {
 
 		userId = topUp.UserId
 		payMoney = topUp.Money
+		paymentMethod = topUp.PaymentMethod
+		credited = true
 		return nil
 	})
 
@@ -508,7 +525,12 @@ func ManualCompleteTopUp(tradeNo string) error {
 		return err
 	}
 
+	if !credited {
+		// 订单此前已完成或已被并发请求处理，本次没有产生新的入账，不记录补单日志。
+		return nil
+	}
+
 	// 事务外记录日志，避免阻塞
-	userstore.RecordLog(userId, logstore.LogTypeTopup, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", log.FormatQuota(quotaToAdd), payMoney))
+	userstore.RecordTopupLog(userId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", log.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, CallbackPaymentMethodAdmin)
 	return nil
 }

@@ -156,11 +156,11 @@ export function DeploymentsTable() {
           queryKey: deploymentsQueryKeys.lists(),
         })
       } else {
-        toast.error(res?.message || t('minimax.actions.deleteFailed'))
+        toast.error(res?.message || t('common.actions.deleteFailed'))
       }
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : t('minimax.actions.deleteFailed')
+        err instanceof Error ? err.message : t('common.actions.deleteFailed')
       )
     } finally {
       setIsDeleting(false)

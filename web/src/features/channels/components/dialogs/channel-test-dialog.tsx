@@ -104,23 +104,26 @@ type TestResult = {
 
 const endpointTypeOptions: Array<{ value: string; label: string }> = [
   { value: 'auto', label: 'channels.fields.autoDetectDefault' },
-  { value: 'openai', label: 'OpenAI (/v1/chat/completions)' },
-  { value: 'openai-response', label: 'OpenAI Responses (/v1/responses)' },
+  { value: 'openai', label: 'channels.fields.endpointOpenAiChat' },
+  {
+    value: 'openai-response',
+    label: 'channels.fields.endpointOpenAiResponses',
+  },
   {
     value: 'openai-response-compact',
-    label: 'OpenAI Response Compaction (/v1/responses/compact)',
+    label: 'channels.fields.endpointOpenAiResponseCompaction',
   },
-  { value: 'anthropic', label: 'Anthropic (/v1/messages)' },
+  { value: 'anthropic', label: 'channels.fields.endpointAnthropicMessages' },
   {
     value: 'gemini',
-    label: 'Gemini (/v1beta/models/{model}:generateContent)',
+    label: 'channels.fields.endpointGeminiGenerateContent',
   },
-  { value: 'jina-rerank', label: 'Jina Rerank (/v1/rerank)' },
+  { value: 'jina-rerank', label: 'channels.fields.endpointJinaRerank' },
   {
     value: 'image-generation',
-    label: 'Image Generation (/v1/images/generations)',
+    label: 'channels.fields.endpointImageGeneration',
   },
-  { value: 'embeddings', label: 'Embeddings (/v1/embeddings)' },
+  { value: 'embeddings', label: 'channels.fields.endpointEmbeddings' },
 ]
 
 const STREAM_INCOMPATIBLE_ENDPOINTS = new Set([
@@ -770,8 +773,8 @@ export function ChannelTestDialog({
                               className='text-muted-foreground h-16 text-center text-sm'
                             >
                               {models.length
-                                ? 'No models matched your search.'
-                                : 'This channel has no configured models.'}
+                                ? t('channels.tips.noModelsMatchSearch')
+                                : t('channels.tips.noConfiguredModels')}
                             </TableCell>
                           </TableRow>
                         )}

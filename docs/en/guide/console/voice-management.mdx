@@ -1,0 +1,17 @@
+---
+title: Voice Management
+---
+
+The `/voice-management` route is used to manage custom voice resources (whitelist, redirects, and billing records). Custom voices are not tied to a single provider; MiniMax is the first supported upstream.
+
+Related features require administrators to enable and configure **System Settings → Models & Routing → MiniMax**:
+
+- MiniMax feature toggle.
+- Model redirection.
+- Voice whitelist.
+- Custom voice toggle, group, and billing model.
+- Emotion tags and tone-word mapping.
+
+If the sidebar entry is missing, check whether the Voice Management module is enabled in **System Settings → Site & Branding → Sidebar Modules**.
+
+The legacy route `/minimax/voice-management` redirects to `/voice-management` automatically. Management APIs live under `/api/custom_voice/voices/`.

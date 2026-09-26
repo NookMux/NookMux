@@ -2,12 +2,14 @@ package ollama
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	channelconstant "github.com/NookMux/NookMux/internal/domain/channel/constant"
+	"github.com/NookMux/NookMux/internal/i18n"
 	httpclient "github.com/NookMux/NookMux/internal/infra/httpclient"
 	"github.com/NookMux/NookMux/internal/relay/helper"
 	"github.com/NookMux/NookMux/pkg/jsonx"
@@ -26,17 +28,17 @@ func resolveBaseURL(baseURL string) string {
 }
 
 // FetchOllamaModels 拉取 Ollama 模型列表；proxyURL 非空时请求经渠道代理发出。
-func FetchOllamaModels(baseURL, apiKey, proxyURL string) ([]OllamaModel, error) {
+func FetchOllamaModels(lang, baseURL, apiKey, proxyURL string) ([]OllamaModel, error) {
 	trimmedBase := strings.TrimRight(resolveBaseURL(baseURL), "/")
 	url := fmt.Sprintf("%s/v1/models", trimmedBase)
 
 	client, err := newOllamaHttpClient(proxyURL, 0)
 	if err != nil {
-		return nil, fmt.Errorf("代理客户端创建失败: %v", err)
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgOllamaProxyClientCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %v", err)
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	// 模型查询改走 OpenAI 兼容接口，便于与新的标准转发链路保持一致。
@@ -46,24 +48,27 @@ func FetchOllamaModels(baseURL, apiKey, proxyURL string) ([]OllamaModel, error) 
 
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("请求失败: %v", err)
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestFailed, map[string]any{"Error": err.Error()}))
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := helper.ReadErrorResponseBody(response.Body)
-		return nil, fmt.Errorf("服务器返回错误 %d: %s", response.StatusCode, string(body))
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgOllamaUnexpectedStatus, map[string]any{
+			"Status": response.StatusCode,
+			"Body":   string(body),
+		}))
 	}
 
 	var listResponse OllamaOpenAIModelListResponse
 	body, err := helper.ReadModelListResponseBody(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取响应失败: %v", err)
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgOllamaResponseReadFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	err = jsonx.Unmarshal(body, &listResponse)
 	if err != nil {
-		return nil, fmt.Errorf("解析响应失败: %v", err)
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgOllamaResponseParseFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	models := make([]OllamaModel, 0, len(listResponse.Data))
@@ -102,7 +107,7 @@ func newOllamaHttpClient(proxyURL string, timeout time.Duration) (*http.Client, 
 }
 
 // 拉取 Ollama 模型 (非流式)
-func PullOllamaModel(baseURL, apiKey, proxyURL, modelName string) error {
+func PullOllamaModel(lang, baseURL, apiKey, proxyURL, modelName string) error {
 	url := fmt.Sprintf("%s/api/pull", resolveBaseURL(baseURL))
 
 	pullRequest := OllamaPullRequest{
@@ -112,16 +117,16 @@ func PullOllamaModel(baseURL, apiKey, proxyURL, modelName string) error {
 
 	requestBody, err := jsonx.Marshal(pullRequest)
 	if err != nil {
-		return fmt.Errorf("序列化请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestSerializeFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	client, err := newOllamaHttpClient(proxyURL, ollamaLongPullTimeout)
 	if err != nil {
-		return fmt.Errorf("代理客户端创建失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaProxyClientCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 	request, err := http.NewRequest("POST", url, strings.NewReader(string(requestBody)))
 	if err != nil {
-		return fmt.Errorf("创建请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -131,20 +136,23 @@ func PullOllamaModel(baseURL, apiKey, proxyURL, modelName string) error {
 
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestFailed, map[string]any{"Error": err.Error()}))
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := helper.ReadErrorResponseBody(response.Body)
-		return fmt.Errorf("拉取模型失败 %d: %s", response.StatusCode, string(body))
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaPullModelStatusFailed, map[string]any{
+			"Status": response.StatusCode,
+			"Body":   string(body),
+		}))
 	}
 
 	return nil
 }
 
 // 流式拉取 Ollama 模型 (支持进度回调)
-func PullOllamaModelStream(baseURL, apiKey, proxyURL, modelName string, progressCallback func(OllamaPullResponse)) error {
+func PullOllamaModelStream(lang, baseURL, apiKey, proxyURL, modelName string, progressCallback func(OllamaPullResponse)) error {
 	url := fmt.Sprintf("%s/api/pull", resolveBaseURL(baseURL))
 
 	pullRequest := OllamaPullRequest{
@@ -154,16 +162,16 @@ func PullOllamaModelStream(baseURL, apiKey, proxyURL, modelName string, progress
 
 	requestBody, err := jsonx.Marshal(pullRequest)
 	if err != nil {
-		return fmt.Errorf("序列化请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestSerializeFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	client, err := newOllamaHttpClient(proxyURL, time.Hour) // 1小时超时，支持超大模型
 	if err != nil {
-		return fmt.Errorf("创建客户端失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaClientCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 	request, err := http.NewRequest("POST", url, strings.NewReader(string(requestBody)))
 	if err != nil {
-		return fmt.Errorf("创建请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -173,13 +181,16 @@ func PullOllamaModelStream(baseURL, apiKey, proxyURL, modelName string, progress
 
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestFailed, map[string]any{"Error": err.Error()}))
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := helper.ReadErrorResponseBody(response.Body)
-		return fmt.Errorf("拉取模型失败 %d: %s", response.StatusCode, string(body))
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaPullModelStatusFailed, map[string]any{
+			"Status": response.StatusCode,
+			"Body":   string(body),
+		}))
 	}
 
 	// 读取流式响应
@@ -202,7 +213,7 @@ func PullOllamaModelStream(baseURL, apiKey, proxyURL, modelName string, progress
 
 		// 检查是否出现错误或完成
 		if strings.EqualFold(pullResponse.Status, "error") {
-			return fmt.Errorf("拉取模型失败: %s", strings.TrimSpace(line))
+			return errors.New(i18n.Translate(lang, i18n.MsgOllamaPullModelFailed, map[string]any{"Detail": strings.TrimSpace(line)}))
 		}
 		if strings.EqualFold(pullResponse.Status, "success") {
 			successful = true
@@ -211,18 +222,18 @@ func PullOllamaModelStream(baseURL, apiKey, proxyURL, modelName string, progress
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("读取流式响应失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaPullStreamReadFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	if !successful {
-		return fmt.Errorf("拉取模型未完成: 未收到成功状态")
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaPullNotCompleted))
 	}
 
 	return nil
 }
 
 // 删除 Ollama 模型
-func DeleteOllamaModel(baseURL, apiKey, proxyURL, modelName string) error {
+func DeleteOllamaModel(lang, baseURL, apiKey, proxyURL, modelName string) error {
 	url := fmt.Sprintf("%s/api/delete", resolveBaseURL(baseURL))
 
 	deleteRequest := OllamaDeleteRequest{
@@ -231,16 +242,16 @@ func DeleteOllamaModel(baseURL, apiKey, proxyURL, modelName string) error {
 
 	requestBody, err := jsonx.Marshal(deleteRequest)
 	if err != nil {
-		return fmt.Errorf("序列化请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestSerializeFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	client, err := newOllamaHttpClient(proxyURL, 0)
 	if err != nil {
-		return fmt.Errorf("创建客户端失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaClientCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 	request, err := http.NewRequest("DELETE", url, strings.NewReader(string(requestBody)))
 	if err != nil {
-		return fmt.Errorf("创建请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -250,33 +261,36 @@ func DeleteOllamaModel(baseURL, apiKey, proxyURL, modelName string) error {
 
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("请求失败: %v", err)
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestFailed, map[string]any{"Error": err.Error()}))
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := helper.ReadErrorResponseBody(response.Body)
-		return fmt.Errorf("删除模型失败 %d: %s", response.StatusCode, string(body))
+		return errors.New(i18n.Translate(lang, i18n.MsgOllamaDeleteModelFailed, map[string]any{
+			"Status": response.StatusCode,
+			"Body":   string(body),
+		}))
 	}
 
 	return nil
 }
 
-func FetchOllamaVersion(baseURL, apiKey, proxyURL string) (string, error) {
+func FetchOllamaVersion(lang, baseURL, apiKey, proxyURL string) (string, error) {
 	trimmedBase := strings.TrimRight(resolveBaseURL(baseURL), "/")
 	if trimmedBase == "" {
-		return "", fmt.Errorf("baseURL 为空")
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaBaseURLEmpty))
 	}
 
 	url := fmt.Sprintf("%s/api/version", trimmedBase)
 
 	client, err := newOllamaHttpClient(proxyURL, 10*time.Second)
 	if err != nil {
-		return "", fmt.Errorf("代理客户端创建失败: %v", err)
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaProxyClientCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", fmt.Errorf("创建请求失败: %v", err)
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestCreateFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	if apiKey != "" {
@@ -285,17 +299,20 @@ func FetchOllamaVersion(baseURL, apiKey, proxyURL string) (string, error) {
 
 	response, err := client.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("请求失败: %v", err)
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaRequestFailed, map[string]any{"Error": err.Error()}))
 	}
 	defer response.Body.Close()
 
 	body, err := helper.ReadModelListResponseBody(response.Body)
 	if err != nil {
-		return "", fmt.Errorf("读取响应失败: %v", err)
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaResponseReadFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("查询版本失败 %d: %s", response.StatusCode, string(body))
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaVersionQueryFailed, map[string]any{
+			"Status": response.StatusCode,
+			"Body":   string(body),
+		}))
 	}
 
 	var versionResp struct {
@@ -303,11 +320,11 @@ func FetchOllamaVersion(baseURL, apiKey, proxyURL string) (string, error) {
 	}
 
 	if err := jsonx.Unmarshal(body, &versionResp); err != nil {
-		return "", fmt.Errorf("解析响应失败: %v", err)
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaResponseParseFailed, map[string]any{"Error": err.Error()}))
 	}
 
 	if versionResp.Version == "" {
-		return "", fmt.Errorf("未返回版本信息")
+		return "", errors.New(i18n.Translate(lang, i18n.MsgOllamaVersionNotReturned))
 	}
 
 	return versionResp.Version, nil

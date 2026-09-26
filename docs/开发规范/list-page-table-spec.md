@@ -7,7 +7,7 @@
 
 管理后台凡是以"分页/可筛选的数据行列表"为主体的页面，必须遵循本规范。典型页面包括：
 
-- API 密钥列表（`features/keys/`）
+- 密钥（`features/keys/`）
 - 使用日志（`features/usage-logs/`，标准参照）
 - 多模态文件（`features/multimodal-files/`）
 - 历史订单（`features/order-query/`）
@@ -16,7 +16,7 @@
 - 模型（`features/models/`）
 - 用户（`features/users/`）
 - 审计日志（`features/audit-logs/`）
-- 音色管理（`features/minimax/voice-management/`）
+- 音色管理（`features/voice-management/`）
 
 ## 标准参照页面
 

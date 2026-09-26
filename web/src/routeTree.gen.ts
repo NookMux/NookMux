@@ -56,6 +56,7 @@ import { Route as AuthenticatedTicketIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
+import { Route as AuthenticatedVoiceManagementIndexRouteImport } from './routes/_authenticated/voice-management/index'
 import { Route as AuthenticatedWalletIndexRouteImport } from './routes/_authenticated/wallet/index'
 import { Route as PricingModelIdIndexRouteImport } from './routes/pricing/$modelId/index'
 import { Route as AuthenticatedMinimaxVoiceManagementIndexRouteImport } from './routes/_authenticated/minimax/voice-management/index'
@@ -327,6 +328,12 @@ const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedVoiceManagementIndexRoute =
+  AuthenticatedVoiceManagementIndexRouteImport.update({
+    id: '/voice-management/',
+    path: '/voice-management/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedWalletIndexRoute =
   AuthenticatedWalletIndexRouteImport.update({
     id: '/wallet/',
@@ -481,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/ticket/': typeof AuthenticatedTicketIndexRoute
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/voice-management/': typeof AuthenticatedVoiceManagementIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
   '/pricing/$modelId/': typeof PricingModelIdIndexRoute
   '/system-settings/auth/$section': typeof AuthenticatedSystemSettingsAuthSectionRoute
@@ -545,6 +553,7 @@ export interface FileRoutesByTo {
   '/ticket': typeof AuthenticatedTicketIndexRoute
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/voice-management': typeof AuthenticatedVoiceManagementIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
   '/pricing/$modelId': typeof PricingModelIdIndexRoute
   '/system-settings/auth/$section': typeof AuthenticatedSystemSettingsAuthSectionRoute
@@ -613,6 +622,7 @@ export interface FileRoutesById {
   '/_authenticated/ticket/': typeof AuthenticatedTicketIndexRoute
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/voice-management/': typeof AuthenticatedVoiceManagementIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
   '/pricing/$modelId/': typeof PricingModelIdIndexRoute
   '/_authenticated/system-settings/auth/$section': typeof AuthenticatedSystemSettingsAuthSectionRoute
@@ -680,6 +690,7 @@ export interface FileRouteTypes {
     | '/ticket/'
     | '/usage-logs/'
     | '/users/'
+    | '/voice-management/'
     | '/wallet/'
     | '/pricing/$modelId/'
     | '/system-settings/auth/$section'
@@ -744,6 +755,7 @@ export interface FileRouteTypes {
     | '/ticket'
     | '/usage-logs'
     | '/users'
+    | '/voice-management'
     | '/wallet'
     | '/pricing/$modelId'
     | '/system-settings/auth/$section'
@@ -811,6 +823,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ticket/'
     | '/_authenticated/usage-logs/'
     | '/_authenticated/users/'
+    | '/_authenticated/voice-management/'
     | '/_authenticated/wallet/'
     | '/pricing/$modelId/'
     | '/_authenticated/system-settings/auth/$section'
@@ -1184,6 +1197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/voice-management/': {
+      id: '/_authenticated/voice-management/'
+      path: '/voice-management'
+      fullPath: '/voice-management/'
+      preLoaderRoute: typeof AuthenticatedVoiceManagementIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/wallet/': {
       id: '/_authenticated/wallet/'
       path: '/wallet'
@@ -1417,6 +1437,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTicketIndexRoute: typeof AuthenticatedTicketIndexRoute
   AuthenticatedUsageLogsIndexRoute: typeof AuthenticatedUsageLogsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedVoiceManagementIndexRoute: typeof AuthenticatedVoiceManagementIndexRoute
   AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
   AuthenticatedMinimaxVoiceManagementIndexRoute: typeof AuthenticatedMinimaxVoiceManagementIndexRoute
   AuthenticatedMultimodalCustomVoiceIndexRoute: typeof AuthenticatedMultimodalCustomVoiceIndexRoute
@@ -1446,6 +1467,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTicketIndexRoute: AuthenticatedTicketIndexRoute,
   AuthenticatedUsageLogsIndexRoute: AuthenticatedUsageLogsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedVoiceManagementIndexRoute:
+    AuthenticatedVoiceManagementIndexRoute,
   AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,
   AuthenticatedMinimaxVoiceManagementIndexRoute:
     AuthenticatedMinimaxVoiceManagementIndexRoute,

@@ -188,6 +188,14 @@ func GetHttpClient() *http.Client {
 	return httpClient
 }
 
+// NewGatewayHttpClient 返回访问管理员显式配置的外部网关（如支付网关）的客户端：
+// 超时固定为 timeout，不受 RELAY_TIMEOUT 等 relay 配置影响；目标为可信上游，
+// 重定向不套用面向用户可控 URL 的 FetchSetting 过滤。底层复用 Go 默认
+// Transport（保守连接池，遵循 HTTP_PROXY/HTTPS_PROXY 环境变量）。
+func NewGatewayHttpClient(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout}
+}
+
 // GetHttpClientWithProxy returns the default client or a proxy-enabled one when proxyURL is provided.
 func GetHttpClientWithProxy(proxyURL string) (*http.Client, error) {
 	if proxyURL == "" {

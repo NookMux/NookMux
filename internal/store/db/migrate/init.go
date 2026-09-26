@@ -10,7 +10,6 @@ import (
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/db/cleanup"
 	"github.com/NookMux/NookMux/internal/store/log"
-	"github.com/NookMux/NookMux/internal/store/minimax_voice"
 	"github.com/NookMux/NookMux/internal/store/option"
 	"github.com/NookMux/NookMux/internal/store/passkey"
 	"github.com/NookMux/NookMux/internal/store/prefill_group"
@@ -23,6 +22,7 @@ import (
 	"github.com/NookMux/NookMux/internal/store/usedata"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"github.com/NookMux/NookMux/internal/store/vendor_meta"
+	"github.com/NookMux/NookMux/internal/store/voice"
 	"gorm.io/gorm"
 	"os"
 	"strings"
@@ -128,37 +128,22 @@ func migrateDB() error {
 		return err
 	}
 
-	err := dbstore.DB.AutoMigrate(
-		&channelstore.Channel{},
-		&ticketstore.Ticket{},
-		&ticketstore.TicketEntry{},
-		&tokenstore.Token{},
-		&userstore.User{},
-		&passkeystore.PasskeyCredential{},
-		&optionstore.Option{},
-		&redemptionstore.Redemption{},
-		&channelstore.Ability{},
-		&logstore.Log{},
-		&storedmediastore.StoredImage{},
-		&storedmediastore.StoredVideo{},
-		&topupstore.TopUp{},
-		&usedatastore.QuotaData{},
-		&vendormetastore.Model{},
-		&vendormetastore.Vendor{},
-		&prefillgroupstore.PrefillGroup{},
-		&optionstore.Setup{},
-		&twofastore.TwoFA{},
-		&twofastore.TwoFABackupCode{},
-		&checkinstore.Checkin{},
-		&channelstore.DynamicRatioRule{},
-		&auditstore.AuditLog{},
-		&minimaxvoicestore.MiniMaxVoice{},
-	)
+	// 定制音色去 MiniMax 化：旧表 minimax_voices 重命名为 voices。必须在 AutoMigrate 之前执行。
+	if err := renameLegacyMinimaxVoicesTable(); err != nil {
+		return err
+	}
+
+	err := dbstore.DB.AutoMigrate(mainDBModels()...)
 	if err != nil {
 		return err
 	}
 
 	if err := userstore.CleanupEmptyAccessTokens(); err != nil {
+		return err
+	}
+	// 旧版 stored_images / stored_videos 分表合并为 stored_media 单表，须在
+	// AutoMigrate 创建 stored_media 之后执行。
+	if err := mergeLegacyStoredMediaTables(); err != nil {
 		return err
 	}
 	if err := dbcleanup.CleanupRemovedChatPlaygroundData(); err != nil {
@@ -179,6 +164,35 @@ func migrateLOGDB() error {
 		return err
 	}
 	return nil
+}
+
+// mainDBModels 主库 AutoMigrate 模型清单，由 migrateDB 与跨库 DDL 兼容性测试共用。
+func mainDBModels() []any {
+	return []any{
+		&channelstore.Channel{},
+		&ticketstore.Ticket{},
+		&ticketstore.TicketEntry{},
+		&tokenstore.Token{},
+		&userstore.User{},
+		&passkeystore.PasskeyCredential{},
+		&optionstore.Option{},
+		&redemptionstore.Redemption{},
+		&channelstore.Ability{},
+		&logstore.Log{},
+		&storedmediastore.StoredMedia{},
+		&topupstore.TopUp{},
+		&usedatastore.QuotaData{},
+		&vendormetastore.Model{},
+		&vendormetastore.Vendor{},
+		&prefillgroupstore.PrefillGroup{},
+		&optionstore.Setup{},
+		&twofastore.TwoFA{},
+		&twofastore.TwoFABackupCode{},
+		&checkinstore.Checkin{},
+		&channelstore.DynamicRatioRule{},
+		&auditstore.AuditLog{},
+		&voicestore.Voice{},
+	}
 }
 
 // cleanupLegacyUniqueIndexes 清理所有从旧版 uniqueIndex tag 迁移到新版复合/部分索引后

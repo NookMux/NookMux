@@ -528,7 +528,7 @@ func DeleteHistoryLogs(c *gin.Context) {
 		detail["clean_logs"] = count
 	}
 	if cleanStoredImages {
-		count, err := storedmediastore.DeleteStoredImagesInRange(c.Request.Context(), startTimestamp, endTimestamp, 100)
+		count, err := storedmediastore.DeleteStoredMediaInRange(c.Request.Context(), storedmediastore.MediaTypeImage, startTimestamp, endTimestamp, 100)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -536,7 +536,7 @@ func DeleteHistoryLogs(c *gin.Context) {
 		detail["clean_stored_images"] = count
 	}
 	if cleanStoredVideos {
-		count, err := storedmediastore.DeleteStoredVideosInRange(c.Request.Context(), startTimestamp, endTimestamp, 100)
+		count, err := storedmediastore.DeleteStoredMediaInRange(c.Request.Context(), storedmediastore.MediaTypeVideo, startTimestamp, endTimestamp, 100)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}

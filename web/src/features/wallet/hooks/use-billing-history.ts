@@ -24,6 +24,7 @@ import {
   getUserBillingHistory,
   getAllBillingHistory,
   completeOrder,
+  checkOrder,
   isApiSuccess,
 } from '../api'
 import type { TopupRecord } from '../types'
@@ -50,6 +51,7 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [completing, setCompleting] = useState(false)
+  const [checking, setChecking] = useState(false)
 
   /**
    * Fetch billing history
@@ -120,6 +122,42 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
   )
 
   /**
+   * Check a pending order against the payment gateway. When the gateway
+   * reports the order as paid, the backend completes it (recovered callback).
+   */
+  const handleCheckOrder = useCallback(
+    async (tradeNo: string) => {
+      setChecking(true)
+      try {
+        const response = await checkOrder({ trade_no: tradeNo })
+        if (isApiSuccess(response)) {
+          if (response.data?.status === 'success') {
+            // 网关确认已支付且后端已完成入账，刷新列表呈现最新状态
+            toast.success(i18next.t('wallet.tips.orderCheckPaid'))
+            await fetchBillingHistory()
+          } else {
+            // 网关确认尚未支付（或订单不存在于网关），本地订单状态不变
+            toast.info(i18next.t('wallet.tips.orderCheckNotPaid'))
+          }
+          return true
+        }
+        toast.error(
+          response.message || i18next.t('wallet.errors.failedToCheckOrder')
+        )
+        return false
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to check order:', error)
+        toast.error(i18next.t('wallet.errors.failedToCheckOrder'))
+        return false
+      } finally {
+        setChecking(false)
+      }
+    },
+    [fetchBillingHistory]
+  )
+
+  /**
    * Change page
    */
   const handlePageChange = useCallback((newPage: number) => {
@@ -155,11 +193,13 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
     keyword,
     loading,
     completing,
+    checking,
     isAdmin,
     handlePageChange,
     handlePageSizeChange,
     handleSearch,
     handleCompleteOrder,
+    handleCheckOrder,
     refresh: fetchBillingHistory,
   }
 }

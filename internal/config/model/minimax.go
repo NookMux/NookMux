@@ -14,7 +14,7 @@ import (
 // MiniMaxSettings 定义 MiniMax TTS 增强配置。
 // 仅对 MiniMax 渠道的 /v1/audio/speech 生效。
 //
-// 注意：音色白名单与音色重定向已迁移到数据库表管理（model.MiniMaxVoice），
+// 注意：音色白名单与音色重定向已迁移到数据库表管理（voicestore.Voice），
 // 此处只保留一个“是否启用白名单”总开关；具体可用音色、重定向 ID 均由数据库记录决定。
 type MiniMaxSettings struct {
 	// Enabled 是 TTS 增强（模型重定向、情绪、语气词）总开关，默认关闭。

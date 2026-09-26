@@ -1,39 +1,79 @@
-.idea
-.vscode
-.zed
-upload
-*.exe
-*.db
-*.log
-build
-*.db-journal
-logs
-web/dist
-.env
-one-api
-NookMux
-/__debug_bin*
+# =====================================================================
+# NookMux 仓库忽略规则
+#
+# 约定：
+#   - 以 / 开头的模式只匹配仓库根目录，避免误伤子目录中的同名文件；
+#   - 前端特有规则（node_modules、dist、.env、.tanstack 等）由 web/.gitignore 维护；
+#   - .serena/ 目录由其自身 .serena/.gitignore 维护（memories 与配置受跟踪、
+#     cache 忽略），因此 core dump 规则必须锚定根目录，防止误伤
+#     .serena/memories/core.md。
+# =====================================================================
+
+# ---- 操作系统杂项 ----
 .DS_Store
-tiktoken_cache
-.eslintcache
-.gocache
-.gomodcache
-.cache
-web/bun.lock
-plans
-data/
-.gocache-temp
-.gopath
-.npm-cache
+
+# Core dump（仅仓库根目录；不锚定会误伤 .serena/memories/core.md）
+/core.*
+/core
+
+# Windows 意外生成的保留名文件
 null
 nul
 
-# Keep reference projects local-only and out of Git.
-参考项目/
+# ---- IDE / 编辑器 ----
+.idea
+.vscode
+.zed
 
-# Core dump files from OOM crashes (anchor to repo root to avoid matching
-# subdirectory files such as .serena/memories/core.md)
-/core.*
-/core
+# ---- 密钥与环境变量（仅 .env.example 入库） ----
+.env
+.env.*
+!.env.example
+
+# ---- 日志 ----
+/logs/
+*.log
+
+# ---- 数据库文件（SQLite 及 journal/WAL/SHM 伴生文件） ----
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# ---- 运行时数据目录（对应 docker-compose 挂载卷） ----
+/data/
+/upload/
+
+# ---- 本地构建产物 ----
+/one-api
+/NookMux
+*.exe
+/build/
+/output/
+/__debug_bin*
+web/dist/
+
+# ---- Go 工具链与依赖缓存 ----
+.gocache/
+.gocache-temp/
+.gomodcache/
+.gopath/
+.cache/
+
+# ---- Tokenizer / 前端工具链缓存 ----
+tiktoken_cache/
+.tiktoken_cache/
+.eslintcache
+.npm-cache/
+.playwright-mcp/
+
+# ---- 依赖目录（任意层级，覆盖 .opencode 等工具目录） ----
+**/node_modules/
+
+# ---- AI 工具与本地产物 ----
+plans
 .codegraph/
 .codebuddy/teams/
+
+# ---- 参考项目（仅本地比对上游实现，禁止入库） ----
+参考项目/

@@ -87,7 +87,7 @@ func logHelper(ctx context.Context, level string, msg string) {
 		id = "SYSTEM"
 	}
 	now := time.Now()
-	_, _ = fmt.Fprintf(writer, "[%s] %v | %s | %s \n", level, now.Format("2006/01/02 - 15:04:05"), id, msg)
+	_, _ = fmt.Fprintf(writer, "[%s] %v | %s | %s \n", level, now.Format("2006/01/02 - 15:04:05"), id, common.SanitizeLogLine(msg))
 	// 计数与日志滚动触发改用原子操作：日志是并发热路径，加锁会显著拖慢；
 	// 计数精度无需绝对准确，但必须无数据竞争。CompareAndSwap 防止多个协程
 	// 同时触发 SetupLogger 重入。

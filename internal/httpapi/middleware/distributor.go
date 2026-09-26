@@ -10,6 +10,7 @@ import (
 	domaingroup "github.com/NookMux/NookMux/internal/domain/group"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	"github.com/NookMux/NookMux/internal/i18n"
 	relayconstant "github.com/NookMux/NookMux/internal/relay/constant"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/gin-gonic/gin"
@@ -31,22 +32,28 @@ func Distribute() func(c *gin.Context) {
 		channelId, ok := httpapi.GetContextKey(c, common.ContextKeyTokenSpecificChannelId)
 		modelRequest, shouldSelectChannel, err := getModelRequest(c)
 		if err != nil {
-			abortWithOpenAiMessage(c, http.StatusBadRequest, "Invalid request, "+err.Error())
+			if errors.Is(err, ErrTokenModelMappingCycle) {
+				abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorTokenModelMappingCycle, map[string]any{
+					"Chain": strings.TrimPrefix(err.Error(), ErrTokenModelMappingCycle.Error()+": "),
+				}))
+				return
+			}
+			abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
 			return
 		}
 		if ok {
 			id, err := strconv.Atoi(channelId.(string))
 			if err != nil {
-				abortWithOpenAiMessage(c, http.StatusBadRequest, "无效的渠道 Id")
+				abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidChannelID))
 				return
 			}
 			channel, err = channelstore.GetChannelById(id, true)
 			if err != nil {
-				abortWithOpenAiMessage(c, http.StatusBadRequest, "无效的渠道 Id")
+				abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidChannelID))
 				return
 			}
 			if channel.Status != common.ChannelStatusEnabled {
-				abortWithOpenAiMessage(c, http.StatusForbidden, "该渠道已被禁用")
+				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
 				return
 			}
 		} else {
@@ -57,7 +64,7 @@ func Distribute() func(c *gin.Context) {
 				s, ok := httpapi.GetContextKey(c, common.ContextKeyTokenModelLimit)
 				if !ok {
 					// token model limit is empty, all models are not allowed
-					abortWithOpenAiMessage(c, http.StatusForbidden, "该令牌无权访问任何模型")
+					abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorTokenNoModelAccess))
 					return
 				}
 				var tokenModelLimit map[string]bool
@@ -67,14 +74,14 @@ func Distribute() func(c *gin.Context) {
 				}
 				matchName := ratio.FormatMatchingModelName(modelRequest.Model) // match gpts & thinking-*
 				if _, ok := tokenModelLimit[matchName]; !ok {
-					abortWithOpenAiMessage(c, http.StatusForbidden, "该令牌无权访问模型 "+modelRequest.Model)
+					abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorTokenModelNotAllowed, map[string]any{"Model": modelRequest.Model}))
 					return
 				}
 			}
 
 			if shouldSelectChannel {
 				if modelRequest.Model == "" {
-					abortWithOpenAiMessage(c, http.StatusBadRequest, "未指定模型名称，模型名称不能为空")
+					abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorModelRequired))
 					return
 				}
 				var selectGroup string
@@ -86,12 +93,12 @@ func Distribute() func(c *gin.Context) {
 					playgroundRequest := &shared.PlayGroundRequest{}
 					err = httpapi.UnmarshalBodyReusable(c, playgroundRequest)
 					if err != nil {
-						abortWithOpenAiMessage(c, http.StatusBadRequest, "无效的游乐场请求: "+err.Error())
+						abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidPlaygroundReq, map[string]any{"Error": err.Error()}))
 						return
 					}
 					if playgroundRequest.Group != "" {
 						if !domaingroup.GroupInUserUsableGroups(usingGroup, playgroundRequest.Group) && playgroundRequest.Group != usingGroup {
-							abortWithOpenAiMessage(c, http.StatusForbidden, "无权访问该分组")
+							abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
 							return
 						}
 						usingGroup = playgroundRequest.Group
@@ -141,7 +148,11 @@ func Distribute() func(c *gin.Context) {
 						if usingGroup == "auto" {
 							showGroup = fmt.Sprintf("auto(%s)", selectGroup)
 						}
-						message := fmt.Sprintf("获取分组 %s 下模型 %s 的可用渠道失败（distributor）: %s", showGroup, modelRequest.Model, err.Error())
+						message := i18n.T(c, i18n.MsgDistributorSelectChannelFailed, map[string]any{
+							"Group": showGroup,
+							"Model": modelRequest.Model,
+							"Error": err.Error(),
+						})
 						// 如果错误，但是渠道不为空，说明是数据库一致性问题
 						//if channel != nil {
 						//	common.SysError(fmt.Sprintf("渠道不存在：%d", channel.Id))
@@ -151,7 +162,10 @@ func Distribute() func(c *gin.Context) {
 						return
 					}
 					if channel == nil {
-						abortWithOpenAiMessage(c, http.StatusServiceUnavailable, fmt.Sprintf("分组 %s 下模型 %s 无可用渠道（distributor）", usingGroup, modelRequest.Model), shared.ErrorCodeModelNotFound)
+						abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgDistributorNoAvailableChannel, map[string]any{
+							"Group": usingGroup,
+							"Model": modelRequest.Model,
+						}), shared.ErrorCodeModelNotFound)
 						return
 					}
 				}
@@ -182,7 +196,7 @@ func getModelFromRequest(c *gin.Context) (*ModelRequest, error) {
 	var modelRequest ModelRequest
 	err := httpapi.UnmarshalBodyReusable(c, &modelRequest)
 	if err != nil {
-		return nil, errors.New("无效的请求, " + err.Error())
+		return nil, err
 	}
 	return &modelRequest, nil
 }

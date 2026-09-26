@@ -131,3 +131,76 @@ func TestMigrateLegacyToolBillingRulesInOptionsBeforeRuntimeLoad(t *testing.T) {
 		t.Fatal("legacy exact model_filter should not become an unconditional runtime rule")
 	}
 }
+
+// TestUpdateOptionValidatesPayAddressScheme 保证易支付网关地址保存时强制 https：
+// 非 https 值必须被拒绝且不落库、不更新运行时配置，https 与空值（未启用）正常保存。
+func TestUpdateOptionValidatesPayAddressScheme(t *testing.T) {
+	oldDB := dbstore.DB
+	oldPayAddress := operation.PayAddress
+	common.OptionMapRWMutex.Lock()
+	oldOptionMap := common.OptionMap
+	common.OptionMap = map[string]string{}
+	common.OptionMapRWMutex.Unlock()
+
+	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite test db: %v", err)
+	}
+	if err := db.AutoMigrate(&Option{}); err != nil {
+		t.Fatalf("migrate option table: %v", err)
+	}
+	dbstore.DB = db
+
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+		dbstore.DB = oldDB
+		operation.PayAddress = oldPayAddress
+		common.OptionMapRWMutex.Lock()
+		common.OptionMap = oldOptionMap
+		common.OptionMapRWMutex.Unlock()
+	})
+
+	insecureAddresses := []string{
+		"http://pay.example.com",
+		"ftp://pay.example.com",
+		"pay.example.com",
+	}
+	for _, addr := range insecureAddresses {
+		if err := UpdateOption("PayAddress", addr); err == nil {
+			t.Fatalf("UpdateOption(PayAddress, %q) expected error, got nil", addr)
+		} else if !strings.Contains(err.Error(), "https") {
+			t.Fatalf("UpdateOption(PayAddress, %q) error should mention https requirement, got %q", addr, err.Error())
+		}
+		var stored Option
+		if err := dbstore.DB.First(&stored, "key = ?", "PayAddress").Error; err == nil {
+			t.Fatalf("insecure PayAddress %q must not be persisted, found row value %q", addr, stored.Value)
+		}
+		if operation.PayAddress != "" {
+			t.Fatalf("rejected PayAddress %q must not update runtime config, got %q", addr, operation.PayAddress)
+		}
+	}
+
+	if err := UpdateOption("PayAddress", "https://pay.example.com"); err != nil {
+		t.Fatalf("UpdateOption(PayAddress, https) error = %v", err)
+	}
+	if operation.PayAddress != "https://pay.example.com" {
+		t.Fatalf("operation.PayAddress = %q, want https://pay.example.com", operation.PayAddress)
+	}
+	var stored Option
+	if err := dbstore.DB.First(&stored, "key = ?", "PayAddress").Error; err != nil {
+		t.Fatalf("query persisted PayAddress: %v", err)
+	}
+	if stored.Value != "https://pay.example.com" {
+		t.Fatalf("persisted PayAddress = %q, want https://pay.example.com", stored.Value)
+	}
+
+	// 空值是允许的初始态，表示未启用易支付
+	if err := UpdateOption("PayAddress", ""); err != nil {
+		t.Fatalf("UpdateOption(PayAddress, empty) error = %v", err)
+	}
+	if operation.PayAddress != "" {
+		t.Fatalf("operation.PayAddress = %q, want empty", operation.PayAddress)
+	}
+}

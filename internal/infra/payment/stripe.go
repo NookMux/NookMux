@@ -114,7 +114,7 @@ func GenStripeLink(c *gin.Context, referenceId string, customerId string, email 
 	return result.URL, nil
 }
 
-func SessionCompleted(event stripe.Event) error {
+func SessionCompleted(event stripe.Event, callerIp string) error {
 	customerId := event.GetObjectValue("customer")
 	referenceId := event.GetObjectValue("client_reference_id")
 	status := event.GetObjectValue("status")
@@ -129,17 +129,17 @@ func SessionCompleted(event stripe.Event) error {
 		return nil
 	}
 
-	return FulfillOrder(event, referenceId, customerId)
+	return FulfillOrder(event, referenceId, customerId, callerIp)
 }
 
 // SessionAsyncPaymentSucceeded handles delayed payment methods (bank transfer, SEPA, etc.)
 // that confirm payment after the checkout session completes.
-func SessionAsyncPaymentSucceeded(event stripe.Event) error {
+func SessionAsyncPaymentSucceeded(event stripe.Event, callerIp string) error {
 	customerId := event.GetObjectValue("customer")
 	referenceId := event.GetObjectValue("client_reference_id")
 	log.Printf("Stripe 异步支付成功: %s", referenceId)
 
-	return FulfillOrder(event, referenceId, customerId)
+	return FulfillOrder(event, referenceId, customerId, callerIp)
 }
 
 // SessionAsyncPaymentFailed marks orders as failed when delayed payment methods
@@ -172,7 +172,7 @@ func SessionAsyncPaymentFailed(event stripe.Event) error {
 // FulfillOrder is the shared logic for crediting quota after payment is confirmed.
 // 入账失败时向上返回 error，由 StripeWebhook 返回 5xx 触发 Stripe 重投；
 // 订单已处理（ErrTopUpStatusInvalid，重复投递）视为成功返回 nil。
-func FulfillOrder(event stripe.Event, referenceId string, customerId string) error {
+func FulfillOrder(event stripe.Event, referenceId string, customerId string, callerIp string) error {
 	if len(referenceId) == 0 {
 		log.Println("未提供支付单号")
 		return nil
@@ -181,7 +181,7 @@ func FulfillOrder(event stripe.Event, referenceId string, customerId string) err
 	LockOrder(referenceId)
 	defer UnlockOrder(referenceId)
 
-	err := topupstore.Recharge(referenceId, customerId)
+	err := topupstore.Recharge(referenceId, customerId, callerIp)
 	if err != nil {
 		if errors.Is(err, topupstore.ErrTopUpStatusInvalid) {
 			log.Println("充值订单已处理，跳过重复入账:", referenceId)

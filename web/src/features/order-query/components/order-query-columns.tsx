@@ -34,10 +34,13 @@ import type { TopupRecord } from '@/features/wallet/types'
 export interface OrderQueryColumnActions {
   onComplete: (tradeNo: string) => void
   completing: boolean
+  onCheck: (tradeNo: string) => void
+  checking: boolean
 }
 
 export function useOrderQueryColumns(
   isAdmin: boolean,
+  records: TopupRecord[],
   actions: OrderQueryColumnActions
 ): ColumnDef<TopupRecord>[] {
   const { t } = useTranslation()
@@ -131,29 +134,50 @@ export function useOrderQueryColumns(
     }
   )
 
-  if (isAdmin) {
+  // 管理员始终渲染操作列；普通用户仅当当前页存在可自助检查的易支付待支付
+  // 订单时渲染，避免出现只有表头的空操作列
+  const hasCheckableOrder = records.some(
+    (record) =>
+      record.status === 'pending' && record.payment_provider === 'epay'
+  )
+  if (isAdmin || hasCheckableOrder) {
     columns.push({
       id: 'actions',
       header: () => (
         <span className='text-right'>{t('channels.fields.actions')}</span>
       ),
-      cell: ({ row }) => (
-        <div className='text-right'>
-          {row.original.status === 'pending' ? (
-            <Button
-              variant='outline'
-              size='sm'
-              disabled={actions.completing}
-              onClick={() => actions.onComplete(row.original.trade_no)}
-            >
-              {t('orderQuery.fields.completeOrder')}
-            </Button>
-          ) : null}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const isPending = row.original.status === 'pending'
+        // 仅易支付订单支持网关在线检查（stripe 走 webhook，无查单接口）
+        const canCheck = isPending && row.original.payment_provider === 'epay'
+        return (
+          <div className='flex justify-end gap-2'>
+            {canCheck ? (
+              <Button
+                variant='outline'
+                size='sm'
+                disabled={actions.checking || actions.completing}
+                onClick={() => actions.onCheck(row.original.trade_no)}
+              >
+                {t('orderQuery.fields.checkOrder')}
+              </Button>
+            ) : null}
+            {isAdmin && isPending ? (
+              <Button
+                variant='outline'
+                size='sm'
+                disabled={actions.completing || actions.checking}
+                onClick={() => actions.onComplete(row.original.trade_no)}
+              >
+                {t('orderQuery.fields.completeOrder')}
+              </Button>
+            ) : null}
+          </div>
+        )
+      },
       enableSorting: false,
       enableHiding: false,
-      size: 128,
+      size: 192,
     })
   }
 

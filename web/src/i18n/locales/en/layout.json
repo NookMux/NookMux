@@ -20,6 +20,7 @@
   "layout.titles.goToDashboard": "Go to Dashboard",
   "layout.fields.logo": "Logo",
   "layout.titles.modelsRouting": "Models & Routing",
+  "layout.titles.moreSettings": "More Settings",
   "layout.fields.newApi": "NookMux",
   "layout.fields.operations": "Operations",
   "layout.tips.pleaseSignInToViewModule": "Please sign in to view {{module}}.",

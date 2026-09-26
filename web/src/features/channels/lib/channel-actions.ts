@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import type { QueryClient } from '@tanstack/react-query'
 import i18next from 'i18next'
 import { toast } from 'sonner'
-import { formatCurrencyFromUSD } from '@/lib/currency'
 import {
   copyChannel,
   deleteChannel,
@@ -37,6 +36,7 @@ import {
 } from '../api'
 import { CHANNEL_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import type { CopyChannelParams } from '../types'
+import { formatBalanceByCurrency } from './channel-utils'
 
 // ============================================================================
 // Query Keys
@@ -49,6 +49,7 @@ export const channelsQueryKeys = {
     [...channelsQueryKeys.lists(), params] as const,
   details: () => [...channelsQueryKeys.all, 'detail'] as const,
   detail: (id: number) => [...channelsQueryKeys.details(), id] as const,
+  builtinUrls: () => [...channelsQueryKeys.all, 'builtin-urls'] as const,
 }
 
 // ============================================================================
@@ -146,9 +147,12 @@ export async function handleUpdateChannelField(
   try {
     const response = await updateChannel(id, { [fieldName]: value })
     if (response.success) {
-      // Show success toast with field name
-      const fieldLabel =
-        fieldName.charAt(0).toUpperCase() + fieldName.slice(1).toLowerCase()
+      // Show success toast with localized field label
+      const fieldLabelKeys: Record<string, string> = {
+        priority: 'channels.fields.priority',
+        weight: 'channels.fields.weight',
+      }
+      const fieldLabel = i18next.t(fieldLabelKeys[fieldName] || fieldName)
       toast.success(
         i18next.t('channels.status.fieldUpdatedToValue', {
           field: fieldLabel,
@@ -288,11 +292,7 @@ export async function handleUpdateChannelBalance(
       const balance = response.balance
       toast.success(
         i18next.t('channels.status.balanceUpdatedBalance', {
-          balance: formatCurrencyFromUSD(balance, {
-            digitsLarge: 2,
-            digitsSmall: 4,
-            abbreviate: false,
-          }),
+          balance: formatBalanceByCurrency(balance, response.currency),
         })
       )
       queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
@@ -317,15 +317,18 @@ export async function handleUpdateChannelBalance(
 
 /**
  * Batch delete channels
+ *
+ * @returns Whether the batch deletion succeeded, so callers can keep
+ *          confirmation dialogs open on failure.
  */
 export async function handleBatchDelete(
   ids: number[],
   queryClient?: QueryClient,
   onSuccess?: (deletedCount: number) => void
-): Promise<void> {
+): Promise<boolean> {
   if (ids.length === 0) {
     toast.error(i18next.t('channels.titles.noChannelsSelected'))
-    return
+    return false
   }
 
   try {
@@ -338,10 +341,13 @@ export async function handleBatchDelete(
       )
       queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
       onSuccess?.(response.data || ids.length)
+      return true
     }
+    toast.error(response.message || i18next.t(ERROR_MESSAGES.DELETE_FAILED))
   } catch (_error) {
     toast.error(i18next.t(ERROR_MESSAGES.DELETE_FAILED))
   }
+  return false
 }
 
 /**

@@ -254,7 +254,7 @@ export function CustomVoice() {
 
           <div className='grid gap-4 md:grid-cols-2'>
             <div className='space-y-2'>
-              <Label>{t('minimax.fields.voiceId')}</Label>
+              <Label>{t('voiceManagement.fields.voiceId')}</Label>
               <Input
                 value={voiceId}
                 onChange={(e) => setVoiceId(e.target.value)}
@@ -416,7 +416,7 @@ export function CustomVoice() {
           <div className='space-y-3 rounded-lg border p-3 text-sm'>
             <div className='flex items-center justify-between gap-4'>
               <span className='text-muted-foreground'>
-                {t('minimax.fields.voiceId')}
+                {t('voiceManagement.fields.voiceId')}
               </span>
               <span className='font-medium break-all'>{confirmVoiceId}</span>
             </div>

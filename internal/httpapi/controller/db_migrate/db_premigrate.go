@@ -51,8 +51,18 @@ func StartDBPreMigrate(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
-	audit.RecordAudit(c, auditstore.AuditModuleDB, auditstore.AuditActionUpdate, "启动数据库预迁移", nil, req)
+	// 审计落库前遮蔽目标库 DSN 的口令，保留 scheme、用户名、主机等非敏感骨架便于审计排查。
+	auditRecord := premigrateAuditAfter(req)
+	audit.RecordAudit(c, auditstore.AuditModuleDB, auditstore.AuditActionUpdate, "启动数据库预迁移", nil, auditRecord)
 	httpapi.ApiSuccess(c, gin.H{"job_id": jobID})
+}
+
+// premigrateAuditAfter 返回审计落库用的请求副本：目标库 DSN 的口令被遮蔽，
+// 原始请求保持不变，不影响迁移任务使用的真实 DSN。
+func premigrateAuditAfter(req dbPreMigrateStartRequest) dbPreMigrateStartRequest {
+	req.TargetDSN = audit.MaskCredential(strings.TrimSpace(req.TargetDSN))
+	req.TargetLogDSN = audit.MaskCredential(strings.TrimSpace(req.TargetLogDSN))
+	return req
 }
 
 func GetDBPreMigrateJob(c *gin.Context) {

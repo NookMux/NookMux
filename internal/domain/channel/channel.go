@@ -7,6 +7,7 @@ import (
 	"github.com/NookMux/NookMux/internal/domain/channel/constant"
 	sensitive "github.com/NookMux/NookMux/internal/domain/sensitive"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	"github.com/NookMux/NookMux/internal/i18n"
 	notify "github.com/NookMux/NookMux/internal/infra/notify"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"net/http"
@@ -19,6 +20,10 @@ func formatNotifyType(channelId int, status int) string {
 
 // disable & notify
 func DisableChannel(channelError ChannelError, reason string) {
+	lang := channelError.Lang
+	if lang == "" {
+		lang = i18n.DefaultLang
+	}
 	reasonPreview := common.LocalLogPreview(reason)
 	common.SysLog(fmt.Sprintf("通道「%s」（#%d）发生错误，准备禁用，原因：%s", channelError.ChannelName, channelError.ChannelId, reasonPreview))
 
@@ -30,17 +35,22 @@ func DisableChannel(channelError ChannelError, reason string) {
 
 	success := channelstore.UpdateChannelStatus(channelError.ChannelId, channelError.UsingKey, common.ChannelStatusAutoDisabled, reasonPreview)
 	if success {
-		subject := fmt.Sprintf("通道「%s」（#%d）已被禁用", channelError.ChannelName, channelError.ChannelId)
-		content := fmt.Sprintf("通道「%s」（#%d）已被禁用，原因：%s", channelError.ChannelName, channelError.ChannelId, reasonPreview)
+		args := map[string]any{"Name": channelError.ChannelName, "Id": channelError.ChannelId, "Reason": reasonPreview}
+		subject := i18n.Translate(lang, i18n.MsgChannelNotifyDisabledTitle, args)
+		content := i18n.Translate(lang, i18n.MsgChannelNotifyDisabledBody, args)
 		notify.NotifyRootUser(formatNotifyType(channelError.ChannelId, common.ChannelStatusAutoDisabled), subject, content)
 	}
 }
 
-func EnableChannel(channelId int, usingKey string, channelName string) {
+func EnableChannel(channelId int, usingKey string, channelName string, lang string) {
+	if lang == "" {
+		lang = i18n.DefaultLang
+	}
 	success := channelstore.UpdateChannelStatus(channelId, usingKey, common.ChannelStatusEnabled, "")
 	if success {
-		subject := fmt.Sprintf("通道「%s」（#%d）已被启用", channelName, channelId)
-		content := fmt.Sprintf("通道「%s」（#%d）已被启用", channelName, channelId)
+		args := map[string]any{"Name": channelName, "Id": channelId}
+		subject := i18n.Translate(lang, i18n.MsgChannelNotifyEnabledTitle, args)
+		content := i18n.Translate(lang, i18n.MsgChannelNotifyEnabledBody, args)
 		notify.NotifyRootUser(formatNotifyType(channelId, common.ChannelStatusEnabled), subject, content)
 	}
 }

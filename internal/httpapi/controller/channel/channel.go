@@ -382,7 +382,7 @@ func FetchUpstreamModels(c *gin.Context) {
 	// 对于 Ollama 渠道，使用特殊处理
 	if channel.Type == constant.ChannelTypeOllama {
 		key := strings.Split(channel.Key, "\n")[0]
-		models, err := ollama.FetchOllamaModels(baseURL, key, channel.GetSetting().Proxy)
+		models, err := ollama.FetchOllamaModels(i18n.GetLangFromContext(c), baseURL, key, channel.GetSetting().Proxy)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -1307,7 +1307,7 @@ func FetchModels(c *gin.Context) {
 			})
 			return
 		}
-		models, err := ollama.FetchOllamaModels(baseURL, key, "")
+		models, err := ollama.FetchOllamaModels(i18n.GetLangFromContext(c), baseURL, key, "")
 		if err != nil {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelOllamaGetModelsFailed, map[string]any{"Error": err.Error()})
 			return
@@ -2096,7 +2096,7 @@ func OllamaPullModel(c *gin.Context) {
 	}
 
 	key := strings.Split(channel.Key, "\n")[0]
-	err = ollama.PullOllamaModel(baseURL, key, channel.GetSetting().Proxy, req.ModelName)
+	err = ollama.PullOllamaModel(i18n.GetLangFromContext(c), baseURL, key, channel.GetSetting().Proxy, req.ModelName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -2174,7 +2174,7 @@ func OllamaPullModelStream(c *gin.Context) {
 	}
 
 	// 执行拉取
-	err = ollama.PullOllamaModelStream(baseURL, key, channel.GetSetting().Proxy, req.ModelName, progressCallback)
+	err = ollama.PullOllamaModelStream(i18n.GetLangFromContext(c), baseURL, key, channel.GetSetting().Proxy, req.ModelName, progressCallback)
 
 	if err != nil {
 		errorData, _ := jsonx.Marshal(gin.H{
@@ -2241,7 +2241,7 @@ func OllamaDeleteModel(c *gin.Context) {
 	}
 
 	key := strings.Split(channel.Key, "\n")[0]
-	err = ollama.DeleteOllamaModel(baseURL, key, channel.GetSetting().Proxy, req.ModelName)
+	err = ollama.DeleteOllamaModel(i18n.GetLangFromContext(c), baseURL, key, channel.GetSetting().Proxy, req.ModelName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -2291,7 +2291,7 @@ func OllamaVersion(c *gin.Context) {
 	}
 
 	key := strings.Split(channel.Key, "\n")[0]
-	version, err := ollama.FetchOllamaVersion(baseURL, key, channel.GetSetting().Proxy)
+	version, err := ollama.FetchOllamaVersion(i18n.GetLangFromContext(c), baseURL, key, channel.GetSetting().Proxy)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -2576,7 +2576,7 @@ func QueryGlmContactInfo(c *gin.Context) {
 // QueryGlmAccountReport 查询智谱 GLM-4V 渠道的账户资金报告
 // （余额 / 充值 / 赠金 / 消耗 / 可用 / 冻结）。Key 取数据库保存的渠道密钥由
 // 服务端注入并强制携带浏览器 UA，浏览器不直连智谱后台；请求经渠道代理发出。
-// 成功后同步把可用余额折算成 USD 落库，与通用余额更新（update_balance）一致。
+// 成功后同步把可用余额（人民币原值）落库，与通用余额更新（update_balance）一致。
 func QueryGlmAccountReport(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
@@ -2611,13 +2611,13 @@ func QueryGlmAccountReport(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
 		return
 	}
-	balanceUSD := glmBalanceCNYToUSD(balanceCNY)
-	channel.UpdateBalance(balanceUSD)
+	channel.UpdateBalance(balanceCNY)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    report,
-		"balance": balanceUSD,
+		"success":  true,
+		"data":     report,
+		"balance":  balanceCNY,
+		"currency": balanceCurrencyCNY,
 	})
 }
 

@@ -20,6 +20,7 @@
   "layout.titles.goToDashboard": "前往仪表板",
   "layout.fields.logo": "徽标",
   "layout.titles.modelsRouting": "模型与路由",
+  "layout.titles.moreSettings": "更多设置",
   "layout.fields.newApi": "NookMux",
   "layout.fields.operations": "运维",
   "layout.tips.pleaseSignInToViewModule": "请登录后查看 {{module}}。",

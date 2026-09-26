@@ -19,8 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { GrainField } from '@/components/landing/grain-field'
 import { FlipWords } from '../flip-words'
-import { GrainField } from '../grain-field'
 import { HubFlipCard } from '../hub-flip-card'
 
 interface HeroProps {

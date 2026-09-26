@@ -28,7 +28,6 @@ func TestAnonymousPostRoutesRejectOversizedBodiesBeforeControllers(t *testing.T)
 	routes := []string{
 		"/api/setup",
 		"/api/user/reset",
-		"/api/oauth/email/bind",
 		"/api/stripe/webhook",
 		"/api/user/register",
 		"/api/user/login",

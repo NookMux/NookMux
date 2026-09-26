@@ -176,14 +176,14 @@ export function validateModelMappingJson(modelMapping: string): {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return {
         valid: false,
-        error: 'Model mapping must be a valid JSON object',
+        error: 'channels.errors.modelMappingMustBeAJsonObject',
       }
     }
     return { valid: true }
   } catch {
     return {
       valid: false,
-      error: 'Model mapping must be valid JSON format',
+      error: 'channels.errors.modelMappingMustBeValidJson',
     }
   }
 }

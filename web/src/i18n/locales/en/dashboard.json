@@ -6,7 +6,7 @@
   "dashboard.tips.answersForCommonAccessAndBillingQuestions": "Answers for common access and billing questions",
   "dashboard.fields.apiInfo": "API Info",
   "dashboard.fields.apiKeyRequired": "API Key Required",
-  "dashboard.fields.apiKeys": "API Keys",
+  "dashboard.fields.apiKeys": "Keys",
   "dashboard.fields.applyFilters": "Apply Filters",
   "dashboard.fields.averageRpm": "Average RPM",
   "dashboard.fields.averageTpm": "Average TPM",

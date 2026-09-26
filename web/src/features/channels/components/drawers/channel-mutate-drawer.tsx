@@ -116,6 +116,7 @@ import {
   fetchModels,
   fetchProviders,
   getAllModels,
+  getBuiltinChannelUrls,
   getChannel,
   getChannelKey,
   getGroups,
@@ -135,7 +136,7 @@ import {
 } from '../../constants'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
-  channelFormSchema,
+  getChannelFormSchema,
   channelsQueryKeys,
   transformChannelToFormDefaults,
   transformFormDataToCreatePayload,
@@ -156,7 +157,11 @@ import {
   collectInvalidStatusCodeEntries,
   collectNewDisallowedStatusCodeRedirects,
 } from '../../lib/status-code-risk-guard'
-import type { Channel, ProxyTestResultData } from '../../types'
+import type {
+  BuiltinUrlOption,
+  Channel,
+  ProxyTestResultData,
+} from '../../types'
 import { FetchModelsDialog } from '../dialogs/fetch-models-dialog'
 import {
   MissingModelsConfirmationDialog,
@@ -225,6 +230,9 @@ const MODEL_MAPPING_PREVIEW_FALLBACK: Array<{
 }> = [{ source: 'client-model', target: 'upstream-model' }]
 
 const OPENAI_WIRE_API_CHANNEL_TYPES = new Set([1, 4, 6, 25, 26, 35, 44])
+
+// base_url 预设下拉中"自定义"项的哨兵值，仅用于渲染切换，不落入表单
+const BASE_URL_CUSTOM_OPTION = '__custom__'
 
 function CardHeading({ title, icon }: { title: string; icon?: ReactNode }) {
   return (
@@ -306,6 +314,7 @@ export function ChannelMutateDrawer({
   const [proxyTestLoading, setProxyTestLoading] = useState(false)
   const [proxyTestResult, setProxyTestResult] =
     useState<ProxyTestResultData | null>(null)
+  const [baseUrlCustomSelected, setBaseUrlCustomSelected] = useState(false)
 
   const isEditing = Boolean(currentRow)
   const channelId = currentRow?.id ?? null
@@ -333,6 +342,13 @@ export function ChannelMutateDrawer({
   const { data: prefillGroupsData } = useQuery({
     queryKey: ['prefill_groups', 'model'],
     queryFn: () => getPrefillGroups('model'),
+  })
+
+  // Fetch built-in base_url presets for the current channel type
+  const { data: builtinUrlsData, isError: isBuiltinUrlsError } = useQuery({
+    queryKey: channelsQueryKeys.builtinUrls(),
+    queryFn: getBuiltinChannelUrls,
+    staleTime: 5 * 60 * 1000,
   })
 
   const { copyToClipboard } = useCopyToClipboard()
@@ -363,7 +379,7 @@ export function ChannelMutateDrawer({
 
   // Form setup
   const form = useForm<ChannelFormValues>({
-    resolver: zodResolver(channelFormSchema),
+    resolver: zodResolver(getChannelFormSchema(t)),
     defaultValues: CHANNEL_FORM_DEFAULT_VALUES,
   })
 
@@ -429,6 +445,23 @@ export function ChannelMutateDrawer({
         ?.label || `#${currentType}`,
     [currentType]
   )
+
+  // Built-in base_url presets available for the current channel type
+  const baseUrlPresetOptions = useMemo(
+    () => builtinUrlsData?.data?.[String(currentType)] ?? [],
+    [builtinUrlsData, currentType]
+  )
+  const currentBaseUrlMatchesPreset = baseUrlPresetOptions.some(
+    (option) => option.value === currentBaseUrl
+  )
+
+  // Reset the explicit "custom" toggle when the channel type changes
+  useEffect(() => {
+    setBaseUrlCustomSelected(false)
+    if (!isEditing) {
+      form.setValue('base_url', '')
+    }
+  }, [currentType, isEditing, form])
 
   const channelTypeOptions = useMemo(() => {
     const options = CHANNEL_TYPE_OPTIONS.map((option) => ({
@@ -557,11 +590,14 @@ export function ChannelMutateDrawer({
       initialModelMappingRef.current = ''
       initialStatusCodeMappingRef.current = ''
     }
+    setBaseUrlCustomSelected(false)
   }, [isEditing, channelData, form])
 
   // Validate base_url - warn if it ends with /v1
+  // (official presets like MiniMax's default legitimately end with /v1)
   useEffect(() => {
     if (!currentBaseUrl || !currentBaseUrl.endsWith('/v1')) return
+    if (currentBaseUrlMatchesPreset) return
 
     // Show warning toast
     const timer = setTimeout(() => {
@@ -572,7 +608,7 @@ export function ChannelMutateDrawer({
 
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBaseUrl])
+  }, [currentBaseUrl, currentBaseUrlMatchesPreset])
 
   // Handle key deduplication
   const handleDeduplicateKeys = () => {
@@ -600,7 +636,7 @@ export function ChannelMutateDrawer({
 
   const fetchChannelKey = useCallback(async () => {
     if (!channelId) {
-      throw new Error('Channel is not selected')
+      throw new Error(t('channels.errors.channelNotSelected'))
     }
 
     setIsChannelKeyLoading(true)
@@ -627,16 +663,15 @@ export function ChannelMutateDrawer({
     try {
       await withVerification(fetchChannelKey, {
         preferredMethod: 'passkey',
-        title: 'Verify to view channel key',
-        description:
-          'Use Passkey or 2FA to confirm your identity before revealing this channel key.',
+        title: t('channels.titles.verifyToViewChannelKey'),
+        description: t('channels.tips.verifyIdentityToRevealKey'),
       })
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message)
       }
     }
-  }, [channelId, withVerification, fetchChannelKey])
+  }, [channelId, withVerification, fetchChannelKey, t])
 
   // Unified function to update models
   const updateModels = useCallback(
@@ -708,8 +743,10 @@ export function ChannelMutateDrawer({
         typeof m === 'string' ? m : String(m ?? '')
       )
     }
-    throw new Error(response.message || 'No models fetched from upstream')
-  }, [form])
+    throw new Error(
+      response.message || t('channels.errors.noModelsFetchedFromUpstream')
+    )
+  }, [form, t])
 
   const createModeProviderFetcher = useCallback(async () => {
     const response = await fetchProviders({
@@ -907,7 +944,9 @@ export function ChannelMutateDrawer({
       if (hasModelMapping) {
         const validation = validateModelMappingJson(data.model_mapping!)
         if (!validation.valid) {
-          toast.error(t(validation.error || 'Invalid model mapping'))
+          toast.error(
+            t(validation.error || 'common.errors.invalidModelMappingFormat')
+          )
           return
         }
       }
@@ -1004,6 +1043,7 @@ export function ChannelMutateDrawer({
       onOpenChange(v)
       if (!v) {
         form.reset(CHANNEL_FORM_DEFAULT_VALUES)
+        setBaseUrlCustomSelected(false)
       }
     },
     [onOpenChange, form]
@@ -1579,28 +1619,109 @@ export function ChannelMutateDrawer({
                   </>
                 )}
 
-                {/* General base_url for other types */}
+                {/* General base_url for other types: preset select with custom input */}
                 {![3, 8].includes(currentType) && (
                   <FormField
                     control={form.control}
                     name='base_url'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('channels.fields.baseUrl')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t(
-                            'channels.tips.customApiBaseUrlForOfficialChannelsNewApi'
+                    render={({ field }) => {
+                      const hasPresets = baseUrlPresetOptions.length > 0
+                      const matchesPreset = baseUrlPresetOptions.some(
+                        (option) => option.value === field.value
+                      )
+                      // 是否处于自定义模式：显式选择"自定义"，或当前值非空且不匹配任何内置预设（如手填代理地址）
+                      const isCustom =
+                        hasPresets &&
+                        (baseUrlCustomSelected ||
+                          (field.value != null &&
+                            field.value !== '' &&
+                            !matchesPreset))
+                      const selectValue = isCustom
+                        ? BASE_URL_CUSTOM_OPTION
+                        : matchesPreset
+                          ? field.value
+                          : null
+                      const presetLabel = (option: BuiltinUrlOption) =>
+                        option.value.startsWith('http')
+                          ? `${t(option.label_key)} (${option.value})`
+                          : t(option.label_key)
+
+                      return (
+                        <FormItem>
+                          <FormLabel>{t('channels.fields.baseUrl')}</FormLabel>
+                          {hasPresets && (
+                            <Select
+                              items={[
+                                ...baseUrlPresetOptions.map((option) => ({
+                                  value: option.value,
+                                  label: presetLabel(option),
+                                })),
+                                {
+                                  value: BASE_URL_CUSTOM_OPTION,
+                                  label: t('channels.fields.baseUrlCustom'),
+                                },
+                              ]}
+                              value={selectValue}
+                              onValueChange={(value) => {
+                                if (value === BASE_URL_CUSTOM_OPTION) {
+                                  setBaseUrlCustomSelected(true)
+                                  if (!isCustom) {
+                                    field.onChange('')
+                                  }
+                                  return
+                                }
+                                setBaseUrlCustomSelected(false)
+                                field.onChange(value ?? '')
+                              }}
+                            >
+                              <SelectTrigger className='w-full'>
+                                <SelectValue
+                                  placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
+                                />
+                              </SelectTrigger>
+                              <SelectContent alignItemWithTrigger={false}>
+                                <SelectGroup>
+                                  {baseUrlPresetOptions.map((option) => (
+                                    <SelectItem
+                                      key={option.value}
+                                      value={option.value}
+                                    >
+                                      {presetLabel(option)}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value={BASE_URL_CUSTOM_OPTION}>
+                                    {t('channels.fields.baseUrlCustom')}
+                                  </SelectItem>
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
                           )}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                          <FormControl>
+                            <Input
+                              placeholder={t(FIELD_PLACEHOLDERS.BASE_URL)}
+                              {...field}
+                              value={field.value ?? ''}
+                              disabled={hasPresets && !isCustom}
+                              onChange={(e) => {
+                                setBaseUrlCustomSelected(true)
+                                field.onChange(e)
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {t(
+                              'channels.tips.customApiBaseUrlForOfficialChannelsNewApi'
+                            )}
+                          </FormDescription>
+                          {isBuiltinUrlsError && (
+                            <p className='text-destructive text-xs'>
+                              {t('channels.errors.builtinUrlOptionsLoadFailed')}
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )
+                    }}
                   />
                 )}
 
@@ -2100,7 +2221,6 @@ export function ChannelMutateDrawer({
                                 <div className='text-[11px] opacity-70'>
                                   +{remainingMappingCount}{' '}
                                   {t('channels.fields.moreMapping')}
-                                  {remainingMappingCount > 1 ? 's' : ''}
                                 </div>
                               )}
                             </div>
@@ -2932,8 +3052,8 @@ export function ChannelMutateDrawer({
                               disabled={isSubmitting}
                               keyPlaceholder='400'
                               valuePlaceholder='500'
-                              keyLabel='Original Code'
-                              valueLabel='Mapped Code'
+                              keyLabel={t('channels.fields.originalCode')}
+                              valueLabel={t('channels.fields.mappedCode')}
                               emptyMessage={t(
                                 'channels.tips.noStatusCodeMappingsConfigured'
                               )}
@@ -3022,8 +3142,8 @@ export function ChannelMutateDrawer({
                               disabled={isSubmitting}
                               keyPlaceholder='temperature'
                               valuePlaceholder='0.7'
-                              keyLabel='Parameter'
-                              valueLabel='Value'
+                              keyLabel={t('channels.fields.parameter')}
+                              valueLabel={t('channels.fields.value')}
                               emptyMessage={t(
                                 'channels.tips.noParameterOverridesConfigured'
                               )}

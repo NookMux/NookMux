@@ -78,12 +78,12 @@ export function CodexOAuthDialog({
     try {
       const res = await startCodexOAuth()
       if (!res.success) {
-        throw new Error(res.message || 'Failed to start OAuth')
+        throw new Error(res.message || t('channels.status.oauthStartFailed'))
       }
 
       const url = res.data?.authorize_url || ''
       if (!url) {
-        throw new Error('Missing authorize_url in response')
+        throw new Error(t('channels.errors.missingAuthorizeUrl'))
       }
 
       setState((prev) => ({ ...prev, authorizeUrl: url }))
@@ -114,12 +114,12 @@ export function CodexOAuthDialog({
     try {
       const res = await completeCodexOAuth(state.callbackUrl.trim())
       if (!res.success) {
-        throw new Error(res.message || 'OAuth failed')
+        throw new Error(res.message || t('channels.status.oauthFailed'))
       }
 
       const rawKey = res.data?.key || ''
       if (!rawKey) {
-        throw new Error('Missing key in response')
+        throw new Error(t('channels.errors.missingKeyInResponse'))
       }
 
       onKeyGenerated(tryPrettyJson(rawKey))

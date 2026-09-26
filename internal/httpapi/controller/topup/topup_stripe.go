@@ -163,11 +163,11 @@ func StripeWebhook(c *gin.Context) {
 	var handlerErr error
 	switch event.Type {
 	case stripe.EventTypeCheckoutSessionCompleted:
-		handlerErr = payment.SessionCompleted(event)
+		handlerErr = payment.SessionCompleted(event, c.ClientIP())
 	case stripe.EventTypeCheckoutSessionExpired:
 		handlerErr = payment.SessionExpired(event)
 	case stripe.EventTypeCheckoutSessionAsyncPaymentSucceeded:
-		handlerErr = payment.SessionAsyncPaymentSucceeded(event)
+		handlerErr = payment.SessionAsyncPaymentSucceeded(event, c.ClientIP())
 	case stripe.EventTypeCheckoutSessionAsyncPaymentFailed:
 		handlerErr = payment.SessionAsyncPaymentFailed(event)
 	default:

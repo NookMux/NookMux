@@ -32,6 +32,8 @@ import type {
   AffiliateTransferResponse,
   BillingHistoryResponse,
   CompleteOrderRequest,
+  CheckOrderRequest,
+  CheckOrderResponseData,
   CreemPaymentRequest,
   CreemPaymentResponse,
   WaffoPaymentRequest,
@@ -231,5 +233,19 @@ export async function completeOrder(
   request: CompleteOrderRequest
 ): Promise<ApiResponse> {
   const res = await api.post('/api/user/topup/complete', request)
+  return res.data
+}
+
+/**
+ * Check order payment status via the payment gateway (order owner or admin).
+ * When the gateway reports the order as paid, the backend completes the
+ * order with the same crediting path as the payment callback.
+ */
+export async function checkOrder(
+  request: CheckOrderRequest
+): Promise<ApiResponse<CheckOrderResponseData>> {
+  const res = await api.post('/api/user/topup/check', request, {
+    skipBusinessError: true,
+  } as Record<string, unknown>)
   return res.data
 }

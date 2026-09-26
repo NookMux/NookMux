@@ -406,7 +406,9 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
         title={t('channels.actions.deleteChannel')}
-        desc={`Are you sure you want to delete "${channel.name}"? This action cannot be undone.`}
+        desc={t('channels.tips.confirmDeleteNamedChannel', {
+          name: channel.name,
+        })}
         confirmText={t('common.actions.delete')}
         destructive
         handleConfirm={() => {

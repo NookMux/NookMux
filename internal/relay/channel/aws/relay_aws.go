@@ -296,6 +296,11 @@ func handleNovaRequest(c *gin.Context, info *relaycommon.RelayInfo, a *Adaptor) 
 		return shared.NewError(errors.Wrap(err, "unmarshal nova response"), shared.ErrorCodeBadResponseBody), nil
 	}
 
+	// guardrail 过滤等情形下上游可能返回 200 且 content 为空数组，缺失文本时按坏响应走错误链路
+	if len(novaResp.Output.Message.Content) == 0 {
+		return shared.NewError(errors.New("nova response message content is empty"), shared.ErrorCodeBadResponseBody), nil
+	}
+
 	// 构造OpenAI格式响应
 	response := shared.OpenAITextResponse{
 		Id:      helper.GetResponseID(c),

@@ -17,7 +17,7 @@
     "user-management",
     "redeem-code-management",
     "audit-logs",
-    "minimax-voice-management",
+    "voice-management",
     "settings"
   ]
 }

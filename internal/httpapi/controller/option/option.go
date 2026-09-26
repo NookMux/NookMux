@@ -237,6 +237,29 @@ func readMiniMaxStringArrayOption(c *gin.Context, key string) ([]string, string,
 	return []string{}, "[]", true
 }
 
+// paginationBounds 在计算起始下标前把页码钳制到有效总页数范围内，并返回
+// 当页切片边界 [start, end)。页码无上限时 (page-1)*pageSize 的有符号乘法
+// 会回绕为负数，负下标会逃逸 start > total 钳制并触发切片越界 panic。
+// total 为 0 时归一为单空页（totalPages 下限 1），不产生除零。
+func paginationBounds(page, pageSize, total int) (clampedPage, start, end int) {
+	totalPages := (total + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	start = (page - 1) * pageSize
+	if start > total {
+		start = total
+	}
+	end = start + pageSize
+	if end > total {
+		end = total
+	}
+	return page, start, end
+}
+
 func GetOptionJsonMap(c *gin.Context) {
 	key := c.Query("key")
 	var entries []optionJsonMapEntry
@@ -269,14 +292,8 @@ func GetOptionJsonMap(c *gin.Context) {
 		}
 		sort.Strings(keys)
 		total = len(keys)
-		start := (page - 1) * pageSize
-		if start > total {
-			start = total
-		}
-		end := start + pageSize
-		if end > total {
-			end = total
-		}
+		var start, end int
+		page, start, end = paginationBounds(page, pageSize, total)
 		entries = make([]optionJsonMapEntry, 0, end-start)
 		for _, itemKey := range keys[start:end] {
 			entries = append(entries, optionJsonMapEntry{
@@ -298,14 +315,8 @@ func GetOptionJsonMap(c *gin.Context) {
 		}
 		sort.Strings(keys)
 		total = len(keys)
-		start := (page - 1) * pageSize
-		if start > total {
-			start = total
-		}
-		end := start + pageSize
-		if end > total {
-			end = total
-		}
+		var start, end int
+		page, start, end = paginationBounds(page, pageSize, total)
 		entries = make([]optionJsonMapEntry, 0, end-start)
 		for _, itemKey := range keys[start:end] {
 			entries = append(entries, optionJsonMapEntry{
@@ -347,14 +358,8 @@ func GetOptionJsonArray(c *gin.Context) {
 	}
 
 	total := len(items)
-	start := (page - 1) * pageSize
-	if start > total {
-		start = total
-	}
-	end := start + pageSize
-	if end > total {
-		end = total
-	}
+	var start, end int
+	page, start, end = paginationBounds(page, pageSize, total)
 
 	entries := make([]optionJsonArrayEntry, 0, end-start)
 	for _, item := range items[start:end] {
@@ -740,7 +745,7 @@ func UpdateOption(c *gin.Context) {
 	case "SidebarModulesAdmin":
 		// No additional validation needed; frontend manages the config.
 	case "console.api_info":
-		err = console.ValidateConsoleSettings(option.Value.(string), "ApiInfo")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "ApiInfo")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -749,7 +754,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.announcements":
-		err = console.ValidateConsoleSettings(option.Value.(string), "Announcements")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "Announcements")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -758,7 +763,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.faq":
-		err = console.ValidateConsoleSettings(option.Value.(string), "FAQ")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "FAQ")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -767,7 +772,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.uptime_kuma_groups":
-		err = console.ValidateConsoleSettings(option.Value.(string), "UptimeKumaGroups")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "UptimeKumaGroups")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -776,7 +781,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.usage_log_fields":
-		err = console.ValidateConsoleSettings(option.Value.(string), "UsageLogFields")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "UsageLogFields")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,

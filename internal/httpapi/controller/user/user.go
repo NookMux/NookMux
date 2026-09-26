@@ -745,8 +745,9 @@ func CreateUser(c *gin.Context) {
 type ManageRequest struct {
 	Id     int    `json:"id"`
 	Action string `json:"action"`
-	Mode   string `json:"mode,omitempty"`  // add, subtract, override (for add_quota)
-	Value  int    `json:"value,omitempty"` // quota value in quota units (for add_quota)
+	Mode   string `json:"mode,omitempty"`   // add, subtract, override (for add_quota)
+	Value  int    `json:"value,omitempty"`  // quota value in quota units (for add_quota)
+	Remark string `json:"remark,omitempty"` // optional ban note stored on the user (for disable), ≤255 chars
 }
 
 // ManageUser Only admin user can do this
@@ -756,6 +757,11 @@ func ManageUser(c *gin.Context) {
 
 	if err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	req.Remark = strings.TrimSpace(req.Remark)
+	if len(req.Remark) > 255 {
+		httpapi.ApiErrorI18n(c, i18n.MsgUserBanRemarkTooLong)
 		return
 	}
 	user := userstore.User{
@@ -772,12 +778,16 @@ func ManageUser(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserNoPermissionHigherLevel)
 		return
 	}
+	originRemark := user.Remark
 	switch req.Action {
 	case "disable":
 		user.Status = common.UserStatusDisabled
 		if user.Role == common.RoleRootUser {
 			httpapi.ApiErrorI18n(c, i18n.MsgUserCannotDisableRootUser)
 			return
+		}
+		if req.Remark != "" {
+			user.Remark = req.Remark
 		}
 	case "enable":
 		user.Status = common.UserStatusEnabled
@@ -886,7 +896,11 @@ func ManageUser(c *gin.Context) {
 	if req.Action == "delete" {
 		auditAction = auditstore.AuditActionDelete
 	}
-	audit.RecordAudit(c, auditstore.AuditModuleUser, auditAction, "管理用户: "+req.Action, nil, map[string]interface{}{"username": user.Username, "action": req.Action})
+	var auditBefore map[string]interface{}
+	if req.Action == "disable" {
+		auditBefore = map[string]interface{}{"username": user.Username, "remark": originRemark}
+	}
+	audit.RecordAudit(c, auditstore.AuditModuleUser, auditAction, "管理用户: "+req.Action, auditBefore, map[string]interface{}{"username": user.Username, "action": req.Action, "remark": user.Remark})
 	clearUser := userstore.User{
 		Role:   user.Role,
 		Status: user.Status,
@@ -920,9 +934,16 @@ func EmailBind(c *gin.Context) {
 		return
 	}
 	session := sessions.Default(c)
-	id := session.Get("id")
+	id, ok := session.Get("id").(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": i18n.T(c, i18n.MsgNotLoggedIn),
+		})
+		return
+	}
 	user := userstore.User{
-		Id: id.(int),
+		Id: id,
 	}
 	err := user.FillUserById()
 	if err != nil {

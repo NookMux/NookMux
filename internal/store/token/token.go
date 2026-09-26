@@ -30,23 +30,25 @@ func getTokenResetLock(id int) *sync.Mutex {
 }
 
 type Token struct {
-	Id                 int     `json:"id"`
-	UserId             int     `json:"user_id" gorm:"index"`
-	Key                string  `json:"key" gorm:"type:char(48);uniqueIndex"`
-	Status             int     `json:"status" gorm:"default:1"`
-	Name               string  `json:"name" gorm:"index" `
-	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
-	AccessedTime       int64   `json:"accessed_time" gorm:"bigint"`
-	ExpiredTime        int64   `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
-	RemainQuota        int     `json:"remain_quota" gorm:"default:0"`
-	UnlimitedQuota     bool    `json:"unlimited_quota"`
-	ModelLimitsEnabled bool    `json:"model_limits_enabled"`
-	ModelLimits        string  `json:"model_limits" gorm:"type:text;default:''"`
-	ModelMapping       *string `json:"model_mapping" gorm:"type:text"` // 令牌级模型重定向规则 (JSON 字符串)
-	AllowIps           *string `json:"allow_ips" gorm:"default:''"`
-	UsedQuota          int     `json:"used_quota" gorm:"default:0"` // used quota
-	Group              string  `json:"group" gorm:"default:''"`
-	CrossGroupRetry    bool    `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
+	Id                 int    `json:"id"`
+	UserId             int    `json:"user_id" gorm:"index"`
+	Key                string `json:"key" gorm:"type:char(48);uniqueIndex"`
+	Status             int    `json:"status" gorm:"default:1"`
+	Name               string `json:"name" gorm:"index" `
+	CreatedTime        int64  `json:"created_time" gorm:"bigint"`
+	AccessedTime       int64  `json:"accessed_time" gorm:"bigint"`
+	ExpiredTime        int64  `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
+	RemainQuota        int    `json:"remain_quota" gorm:"default:0"`
+	UnlimitedQuota     bool   `json:"unlimited_quota"`
+	ModelLimitsEnabled bool   `json:"model_limits_enabled"`
+	// MySQL 禁止 TEXT 列携带字面量 DEFAULT（Error 1101），且写入路径始终显式
+	// 携带该列值，数据库层默认值无意义，因此 tag 不声明 default。
+	ModelLimits     string  `json:"model_limits" gorm:"type:text"`
+	ModelMapping    *string `json:"model_mapping" gorm:"type:text"` // 令牌级模型重定向规则 (JSON 字符串)
+	AllowIps        *string `json:"allow_ips" gorm:"default:''"`
+	UsedQuota       int     `json:"used_quota" gorm:"default:0"` // used quota
+	Group           string  `json:"group" gorm:"default:''"`
+	CrossGroupRetry bool    `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
 
 	// 限额类型：0=无限额度, 1=永久限额, 2=时段限额, 3=时段+周期限额
 	QuotaType int `json:"quota_type" gorm:"default:0"`

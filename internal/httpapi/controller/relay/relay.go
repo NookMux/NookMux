@@ -406,6 +406,10 @@ func shouldRetryByNumericErrorCode(openaiErr *shared.NookMuxError) bool {
 }
 
 func ProcessChannelError(c *gin.Context, channelError domainchannel.ChannelError, err *shared.NookMuxError) bool {
+	// 语言必须在派生后台 goroutine 前同步解析，goroutine 内不得再触碰请求级 Context。
+	if channelError.Lang == "" {
+		channelError.Lang = i18n.GetLangFromContext(c)
+	}
 	log.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously

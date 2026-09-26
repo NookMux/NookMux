@@ -26,6 +26,8 @@ import type {
   ManageUserAction,
   ManageUserQuotaPayload,
   ApiResponse,
+  BanIdentifierPayload,
+  BanUserResponse,
 } from './types'
 
 // ============================================================================
@@ -119,9 +121,23 @@ export async function deleteUser(id: number): Promise<ApiResponse> {
  */
 export async function manageUser(
   id: number,
-  action: ManageUserAction
+  action: ManageUserAction,
+  /** Optional ban note (≤255 chars) stored on the user when disabling */
+  remark?: string
 ): Promise<ApiResponse<Partial<User>>> {
-  const res = await api.post('/api/user/manage', { id, action })
+  const res = await api.post('/api/user/manage', { id, action, remark })
+  return res.data
+}
+
+/**
+ * Ban a user by one-click-login identifier (admin): GitHub/LinuxDO numeric ID,
+ * email, or GitHub username (resolved to its numeric ID server-side). Locates
+ * the user or pre-creates a banned placeholder.
+ */
+export async function banUserByIdentifier(
+  payload: BanIdentifierPayload
+): Promise<ApiResponse<BanUserResponse>> {
+  const res = await api.post('/api/user/ban', payload)
   return res.data
 }
 

@@ -194,7 +194,9 @@ function BalanceCell({ channel }: { channel: Channel }) {
           <TooltipTrigger
             render={
               <StatusBadge
-                label={`Used: ${usedCompact}`}
+                label={t('channels.fields.usedValue', {
+                  value: usedCompact,
+                })}
                 variant='neutral'
                 size='sm'
                 copyable={false}
@@ -374,9 +376,13 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
                 )}
               </Button>
               <div className='flex items-center gap-1.5'>
-                <span className='font-semibold'>Tag：{tag}</span>
+                <span className='font-semibold'>
+                  {t('channels.fields.tag')}：{tag}
+                </span>
                 <StatusBadge
-                  label={`${childrenCount} channels`}
+                  label={t('channels.fields.channelCount', {
+                    count: childrenCount,
+                  })}
                   variant='blue'
                   size='sm'
                   copyable={false}
@@ -417,7 +423,9 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
                 )}
                 {isMultiKey && (
                   <StatusBadge
-                    label={`${channel.channel_info.multi_key_size} keys`}
+                    label={t('channels.fields.keyCount', {
+                      count: channel.channel_info.multi_key_size ?? 0,
+                    })}
                     variant='purple'
                     size='sm'
                     copyable={false}
@@ -586,7 +594,9 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
           if (hasEnabled) {
             return (
               <StatusBadge
-                label={`Active (${childrenCount})`}
+                label={t('channels.status.tagActiveWithCount', {
+                  count: childrenCount,
+                })}
                 variant='success'
                 size='sm'
                 copyable={false}
@@ -595,7 +605,9 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
           } else {
             return (
               <StatusBadge
-                label={`Inactive (${childrenCount})`}
+                label={t('channels.status.tagInactiveWithCount', {
+                  count: childrenCount,
+                })}
                 variant='neutral'
                 size='sm'
                 copyable={false}
@@ -880,7 +892,7 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
           return <span className='text-muted-foreground text-xs'>-</span>
         }
 
-        const timeText = formatRelativeTime(testTime)
+        const timeText = formatRelativeTime(testTime, t)
         const fullDate = formatTimestampToDate(testTime)
 
         // For valid timestamps, show tooltip with full date

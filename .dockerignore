@@ -1,54 +1,94 @@
-# Version control
-.github
+# =====================================================================
+# NookMux Docker 构建上下文忽略规则
+#
+# 与 Dockerfile（go-builder 阶段）的契约：
+#   1. ADD go.mod go.sum  -> 依赖清单必须进入上下文；
+#   2. COPY . .           -> 需要 cmd/、internal/、pkg/ 等 Go 源码与 web/embed.go；
+#   3. web/dist 必须存在：RUN test -f web/dist/index.html 且 //go:embed dist。
+# 前端在 Docker 之外构建：CI（docker-image.yml）先产出 web/dist 再注入上下文，
+# 本地构建镜像前需先执行 make build-frontend。因此 web/dist 严禁加入本文件。
+# =====================================================================
+
+# ---- 版本控制与 CI ----
 .git
 .gitignore
+.gitattributes
+.githooks
+.github
 
-# IDE and editor configs
+# ---- 文档（镜像构建不读取任何 Markdown / 文档站） ----
+*.md
+/docs
+
+# ---- Docker / 部署编排文件自身 ----
+Dockerfile
+.dockerignore
+docker-compose.yml
+nookmux.service
+
+# ---- 构建脚本与 lint 配置 ----
+Makefile
+makefile
+/scripts
+.golangci.yml
+
+# ---- IDE 与 AI 工具目录 ----
 .vscode
 .idea
 .zed
+.cursor
+.codex
+.opencode
+.zcode
+.agents
+.mcp.json
+.serena
+.codegraph
 
-# Documentation and markdown
-*.md
-docs
+# ---- 密钥与环境变量（构建上下文不携带任何 .env*） ----
+.env*
 
-# Build artifacts and binaries
+# ---- 日志 ----
+/logs
+*.log
+
+# ---- 数据库与运行时数据 ----
+*.db
+*.db-journal
+/data
+/upload
+
+# ---- 本地构建产物与二进制 ----
+/bin
 /build
+/output
 /NookMux
 *.exe
 
-# Logs
-*.log
+# Core dump（可能非常大）
+/core
+/core.*
 
-# Databases and journals
-*.db
-*.db-journal
-
-# Environment and secrets
-.env
-
-# Cache directories
+# ---- 各类本地缓存 ----
 .gocache
+.gocache-temp
 .gomodcache
+.gopath
+.cache
 .tiktoken_cache
+tiktoken_cache
 .eslintcache
 .npm-cache
 .playwright-mcp
 
-# Upload and data directories
-/upload
-/data
+# ---- 依赖目录 ----
+**/node_modules
+web/.tanstack
 
-# Temporary files
+# ---- 临时文件 ----
 plans
 null
 nul
 
-# Node modules (all locations)
-**/node_modules
-
-# Build config
-Makefile
-
-# Reference projects
+# ---- 参考项目（仅本地比对上游实现，严禁进入构建上下文） ----
 参考项目/

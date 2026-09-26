@@ -123,7 +123,8 @@ func getImageToken(c *gin.Context, fileMeta *shared.FileMeta, model string, stre
 		rawPatches := rawPatchesW * rawPatchesH
 		if rawPatches > 1536 {
 			// scale down
-			area := float64(width * height)
+			// 面积必须在 float64 域相乘，防止超大声明宽高在 int 域回绕为负。
+			area := float64(width) * float64(height)
 			r := math.Sqrt(float64(32*32*1536) / area)
 			wScaled := float64(width) * r
 			hScaled := float64(height) * r
@@ -138,7 +139,12 @@ func getImageToken(c *gin.Context, fileMeta *shared.FileMeta, model string, stre
 			hScaled = float64(height) * r
 			patchesW := math.Ceil(wScaled / 32.0)
 			patchesH := math.Ceil(hScaled / 32.0)
-			imageTokens := int(patchesW * patchesH)
+			// 纵深防御：转 int 前钳掉 NaN/负值等异常浮点结果，杜绝溢出值以负 token 进入计费。
+			patchArea := patchesW * patchesH
+			if math.IsNaN(patchArea) || patchArea < 0 {
+				patchArea = 0
+			}
+			imageTokens := int(patchArea)
 			if imageTokens > 1536 {
 				imageTokens = 1536
 			}

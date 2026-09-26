@@ -3,6 +3,7 @@ package ticket
 import (
 	"errors"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/ticket"
 	"gorm.io/gorm"
@@ -75,9 +76,9 @@ func ListUserTickets(userId int, page, pageSize int, status string, keyword stri
 	return buildTicketSummaries(tickets), total, nil
 }
 
-func ListAdminTickets(role int, page, pageSize int, status string, keyword string) ([]TicketSummary, int64, error) {
+func ListAdminTickets(lang string, role int, page, pageSize int, status string, keyword string) ([]TicketSummary, int64, error) {
 	if !canManageAllTickets(role) {
-		return nil, 0, errors.New("无权进行此操作")
+		return nil, 0, errors.New(i18n.Translate(lang, i18n.MsgTicketNoPermission))
 	}
 	filter, err := buildTicketListFilter(0, page, pageSize, status, keyword)
 	if err != nil {
@@ -90,12 +91,12 @@ func ListAdminTickets(role int, page, pageSize int, status string, keyword strin
 	return buildTicketSummaries(tickets), total, nil
 }
 
-func CreateTicket(input CreateTicketInput) (*TicketDetail, error) {
-	title, err := validateTicketText(input.Title, maxTicketTitleRunes, "工单标题不能为空", "工单标题过长")
+func CreateTicket(lang string, input CreateTicketInput) (*TicketDetail, error) {
+	title, err := validateTicketText(lang, input.Title, maxTicketTitleRunes, i18n.MsgTicketTitleEmpty, i18n.MsgTicketTitleTooLong)
 	if err != nil {
 		return nil, err
 	}
-	content, err := validateTicketText(input.Content, maxTicketContentRunes, "工单内容不能为空", "工单内容过长")
+	content, err := validateTicketText(lang, input.Content, maxTicketContentRunes, i18n.MsgTicketContentEmpty, i18n.MsgTicketContentTooLong)
 	if err != nil {
 		return nil, err
 	}
@@ -125,18 +126,18 @@ func CreateTicket(input CreateTicketInput) (*TicketDetail, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, errors.New("创建工单失败")
+		return nil, errors.New(i18n.Translate(lang, i18n.MsgTicketCreateFailed))
 	}
 
 	return buildTicketDetail(ticket, []*ticketstore.TicketEntry{entry}), nil
 }
 
-func GetTicketDetail(ticketId int, userId int, role int) (*TicketDetail, error) {
+func GetTicketDetail(lang string, ticketId int, userId int, role int) (*TicketDetail, error) {
 	ticket, err := ticketstore.GetTicketByID(ticketId)
 	if err != nil {
 		return nil, err
 	}
-	if err := ensureTicketAccess(ticket, userId, role); err != nil {
+	if err := ensureTicketAccess(lang, ticket, userId, role); err != nil {
 		return nil, err
 	}
 	entries, err := ticketstore.GetTicketEntries(ticketId)
@@ -146,8 +147,8 @@ func GetTicketDetail(ticketId int, userId int, role int) (*TicketDetail, error) 
 	return buildTicketDetail(ticket, entries), nil
 }
 
-func ReplyTicket(input ReplyTicketInput) error {
-	content, err := validateTicketText(input.Content, maxTicketContentRunes, "回复内容不能为空", "回复内容过长")
+func ReplyTicket(lang string, input ReplyTicketInput) error {
+	content, err := validateTicketText(lang, input.Content, maxTicketContentRunes, i18n.MsgTicketReplyContentEmpty, i18n.MsgTicketReplyTooLong)
 	if err != nil {
 		return err
 	}
@@ -157,7 +158,7 @@ func ReplyTicket(input ReplyTicketInput) error {
 		if err != nil {
 			return err
 		}
-		if err := ensureTicketAccess(ticket, input.UserId, input.Role); err != nil {
+		if err := ensureTicketAccess(lang, ticket, input.UserId, input.Role); err != nil {
 			return err
 		}
 
@@ -172,37 +173,37 @@ func ReplyTicket(input ReplyTicketInput) error {
 			CreatedAt:    now,
 		}
 		if err := ticketstore.CreateTicketEntryTx(tx, entry); err != nil {
-			return errors.New("发送回复失败")
+			return errors.New(i18n.Translate(lang, i18n.MsgTicketReplyFailed))
 		}
 		if err := ticketstore.UpdateTicketFieldsTx(tx, ticket.Id, map[string]any{"updated_at": now}); err != nil {
-			return errors.New("发送回复失败")
+			return errors.New(i18n.Translate(lang, i18n.MsgTicketReplyFailed))
 		}
 		return nil
 	})
 }
 
-func CloseTicket(ticketId int, userId int, role int, username string) error {
-	return changeTicketStatus(ticketId, userId, role, username, ticketstore.TicketStatusCompleted)
+func CloseTicket(lang string, ticketId int, userId int, role int, username string) error {
+	return changeTicketStatus(lang, ticketId, userId, role, username, ticketstore.TicketStatusCompleted)
 }
 
-func UpdateTicketStatus(ticketId int, userId int, role int, username string, status string) error {
+func UpdateTicketStatus(lang string, ticketId int, userId int, role int, username string, status string) error {
 	if !canManageAllTickets(role) {
-		return errors.New("无权进行此操作")
+		return errors.New(i18n.Translate(lang, i18n.MsgTicketNoPermission))
 	}
 	targetStatus, err := ticketstore.ParseTicketStatus(status)
 	if err != nil {
 		return err
 	}
-	return changeTicketStatus(ticketId, userId, role, username, targetStatus)
+	return changeTicketStatus(lang, ticketId, userId, role, username, targetStatus)
 }
 
-func changeTicketStatus(ticketId int, userId int, role int, username string, targetStatus int) error {
+func changeTicketStatus(lang string, ticketId int, userId int, role int, username string, targetStatus int) error {
 	return dbstore.DB.Transaction(func(tx *gorm.DB) error {
 		ticket, err := ticketstore.GetTicketByIDForUpdate(tx, ticketId)
 		if err != nil {
 			return err
 		}
-		if err := ensureTicketAccess(ticket, userId, role); err != nil {
+		if err := ensureTicketAccess(lang, ticket, userId, role); err != nil {
 			return err
 		}
 		if ticket.Status == targetStatus {
@@ -220,10 +221,10 @@ func changeTicketStatus(ticketId int, userId int, role int, username string, tar
 		}
 		updated, err := ticketstore.UpdateTicketStatusTx(tx, ticket.Id, ticket.Status, values)
 		if err != nil {
-			return errors.New("更新工单状态失败")
+			return errors.New(i18n.Translate(lang, i18n.MsgTicketStatusUpdateFailed))
 		}
 		if !updated {
-			return errors.New("工单状态已变更，请刷新后重试")
+			return errors.New(i18n.Translate(lang, i18n.MsgTicketStatusConflict))
 		}
 
 		entry := &ticketstore.TicketEntry{
@@ -237,7 +238,7 @@ func changeTicketStatus(ticketId int, userId int, role int, username string, tar
 			CreatedAt:    now,
 		}
 		if err := ticketstore.CreateTicketEntryTx(tx, entry); err != nil {
-			return errors.New("更新工单状态失败")
+			return errors.New(i18n.Translate(lang, i18n.MsgTicketStatusUpdateFailed))
 		}
 		return nil
 	})
@@ -324,12 +325,12 @@ func buildMessageRole(role int) string {
 	return "user"
 }
 
-func ensureTicketAccess(ticket *ticketstore.Ticket, userId int, role int) error {
+func ensureTicketAccess(lang string, ticket *ticketstore.Ticket, userId int, role int) error {
 	if canManageAllTickets(role) {
 		return nil
 	}
 	if ticket.UserId != userId {
-		return errors.New("无权访问该工单")
+		return errors.New(i18n.Translate(lang, i18n.MsgTicketAccessDenied))
 	}
 	return nil
 }
@@ -338,13 +339,13 @@ func canManageAllTickets(role int) bool {
 	return role >= common.RoleAdminUser
 }
 
-func validateTicketText(value string, maxRunes int, emptyMessage string, tooLongMessage string) (string, error) {
+func validateTicketText(lang string, value string, maxRunes int, emptyMessageKey string, tooLongMessageKey string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return "", errors.New(emptyMessage)
+		return "", errors.New(i18n.Translate(lang, emptyMessageKey))
 	}
 	if utf8.RuneCountInString(value) > maxRunes {
-		return "", errors.New(tooLongMessage)
+		return "", errors.New(i18n.Translate(lang, tooLongMessageKey))
 	}
 	return value, nil
 }

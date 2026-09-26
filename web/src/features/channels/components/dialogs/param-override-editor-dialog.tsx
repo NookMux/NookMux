@@ -144,9 +144,9 @@ const CONDITION_MODE_OPTIONS = [
   { label: 'models.fields.suffix', value: 'suffix' },
   { label: 'models.fields.contains', value: 'contains' },
   { label: 'common.fields.greaterThan', value: 'gt' },
-  { label: 'Greater Than or Equal', value: 'gte' },
+  { label: 'common.fields.greaterThanOrEqual', value: 'gte' },
   { label: 'common.fields.lessThan', value: 'lt' },
-  { label: 'Less Than or Equal', value: 'lte' },
+  { label: 'common.fields.lessThanOrEqual', value: 'lte' },
 ]
 
 const CONDITION_MODE_VALUES = new Set(
@@ -422,7 +422,7 @@ const TEMPLATE_PRESET_CONFIG: Record<string, TemplatePresetConfig> = {
     payload: CODEX_CLI_HEADER_PASSTHROUGH_TEMPLATE,
   },
   anthropic_beta_append_keep_only: {
-    label: 'Claude Header Append + Keep Only',
+    label: 'common.fields.claudeHeaderAppendKeepOnly',
     kind: 'operations',
     payload: {
       operations: [
@@ -631,7 +631,7 @@ const getModeToLabel = (mode: string): string => {
 }
 
 const getModeToPlaceholder = (mode: string): string => {
-  if (mode === 'replace') return '(leave empty to delete)'
+  if (mode === 'replace') return 'channels.placeholders.leaveEmptyToDelete'
   if (mode === 'regex_replace') return 'openai/gpt-'
   if (mode === 'copy_header' || mode === 'move_header') return 'X-Upstream-Auth'
   return 'original_model'
@@ -997,7 +997,10 @@ type EditorState = {
   jsonError: string
 }
 
-const parseInitialState = (rawValue: string): EditorState => {
+const parseInitialState = (
+  rawValue: string,
+  t: (key: string) => string
+): EditorState => {
   const text = typeof rawValue === 'string' ? rawValue : ''
   const trimmed = text.trim()
   if (!trimmed) {
@@ -1018,7 +1021,7 @@ const parseInitialState = (rawValue: string): EditorState => {
       legacyValue: '',
       operations: [createDefaultOperation()],
       jsonText: text,
-      jsonError: 'Invalid JSON format',
+      jsonError: t('common.errors.invalidJsonFormat'),
     }
   }
 
@@ -1150,7 +1153,7 @@ export function ParamOverrideEditorDialog(
   // Initialize state when dialog opens
   useEffect(() => {
     if (!props.open) return
-    const state = parseInitialState(props.value)
+    const state = parseInitialState(props.value, t)
     setEditMode(state.editMode)
     setVisualMode(state.visualMode)
     setLegacyValue(state.legacyValue)
@@ -1168,7 +1171,7 @@ export function ParamOverrideEditorDialog(
     } else {
       setTemplatePresetKey('operations_default')
     }
-  }, [props.open, props.value])
+  }, [props.open, props.value, t])
 
   // Keep selectedOperationId valid
   useEffect(() => {
@@ -2405,7 +2408,7 @@ function RuleEditor(ruleEditorProps: RuleEditorProps) {
                       to: e.target.value,
                     })
                   }
-                  placeholder={getModeToPlaceholder(mode)}
+                  placeholder={t(getModeToPlaceholder(mode))}
                   className='h-9'
                 />
               </div>
