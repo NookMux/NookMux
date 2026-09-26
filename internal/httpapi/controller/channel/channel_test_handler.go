@@ -1605,7 +1605,7 @@ func testAllChannels(c *gin.Context, notify bool) error {
 
 			// enable channel
 			if !isChannelEnabled && domainchannel.ShouldEnableChannel(newAPIError, channel.Status) {
-				domainchannel.EnableChannel(channel.Id, httpapi.GetContextKeyString(result.context, common.ContextKeyChannelKey), channel.Name)
+				domainchannel.EnableChannel(channel.Id, httpapi.GetContextKeyString(result.context, common.ContextKeyChannelKey), channel.Name, lang)
 			}
 
 			channel.UpdateResponseTime(milliseconds)
@@ -1613,7 +1613,9 @@ func testAllChannels(c *gin.Context, notify bool) error {
 		}
 
 		if notify {
-			domainnotify.NotifyRootUser(shared.NotifyTypeChannelTest, "通道测试完成", "所有通道测试已完成")
+			domainnotify.NotifyRootUser(shared.NotifyTypeChannelTest,
+				i18n.Translate(lang, i18n.MsgChannelNotifyTestCompletedTitle),
+				i18n.Translate(lang, i18n.MsgChannelNotifyTestCompletedBody))
 		}
 	})
 	return nil

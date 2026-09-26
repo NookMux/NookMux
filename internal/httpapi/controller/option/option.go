@@ -745,7 +745,7 @@ func UpdateOption(c *gin.Context) {
 	case "SidebarModulesAdmin":
 		// No additional validation needed; frontend manages the config.
 	case "console.api_info":
-		err = console.ValidateConsoleSettings(option.Value.(string), "ApiInfo")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "ApiInfo")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -754,7 +754,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.announcements":
-		err = console.ValidateConsoleSettings(option.Value.(string), "Announcements")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "Announcements")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -763,7 +763,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.faq":
-		err = console.ValidateConsoleSettings(option.Value.(string), "FAQ")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "FAQ")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -772,7 +772,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.uptime_kuma_groups":
-		err = console.ValidateConsoleSettings(option.Value.(string), "UptimeKumaGroups")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "UptimeKumaGroups")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -781,7 +781,7 @@ func UpdateOption(c *gin.Context) {
 			return
 		}
 	case "console.usage_log_fields":
-		err = console.ValidateConsoleSettings(option.Value.(string), "UsageLogFields")
+		err = console.ValidateConsoleSettings(i18n.GetLangFromContext(c), option.Value.(string), "UsageLogFields")
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,

@@ -8,6 +8,7 @@ import (
 	domaingroup "github.com/NookMux/NookMux/internal/domain/group"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/log"
 	"github.com/NookMux/NookMux/internal/infra/security"
 	"github.com/NookMux/NookMux/internal/store/db"
@@ -65,7 +66,7 @@ func authHelper(c *gin.Context, minRole int) {
 		if accessToken == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
-				"message": "无权进行此操作，未登录且未提供 access token",
+				"message": i18n.T(c, i18n.MsgAuthNoPermissionNotLoggedIn),
 			})
 			c.Abort()
 			return
@@ -77,7 +78,7 @@ func authHelper(c *gin.Context, minRole int) {
 			}
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无权进行此操作，access token 无效",
+				"message": i18n.T(c, i18n.MsgAuthAccessTokenInvalid),
 			})
 			c.Abort()
 			return
@@ -86,7 +87,7 @@ func authHelper(c *gin.Context, minRole int) {
 			if !validUserInfo(user.Username, user.Role) {
 				c.JSON(http.StatusOK, gin.H{
 					"success": false,
-					"message": "无权进行此操作，用户信息无效",
+					"message": i18n.T(c, i18n.MsgAuthUserInfoInvalid),
 				})
 				c.Abort()
 				return
@@ -101,7 +102,7 @@ func authHelper(c *gin.Context, minRole int) {
 		} else {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "无权进行此操作，access token 无效",
+				"message": i18n.T(c, i18n.MsgAuthAccessTokenInvalid),
 			})
 			c.Abort()
 			return
@@ -117,7 +118,7 @@ func authHelper(c *gin.Context, minRole int) {
 		// collides with RoleGuestUser). See middleware/AGENTS.md.
 		userId, ok := id.(int)
 		if !ok || userId <= 0 {
-			clearAndReject(c, session, http.StatusOK, "无权进行此操作，用户信息无效")
+			clearAndReject(c, session, http.StatusOK, i18n.T(c, i18n.MsgAuthUserInfoInvalid))
 			return
 		}
 		latestUser, dbErr := userstore.GetUserById(userId, false)
@@ -125,7 +126,7 @@ func authHelper(c *gin.Context, minRole int) {
 			// User likely deleted, or DB unavailable. Fail closed: drop the
 			// stale session and force re-login.
 			common.SysLog(fmt.Sprintf("authHelper session re-validation failed for user %d: %v", userId, dbErr))
-			clearAndReject(c, session, http.StatusUnauthorized, "登录状态已失效，请重新登录")
+			clearAndReject(c, session, http.StatusUnauthorized, i18n.T(c, i18n.MsgAuthSessionExpired))
 			return
 		}
 		// Override the session snapshot with the authoritative values.
@@ -140,7 +141,7 @@ func authHelper(c *gin.Context, minRole int) {
 	if apiUserIdStr == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"message": "无权进行此操作，未提供 New-Api-User",
+			"message": i18n.T(c, i18n.MsgAuthMissingNewAPIUser),
 		})
 		c.Abort()
 		return
@@ -149,7 +150,7 @@ func authHelper(c *gin.Context, minRole int) {
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"message": "无权进行此操作，New-Api-User 格式错误",
+			"message": i18n.T(c, i18n.MsgAuthInvalidNewAPIUser),
 		})
 		c.Abort()
 		return
@@ -158,7 +159,7 @@ func authHelper(c *gin.Context, minRole int) {
 	if id != apiUserId {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
-			"message": "无权进行此操作，New-Api-User 与登录用户不匹配",
+			"message": i18n.T(c, i18n.MsgAuthNewAPIUserMismatch),
 		})
 		c.Abort()
 		return
@@ -166,12 +167,12 @@ func authHelper(c *gin.Context, minRole int) {
 	if status.(int) == common.UserStatusDisabled {
 		// Session-based path: clear the stale cookie so the client re-logs in.
 		if !useAccessToken {
-			clearAndReject(c, session, http.StatusOK, "用户已被封禁")
+			clearAndReject(c, session, http.StatusOK, i18n.T(c, i18n.MsgAuthUserBanned))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "用户已被封禁",
+			"message": i18n.T(c, i18n.MsgAuthUserBanned),
 		})
 		c.Abort()
 		return
@@ -180,12 +181,12 @@ func authHelper(c *gin.Context, minRole int) {
 		// Session-based path: clear the stale cookie so the client re-logs in
 		// with the demoted role.
 		if !useAccessToken {
-			clearAndReject(c, session, http.StatusOK, "无权进行此操作，权限不足")
+			clearAndReject(c, session, http.StatusOK, i18n.T(c, i18n.MsgAuthInsufficientPermission))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "无权进行此操作，权限不足",
+			"message": i18n.T(c, i18n.MsgAuthInsufficientPermission),
 		})
 		c.Abort()
 		return
@@ -193,7 +194,7 @@ func authHelper(c *gin.Context, minRole int) {
 	if !validUserInfo(username.(string), role.(int)) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "无权进行此操作，用户信息无效",
+			"message": i18n.T(c, i18n.MsgAuthUserInfoInvalid),
 		})
 		c.Abort()
 		return
@@ -278,7 +279,7 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 		if key == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
-				"message": "未提供 Authorization 请求头",
+				"message": i18n.T(c, i18n.MsgTokenNoAuthHeader),
 			})
 			c.Abort()
 			return
@@ -294,7 +295,7 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
-				"message": "无效的令牌",
+				"message": i18n.T(c, i18n.MsgInvalidToken),
 			})
 			c.Abort()
 			return
@@ -305,7 +306,7 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 			common.SysLog("TokenAuthReadOnly user cache error: " + err.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "数据库错误，请稍后重试",
+				"message": i18n.T(c, i18n.MsgDatabaseError),
 			})
 			c.Abort()
 			return
@@ -313,7 +314,7 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 		if userCache.Status != common.UserStatusEnabled {
 			c.JSON(http.StatusForbidden, gin.H{
 				"success": false,
-				"message": "用户已被封禁",
+				"message": i18n.T(c, i18n.MsgAuthUserBanned),
 			})
 			c.Abort()
 			return
@@ -389,9 +390,9 @@ func TokenAuth() func(c *gin.Context) {
 		if err != nil {
 			if errors.Is(err, dbstore.ErrDatabase) {
 				common.SysLog("ValidateUserToken database error: " + err.Error())
-				abortWithOpenAiMessage(c, http.StatusInternalServerError, "数据库错误，请稍后重试")
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgDatabaseError))
 			} else {
-				abortWithOpenAiMessage(c, http.StatusUnauthorized, "无效的令牌")
+				abortWithOpenAiMessage(c, http.StatusUnauthorized, i18n.T(c, i18n.MsgInvalidToken))
 			}
 			return
 		}
@@ -402,11 +403,11 @@ func TokenAuth() func(c *gin.Context) {
 			log.LogDebug(c, "Token has IP restrictions, checking client IP %s", clientIp)
 			ip := net.ParseIP(clientIp)
 			if ip == nil {
-				abortWithOpenAiMessage(c, http.StatusForbidden, "无法解析客户端 IP 地址")
+				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthInvalidClientIP))
 				return
 			}
 			if !security.IsIpInCIDRList(ip, allowIps) {
-				abortWithOpenAiMessage(c, http.StatusForbidden, "您的 IP 不在令牌允许访问的列表中", shared.ErrorCodeAccessDenied)
+				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthIPNotAllowed), shared.ErrorCodeAccessDenied)
 				return
 			}
 			log.LogDebug(c, "Client IP %s passed the token IP restrictions check", clientIp)
@@ -415,12 +416,12 @@ func TokenAuth() func(c *gin.Context) {
 		userCache, err := userstore.GetUserCache(token.UserId)
 		if err != nil {
 			common.SysLog("TokenAuth user cache error: " + err.Error())
-			abortWithOpenAiMessage(c, http.StatusInternalServerError, "数据库错误，请稍后重试")
+			abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgDatabaseError))
 			return
 		}
 		userEnabled := userCache.Status == common.UserStatusEnabled
 		if !userEnabled {
-			abortWithOpenAiMessage(c, http.StatusForbidden, "用户已被封禁")
+			abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthUserBanned))
 			return
 		}
 
@@ -431,13 +432,13 @@ func TokenAuth() func(c *gin.Context) {
 		if tokenGroup != "" {
 			// check common.UserUsableGroups[userGroup]
 			if _, ok := domaingroup.GetUserUsableGroups(userGroup)[tokenGroup]; !ok {
-				abortWithOpenAiMessage(c, http.StatusForbidden, fmt.Sprintf("无权访问 %s 分组", tokenGroup))
+				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthGroupAccessDenied, map[string]any{"Group": tokenGroup}))
 				return
 			}
 			// check group in common.GroupRatio
 			if !ratio.ContainsGroupRatio(tokenGroup) {
 				if tokenGroup != "auto" {
-					abortWithOpenAiMessage(c, http.StatusForbidden, fmt.Sprintf("分组 %s 已被弃用", tokenGroup))
+					abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthGroupDeprecated, map[string]any{"Group": tokenGroup}))
 					return
 				}
 			}
@@ -506,8 +507,8 @@ func SetupContextForToken(c *gin.Context, token *tokenstore.Token, parts ...stri
 		if userstore.IsAdmin(token.UserId) {
 			c.Set("specific_channel_id", parts[1])
 		} else {
-			abortWithOpenAiMessage(c, http.StatusForbidden, "普通用户不支持指定渠道")
-			return fmt.Errorf("普通用户不支持指定渠道")
+			abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthSpecificChannelDenied))
+			return fmt.Errorf("%s", i18n.T(c, i18n.MsgAuthSpecificChannelDenied))
 		}
 	}
 	return nil

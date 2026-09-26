@@ -67,7 +67,7 @@ func UpdateDashboardConfig(c *gin.Context) {
 		}
 
 		// 字段级校验
-		err := dashboard.ValidateDashboardConfigField(key, finalValue)
+		err := dashboard.ValidateDashboardConfigField(i18n.GetLangFromContext(c), key, finalValue)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,

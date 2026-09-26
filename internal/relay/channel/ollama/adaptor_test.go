@@ -9,6 +9,7 @@ import (
 
 	channelconstant "github.com/NookMux/NookMux/internal/domain/channel/constant"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	"github.com/NookMux/NookMux/internal/i18n"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
 
 	relayconstant "github.com/NookMux/NookMux/internal/relay/constant"
@@ -167,7 +168,7 @@ func TestFetchOllamaModelsUsesOpenAICompatibleEndpoint(t *testing.T) {
 	}))
 	defer server.Close()
 
-	models, err := FetchOllamaModels(server.URL, "ollama", "")
+	models, err := FetchOllamaModels(i18n.DefaultLang, server.URL, "ollama", "")
 	if err != nil {
 		t.Fatalf("FetchOllamaModels returned error: %v", err)
 	}
@@ -253,7 +254,7 @@ func TestFetchOllamaModelsResolvesPlanBaseURL(t *testing.T) {
 	}
 	defer func() { channelconstant.ChannelSpecialBases["ollama-coding-plan"] = origURL }()
 
-	models, err := FetchOllamaModels("ollama-coding-plan", "test-key", "")
+	models, err := FetchOllamaModels(i18n.DefaultLang, "ollama-coding-plan", "test-key", "")
 	if err != nil {
 		t.Fatalf("FetchOllamaModels returned error: %v", err)
 	}
@@ -282,7 +283,7 @@ func TestFetchOllamaVersionResolvesPlanBaseURL(t *testing.T) {
 	}
 	defer func() { channelconstant.ChannelSpecialBases["ollama-coding-plan"] = origURL }()
 
-	version, err := FetchOllamaVersion("ollama-coding-plan", "test-key", "")
+	version, err := FetchOllamaVersion(i18n.DefaultLang, "ollama-coding-plan", "test-key", "")
 	if err != nil {
 		t.Fatalf("FetchOllamaVersion returned error: %v", err)
 	}
@@ -324,7 +325,7 @@ func TestFetchOllamaModelsRoutesThroughProxy(t *testing.T) {
 	}))
 	defer proxyServer.Close()
 
-	models, err := FetchOllamaModels(upstream.URL, "test-key", proxyServer.URL)
+	models, err := FetchOllamaModels(i18n.DefaultLang, upstream.URL, "test-key", proxyServer.URL)
 	if err != nil {
 		t.Fatalf("FetchOllamaModels returned error: %v", err)
 	}

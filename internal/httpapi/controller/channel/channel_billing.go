@@ -400,7 +400,8 @@ func updateAllChannelsBalance() error {
 		} else {
 			// err is nil & balance <= 0 means quota is used up
 			if balance <= 0 {
-				domainchannel.DisableChannel(*domainchannel.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, "", channel.GetAutoBan()), "余额不足")
+				domainchannel.DisableChannel(*domainchannel.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, "", channel.GetAutoBan()),
+					i18n.Translate(i18n.DefaultLang, i18n.MsgChannelDisableReasonQuotaUsedUp))
 			}
 		}
 		time.Sleep(common.RequestInterval)

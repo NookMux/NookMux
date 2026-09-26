@@ -15,7 +15,8 @@ import (
 )
 
 // ErrTokenModelMappingCycle 令牌级模型重定向规则中检测到环形引用。
-var ErrTokenModelMappingCycle = errors.New("令牌模型重定向规则存在环形引用")
+// 文本为内部标识，面向用户的提示由 distributor 经 i18n 渲染。
+var ErrTokenModelMappingCycle = errors.New("token model mapping cycle")
 
 // resolveTokenModelMapping 在令牌级映射表中查找 originModel 的最终目标模型，
 // 支持链式映射（A -> B -> C）。返回值为最终模型与是否命中映射。
