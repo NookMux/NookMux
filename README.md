@@ -39,7 +39,7 @@
 - Codex[CLI & APP]
 - Cursor[IDE]
 - CodeBuddy[VS Code插件]
-
+- ClaudeCode[Claude桌面端]
 
 ### 当前使用的 AI 模型
 
@@ -48,8 +48,11 @@
 - Zhipu/GLM-5.3[Max]
 - Zhipu/GLM-5.3-Flash[Max]
 - CodeBuddy/DeepSeek-V4.1-Flash[Max]
+- Anthropic/Claude-Opus-5-5[Max]
 
-> 我们将在近期对GPT全新的Sol和Luna做评估
+> 我们将在近期对ClaudeMax渠道的Opus5.5做评估，评估范围为产品视觉介绍
+> 1. 由于ClaudeCode的配置导致很多本身是GLM响应的请求被写成了Claude系列模型，在正式声明Claude全系进入当前使用模型之前一切Claude模型标识的修改基本都为GLM负责
+>    对应规则如下：Sonnet及其以下为GLM-5.3-Flash，Opus及其以上为GLM-5.3，会随着动态更新至智谱最新的模型
 
 ### 历史使用的 AI Coding 工具
 
@@ -70,7 +73,7 @@
 - OpenAI/GPT-5.5[Xhigh]
 - OpenAI/GPT-5.6-系列[Sol/Luna]-[Max]
 
-> 在本项目开发完善期间，有部分模型仅使用本项目进行能力测试，并非主力开发，清单如下：`Minimax/Minimax-M3`、`Kimi/Kimi-K2.6`、`Kimi/Kimi-K3`、`CodeBuddy/DeepSeek-V4-Flash`
+> 在本项目开发完善期间，有部分模型仅使用本项目进行能力测试，并非主力开发，清单如下：`Minimax/Minimax-M3`、`Kimi/Kimi-K2.6`、`Kimi/Kimi-K3`、`CodeBuddy/Kimi-K3`
 
 </details>
 
@@ -78,7 +81,7 @@
 
 感谢以下开源项目对本项目的启发与帮助：
 
-- **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)** — 本项目的上游基础项目。
-- **[CuzTeam/new-api](https://github.com/CuzTeam/new-api)** — 首页UI的参考来源。
-- **[looplj/AxonHub](https://github.com/looplj/axonhub)** — 优秀的 AI API 网关参考实现。
-- **[farion1231/cc-switch](https://github.com/farion1231/cc-switch)** — 中国模型厂商的套餐查询相关接口。
+- **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)** — 本项目基座。
+- **[CuzTeam/new-api](https://github.com/CuzTeam/new-api)** — 首页UI。
+- **[looplj/AxonHub](https://github.com/looplj/axonhub)** — 协议转换。
+- **[farion1231/cc-switch](https://github.com/farion1231/cc-switch)** — 中国模型厂商的套餐查询相关接口、协议转换。
