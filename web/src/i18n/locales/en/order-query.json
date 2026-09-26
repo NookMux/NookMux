@@ -1,6 +1,7 @@
 {
   "orderQuery.fields.amount": "Amount",
   "orderQuery.tips.sureYouWantToManuallyCompleteThisOrderThe": "Are you sure you want to manually complete this order? The user will be credited with the corresponding quota.",
+  "orderQuery.tips.confirmCheckOrderWithGateway": "Check this order's payment status with the payment gateway? If the gateway confirms it has been paid, the order will be completed automatically.",
   "orderQuery.fields.completeOrder": "Complete Order",
   "orderQuery.fields.checkOrder": "Check",
   "orderQuery.actions.copyOrderNumber": "Copy order number",

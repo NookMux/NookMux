@@ -132,12 +132,13 @@ export function useBillingHistory(options: UseBillingHistoryOptions = {}) {
         const response = await checkOrder({ trade_no: tradeNo })
         if (isApiSuccess(response)) {
           if (response.data?.status === 'success') {
+            // 网关确认已支付且后端已完成入账，刷新列表呈现最新状态
             toast.success(i18next.t('wallet.tips.orderCheckPaid'))
+            await fetchBillingHistory()
           } else {
+            // 网关确认尚未支付（或订单不存在于网关），本地订单状态不变
             toast.info(i18next.t('wallet.tips.orderCheckNotPaid'))
           }
-          // 订单状态可能已被本次检查更新，刷新列表
-          await fetchBillingHistory()
           return true
         }
         toast.error(

@@ -53,15 +53,16 @@ export function OrderQuery() {
     refresh,
   } = useBillingHistory()
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
+  const [checkTradeNo, setCheckTradeNo] = useState<string | null>(null)
 
   const columnActions = useMemo(
     () => ({
       onComplete: (tradeNo: string) => setConfirmTradeNo(tradeNo),
       completing,
-      onCheck: handleCheckOrder,
+      onCheck: (tradeNo: string) => setCheckTradeNo(tradeNo),
       checking,
     }),
-    [completing, checking, handleCheckOrder]
+    [completing, checking]
   )
 
   const columns = useOrderQueryColumns(
@@ -101,6 +102,12 @@ export function OrderQuery() {
     if (!confirmTradeNo) return
     const ok = await handleCompleteOrder(confirmTradeNo)
     if (ok) setConfirmTradeNo(null)
+  }
+
+  const confirmCheck = async () => {
+    if (!checkTradeNo) return
+    const ok = await handleCheckOrder(checkTradeNo)
+    if (ok) setCheckTradeNo(null)
   }
 
   return (
@@ -144,6 +151,18 @@ export function OrderQuery() {
         confirmText={t('orderQuery.fields.completeOrder')}
         isLoading={completing}
         handleConfirm={confirmComplete}
+      />
+
+      <ConfirmDialog
+        open={Boolean(checkTradeNo)}
+        onOpenChange={(open) => {
+          if (!open && !checking) setCheckTradeNo(null)
+        }}
+        title={t('orderQuery.fields.checkOrder')}
+        desc={t('orderQuery.tips.confirmCheckOrderWithGateway')}
+        confirmText={t('orderQuery.fields.checkOrder')}
+        isLoading={checking}
+        handleConfirm={confirmCheck}
       />
     </>
   )
