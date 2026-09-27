@@ -15,9 +15,11 @@ import (
 // 校验逻辑（防绕过）：
 //   - 始终按原始音色 ID 查库，校验通过后再用 redirect_id 替换发给上游，
 //     用户无法通过直接传 redirect_id 绕过白名单。
-//   - 当音色白名单总开关开启时，只有库内“已创建”且 allowed=true 的音色才允许使用。
-//   - 白名单关闭时，仍会应用库内的 redirect_id（若该音色在库中且有重定向配置），
-//     但不限制音色来源。
+//   - 库内命中的音色必须为“已创建”且 allowed=true 才能用于 TTS：preview（试听中）
+//     与被管理员禁用的记录无论白名单开关如何一律拒绝，预览音色须完成确认定制（支付）
+//     流转为 created 后才可调用。
+//   - 白名单总开关仅约束库内未命中的音色来源：开启时未命中一律拒绝；
+//     关闭时放行原 ID（如上游预置音色），但仍应用库内的 redirect_id。
 //
 // 返回应发给上游的音色 ID；校验失败时返回面向用户的普通业务错误（不暴露渠道信息）。
 func ResolveVoiceForTTSUpstream(c *gin.Context, voiceId string) (string, error) {
@@ -33,11 +35,13 @@ func ResolveVoiceForTTSUpstream(c *gin.Context, voiceId string) (string, error) 
 		}
 		return voiceId, nil
 	}
-	if configmodel.IsMiniMaxVoiceWhitelistEnabled() {
-		// 白名单开启：必须命中且允许。
-		if !found || !allowed {
-			return "", newVoiceNotAllowedError(c, voiceId)
-		}
+	// 命中库内记录但状态不可用（preview 或被禁用）：记录状态是库内明确事实，
+	// 拒绝不随“限制音色来源”的白名单开关变化。
+	if found && !allowed {
+		return "", newVoiceNotAllowedError(c, voiceId)
+	}
+	if !found && configmodel.IsMiniMaxVoiceWhitelistEnabled() {
+		return "", newVoiceNotAllowedError(c, voiceId)
 	}
 	// 命中记录时优先使用 redirect_id；未命中且白名单关闭时用原 ID。
 	if found {
