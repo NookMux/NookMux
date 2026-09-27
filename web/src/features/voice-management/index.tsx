@@ -62,11 +62,13 @@ const EMPTY_FILTERS: VoiceFilterState = {
   voiceId: '',
 }
 
+// 新建音色默认「已付款 + 允许 TTS」：库内命中但未放行的记录会被无条件拒绝，
+// 默认放行避免新建条目无感变成拦截记录；确需禁用时手动取消勾选。
 const EMPTY_FORM: VoiceUpsertParams = {
   voice_id: '',
   type: 'created',
   redirect_id: '',
-  allowed: false,
+  allowed: true,
   remark: '',
 }
 

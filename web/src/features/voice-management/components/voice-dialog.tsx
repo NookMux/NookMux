@@ -79,9 +79,13 @@ export function VoiceDialog(props: VoiceDialogProps) {
             <Label>{t('channels.fields.type')}</Label>
             <Select
               value={props.form.type || 'created'}
-              onValueChange={(value) =>
-                updateForm({ type: value ?? 'created' })
-              }
+              onValueChange={(value) => {
+                const type = value ?? 'created'
+                // 标记为「已付款」即视为支付完成，自动开启 TTS 放行；管理员仍可手动关闭。
+                updateForm(
+                  type === 'created' ? { type, allowed: true } : { type }
+                )
+              }}
             >
               <SelectTrigger>
                 <SelectValue />

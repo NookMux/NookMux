@@ -129,14 +129,15 @@ func TestDeleteExpiredVoicePreviews_NoopOnNilDB(t *testing.T) {
 	}
 }
 
-// TestConfirmVoice_AtomicTransitionAndQuotaCost 验证确认定制时：
+// TestConfirmVoice_AtomicTransitionAndActivation 验证确认定制（支付）时：
 //  1. preview -> created 流转成功；
 //  2. quota_cost 被写入；
-//  3. 再次确认返回 false（幂等，防止重复扣费）。
+//  3. allowed 被置 true（支付即激活 TTS 白名单放行）；
+//  4. 再次确认返回 false（幂等，防止重复扣费）。
 //
 // 这是回归保护：先仅更新状态、再整条保存记录的两步写法中，
 // 内存里的 voice.Type 仍是 preview，DB.Save 会把 type 覆盖回 preview。
-func TestConfirmVoice_AtomicTransitionAndQuotaCost(t *testing.T) {
+func TestConfirmVoice_AtomicTransitionAndActivation(t *testing.T) {
 	setupVoiceTestDB(t)
 
 	voice := createVoice(t, "confirm-target-1", VoiceTypePreview, time.Now().Unix())
@@ -159,6 +160,9 @@ func TestConfirmVoice_AtomicTransitionAndQuotaCost(t *testing.T) {
 	if got.QuotaCost != 220 {
 		t.Fatalf("quota_cost = %d, want 220", got.QuotaCost)
 	}
+	if !got.Allowed {
+		t.Fatalf("allowed = false, want true (payment must activate the voice for TTS)")
+	}
 
 	// 再次确认同一记录应返回 false（已不是 preview），避免重复扣费。
 	ok2, err := ConfirmVoice(voice.Id, voice.OperatorId, 220)
@@ -170,7 +174,8 @@ func TestConfirmVoice_AtomicTransitionAndQuotaCost(t *testing.T) {
 	}
 }
 
-// TestConfirmVoice_OperatorMismatch 验证操作人不匹配时不流转状态（防越权）。
+// TestConfirmVoice_OperatorMismatch 验证操作人不匹配时不流转状态（防越权），
+// 也不激活 TTS 放行。
 func TestConfirmVoice_OperatorMismatch(t *testing.T) {
 	setupVoiceTestDB(t)
 
@@ -191,5 +196,8 @@ func TestConfirmVoice_OperatorMismatch(t *testing.T) {
 	}
 	if got.Type != VoiceTypePreview {
 		t.Fatalf("type should remain preview on operator mismatch, got %s", got.Type)
+	}
+	if got.Allowed {
+		t.Fatalf("allowed should remain false on operator mismatch")
 	}
 }
