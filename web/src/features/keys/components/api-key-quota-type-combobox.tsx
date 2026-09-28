@@ -32,7 +32,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 
-export type ApiKeyQuotaTypeOption = {
+type ApiKeyQuotaTypeOption = {
   value: number
   label: string
   description: string

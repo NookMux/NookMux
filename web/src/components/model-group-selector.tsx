@@ -150,7 +150,7 @@ GroupTriggerButton.displayName = 'GroupTriggerButton'
  * Model Selector Component
  * Styled following Scira's form-component design patterns
  */
-export const ModelSelector: React.FC<ModelSelectorProps> = React.memo(
+const ModelSelector: React.FC<ModelSelectorProps> = React.memo(
   ({ selectedModel, models, onModelChange, className, disabled = false }) => {
     const { t } = useTranslation()
     const [open, setOpen] = useState(false)
@@ -349,7 +349,7 @@ ModelSelector.displayName = 'ModelSelector'
  * Group Selector Component
  * Styled following Scira's form-component design patterns
  */
-export const GroupSelector: React.FC<GroupSelectorProps> = React.memo(
+const GroupSelector: React.FC<GroupSelectorProps> = React.memo(
   ({ selectedGroup, groups, onGroupChange, className, disabled = false }) => {
     const { t } = useTranslation()
     const [open, setOpen] = useState(false)

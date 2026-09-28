@@ -19,11 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  getDashboardConfig,
-  updateDashboardConfig,
-  resetDashboardConfig,
-} from '../api'
+import { getDashboardConfig, updateDashboardConfig } from '../api'
 import type { DashboardConfigUpdate } from '../types'
 
 /**
@@ -52,27 +48,6 @@ export function useUpdateDashboardConfig() {
       queryClient.invalidateQueries({ queryKey: ['status'] })
       queryClient.invalidateQueries({ queryKey: ['system-options'] })
       toast.success(t('channels.status.settingsUpdatedSuccessfully'))
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
-}
-
-/**
- * 重置仪表板配置
- */
-export function useResetDashboardConfig() {
-  const { t } = useTranslation()
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: resetDashboardConfig,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard-config'] })
-      queryClient.invalidateQueries({ queryKey: ['status'] })
-      queryClient.invalidateQueries({ queryKey: ['system-options'] })
-      toast.success(t('systemSettings.titles.configurationResetToDefaults'))
     },
     onError: (error: Error) => {
       toast.error(error.message)

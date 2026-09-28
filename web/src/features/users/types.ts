@@ -23,14 +23,12 @@ import { z } from 'zod'
 // ============================================================================
 
 /** User status: 1 = enabled, 2 = disabled, 3+ = other states */
-export const userStatusSchema = z.number()
-export type UserStatus = z.infer<typeof userStatusSchema>
+const userStatusSchema = z.number()
 
 /** User role: 1 = common user, 10 = admin, 100 = root */
-export const userRoleSchema = z.number()
-export type UserRole = z.infer<typeof userRoleSchema>
+const userRoleSchema = z.number()
 
-export const userSchema = z.object({
+const _userSchema = z.object({
   id: z.number(),
   username: z.string(),
   display_name: z.string(),
@@ -58,9 +56,7 @@ export const userSchema = z.object({
   DeletedAt: z.any().nullable().optional(),
   remark: z.string().optional(),
 })
-export type User = z.infer<typeof userSchema>
-
-export const userListSchema = z.array(userSchema)
+export type User = z.infer<typeof _userSchema>
 
 // ============================================================================
 // API Request/Response Types

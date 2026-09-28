@@ -26,7 +26,6 @@ import {
   MJ_SUBMIT_RESULT_MAPPINGS,
   TASK_ACTION_MAPPINGS,
   TASK_STATUS_MAPPINGS,
-  TASK_PLATFORM_MAPPINGS,
 } from '../constants'
 import { createStatusMapper } from './status'
 
@@ -64,8 +63,3 @@ export const taskActionMapper = createStatusMapper(TASK_ACTION_MAPPINGS)
  * Task status mapper
  */
 export const taskStatusMapper = createStatusMapper(TASK_STATUS_MAPPINGS)
-
-/**
- * Task platform mapper
- */
-export const taskPlatformMapper = createStatusMapper(TASK_PLATFORM_MAPPINGS)

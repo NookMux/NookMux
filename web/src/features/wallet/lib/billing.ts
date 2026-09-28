@@ -32,7 +32,7 @@ interface StatusConfig {
 /**
  * Status badge configuration
  */
-export const STATUS_CONFIG: Record<TopupStatus, StatusConfig> = {
+const STATUS_CONFIG: Record<TopupStatus, StatusConfig> = {
   success: {
     variant: 'success',
     label: 'channels.status.success',
@@ -57,7 +57,7 @@ export function getStatusConfig(status: TopupStatus): StatusConfig {
 /**
  * Payment method display names
  */
-export const PAYMENT_METHOD_NAMES: Record<string, string> = {
+const PAYMENT_METHOD_NAMES: Record<string, string> = {
   stripe: 'Stripe',
   alipay: 'Alipay',
   wxpay: 'WeChat Pay',

@@ -92,7 +92,7 @@ const SITE_SECTIONS = [
   },
 ] as const
 
-export type SiteSectionId = (typeof SITE_SECTIONS)[number]['id']
+type SiteSectionId = (typeof SITE_SECTIONS)[number]['id']
 
 const siteRegistry = createSectionRegistry<SiteSectionId, SiteSettings>({
   sections: SITE_SECTIONS,

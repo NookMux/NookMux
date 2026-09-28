@@ -58,7 +58,7 @@ export const appTableFeatures = tableFeatures({
   sortedRowModel: createSortedRowModel(),
 })
 
-export type AppTableFeatures = typeof appTableFeatures
+type AppTableFeatures = typeof appTableFeatures
 
 export * from '@tanstack/react-table'
 

@@ -18,17 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { nanoid } from 'nanoid'
 import { MESSAGE_ROLES, MESSAGE_STATUS, ERROR_MESSAGES } from '../constants'
-import type {
-  Message,
-  MessageVersion,
-  ChatCompletionMessage,
-  ContentPart,
-} from '../types'
+import type { Message, MessageVersion, ChatCompletionMessage } from '../types'
 
 /**
  * Create a new message version
  */
-export function createMessageVersion(content: string): MessageVersion {
+function createMessageVersion(content: string): MessageVersion {
   return {
     id: nanoid(),
     content,
@@ -38,14 +33,14 @@ export function createMessageVersion(content: string): MessageVersion {
 /**
  * Get current version from message (always returns the first version)
  */
-export function getCurrentVersion(message: Message): MessageVersion {
+function getCurrentVersion(message: Message): MessageVersion {
   return message.versions[0] || { id: 'default', content: '' }
 }
 
 /**
  * Update current version content in message
  */
-export function updateCurrentVersionContent(
+function updateCurrentVersionContent(
   message: Message,
   content: string
 ): Message {
@@ -81,49 +76,6 @@ export function createLoadingAssistantMessage(): Message {
     isReasoningStreaming: false,
     status: MESSAGE_STATUS.LOADING,
   }
-}
-
-/**
- * Build message content with optional images
- */
-export function buildMessageContent(
-  text: string,
-  imageUrls: string[] = []
-): string | ContentPart[] {
-  const validImages = imageUrls.filter((url) => url.trim() !== '')
-
-  if (validImages.length === 0) {
-    return text
-  }
-
-  const parts: ContentPart[] = [
-    {
-      type: 'text',
-      text: text || '',
-    },
-    ...validImages.map((url) => ({
-      type: 'image_url' as const,
-      image_url: { url: url.trim() },
-    })),
-  ]
-
-  return parts
-}
-
-/**
- * Extract text content from message content
- */
-export function getTextContent(content: string | ContentPart[]): string {
-  if (typeof content === 'string') {
-    return content
-  }
-
-  if (Array.isArray(content)) {
-    const textPart = content.find((part) => part.type === 'text')
-    return textPart?.text || ''
-  }
-
-  return ''
 }
 
 /**

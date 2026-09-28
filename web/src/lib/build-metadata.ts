@@ -33,8 +33,6 @@ For commercial licensing, please contact support@quantumnous.com
  *   - `<meta name="build-id" content="…">`     — head metadata
  *   - `:root { --app-build-rev: '…' }`         — CSS custom property
  *   - `localStorage['app:rev']`                — cache-key derivation
- *
- * Read by `getBuildRevision()` and surfaced in support bundles.
  */
 
 /**
@@ -160,12 +158,4 @@ export function installBuildMetadata(): void {
   } catch {
     // console may be replaced by a noop shim.
   }
-}
-
-/**
- * Return the canonical build revision string. Useful for support bundles
- * and for asserting the metadata layer is installed.
- */
-export function getBuildRevision(): string {
-  return computeBuildRevision()
 }

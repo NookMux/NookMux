@@ -149,7 +149,7 @@ const zh = {
   },
 } as const
 
-export const resources = {
+const resources = {
   en,
   zh,
 } as const
@@ -182,5 +182,3 @@ function syncDocumentLang(lng: string) {
 }
 i18n.on('languageChanged', syncDocumentLang)
 syncDocumentLang(i18n.language)
-
-export default i18n

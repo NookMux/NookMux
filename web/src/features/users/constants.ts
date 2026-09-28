@@ -54,7 +54,7 @@ export const USER_STATUSES = {
   },
 } as const
 
-export const USER_STATUS_DELETED = 3
+const USER_STATUS_DELETED = 3
 
 export const getUserStatusOptions = (t: (key: string) => string) => [
   { label: t('channels.status.enabled'), value: String(USER_STATUS.ENABLED) },

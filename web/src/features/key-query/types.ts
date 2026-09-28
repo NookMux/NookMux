@@ -87,7 +87,7 @@ export interface KeyQueryLog {
   model_icon: string
 }
 
-export interface KeyQueryLogsPaginatedData {
+interface KeyQueryLogsPaginatedData {
   items: KeyQueryLog[]
   total: number
   page: number
@@ -106,12 +106,6 @@ export interface KeyQueryLogsResponse {
   success: boolean
   message?: string
   data?: KeyQueryLogsPaginatedData
-}
-
-export interface KeyQueryLogsLegacyResponse {
-  success: boolean
-  message?: string
-  data?: KeyQueryLog[]
 }
 
 /**

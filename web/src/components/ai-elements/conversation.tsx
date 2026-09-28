@@ -48,50 +48,6 @@ export const ConversationContent = ({
   <StickToBottom.Content className={cn('p-4', className)} {...props} />
 )
 
-export type ConversationEmptyStateProps = ComponentProps<'div'> & {
-  title?: string
-  description?: string
-  icon?: React.ReactNode
-}
-
-export const ConversationEmptyState = ({
-  className,
-  title,
-  description,
-  icon,
-  children,
-  ...props
-}: ConversationEmptyStateProps) => {
-  const { t } = useTranslation()
-  const resolvedTitle = title ?? t('common.fields.noMessagesYet')
-  const resolvedDescription =
-    description ?? t('common.actions.startAConversationToSeeMessagesHere')
-
-  return (
-    <div
-      className={cn(
-        'flex size-full flex-col items-center justify-center gap-3 p-8 text-center',
-        className
-      )}
-      {...props}
-    >
-      {children ?? (
-        <>
-          {icon && <div className='text-muted-foreground'>{icon}</div>}
-          <div className='space-y-1'>
-            <h3 className='text-sm font-medium'>{resolvedTitle}</h3>
-            {resolvedDescription && (
-              <p className='text-muted-foreground text-sm'>
-                {resolvedDescription}
-              </p>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
 export type ConversationScrollButtonProps = ComponentProps<typeof Button>
 
 export const ConversationScrollButton = ({

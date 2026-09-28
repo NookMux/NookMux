@@ -24,7 +24,6 @@ import {
   ScrollText,
   ShieldCheck,
   Sigma,
-  Zap,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { BundledLanguage } from 'shiki/bundle/web'
@@ -838,6 +837,3 @@ function SectionTitle(props: {
     </h3>
   )
 }
-
-// Re-export so the parent can keep its own SectionTitle if it wants:
-export { Zap as ApiTabIcon }

@@ -82,7 +82,6 @@ import {
   useSystemConfigStore,
   DEFAULT_CURRENCY_CONFIG,
   type CurrencyConfig,
-  type CurrencyDisplayType,
 } from '@/stores/system-config-store'
 
 export interface CurrencyFormatOptions {
@@ -119,25 +118,6 @@ const DEFAULT_FORMAT_OPTIONS: Required<CurrencyFormatOptions> = {
   digitsSmall: 4,
   abbreviate: true,
   minimumNonZero: 0,
-}
-
-const DISPLAY_TYPE_VALUES = ['USD', 'CNY', 'TOKENS', 'CUSTOM'] as const
-type DisplayTypeLiteral = (typeof DISPLAY_TYPE_VALUES)[number]
-
-export function isCurrencyDisplayType(
-  value: unknown
-): value is CurrencyDisplayType {
-  return (
-    typeof value === 'string' &&
-    DISPLAY_TYPE_VALUES.includes(value as DisplayTypeLiteral)
-  )
-}
-
-export function parseCurrencyDisplayType(
-  value: unknown,
-  fallback: CurrencyDisplayType = 'USD'
-): CurrencyDisplayType {
-  return isCurrencyDisplayType(value) ? value : fallback
 }
 
 function getConfig(): CurrencyConfig {

@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { create } from 'zustand'
 
-export type UserPermissions = Record<string, unknown>
+type UserPermissions = Record<string, unknown>
 
 export interface AuthUser {
   id: number

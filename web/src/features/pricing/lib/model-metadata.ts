@@ -284,7 +284,7 @@ export function formatYearMonth(value: string): string {
 // purely heuristic and serve only the API-info display until the backend
 // returns explicit fields.
 
-export type ModelVendor =
+type ModelVendor =
   | 'openai'
   | 'anthropic'
   | 'google'

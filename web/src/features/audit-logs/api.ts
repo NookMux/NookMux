@@ -69,19 +69,3 @@ export async function getAuditLogs(
   )
   return res.data
 }
-
-export interface AuditModule {
-  value: string
-  label: string
-}
-
-export interface AuditModulesResponse {
-  success: boolean
-  message?: string
-  data?: AuditModule[]
-}
-
-export async function getAuditModules(): Promise<AuditModulesResponse> {
-  const res = await api.get<AuditModulesResponse>('/api/audit/modules')
-  return res.data
-}

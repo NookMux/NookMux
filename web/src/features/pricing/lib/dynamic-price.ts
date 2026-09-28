@@ -90,7 +90,7 @@ function applyRechargeRate(
   return (price * priceRate) / usdExchangeRate
 }
 
-export function formatDynamicUnitPrice(
+function formatDynamicUnitPrice(
   valuePerMillionTokens: number,
   options: DynamicPriceOptions
 ): string {
@@ -122,7 +122,7 @@ export function getDynamicPricingTiers(model: PricingModel): ParsedTier[] {
   return parseTiersFromExpr(billingExpr)
 }
 
-export function hasDynamicRequestRules(model: PricingModel): boolean {
+function hasDynamicRequestRules(model: PricingModel): boolean {
   if (!isDynamicPricingModel(model)) return false
   const { requestRuleExpr } = splitBillingExprAndRequestRules(
     model.billing_expr || ''

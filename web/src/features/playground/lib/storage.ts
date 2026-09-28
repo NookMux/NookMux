@@ -117,17 +117,3 @@ export function saveMessages(messages: Message[]): void {
     console.error('Failed to save messages:', error)
   }
 }
-
-/**
- * Clear all playground data
- */
-export function clearPlaygroundData(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEYS.CONFIG)
-    localStorage.removeItem(STORAGE_KEYS.PARAMETER_ENABLED)
-    localStorage.removeItem(STORAGE_KEYS.MESSAGES)
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to clear playground data:', error)
-  }
-}

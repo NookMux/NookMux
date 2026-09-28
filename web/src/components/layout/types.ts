@@ -87,7 +87,7 @@ export type TopNavLink = {
 /**
  * Back-navigation descriptor for a nested sidebar view
  */
-export type SidebarViewParent = {
+type SidebarViewParent = {
   /** Destination URL for the back button */
   to: LinkProps['to'] | (string & {})
   /** Visible label, e.g. "Back to Dashboard" — already localized */

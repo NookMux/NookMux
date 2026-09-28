@@ -39,7 +39,7 @@ import { channelsQueryKeys } from '../lib'
 
 const route = getRouteApi('/_authenticated/channels/')
 
-export interface ChannelFilterOption {
+interface ChannelFilterOption {
   label: string
   value: string
   iconNode?: React.ReactNode

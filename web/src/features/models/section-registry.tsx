@@ -29,7 +29,7 @@ const MODELS_SECTIONS = [
   },
 ] as const
 
-export type ModelsSectionId = (typeof MODELS_SECTIONS)[number]['id']
+type ModelsSectionId = (typeof MODELS_SECTIONS)[number]['id']
 
 const modelsRegistry = createSectionRegistry<
   ModelsSectionId,
@@ -44,4 +44,3 @@ const modelsRegistry = createSectionRegistry<
 
 export const MODELS_SECTION_IDS = modelsRegistry.sectionIds
 export const MODELS_DEFAULT_SECTION = modelsRegistry.defaultSection
-export const getModelsSectionNavItems = modelsRegistry.getSectionNavItems

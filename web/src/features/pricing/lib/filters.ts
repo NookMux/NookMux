@@ -32,10 +32,7 @@ import type { PricingModel } from '../types'
 /**
  * Filter models by search query
  */
-export function filterBySearch(
-  models: PricingModel[],
-  query: string
-): PricingModel[] {
+function filterBySearch(models: PricingModel[], query: string): PricingModel[] {
   if (!query) return models
 
   const lowerQuery = query.toLowerCase()
@@ -51,7 +48,7 @@ export function filterBySearch(
 /**
  * Filter models by vendor
  */
-export function filterByVendor(
+function filterByVendor(
   models: PricingModel[],
   vendor: string
 ): PricingModel[] {
@@ -62,10 +59,7 @@ export function filterByVendor(
 /**
  * Filter models by group
  */
-export function filterByGroup(
-  models: PricingModel[],
-  group: string
-): PricingModel[] {
+function filterByGroup(models: PricingModel[], group: string): PricingModel[] {
   if (group === FILTER_ALL) return models
   return models.filter((m) => m.enable_groups?.includes(group))
 }
@@ -73,7 +67,7 @@ export function filterByGroup(
 /**
  * Filter models by quota type
  */
-export function filterByQuotaType(
+function filterByQuotaType(
   models: PricingModel[],
   quotaType: string
 ): PricingModel[] {
@@ -88,7 +82,7 @@ export function filterByQuotaType(
 /**
  * Filter models by endpoint type
  */
-export function filterByEndpointType(
+function filterByEndpointType(
   models: PricingModel[],
   endpointType: string
 ): PricingModel[] {
@@ -108,10 +102,7 @@ function getModelPrice(model: PricingModel): number {
 /**
  * Sort models by specified option
  */
-export function sortModels(
-  models: PricingModel[],
-  sortBy: string
-): PricingModel[] {
+function sortModels(models: PricingModel[], sortBy: string): PricingModel[] {
   const sorted = [...models]
 
   switch (sortBy) {
@@ -189,10 +180,7 @@ export function extractAllTags(models: PricingModel[]): string[] {
 /**
  * Filter models by tag
  */
-export function filterByTag(
-  models: PricingModel[],
-  tag: string
-): PricingModel[] {
+function filterByTag(models: PricingModel[], tag: string): PricingModel[] {
   if (tag === FILTER_ALL) return models
 
   const tagLower = tag.toLowerCase()

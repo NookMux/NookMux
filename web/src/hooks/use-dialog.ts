@@ -28,12 +28,6 @@ import {
 // Types
 // ============================================================================
 
-export interface DialogHandlers {
-  open: () => void
-  close: () => void
-  toggle: () => void
-}
-
 export interface DialogStateHandlers {
   reset: () => void
   isOpen: boolean
@@ -51,33 +45,6 @@ export interface DialogsHandlers<T extends string> {
 // ============================================================================
 // Dialog State Management Hooks
 // ============================================================================
-
-/**
- * Simple hook for managing a single dialog state with boolean value
- * @param initialOpen Initial dialog open state (default: false)
- * @returns Tuple of [isOpen, handlers]
- * @example
- * const [isOpen, handlers] = useDialog()
- * handlers.open()
- * handlers.close()
- * handlers.toggle()
- */
-export function useDialog(
-  initialOpen = false
-): readonly [boolean, DialogHandlers] {
-  const [isOpen, setIsOpen] = useState(initialOpen)
-
-  const handlers: DialogHandlers = useMemo(
-    () => ({
-      open: () => setIsOpen(true),
-      close: () => setIsOpen(false),
-      toggle: () => setIsOpen((prev) => !prev),
-    }),
-    []
-  )
-
-  return [isOpen, handlers] as const
-}
 
 /**
  * Hook for managing dialog state with custom value types

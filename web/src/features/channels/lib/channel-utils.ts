@@ -20,19 +20,16 @@ import i18next from 'i18next'
 import {
   formatCompactCurrencyFromUSD,
   formatCurrencyFromUSD,
-  formatQuotaWithCurrency,
 } from '@/lib/currency'
 import dayjs from '@/lib/dayjs'
 import { formatTimestampToDate } from '@/lib/format'
 import {
-  CHANNEL_STATUS_CONFIG,
   CHANNEL_TYPES,
-  MULTI_KEY_STATUS_CONFIG,
   RESPONSE_TIME_CONFIG,
   RESPONSE_TIME_THRESHOLDS,
   TYPE_TO_KEY_PROMPT,
 } from '../constants'
-import type { Channel, ChannelSettings, ChannelOtherSettings } from '../types'
+import type { Channel, ChannelSettings } from '../types'
 
 // ============================================================================
 // Channel Type Utilities
@@ -79,26 +76,6 @@ export function getChannelTypeIcon(type: number): string {
 // ============================================================================
 
 /**
- * Get status badge configuration
- */
-export function getChannelStatusBadge(status: number) {
-  return (
-    CHANNEL_STATUS_CONFIG[status as keyof typeof CHANNEL_STATUS_CONFIG] ||
-    CHANNEL_STATUS_CONFIG[0]
-  )
-}
-
-/**
- * Get multi-key status badge configuration
- */
-export function getMultiKeyStatusBadge(status: number) {
-  return (
-    MULTI_KEY_STATUS_CONFIG[status as keyof typeof MULTI_KEY_STATUS_CONFIG] ||
-    MULTI_KEY_STATUS_CONFIG[1]
-  )
-}
-
-/**
  * Check if channel is enabled
  */
 export function isChannelEnabled(channel: Channel): boolean {
@@ -124,51 +101,6 @@ export function isPlanChannel(channel: Channel): boolean {
  */
 export function isZhipuChannel(channel: Channel): boolean {
   return channel.type === 26
-}
-
-// ============================================================================
-// Key Formatting
-// ============================================================================
-
-/**
- * Format channel key for display
- * Masks the key for security, showing only first and last few characters
- */
-export function formatChannelKey(
-  key: string,
-  isMultiKey: boolean = false
-): string {
-  if (!key) return ''
-
-  if (isMultiKey) {
-    const keys = key.split('\n').filter((k) => k.trim())
-    return `${keys.length} keys`
-  }
-
-  if (key.length <= 16) {
-    // For short keys, mask middle part
-    return `${key.slice(0, 4)}...${key.slice(-4)}`
-  }
-
-  // For longer keys, show more context
-  return `${key.slice(0, 8)}...${key.slice(-8)}`
-}
-
-/**
- * Format key preview for multi-key display
- */
-export function formatKeyPreview(key: string, maxLength: number = 10): string {
-  if (!key) return ''
-  if (key.length <= maxLength) return key
-  return `${key.slice(0, maxLength)}...`
-}
-
-/**
- * Count keys in multi-key string
- */
-export function countKeys(key: string): number {
-  if (!key) return 0
-  return key.split('\n').filter((k) => k.trim()).length
 }
 
 // ============================================================================
@@ -203,20 +135,6 @@ export function parseGroupsList(groups: string): string[] {
   })
 }
 
-/**
- * Format models array back to string
- */
-export function formatModelsString(models: string[]): string {
-  return models.join(',')
-}
-
-/**
- * Format groups array back to string
- */
-export function formatGroupsString(groups: string[]): string {
-  return groups.join(',')
-}
-
 // ============================================================================
 // Settings Parsing
 // ============================================================================
@@ -232,33 +150,6 @@ export function parseChannelSettings(
     return JSON.parse(settingStr) as ChannelSettings
   } catch {
     return {}
-  }
-}
-
-/**
- * Parse channel other settings JSON
- */
-export function parseChannelOtherSettings(
-  settingsStr: string | null | undefined
-): ChannelOtherSettings {
-  if (!settingsStr || settingsStr === '{}') return {}
-  try {
-    return JSON.parse(settingsStr) as ChannelOtherSettings
-  } catch {
-    return {}
-  }
-}
-
-/**
- * Validate JSON string
- */
-export function validateChannelSettings(settings: string): boolean {
-  if (!settings || settings.trim() === '') return true
-  try {
-    JSON.parse(settings)
-    return true
-  } catch {
-    return false
   }
 }
 
@@ -397,113 +288,6 @@ export function formatTimestamp(timestamp: number, t?: TFunction): string {
   } catch {
     return t ? t('common.status.invalidDate') : 'Invalid date'
   }
-}
-
-// ============================================================================
-// Quota Formatting
-// ============================================================================
-
-/** Format quota units using the global currency display configuration. */
-export function formatQuota(quota: number): string {
-  return formatQuotaWithCurrency(quota, {
-    digitsLarge: 2,
-    digitsSmall: 4,
-    abbreviate: true,
-  })
-}
-
-// ============================================================================
-// Priority & Weight Utilities
-// ============================================================================
-
-/**
- * Get priority display value
- */
-export function getPriorityDisplay(
-  priority: number | null | undefined
-): string {
-  if (priority === null || priority === undefined) return '0'
-  return String(priority)
-}
-
-/**
- * Get weight display value
- */
-export function getWeightDisplay(weight: number | null | undefined): string {
-  if (weight === null || weight === undefined) return '0'
-  return String(weight)
-}
-
-// ============================================================================
-// Validation Utilities
-// ============================================================================
-
-/**
- * Validate channel name
- */
-export function validateChannelName(name: string): boolean {
-  return name.trim().length > 0
-}
-
-/**
- * Validate API key format
- */
-export function validateApiKey(key: string): boolean {
-  return key.trim().length > 0
-}
-
-/**
- * Validate models list
- */
-export function validateModels(models: string): boolean {
-  return parseModelsList(models).length > 0
-}
-
-/**
- * Validate groups list
- */
-export function validateGroups(groups: string): boolean {
-  return parseGroupsList(groups).length > 0
-}
-
-/**
- * Check if channel needs attention (low balance, auto-disabled, etc.)
- */
-export function channelNeedsAttention(channel: Channel): boolean {
-  // Auto-disabled
-  if (channel.status === 3) return true
-
-  // Low balance (less than $1)
-  if (channel.balance > 0 && channel.balance < 1) return true
-
-  // Multi-key channel with all keys disabled
-  if (
-    channel.channel_info?.is_multi_key &&
-    channel.channel_info.multi_key_status_list &&
-    Object.keys(channel.channel_info.multi_key_status_list).length >=
-      channel.channel_info.multi_key_size
-  ) {
-    return true
-  }
-
-  return false
-}
-
-/**
- * Get attention reason for channel
- */
-export function getAttentionReason(channel: Channel): string | null {
-  if (channel.status === 3) return 'Auto-disabled'
-  if (channel.balance > 0 && channel.balance < 1) return 'Low balance'
-  if (
-    channel.channel_info?.is_multi_key &&
-    channel.channel_info.multi_key_status_list &&
-    Object.keys(channel.channel_info.multi_key_status_list).length >=
-      channel.channel_info.multi_key_size
-  ) {
-    return 'All keys disabled'
-  }
-  return null
 }
 
 // ============================================================================

@@ -21,8 +21,6 @@ export type SystemOption = {
   value: string
 }
 
-export type SystemOptionKey = string
-
 export type SystemOptionsResponse = {
   success: boolean
   message: string
@@ -35,7 +33,7 @@ export type SystemOptionValueResponse = {
   data: SystemOption
 }
 
-export type OptionJsonMapEntry = {
+type OptionJsonMapEntry = {
   key: string
   value: string
 }
@@ -103,13 +101,13 @@ export type DatabaseMigrationInfo = {
   log_db_is_separated: boolean
 }
 
-export type DatabaseMigrationTableProgress = {
+type DatabaseMigrationTableProgress = {
   name: string
   copied: number
   total: number
 }
 
-export type DatabaseMigrationJobStatus = 'running' | 'success' | 'failed'
+type DatabaseMigrationJobStatus = 'running' | 'success' | 'failed'
 
 export type DatabaseMigrationJob = {
   id: string
@@ -207,29 +205,6 @@ export type ContentSettings = {
   DataExportEnabled: boolean
   DataExportDefaultTime: string
   DataExportInterval: number
-}
-
-export type DashboardSettings = {
-  'dashboard_config.quota_data_enabled': boolean
-  'dashboard_config.user_analytics_enabled': boolean
-  'dashboard_config.rankings_enabled': boolean
-  'dashboard_config.media_convert_stats_enabled': boolean
-  'dashboard_config.quota_data_track_tokens': boolean
-  'dashboard_config.quota_data_track_by_model': boolean
-  'dashboard_config.quota_data_track_by_user': boolean
-  'dashboard_config.api_info_enabled': boolean
-  'dashboard_config.uptime_kuma_enabled': boolean
-  'dashboard_config.announcements_enabled': boolean
-  'dashboard_config.faq_enabled': boolean
-  'dashboard_config.quota_data_refresh_interval': number
-  'dashboard_config.user_analytics_refresh_interval': number
-  'dashboard_config.rankings_refresh_interval': number
-  'dashboard_config.uptime_kuma_refresh_interval': number
-  'dashboard_config.default_time_range_days': number
-  'dashboard_config.max_time_range_days': number
-  'dashboard_config.rankings_model_limit': number
-  'dashboard_config.rankings_vendor_limit': number
-  'dashboard_config.user_analytics_top_n': number
 }
 
 export type ModelSettings = {

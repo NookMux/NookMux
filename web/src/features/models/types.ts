@@ -25,7 +25,7 @@ import { z } from 'zod'
 /**
  * Bound channel information
  */
-export interface BoundChannel {
+interface BoundChannel {
   name: string
   type: number
 }
@@ -154,15 +154,6 @@ export interface GetVendorsResponse {
 }
 
 /**
- * Get vendor response
- */
-export interface GetVendorResponse {
-  success: boolean
-  message?: string
-  data?: Vendor
-}
-
-/**
  * Sync diff data
  */
 export interface SyncDiffData {
@@ -235,22 +226,6 @@ export interface PrefillGroupsResponse {
 // ============================================================================
 
 /**
- * Model form schema
- */
-export const modelFormSchema = z.object({
-  id: z.number().optional(),
-  model_name: z.string().min(1, 'Model name is required'),
-  icon: z.string().default(''),
-  tags: z.array(z.string()).default([]),
-  vendor_id: z.number().optional(),
-  endpoints: z.string().default(''),
-  name_rule: z.number().min(0).max(3).default(0),
-  status: z.boolean().default(true),
-})
-
-export type ModelFormValues = z.infer<typeof modelFormSchema>
-
-/**
  * Vendor form schema
  */
 export const vendorFormSchema = z.object({
@@ -291,11 +266,6 @@ export type NameRule = 0 | 1 | 2 | 3 // exact, prefix, contains, suffix
  * Model status type
  */
 export type ModelStatus = 0 | 1 // disabled, enabled
-
-/**
- * Quota type
- */
-export type QuotaType = 0 | 1 // usage-based, per-call
 
 /**
  * Sync locale

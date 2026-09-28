@@ -132,7 +132,7 @@ const BILLING_SECTIONS = [
   },
 ] as const
 
-export type BillingSectionId = (typeof BILLING_SECTIONS)[number]['id']
+type BillingSectionId = (typeof BILLING_SECTIONS)[number]['id']
 
 const billingRegistry = createSectionRegistry<
   BillingSectionId,

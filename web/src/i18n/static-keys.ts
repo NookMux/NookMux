@@ -334,7 +334,6 @@ export const STATIC_I18N_KEYS = [
   'dashboard.fields.announcements',
   'systemSettings.fields.apiAddresses',
   'dashboard.fields.faq',
-  'systemSettings.fields.uptimeKumo',
   'common.fields.usageLogFields',
   'systemSettings.titles.pricingRatios',
 

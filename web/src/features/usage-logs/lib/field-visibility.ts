@@ -21,33 +21,30 @@ For commercial licensing, please contact support@quantumnous.com
 // 必须与后端 setting/console_setting/config.go 中的 UsageLogField* 常量保持一致。
 // 仅包含详情弹窗独有字段；同时出现在列表表格列和详情弹窗中的字段
 // （channel/token/group/response_time/content）不在配置范围内。
-export const USAGE_LOG_FIELD_KEYS = {
-  request_id: 'request_id',
-  upstream_request_id: 'upstream_request_id',
-  retry_chain: 'retry_chain',
-  ip_address: 'ip_address',
-  client_headers: 'client_headers',
-  request_conversion: 'request_conversion',
-  reasoning_effort: 'reasoning_effort',
-  system_prompt_override: 'system_prompt_override',
-  model_mapping: 'model_mapping',
-  parameter_override: 'parameter_override',
-  billing_source: 'billing_source',
-  billing_details: 'billing_details',
-  price_table: 'price_table',
-  tiered_pricing: 'tiered_pricing',
-  violation_fee: 'violation_fee',
-  refund_details: 'refund_details',
-  subscription_billing: 'subscription_billing',
-  token_breakdown: 'token_breakdown',
-  audio_tokens: 'audio_tokens',
-  topup_audit: 'topup_audit',
-  operator_admin: 'operator_admin',
-  stream_status: 'stream_status',
-} as const
-
+// 必须与后端 UsageLogField* 常量保持一致。
 export type UsageLogFieldKey =
-  (typeof USAGE_LOG_FIELD_KEYS)[keyof typeof USAGE_LOG_FIELD_KEYS]
+  | 'request_id'
+  | 'upstream_request_id'
+  | 'retry_chain'
+  | 'ip_address'
+  | 'client_headers'
+  | 'request_conversion'
+  | 'reasoning_effort'
+  | 'system_prompt_override'
+  | 'model_mapping'
+  | 'parameter_override'
+  | 'billing_source'
+  | 'billing_details'
+  | 'price_table'
+  | 'tiered_pricing'
+  | 'violation_fee'
+  | 'refund_details'
+  | 'subscription_billing'
+  | 'token_breakdown'
+  | 'audio_tokens'
+  | 'topup_audit'
+  | 'operator_admin'
+  | 'stream_status'
 
 // 字段默认可见性元数据：key → { nameKey, descriptionKey, group, admin, user }
 // nameKey / descriptionKey 为 i18n 翻译 key，在渲染时通过 t() 解析。
@@ -277,7 +274,7 @@ export function buildDefaultUsageLogFieldsJSON(): string {
 
 // 解析 UsageLogFields 配置 JSON 字符串为 map。
 // 如果配置为空或解析失败，返回 null，由调用方决定是否使用默认值。
-export function parseUsageLogFieldsConfig(
+function parseUsageLogFieldsConfig(
   raw: string
 ): Record<string, { admin: boolean; user: boolean }> | null {
   if (!raw) return null

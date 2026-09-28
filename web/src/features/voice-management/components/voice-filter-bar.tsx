@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-export type VoiceTypeFilter = '' | 'created' | 'preview'
+type VoiceTypeFilter = '' | 'created' | 'preview'
 
 export type VoiceFilterState = {
   startTime: string

@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import dayjs from '@/lib/dayjs'
 import {
   formatCompactQuotaWithCurrency,
-  formatCurrencyFromUSD,
   formatQuotaWithCurrency,
   getCurrencyDisplay,
 } from './currency'
@@ -41,18 +40,6 @@ export function formatCompactNumber(value: number | null | undefined): string {
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(value as number)
-}
-
-export function formatPercent(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value as number)) return '-'
-  return Intl.NumberFormat(undefined, {
-    style: 'percent',
-    maximumFractionDigits: 2,
-  }).format((value as number) / 100)
-}
-
-export function formatCurrencyUSD(value: number | null | undefined): string {
-  return formatCurrencyFromUSD(value == null ? null : (value as number))
 }
 
 // ============================================================================
@@ -152,21 +139,6 @@ export function formatTimestampToDate(
   return dayjs(ms).format('YYYY-MM-DD HH:mm:ss')
 }
 
-/** Format a Date object to YYYY-MM-DD HH:mm:ss */
-export function formatDateTimeStr(date: Date): string {
-  return dayjs(date).format('YYYY-MM-DD HH:mm:ss')
-}
-
-/** Format a Date object to YYYY-MM-DD */
-export function formatDateStr(date: Date): string {
-  return dayjs(date).format('YYYY-MM-DD')
-}
-
-/** Format a Date object to HH:mm:ss */
-export function formatTimeStr(date: Date): string {
-  return dayjs(date).format('HH:mm:ss')
-}
-
 /**
  * Format quota for usage logs with higher precision
  * Uses 6 decimal places to show very small costs accurately
@@ -197,53 +169,4 @@ export function formatUseTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
   return `${minutes}m ${remainingSeconds.toFixed(0)}s`
-}
-
-/**
- * Format timestamp to date input value (YYYY-MM-DDTHH:mm)
- */
-export function formatTimestampForInput(timestamp: number): string {
-  if (timestamp === -1) {
-    return ''
-  }
-  return dayjs(timestamp * 1000).format('YYYY-MM-DDTHH:mm')
-}
-
-/**
- * Parse datetime-local input to Unix timestamp
- */
-export function parseTimestampFromInput(value: string): number {
-  if (!value) {
-    return -1
-  }
-  const date = new Date(value)
-  return Math.floor(date.getTime() / 1000)
-}
-
-// ============================================================================
-// Color Generation
-// ============================================================================
-
-/**
- * Generate a consistent color from a string
- * Uses HSL for better color distribution
- */
-export function stringToColor(str: string): string {
-  if (!str) return 'gray'
-
-  // Generate hash from string
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash)
-    hash = hash & hash // Convert to 32-bit integer
-  }
-
-  // Use hash to generate hue (0-360)
-  const hue = Math.abs(hash % 360)
-
-  // Use saturation and lightness that work well for tags
-  const saturation = 65 + (Math.abs(hash) % 10) // 65-75%
-  const lightness = 55 + (Math.abs(hash >> 8) % 10) // 55-65%
-
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`
 }

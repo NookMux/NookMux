@@ -22,7 +22,7 @@ import type { TFunction } from 'i18next'
 /**
  * Section definition for settings pages
  */
-export type SectionDefinition<TSettings, TExtraArgs extends unknown[] = []> = {
+type SectionDefinition<TSettings, TExtraArgs extends unknown[] = []> = {
   id: string
   titleKey: string
   build: (settings: TSettings, ...extraArgs: TExtraArgs) => ReactNode

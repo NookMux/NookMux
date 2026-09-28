@@ -88,10 +88,7 @@ export function SettingsSwitchItem({
   )
 }
 
-export function SettingsSwitchRow({
-  className,
-  ...props
-}: SettingsSwitchRowProps) {
+function SettingsSwitchRow({ className, ...props }: SettingsSwitchRowProps) {
   return (
     <div
       data-settings-form-span='full'
