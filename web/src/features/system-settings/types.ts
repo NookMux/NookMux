@@ -51,21 +51,6 @@ export type OptionJsonMapResponse = {
   }
 }
 
-export type OptionJsonArrayEntry = {
-  value: string
-}
-
-export type OptionJsonArrayResponse = {
-  success: boolean
-  message: string
-  data: {
-    items: OptionJsonArrayEntry[]
-    page: number
-    page_size: number
-    total: number
-  }
-}
-
 export type DeleteOptionJsonMapEntryRequest = {
   key: string
   map_key: string
@@ -76,17 +61,6 @@ export type UpsertOptionJsonMapEntryRequest = {
   map_key: string
   old_map_key?: string
   value: string
-}
-
-export type DeleteOptionJsonArrayEntryRequest = {
-  key: string
-  value: string
-}
-
-export type UpsertOptionJsonArrayEntryRequest = {
-  key: string
-  value: string
-  old_value?: string
 }
 
 export type UpdateOptionRequest = {

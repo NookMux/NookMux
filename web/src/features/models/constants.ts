@@ -99,52 +99,6 @@ export function getSyncStatusOptions(t: TFunction) {
 }
 
 // ============================================================================
-// Deployment Status
-// ============================================================================
-
-export function getDeploymentStatusOptions(t: TFunction) {
-  return [
-    { label: t('channels.fields.allStatus'), value: 'all' },
-    { label: t('common.fields.running73989d'), value: 'running' },
-    { label: t('common.fields.completed'), value: 'completed' },
-    { label: t('channels.errors.failed'), value: 'failed' },
-    {
-      label: t('models.fields.deploymentRequested'),
-      value: 'deployment requested',
-    },
-    {
-      label: t('models.fields.terminationRequested'),
-      value: 'termination requested',
-    },
-    { label: t('models.fields.destroyed'), value: 'destroyed' },
-  ] as const
-}
-
-export function getDeploymentStatusConfig(t: TFunction): Record<
-  string,
-  {
-    label: string
-    variant: 'success' | 'neutral' | 'warning' | 'danger'
-  }
-> {
-  return {
-    running: { label: t('common.fields.running73989d'), variant: 'success' },
-    completed: { label: t('common.fields.completed'), variant: 'success' },
-    failed: { label: t('channels.errors.failed'), variant: 'danger' },
-    error: { label: t('channels.errors.failed'), variant: 'danger' },
-    destroyed: { label: t('models.fields.destroyed'), variant: 'danger' },
-    'deployment requested': {
-      label: t('models.fields.deploymentRequested'),
-      variant: 'warning',
-    },
-    'termination requested': {
-      label: t('models.fields.terminationRequested'),
-      variant: 'warning',
-    },
-  }
-}
-
-// ============================================================================
 // Quota Type
 // ============================================================================
 

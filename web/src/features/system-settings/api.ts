@@ -25,15 +25,12 @@ import type {
   DatabaseMigrationMode,
   DatabaseMigrationStartRequest,
   DatabaseMigrationStartResponse,
-  DeleteOptionJsonArrayEntryRequest,
   DeleteOptionJsonMapEntryRequest,
-  OptionJsonArrayResponse,
   OptionJsonMapResponse,
   SystemOptionValueResponse,
   SystemOptionsResponse,
   UpdateOptionRequest,
   UpdateOptionResponse,
-  UpsertOptionJsonArrayEntryRequest,
   UpsertOptionJsonMapEntryRequest,
 } from './types'
 
@@ -72,21 +69,6 @@ export async function getOptionJsonMap(params: {
   return res.data
 }
 
-export async function getOptionJsonArray(params: {
-  key: string
-  page: number
-  pageSize: number
-}) {
-  const res = await api.get<OptionJsonArrayResponse>('/api/option/json_array', {
-    params: {
-      key: params.key,
-      page: params.page,
-      page_size: params.pageSize,
-    },
-  })
-  return res.data
-}
-
 export async function deleteOptionJsonMapEntry(
   request: DeleteOptionJsonMapEntryRequest
 ) {
@@ -101,25 +83,6 @@ export async function upsertOptionJsonMapEntry(
 ) {
   const res = await api.put<UpdateOptionResponse>(
     '/api/option/json_map',
-    request
-  )
-  return res.data
-}
-
-export async function deleteOptionJsonArrayEntry(
-  request: DeleteOptionJsonArrayEntryRequest
-) {
-  const res = await api.delete<UpdateOptionResponse>('/api/option/json_array', {
-    data: request,
-  })
-  return res.data
-}
-
-export async function upsertOptionJsonArrayEntry(
-  request: UpsertOptionJsonArrayEntryRequest
-) {
-  const res = await api.put<UpdateOptionResponse>(
-    '/api/option/json_array',
     request
   )
   return res.data
