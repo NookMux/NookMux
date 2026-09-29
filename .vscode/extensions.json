@@ -1,0 +1,19 @@
+{
+  "recommendations": [
+    "golang.go",
+    "golangci.golangci-lint",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "oven.bun-vscode",
+    "ms-azuretools.vscode-containers",
+    "lokalise.i18n-ally",
+    "redhat.vscode-yaml"
+  ],
+  "unwantedRecommendations": [
+    "biomejs.biome",
+    "oxc.oxc-vscode",
+    "vue.volar",
+    "ms-vscode.vscode-typescript-next"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "typescript.tsdk": "web/node_modules/typescript/lib",
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.formatOnSave": true
+  },
+  "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][scss][html][yaml][markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "eslint.workingDirectories": [
+    {
+      "directory": "web",
+      "changeProcessCWD": true
+    }
+  ],
+  "gopls": {
+    "staticcheck": true
+  },
+  "i18n-ally.localesPaths": ["web/src/i18n/locales"],
+  "i18n-ally.enabledFrameworks": ["i18next"],
+  "i18n-ally.sourceLanguage": "en",
+  "search.exclude": {
+    "参考项目": true,
+    "web/dist": true
+  },
+  "files.watcherExclude": {
+    "参考项目": true
+  }
+}
