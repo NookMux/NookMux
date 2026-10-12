@@ -191,7 +191,11 @@ if [ "$CHECK_FRONTEND" = true ] && [ -d "web" ]; then
 
     # high+ audit failures block CI (aligned with ci.yml web-checks job)
     echo "[Web 4/5] audit (high+)..."
-    bun audit --audit-level=high
+    # CVE-2026-93687 / GHSA-vfj7-8cjw-p6xm (braces): all published versions
+    # <=3.0.3 are affected and no upstream fix exists. Reachable only via the
+    # dev-only shadcn CLI glob scanning, never bundled at runtime. Remove once
+    # braces >3.0.3 ships.
+    bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
 
     echo "[Web 5/5] test..."
     bun test

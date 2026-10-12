@@ -92,6 +92,7 @@
     "typescript-eslint": "^8.65.0"
   },
   "overrides": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "brace-expansion": "5.0.12",
     "browserslist": "4.29.0",
     "dompurify": "3.4.5",
@@ -104,7 +105,10 @@
     "mermaid": "11.15.0",
     "minimist": "1.2.8",
     "postcss": "8.5.28",
+    "proxy-addr": "2.0.8",
     "qs": "6.15.2",
+    "seroval": "1.6.9",
+    "source-map-js": "1.2.2",
     "undici": "7.29.1",
     "uuid": "14.0.0"
   },

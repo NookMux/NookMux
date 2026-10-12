@@ -44,8 +44,11 @@ jobs:
         run: bun run format:check
 
       # high 及以上漏洞直接卡 CI；新增漏洞通告出现时需升级依赖或加 overrides
+      # CVE-2026-93687 / GHSA-vfj7-8cjw-p6xm（braces）显式豁免：上游无修复版本
+      # （所有已发布版本均受影响），且仅经 dev 依赖 shadcn CLI 的 glob 扫描可达，
+      # 不进入运行时产物；braces 发布 >3.0.3 修复版后应移除该豁免
       - name: Dependency audit
-        run: bun audit --audit-level=high
+        run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
 
       - name: Unit tests
         run: bun test
