@@ -31,13 +31,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+import { SettingsForm } from '../components/settings-form-layout'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -81,8 +76,6 @@ const schema = z.object({
         })
       }
     }),
-    function_call_thought_signature_enabled: z.boolean(),
-    remove_function_response_id_enabled: z.boolean(),
   }),
 })
 
@@ -93,8 +86,6 @@ type FlatGeminiSettings = {
   'gemini.safety_settings': string
   'gemini.version_settings': string
   'gemini.supported_imagine_models': string
-  'gemini.function_call_thought_signature_enabled': boolean
-  'gemini.remove_function_response_id_enabled': boolean
 }
 
 type GeminiSettingsCardProps = {
@@ -114,10 +105,6 @@ export function GeminiSettingsCard({ defaultValues }: GeminiSettingsCardProps) {
     'gemini.supported_imagine_models': normalizeJsonString(
       defaultValues.gemini.supported_imagine_models
     ),
-    'gemini.function_call_thought_signature_enabled':
-      defaultValues.gemini.function_call_thought_signature_enabled ?? true,
-    'gemini.remove_function_response_id_enabled':
-      defaultValues.gemini.remove_function_response_id_enabled ?? true,
   })
 
   const buildFormDefaults = (
@@ -129,10 +116,6 @@ export function GeminiSettingsCard({ defaultValues }: GeminiSettingsCardProps) {
       supported_imagine_models: formatJsonForTextarea(
         values.gemini.supported_imagine_models
       ),
-      function_call_thought_signature_enabled:
-        values.gemini.function_call_thought_signature_enabled ?? true,
-      remove_function_response_id_enabled:
-        values.gemini.remove_function_response_id_enabled ?? true,
     },
   })
 
@@ -156,10 +139,6 @@ export function GeminiSettingsCard({ defaultValues }: GeminiSettingsCardProps) {
       'gemini.supported_imagine_models': normalizeJsonString(
         defaultValues.gemini.supported_imagine_models
       ),
-      'gemini.function_call_thought_signature_enabled':
-        defaultValues.gemini.function_call_thought_signature_enabled ?? true,
-      'gemini.remove_function_response_id_enabled':
-        defaultValues.gemini.remove_function_response_id_enabled ?? true,
     }
 
     form.reset(buildFormDefaults(defaultValues))
@@ -176,10 +155,6 @@ export function GeminiSettingsCard({ defaultValues }: GeminiSettingsCardProps) {
       'gemini.supported_imagine_models': normalizeJsonString(
         values.gemini.supported_imagine_models
       ),
-      'gemini.function_call_thought_signature_enabled':
-        values.gemini.function_call_thought_signature_enabled,
-      'gemini.remove_function_response_id_enabled':
-        values.gemini.remove_function_response_id_enabled,
     }
 
     const updates = (
@@ -200,7 +175,7 @@ export function GeminiSettingsCard({ defaultValues }: GeminiSettingsCardProps) {
   }
 
   const imaginePlaceholder = useMemo(
-    () => JSON.stringify(['gemini-2.0-flash-exp-image-generation'], null, 2),
+    () => JSON.stringify(['gemini-nano-banana-2.1'], null, 2),
     []
   )
 
@@ -276,58 +251,6 @@ export function GeminiSettingsCard({ defaultValues }: GeminiSettingsCardProps) {
                 </FormDescription>
                 <FormMessage />
               </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='gemini.function_call_thought_signature_enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t(
-                      'systemSettings.actions.enableFunctionCallThoughtSignatureFill'
-                    )}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.actions.fillThoughtSignatureOnlyForGeminiVertexChannelsUsing'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='gemini.remove_function_response_id_enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.removeFunctionResponseIdField')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.vertexAiDoesNotSupportFunctionResponseIdEnable'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
             )}
           />
         </SettingsForm>

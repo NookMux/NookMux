@@ -213,8 +213,6 @@ export type ModelSettings = {
   'gemini.safety_settings': string
   'gemini.version_settings': string
   'gemini.supported_imagine_models': string
-  'gemini.function_call_thought_signature_enabled': boolean
-  'gemini.remove_function_response_id_enabled': boolean
   'claude.model_headers_settings': string
   'claude.default_max_tokens': string
   'claude.remove_claude_code_billing_header_enabled': boolean

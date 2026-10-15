@@ -30,8 +30,6 @@ const defaultModelSettings: ModelSettings = {
   'gemini.safety_settings': '',
   'gemini.version_settings': '',
   'gemini.supported_imagine_models': '',
-  'gemini.function_call_thought_signature_enabled': true,
-  'gemini.remove_function_response_id_enabled': true,
   'claude.model_headers_settings': '',
   'claude.default_max_tokens': '',
   'claude.remove_claude_code_billing_header_enabled': true,
