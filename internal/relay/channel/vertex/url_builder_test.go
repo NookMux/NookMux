@@ -23,6 +23,28 @@ func TestBuildAPIBaseURL_DefaultRegionalProject(t *testing.T) {
 	}
 }
 
+// TestBuildAPIBaseURL_MultiRegionEndpoints guards the us/eu multi-region hosts
+// (aiplatform.{us,eu}.rep.googleapis.com) used by newer Claude / Gemini models.
+func TestBuildAPIBaseURL_MultiRegionEndpoints(t *testing.T) {
+	got := BuildAPIBaseURL("", DefaultAPIVersion, "p", "us")
+	want := "https://aiplatform.us.rep.googleapis.com/v1/projects/p/locations/us"
+	if got != want {
+		t.Fatalf("BuildAPIBaseURL us multi-region = %q, want %q", got, want)
+	}
+
+	got = BuildAPIBaseURL("", DefaultAPIVersion, "p", "eu")
+	want = "https://aiplatform.eu.rep.googleapis.com/v1/projects/p/locations/eu"
+	if got != want {
+		t.Fatalf("BuildAPIBaseURL eu multi-region = %q, want %q", got, want)
+	}
+
+	got = BuildGoogleModelURL("", DefaultAPIVersion, "p", "eu", "claude-sonnet-5-5", "rawPredict")
+	want = "https://aiplatform.eu.rep.googleapis.com/v1/projects/p/locations/eu/publishers/google/models/claude-sonnet-5-5:rawPredict"
+	if got != want {
+		t.Fatalf("BuildGoogleModelURL eu multi-region = %q, want %q", got, want)
+	}
+}
+
 // TestBuildAPIBaseURL_CustomBaseAsGatewayPrefix is the core regression for #148:
 // a configured base_url must become the gateway prefix instead of being ignored.
 func TestBuildAPIBaseURL_CustomBaseAsGatewayPrefix(t *testing.T) {

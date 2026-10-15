@@ -148,6 +148,10 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		return fmt.Sprintf("%s/%s/models/%s:%s", info.ChannelBaseUrl, version, info.UpstreamModelName, action), nil
 	}
 
+	if info.RelayMode == constant.RelayModeGemini && strings.Contains(info.RequestURLPath, ":countTokens") {
+		return fmt.Sprintf("%s/%s/models/%s:countTokens", info.ChannelBaseUrl, version, info.UpstreamModelName), nil
+	}
+
 	action := "generateContent"
 	if info.IsStream {
 		action = "streamGenerateContent?alt=sse"
@@ -210,7 +214,7 @@ func (a *Adaptor) ConvertEmbeddingRequest(c *gin.Context, info *relaycommon.Rela
 		// set specific parameters for different models
 		// https://ai.google.dev/api/embeddings?hl=zh-cn#method:-models.embedcontent
 		switch info.UpstreamModelName {
-		case "text-embedding-004", "gemini-embedding-exp-03-07", "gemini-embedding-001":
+		case "text-embedding-004", "gemini-embedding-exp-03-07", "gemini-embedding-001", "gemini-embedding-2":
 			// Only newer models introduced after 2024 support OutputDimensionality
 			if request.Dimensions > 0 {
 				geminiRequest["outputDimensionality"] = request.Dimensions
@@ -238,6 +242,9 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 		if strings.Contains(info.RequestURLPath, ":embedContent") ||
 			strings.Contains(info.RequestURLPath, ":batchEmbedContents") {
 			return NativeGeminiEmbeddingHandler(c, resp, info)
+		}
+		if strings.Contains(info.RequestURLPath, ":countTokens") {
+			return NativeGeminiCountTokensHandler(c, resp, info)
 		}
 		if info.IsStream {
 			return GeminiTextGenerationStreamHandler(c, info, resp)

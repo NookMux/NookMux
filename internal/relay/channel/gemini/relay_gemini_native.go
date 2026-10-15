@@ -93,6 +93,37 @@ func NativeGeminiEmbeddingHandler(c *gin.Context, resp *http.Response, info *rel
 	return usage, nil
 }
 
+// NativeGeminiCountTokensHandler 校验并原样回写上游 countTokens 响应。计费沿用
+// embedding 处理器的口径按输入 token 结算；若返回零用量会被计费层判定为上游
+// 缺失计费信息并触发 502 重试，因此优先采用上游返回的精确 totalTokens。
+func NativeGeminiCountTokensHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*shared.Usage, *shared.NookMuxError) {
+	defer helper.CloseResponseBodyGracefully(resp)
+
+	responseBody, err := helper.ReadResponseBody(resp.Body)
+	if err != nil {
+		return nil, shared.NewOpenAIError(err, shared.ErrorCodeBadResponseBody, http.StatusInternalServerError)
+	}
+
+	if common.DebugEnabled {
+		println(string(responseBody))
+	}
+
+	usage := billing.ResponseText2Usage(c, "", info.UpstreamModelName, info.GetEstimatePromptTokens())
+
+	var geminiResponse shared.GeminiCountTokensResponse
+	if err := jsonx.Unmarshal(responseBody, &geminiResponse); err != nil {
+		return nil, shared.NewOpenAIError(err, shared.ErrorCodeBadResponseBody, http.StatusInternalServerError)
+	}
+	if geminiResponse.TotalTokens > 0 {
+		usage.PromptTokens = geminiResponse.TotalTokens
+		usage.TotalTokens = geminiResponse.TotalTokens
+	}
+
+	helper.IOCopyBytesGracefully(c, resp, responseBody)
+
+	return usage, nil
+}
+
 func GeminiTextGenerationStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*shared.Usage, *shared.NookMuxError) {
 	helper.SetEventStreamHeaders(c)
 

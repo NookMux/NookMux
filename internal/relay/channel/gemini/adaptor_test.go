@@ -1,12 +1,47 @@
 package gemini
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
+	relayconstant "github.com/NookMux/NookMux/internal/relay/constant"
 )
+
+// TestAdaptorGetRequestURL_CountTokensAction verifies the Gemini-native
+// countTokens action maps to the upstream :countTokens endpoint.
+func TestAdaptorGetRequestURL_CountTokensAction(t *testing.T) {
+	adaptor := &Adaptor{}
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelBaseUrl:    "https://generativelanguage.googleapis.com",
+			UpstreamModelName: "gemini-2.5-pro",
+		},
+		RelayMode:      relayconstant.RelayModeGemini,
+		RequestURLPath: "/v1beta/models/gemini-2.5-pro:countTokens",
+	}
+
+	got, err := adaptor.GetRequestURL(info)
+	if err != nil {
+		t.Fatalf("GetRequestURL error = %v", err)
+	}
+	want := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:countTokens"
+	if got != want {
+		t.Fatalf("countTokens URL = %q, want %q", got, want)
+	}
+
+	// 非 Gemini 原生入站（OpenAI 协议等）不应命中 countTokens 分支。
+	info.RelayMode = relayconstant.RelayModeChatCompletions
+	got, err = adaptor.GetRequestURL(info)
+	if err != nil {
+		t.Fatalf("GetRequestURL error = %v", err)
+	}
+	if strings.Contains(got, "countTokens") {
+		t.Fatalf("OpenAI-inbound URL should keep generateContent action, got: %s", got)
+	}
+}
 
 func TestAdaptorConvertClaudeRequestPreservesThinkingToolChoiceAndToolResults(t *testing.T) {
 	request := &shared.ClaudeRequest{

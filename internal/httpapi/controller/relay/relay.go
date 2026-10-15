@@ -60,6 +60,8 @@ func geminiRelayHandler(c *gin.Context, info *relaycommon.RelayInfo) *shared.Noo
 	var err *shared.NookMuxError
 	if strings.Contains(c.Request.URL.Path, "embed") {
 		err = relay.GeminiEmbeddingHandler(c, info)
+	} else if strings.Contains(c.Request.URL.Path, ":countTokens") {
+		err = relay.GeminiCountTokensHandler(c, info)
 	} else {
 		err = relay.GeminiHelper(c, info)
 	}

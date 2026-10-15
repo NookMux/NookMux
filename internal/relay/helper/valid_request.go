@@ -37,6 +37,8 @@ func GetAndValidateRequest(c *gin.Context, format relayconstant.RelayFormat) (re
 			request, err = GetAndValidateGeminiEmbeddingRequest(c)
 		} else if strings.Contains(c.Request.URL.Path, ":batchEmbedContents") {
 			request, err = GetAndValidateGeminiBatchEmbeddingRequest(c)
+		} else if strings.Contains(c.Request.URL.Path, ":countTokens") {
+			request, err = GetAndValidateGeminiCountTokensRequest(c)
 		} else {
 			request, err = GetAndValidateGeminiRequest(c)
 		}
@@ -347,6 +349,18 @@ func GetAndValidateGeminiRequest(c *gin.Context) (*shared.GeminiChatRequest, err
 	//	relayInfo.IsStream = true
 	//}
 
+	return request, nil
+}
+
+func GetAndValidateGeminiCountTokensRequest(c *gin.Context) (*shared.GeminiCountTokensRequest, error) {
+	request := &shared.GeminiCountTokensRequest{}
+	err := httpapi.UnmarshalBodyReusable(c, request)
+	if err != nil {
+		return nil, err
+	}
+	if len(request.Contents) == 0 && request.GenerateContentRequest == nil {
+		return nil, errors.New("contents is required")
+	}
 	return request, nil
 }
 

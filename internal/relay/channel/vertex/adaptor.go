@@ -135,26 +135,13 @@ func (a *Adaptor) getRequestUrl(info *relaycommon.RelayInfo, modelName, suffix s
 			return BuildOpenSourceChatCompletionsURL(info.ChannelBaseUrl, adc.ProjectID, region), nil
 		}
 	} else {
-		var keyPrefix string
-		if strings.HasSuffix(suffix, "?alt=sse") {
-			keyPrefix = "&"
-		} else {
-			keyPrefix = "?"
+		if a.RequestMode == RequestModeOpenSource {
+			return "", errors.New("vertex api key mode does not support open-source model endpoints; configure service account JSON credentials")
 		}
 		if a.RequestMode == RequestModeGemini {
-			return fmt.Sprintf(
-				"%s%skey=%s",
-				BuildGoogleModelURL(info.ChannelBaseUrl, DefaultAPIVersion, "", region, modelName, suffix),
-				keyPrefix,
-				info.ApiKey,
-			), nil
+			return BuildGoogleModelURL(info.ChannelBaseUrl, DefaultAPIVersion, "", region, modelName, suffix), nil
 		} else if a.RequestMode == RequestModeClaude {
-			return fmt.Sprintf(
-				"%s%skey=%s",
-				BuildAnthropicModelURL(info.ChannelBaseUrl, DefaultAPIVersion, "", region, modelName, suffix),
-				keyPrefix,
-				info.ApiKey,
-			), nil
+			return BuildAnthropicModelURL(info.ChannelBaseUrl, DefaultAPIVersion, "", region, modelName, suffix), nil
 		}
 	}
 	return "", errors.New("unsupported request mode")
@@ -171,6 +158,10 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 
 		if strings.HasPrefix(info.UpstreamModelName, "imagen") {
 			suffix = "predict"
+		}
+
+		if info.RelayMode == constant.RelayModeGemini && strings.Contains(info.RequestURLPath, ":countTokens") {
+			suffix = "countTokens"
 		}
 		return a.getRequestUrl(info, info.UpstreamModelName, suffix)
 	} else if a.RequestMode == RequestModeClaude {
@@ -198,6 +189,9 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *rel
 			return err
 		}
 		req.Set("Authorization", "Bearer "+accessToken)
+	} else {
+		// Google 官方推荐 API key 通过请求头传递，拼进 URL query 会随访问日志泄露。
+		req.Set("x-goog-api-key", info.ApiKey)
 	}
 	if a.AccountCredentials.ProjectID != "" {
 		req.Set("x-goog-user-project", a.AccountCredentials.ProjectID)
@@ -345,6 +339,9 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 			return claudeAdaptor.DoResponse(c, resp, info)
 		case RequestModeGemini:
 			if info.RelayMode == constant.RelayModeGemini {
+				if strings.Contains(info.RequestURLPath, ":countTokens") {
+					return gemini.NativeGeminiCountTokensHandler(c, resp, info)
+				}
 				return gemini.GeminiTextGenerationHandler(c, info, resp)
 			} else {
 				if strings.HasPrefix(info.UpstreamModelName, "imagen") {

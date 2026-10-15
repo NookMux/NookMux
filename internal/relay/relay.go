@@ -61,6 +61,11 @@ func GeminiEmbeddingHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPI
 	return handler.GeminiEmbeddingHandler(c, info)
 }
 
+// GeminiCountTokensHandler relays Gemini countTokens requests.
+func GeminiCountTokensHandler(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *shared.NookMuxError) {
+	return handler.GeminiCountTokensHandler(c, info)
+}
+
 // AudioHelper relays audio transcription/translation/speech requests.
 func AudioHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *shared.NookMuxError) {
 	return handler.AudioHelper(c, info)

@@ -90,7 +90,7 @@ func createSignedJWT(email, privateKeyPEM string) (string, error) {
 	claims := jwt.MapClaims{
 		"iss":   email,
 		"scope": "https://www.googleapis.com/auth/cloud-platform",
-		"aud":   "https://www.googleapis.com/oauth2/v4/token",
+		"aud":   "https://oauth2.googleapis.com/token",
 		"exp":   now.Add(time.Minute * 35).Unix(),
 		"iat":   now.Unix(),
 	}
@@ -106,7 +106,7 @@ func createSignedJWT(email, privateKeyPEM string) (string, error) {
 
 func exchangeJwtForAccessToken(signedJWT string, info *relaycommon.RelayInfo) (string, error) {
 
-	authURL := "https://www.googleapis.com/oauth2/v4/token"
+	authURL := "https://oauth2.googleapis.com/token"
 	data := url.Values{}
 	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
 	data.Set("assertion", signedJWT)
@@ -137,47 +137,5 @@ func exchangeJwtForAccessToken(signedJWT string, info *relaycommon.RelayInfo) (s
 		return accessToken, nil
 	}
 
-	return "", fmt.Errorf("failed to get access token: %v", result)
-}
-
-func AcquireAccessToken(creds Credentials, proxy string) (string, error) {
-	signedJWT, err := createSignedJWT(creds.ClientEmail, creds.PrivateKey)
-	if err != nil {
-		return "", fmt.Errorf("failed to create signed JWT: %w", err)
-	}
-	return exchangeJwtForAccessTokenWithProxy(signedJWT, proxy)
-}
-
-func exchangeJwtForAccessTokenWithProxy(signedJWT string, proxy string) (string, error) {
-	authURL := "https://www.googleapis.com/oauth2/v4/token"
-	data := url.Values{}
-	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer")
-	data.Set("assertion", signedJWT)
-
-	var client *http.Client
-	var err error
-	if proxy != "" {
-		client, err = httpclient.NewProxyHttpClient(proxy)
-		if err != nil {
-			return "", fmt.Errorf("new proxy http client failed: %w", err)
-		}
-	} else {
-		client = httpclient.GetHttpClient()
-	}
-
-	resp, err := client.PostForm(authURL, data)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := jsonx.DecodeJson(resp.Body, &result); err != nil {
-		return "", err
-	}
-
-	if accessToken, ok := result["access_token"].(string); ok {
-		return accessToken, nil
-	}
 	return "", fmt.Errorf("failed to get access token: %v", result)
 }
