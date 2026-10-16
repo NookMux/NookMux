@@ -73,7 +73,7 @@
     "@rsbuild/plugin-react": "^2.1.0",
     "@tanstack/eslint-plugin-query": "^5.103.1",
     "@tanstack/react-query-devtools": "^5.103.1",
-    "@tanstack/react-router-devtools": "^1.167.1",
+    "@tanstack/react-router-devtools": "^1.167.2",
     "@tanstack/router-plugin": "^1.168.25",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/hast": "^3.0.5",
