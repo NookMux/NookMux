@@ -10,7 +10,7 @@ type GeneralSetting struct {
 
 // 默认配置
 var generalSetting = GeneralSetting{
-	DocsLink:            "https://docs.newapi.pro",
+	DocsLink:            "https://github.com/NookMux/NookMux/tree/main/docs/zh",
 	PingIntervalEnabled: false,
 	PingIntervalSeconds: 60,
 }

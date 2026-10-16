@@ -464,7 +464,7 @@ func ProcessChannelError(c *gin.Context, channelError domainchannel.ChannelError
 func RelayNotImplemented(c *gin.Context) {
 	err := shared.OpenAIError{
 		Message: "API not implemented",
-		Type:    "new_api_error",
+		Type:    string(shared.ErrorTypeNookMuxError),
 		Param:   "",
 		Code:    "api_not_implemented",
 	}

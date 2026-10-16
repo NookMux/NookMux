@@ -52,7 +52,7 @@ export type WaffoPancakePaymentResponse = ApiResponse<
       expires_at?: number | string
       order_id?: string
       // Self-service session token + expiry — surfaced by the backend so
-      // future flows (refund / cancel from new-api's own UI) can use them
+      // future flows (refund / cancel from NookMux's own UI) can use them
       // without re-issuing checkout. Not consumed by the current handler.
       token?: string
       token_expires_at?: number | string

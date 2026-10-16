@@ -67,7 +67,7 @@ interface HubDiagramProps {
 
 /**
  * Zeabur-style routing diagram: an infinitely scrolling pill of LLM provider
- * icons on the left converges into the New API hub, then fans out through
+ * icons on the left converges into the NookMux hub, then fans out through
  * colored bezier curves to developer tools on the right.
  *
  * Decorative unless `onHubActivate` is passed, which promotes the center hub
@@ -133,7 +133,7 @@ export function HubDiagram({
           </div>
         </div>
 
-        {/* Center: New API hub */}
+        {/* Center: NookMux hub */}
         <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'>
           <div className='bg-primary/20 absolute -inset-5 rounded-full blur-2xl' />
           <HubTag

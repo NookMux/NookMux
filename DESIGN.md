@@ -1,6 +1,6 @@
 # DESIGN.md
 
-New API 前端（`web/`）的视觉与交互规范，团队与 AI 代理共读：`AGENTS.md` 管"怎么构建"，本文件管"界面长什么样"。源码是唯一真实来源，冲突时以源码为准并修正本文件。
+NookMux 前端（`web/`）的视觉与交互规范，团队与 AI 代理共读：`AGENTS.md` 管"怎么构建"，本文件管"界面长什么样"。源码是唯一真实来源，冲突时以源码为准并修正本文件。
 
 令牌：`web/src/styles/theme.css`（颜色/圆角）、`theme-presets.css`（主题）、`web/src/lib/motion.ts`（动效）。基座：React 19 + Tailwind CSS 4 + Base UI + cva。
 

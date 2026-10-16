@@ -65,7 +65,7 @@ func GetUsage(c *gin.Context) {
 	if err != nil {
 		openAIError := shared.OpenAIError{
 			Message: err.Error(),
-			Type:    "new_api_error",
+			Type:    string(shared.ErrorTypeNookMuxError),
 		}
 		c.JSON(200, gin.H{
 			"error": openAIError,

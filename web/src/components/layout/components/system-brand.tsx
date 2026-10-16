@@ -52,7 +52,7 @@ export function SystemBrand(props: SystemBrandProps) {
   const { logo } = useSystemConfig()
 
   const variant = props.variant ?? 'sidebar'
-  const name = status?.system_name || props.defaultName || 'New API'
+  const name = status?.system_name || props.defaultName || 'NookMux'
   // 版本指纹走 AdminAuth 接口（useSystemInfo），非 admin 不发起请求并显示占位文案
   const version =
     systemInfoVersion ||

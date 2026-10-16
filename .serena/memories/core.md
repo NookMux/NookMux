@@ -1,4 +1,4 @@
-# New API — 项目核心
+# NookMux — 项目核心
 
 Go 实现的 AI API 网关与后台,聚合 OpenAI / Claude / Gemini / Azure / AWS Bedrock 等 40+ 上游,
 对外提供统一 API、用户/渠道/计费/限速/认证/管理后台。前端为 React 19 + Rsbuild。

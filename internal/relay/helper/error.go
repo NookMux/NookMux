@@ -29,7 +29,7 @@ import (
 //	}
 //	openAIError := shared.OpenAIError{
 //		Message: text,
-//		Type:    "new_api_error",
+//		Type:    "nookmux_error",
 //		Code:    code,
 //	}
 //	return &shared.OpenAIErrorWithStatusCode{
@@ -55,7 +55,7 @@ func ClaudeErrorWrapper(err error, code string, statusCode int) *shared.ClaudeEr
 	}
 	claudeError := shared.ClaudeError{
 		Message: text,
-		Type:    "new_api_error",
+		Type:    string(shared.ErrorTypeNookMuxError),
 	}
 	return &shared.ClaudeErrorWithStatusCode{
 		Error:      claudeError,

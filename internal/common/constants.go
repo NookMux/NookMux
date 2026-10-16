@@ -11,7 +11,7 @@ import (
 )
 
 var Version = "" // injected at build time via -ldflags; defaults to git commit hash
-var SystemName = "New API"
+var SystemName = "NookMux"
 var Footer = ""
 var Logo = ""
 var TopUpLink = ""

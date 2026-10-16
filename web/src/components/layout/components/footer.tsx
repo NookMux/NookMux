@@ -154,7 +154,7 @@ export function Footer(props: FooterProps) {
   } = useSystemConfig()
 
   const displayLogo = systemLogo || props.logo || '/logo.png'
-  const displayName = systemName || props.name || 'New API'
+  const displayName = systemName || props.name || 'NookMux'
   const isDemoSiteMode = Boolean(demoSiteEnabled)
   const currentYear = new Date().getFullYear()
 
@@ -165,15 +165,15 @@ export function Footer(props: FooterProps) {
         links: [
           {
             text: t('layout.tips.footerColumnsAboutLinksAboutProject'),
-            href: 'https://docs.newapi.pro/wiki/project-introduction/',
+            href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/guide/wiki/basic-concepts/project-introduction.mdx',
           },
           {
             text: t('layout.tips.footerColumnsAboutLinksContact'),
-            href: 'https://docs.newapi.pro/support/community-interaction/',
+            href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/guide/wiki/project-records/special-thanks.mdx',
           },
           {
             text: t('layout.tips.footerColumnsAboutLinksFeatures'),
-            href: 'https://docs.newapi.pro/wiki/features-introduction/',
+            href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/guide/wiki/basic-concepts/features-introduction.mdx',
           },
         ],
       },
@@ -182,15 +182,15 @@ export function Footer(props: FooterProps) {
         links: [
           {
             text: t('layout.tips.footerColumnsDocsLinksQuickStart'),
-            href: 'https://docs.newapi.pro/getting-started/',
+            href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/installation/index.mdx',
           },
           {
             text: t('layout.tips.footerColumnsDocsLinksInstallation'),
-            href: 'https://docs.newapi.pro/installation/',
+            href: 'https://github.com/NookMux/NookMux/tree/main/docs/zh/installation',
           },
           {
             text: t('layout.tips.footerColumnsDocsLinksApiDocs'),
-            href: 'https://docs.newapi.pro/api/',
+            href: 'https://github.com/NookMux/NookMux/tree/main/docs/zh/api',
           },
         ],
       },
