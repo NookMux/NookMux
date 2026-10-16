@@ -177,7 +177,6 @@
   "channels.fields.baseUrlCustom": "Custom",
   "channels.fields.baseUrlDefault": "Default",
   "channels.fields.baseUrlDomestic": "China site",
-  "channels.fields.baseUrlGeminiOpenAICompat": "Gemini OpenAI Compat",
   "channels.fields.baseUrlInternational": "International site",
   "channels.fields.baseUrlOfficial": "Official",
   "channels.fields.batchEdit": "Batch Edit",

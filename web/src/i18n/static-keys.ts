@@ -667,7 +667,6 @@ export const STATIC_I18N_KEYS = [
   // Channel form base_url preset select (dynamic option labels)
   'channels.fields.baseUrlDefault',
   'channels.fields.baseUrlDomestic',
-  'channels.fields.baseUrlGeminiOpenAICompat',
   'channels.fields.baseUrlInternational',
   'channels.fields.baseUrlOfficial',
 ] as const

@@ -14,8 +14,6 @@ type BuiltinURLOption struct {
 var BuiltinChannelURLOptions = map[int][]BuiltinURLOption{
 	ChannelTypeOpenAI: {
 		{Value: "https://api.openai.com", LabelKey: "channels.fields.baseUrlOfficial"},
-		// Gemini API 的官方 OpenAI 兼容层，key 填 AI Studio API Key（Bearer 透传）。
-		{Value: "https://generativelanguage.googleapis.com/v1beta/openai", LabelKey: "channels.fields.baseUrlGeminiOpenAICompat"},
 	},
 	ChannelTypeAnthropic: {
 		{Value: "https://api.anthropic.com", LabelKey: "channels.fields.baseUrlOfficial"},

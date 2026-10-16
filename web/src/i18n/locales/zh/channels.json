@@ -177,7 +177,6 @@
   "channels.fields.baseUrlCustom": "自定义",
   "channels.fields.baseUrlDefault": "默认",
   "channels.fields.baseUrlDomestic": "国内站",
-  "channels.fields.baseUrlGeminiOpenAICompat": "Gemini OpenAI 兼容",
   "channels.fields.baseUrlInternational": "国际站",
   "channels.fields.baseUrlOfficial": "官方",
   "channels.fields.batchEdit": "批量编辑",

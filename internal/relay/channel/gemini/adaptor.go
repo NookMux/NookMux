@@ -10,11 +10,9 @@ import (
 	"github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/NookMux/NookMux/internal/relay/channel"
-	"github.com/NookMux/NookMux/internal/relay/channel/openrouter"
+	"github.com/NookMux/NookMux/internal/relay/channel/openai"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
 	"github.com/NookMux/NookMux/internal/relay/constant"
-
-	"github.com/NookMux/NookMux/pkg/jsonx"
 
 	"github.com/NookMux/NookMux/internal/relay/helper"
 	"github.com/gin-gonic/gin"
@@ -48,13 +46,9 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
-	if req != nil && req.Thinking != nil && req.Thinking.Type == "enabled" && len(oaiReq.Reasoning) == 0 {
-		reasoningPayload, marshalErr := jsonx.Marshal(openrouter.RequestReasoning{MaxTokens: req.Thinking.GetBudgetTokens()})
-		if marshalErr != nil {
-			return nil, marshalErr
-		}
-		oaiReq.Reasoning = reasoningPayload
-	}
+	// Gemini 渠道对 Claude 入站走官方 OpenAI 兼容层直通：经 ClaudeToOpenAIRequest
+	// 转成 OpenAI 请求后透传上游，thinking 已映射为 ReasoningEffort；不再注入
+	// openrouter 风格 reasoning 载荷（兼容层不识别）。
 	return a.ConvertOpenAIRequest(c, info, oaiReq)
 }
 
@@ -152,6 +146,12 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 		return fmt.Sprintf("%s/%s/models/%s:countTokens", info.ChannelBaseUrl, version, info.UpstreamModelName), nil
 	}
 
+	// OpenAI / Claude 入站 chat 走 Google 官方 OpenAI 兼容层直通，固定 v1beta/openai
+	// 路径（不吃 GetGeminiVersionSetting），标准 OpenAI SSE，鉴权 Bearer。
+	if info.RelayFormat == constant.RelayFormatOpenAI || info.RelayFormat == constant.RelayFormatClaude {
+		return fmt.Sprintf("%s/v1beta/openai/chat/completions", info.ChannelBaseUrl), nil
+	}
+
 	action := "generateContent"
 	if info.IsStream {
 		action = "streamGenerateContent?alt=sse"
@@ -164,6 +164,13 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) error {
 	channel.SetupApiRequestHeader(info, c, req)
+	// 兼容层使用标准 Authorization: Bearer；原生 Gemini 端点用 x-goog-api-key。
+	if info.RelayFormat == constant.RelayFormatOpenAI || info.RelayFormat == constant.RelayFormatClaude {
+		if info.ApiKey != "" {
+			req.Set("Authorization", "Bearer "+info.ApiKey)
+		}
+		return nil
+	}
 	req.Set("x-goog-api-key", info.ApiKey)
 	return nil
 }
@@ -172,13 +179,12 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if request == nil {
 		return nil, errors.New("request is nil")
 	}
-
-	geminiRequest, err := CovertOpenAI2Gemini(c, *request, info)
-	if err != nil {
-		return nil, err
+	// 直通官方 OpenAI 兼容层：请求体恒等透传，仅在流式下补 stream_options.include_usage
+	// 以保证计费 usage 准确（Google 兼容层支持）。
+	if info.IsStream && info.SupportStreamOptions {
+		request.StreamOptions = &shared.StreamOptions{IncludeUsage: true}
 	}
-
-	return geminiRequest, nil
+	return request, nil
 }
 
 func (a *Adaptor) ConvertRerankRequest(c *gin.Context, relayMode int, request shared.RerankRequest) (any, error) {
@@ -238,6 +244,14 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 }
 
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *shared.NookMuxError) {
+	// OpenAI / Claude 入站 chat 直通官方兼容层：响应为 OpenAI wire，委托 openai
+	// adaptor 处理（其内部按 RelayFormatClaude 回写 Claude Messages 格式）。
+	if info.RelayFormat == constant.RelayFormatOpenAI || info.RelayFormat == constant.RelayFormatClaude {
+		delegate := &openai.Adaptor{}
+		delegate.Init(info)
+		return delegate.DoResponse(c, resp, info)
+	}
+
 	if info.RelayMode == constant.RelayModeGemini {
 		if strings.Contains(info.RequestURLPath, ":embedContent") ||
 			strings.Contains(info.RequestURLPath, ":batchEmbedContents") {
@@ -264,12 +278,14 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 		return GeminiEmbeddingHandler(c, info, resp)
 	}
 
-	if info.IsStream {
-		return GeminiChatStreamHandler(c, info, resp)
-	} else {
-		return GeminiChatHandler(c, info, resp)
-	}
-
+	// OpenAI/Claude chat 已由兼容层分支委托，原生 Gemini 已由上方 RelayModeGemini
+	// 分支处理，到达此处说明入站格式与模型均不在 Gemini 渠道支持范围内。
+	return nil, shared.NewOpenAIError(
+		fmt.Errorf("unsupported relay format/mode for gemini channel: format=%s mode=%d model=%s",
+			info.RelayFormat, info.RelayMode, info.UpstreamModelName),
+		shared.ErrorCodeInvalidRequest,
+		http.StatusBadRequest,
+	)
 }
 
 func (a *Adaptor) GetModelList() []string {

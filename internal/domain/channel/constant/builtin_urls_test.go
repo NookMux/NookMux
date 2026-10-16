@@ -8,8 +8,6 @@ import "testing"
 func TestBuiltinChannelURLOptionsConsistency(t *testing.T) {
 	// 智谱国际站无 ChannelBaseURLs 对应项（默认为国内站），作为独立站点预设放行
 	const zhipuInternationalSite = "https://api.z.ai"
-	// Gemini API 官方 OpenAI 兼容层是 OpenAI 渠道的另一官方端点，作为独立站点预设放行
-	const geminiOpenAICompatSite = "https://generativelanguage.googleapis.com/v1beta/openai"
 
 	exposedPlans := make(map[string]bool)
 	for channelType, options := range BuiltinChannelURLOptions {
@@ -32,9 +30,6 @@ func TestBuiltinChannelURLOptionsConsistency(t *testing.T) {
 				continue
 			}
 			if channelType == ChannelTypeZhipu_v4 && option.Value == zhipuInternationalSite {
-				continue
-			}
-			if channelType == ChannelTypeOpenAI && option.Value == geminiOpenAICompatSite {
 				continue
 			}
 			if option.Value != ChannelBaseURLs[channelType] {
