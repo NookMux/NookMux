@@ -26,6 +26,7 @@ import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
+import { Route as errorsMobileUnsupportedRouteImport } from './routes/(errors)/mobile-unsupported'
 import { Route as AuthenticatedSystemSettingsRouteRouteImport } from './routes/_authenticated/system-settings/route'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as ConsoleLogRouteImport } from './routes/console/log'
@@ -156,6 +157,11 @@ const errors500Route = errors500RouteImport.update({
 const errors503Route = errors503RouteImport.update({
   id: '/(errors)/503',
   path: '/503',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const errorsMobileUnsupportedRoute = errorsMobileUnsupportedRouteImport.update({
+  id: '/(errors)/mobile-unsupported',
+  path: '/mobile-unsupported',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSystemSettingsRouteRoute =
@@ -452,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/mobile-unsupported': typeof errorsMobileUnsupportedRoute
   '/console/log': typeof ConsoleLogRoute
   '/console/topup': typeof ConsoleTopupRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -516,6 +523,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/mobile-unsupported': typeof errorsMobileUnsupportedRoute
   '/console/log': typeof ConsoleLogRoute
   '/console/topup': typeof ConsoleTopupRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -584,6 +592,7 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/(errors)/mobile-unsupported': typeof errorsMobileUnsupportedRoute
   '/console/log': typeof ConsoleLogRoute
   '/console/topup': typeof ConsoleTopupRoute
   '/oauth/$provider': typeof OauthProviderRoute
@@ -651,6 +660,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/mobile-unsupported'
     | '/console/log'
     | '/console/topup'
     | '/oauth/$provider'
@@ -715,6 +725,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/mobile-unsupported'
     | '/console/log'
     | '/console/topup'
     | '/oauth/$provider'
@@ -782,6 +793,7 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/(errors)/mobile-unsupported'
     | '/console/log'
     | '/console/topup'
     | '/oauth/$provider'
@@ -842,6 +854,7 @@ export interface RootRouteChildren {
   errors404Route: typeof errors404Route
   errors500Route: typeof errors500Route
   errors503Route: typeof errors503Route
+  errorsMobileUnsupportedRoute: typeof errorsMobileUnsupportedRoute
   ConsoleLogRoute: typeof ConsoleLogRoute
   ConsoleTopupRoute: typeof ConsoleTopupRoute
   OauthProviderRoute: typeof OauthProviderRoute
@@ -972,6 +985,13 @@ declare module '@tanstack/react-router' {
       path: '/503'
       fullPath: '/503'
       preLoaderRoute: typeof errors503RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(errors)/mobile-unsupported': {
+      id: '/(errors)/mobile-unsupported'
+      path: '/mobile-unsupported'
+      fullPath: '/mobile-unsupported'
+      preLoaderRoute: typeof errorsMobileUnsupportedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/system-settings': {
@@ -1468,6 +1488,7 @@ const rootRouteChildren: RootRouteChildren = {
   errors404Route: errors404Route,
   errors500Route: errors500Route,
   errors503Route: errors503Route,
+  errorsMobileUnsupportedRoute: errorsMobileUnsupportedRoute,
   ConsoleLogRoute: ConsoleLogRoute,
   ConsoleTopupRoute: ConsoleTopupRoute,
   OauthProviderRoute: OauthProviderRoute,
