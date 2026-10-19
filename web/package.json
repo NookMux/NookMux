@@ -113,6 +113,7 @@
     "uuid": "14.0.0"
   },
   "patchedDependencies": {
-    "brace-expansion@5.0.12": "patches/brace-expansion@5.0.12.patch"
+    "brace-expansion@5.0.12": "patches/brace-expansion@5.0.12.patch",
+    "braces@3.0.3": "patches/braces@3.0.3.patch"
   }
 }
