@@ -380,7 +380,11 @@ function RadiusConfig() {
                 style={{ borderTopLeftRadius: option.preview }}
               />
             </div>
-            <div className='mt-1.5 text-center text-xs'>{option.label}</div>
+            <div className='mt-1.5 text-center text-xs'>
+              {option.value === 'default'
+                ? t('common.fields.auto')
+                : option.label}
+            </div>
           </Item>
         ))}
       </Radio>

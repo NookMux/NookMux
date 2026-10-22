@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { normalizeInterfaceLanguage } from '@/i18n/languages'
 import i18next from 'i18next'
 import {
   formatCompactCurrencyFromUSD,
@@ -267,7 +268,8 @@ export function formatRelativeTime(timestamp: number, t?: TFunction): string {
     return t ? t('common.status.never') : 'Never'
 
   try {
-    const locale = i18next.language === 'zh' ? 'zh-cn' : 'en'
+    const locale =
+      normalizeInterfaceLanguage(i18next.language) === 'zh' ? 'zh-cn' : 'en'
     return dayjs(timestamp * 1000)
       .locale(locale)
       .fromNow()
