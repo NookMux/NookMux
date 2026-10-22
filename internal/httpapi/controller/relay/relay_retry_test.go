@@ -1,6 +1,7 @@
 package relaycontroller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -317,4 +318,179 @@ func TestRelay_RetryLoopPerAttemptDurationNotCumulative(t *testing.T) {
 	require.Equal(t, 2, logs[1].ChannelId)
 	require.GreaterOrEqual(t, logs[1].UseTime, 25)
 	require.Less(t, logs[1].UseTime, 90)
+}
+
+// 客户端终止后产生的错误（空 usage 502、写客户端失败 500）不应再触发自动重试。
+func TestShouldRetrySkipsWhenClientDisconnected(t *testing.T) {
+	orig := operation.AutomaticRetryStatusCodeRanges
+	t.Cleanup(func() { operation.AutomaticRetryStatusCodeRanges = orig })
+	operation.AutomaticRetryStatusCodeRanges = []operation.StatusCodeRange{{Start: 500, End: 599}}
+
+	disconnectedCtx := func() *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		req := httptest.NewRequest("POST", "/v1/chat/completions", nil)
+		ctx, cancel := context.WithCancel(req.Context())
+		c.Request = req.WithContext(ctx)
+		cancel()
+		return c
+	}
+
+	// 客户端断开后流提前结束、usage 为空产生的可重试 502
+	emptyUsageErr := shared.NewOpenAIError(errors.New("上游无计费信息"), shared.ErrorCodeBadResponse, http.StatusBadGateway)
+	require.False(t, shouldRetry(disconnectedCtx(), emptyUsageErr, 3))
+
+	// 客户端断开后写流失败被包装成的 500
+	writeErr := shared.NewError(errors.New("write: broken pipe"), shared.ErrorCodeBadResponseBody)
+	require.False(t, shouldRetry(disconnectedCtx(), writeErr, 3))
+
+	// 未断开时同类错误仍按状态码正常重试
+	connected := func() *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest("POST", "/v1/chat/completions", nil)
+		return c
+	}
+	require.True(t, shouldRetry(connected(), emptyUsageErr, 3))
+	require.True(t, shouldRetry(connected(), writeErr, 3))
+}
+
+// 回归测试（issue #403）：客户端在流式响应首 token 延迟期间终止，
+// 网关不得向上游重发请求。CountToken 关闭使中断必然产生可重试的
+// 空 usage 502，验证该 502 不会再驱动重试循环。
+func TestRelay_ClientAbortMidStreamDoesNotRetry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var (
+		oldDB             = dbstore.DB
+		oldLogDB          = dbstore.LOG_DB
+		oldErrorLogEnable = shared.ErrorLogEnabled
+		oldRetryTimes     = common.RetryTimes
+		oldAutoRetry      = common.AutomaticRetryEnabled
+		oldMemCache       = common.MemoryCacheEnabled
+		oldRetryRanges    = operation.AutomaticRetryStatusCodeRanges
+		oldRedis          = redisinfra.RedisEnabled
+		oldCountToken     = shared.CountToken
+	)
+
+	shared.ErrorLogEnabled = true
+	common.AutomaticRetryEnabled = true
+	common.RetryTimes = 3
+	common.MemoryCacheEnabled = true
+	redisinfra.RedisEnabled = false
+	shared.CountToken = false
+	operation.AutomaticRetryStatusCodeRanges = []operation.StatusCodeRange{{Start: 500, End: 599}}
+	ratio.InitRatioSettings()
+	httpclient.InitHttpClient()
+
+	testDB, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, testDB.AutoMigrate(userstore.User{}, tokenstore.Token{}, channelstore.Channel{}, channelstore.Ability{}, logstore.Log{}))
+	dbstore.DB = testDB
+	dbstore.LOG_DB = testDB
+
+	t.Cleanup(func() {
+		runtime.WaitRelayTasks()
+		if sqlDB, err := testDB.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+		dbstore.DB = oldDB
+		dbstore.LOG_DB = oldLogDB
+		shared.ErrorLogEnabled = oldErrorLogEnable
+		common.RetryTimes = oldRetryTimes
+		common.AutomaticRetryEnabled = oldAutoRetry
+		common.MemoryCacheEnabled = oldMemCache
+		operation.AutomaticRetryStatusCodeRanges = oldRetryRanges
+		redisinfra.RedisEnabled = oldRedis
+		shared.CountToken = oldCountToken
+	})
+
+	var upstreamRequests int
+	var mu sync.Mutex
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		upstreamRequests++
+		mu.Unlock()
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		// 模拟上游首 token 延迟，期间客户端发出终止
+		time.Sleep(2 * time.Second)
+	}))
+	defer upstream.Close()
+
+	user := &userstore.User{Id: 1, Username: "test-user", Quota: 1000000, Status: common.UserStatusEnabled}
+	require.NoError(t, testDB.Create(user).Error)
+
+	baseURL := upstream.URL
+	priority := int64(0)
+	weight := uint(1)
+	autoBan := 0
+	ch1 := channelstore.Channel{
+		Id:       1,
+		Type:     channelconstant.ChannelTypeOpenAI,
+		Name:     "channel-1",
+		BaseURL:  &baseURL,
+		Key:      "sk-test1",
+		Models:   "gpt-4o",
+		Group:    "default",
+		Status:   common.ChannelStatusEnabled,
+		Priority: &priority,
+		Weight:   &weight,
+		AutoBan:  &autoBan,
+	}
+	require.NoError(t, testDB.Create(&ch1).Error)
+	require.NoError(t, ch1.AddAbilities(testDB))
+
+	ch2 := ch1
+	ch2.Id = 2
+	ch2.Name = "channel-2"
+	ch2.Key = "sk-test2"
+	require.NoError(t, testDB.Create(&ch2).Error)
+	require.NoError(t, ch2.AddAbilities(testDB))
+
+	channelstore.InitChannelCache()
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	reqBody := `{"model":"gpt-4o","stream":true,"messages":[{"role":"user","content":"hi"}]}`
+	ctx, cancel := context.WithCancel(context.Background())
+	c.Request = httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(reqBody)).WithContext(ctx)
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	require.Nil(t, middleware.SetupContextForSelectedChannel(c, &ch1, "gpt-4o"))
+	c.Set("id", 1)
+	c.Set("username", "test-user")
+	c.Set("token_name", "test-token")
+	c.Set("original_model", "gpt-4o")
+	c.Set("group", "default")
+	httpapi.SetContextKey(c, common.ContextKeyUserId, 1)
+	httpapi.SetContextKey(c, common.ContextKeyTokenId, 1)
+	httpapi.SetContextKey(c, common.ContextKeyTokenKey, "sk-test")
+	httpapi.SetContextKey(c, common.ContextKeyTokenUnlimited, true)
+	httpapi.SetContextKey(c, common.ContextKeyOriginalModel, "gpt-4o")
+	httpapi.SetContextKey(c, common.ContextKeyUserGroup, "default")
+	httpapi.SetContextKey(c, common.ContextKeyUsingGroup, "default")
+	httpapi.SetContextKey(c, common.ContextKeyRequestStartTime, time.Now())
+
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+	}()
+
+	done := make(chan struct{})
+	go func() {
+		Relay(c, relayconstant.RelayFormatOpenAI)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("Relay 未在 30s 内返回")
+	}
+	time.Sleep(200 * time.Millisecond)
+	runtime.WaitRelayTasks()
+
+	mu.Lock()
+	requests := upstreamRequests
+	mu.Unlock()
+
+	require.Equal(t, 1, requests, "客户端终止后不应向上游重发请求")
 }
