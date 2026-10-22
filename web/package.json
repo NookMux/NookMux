@@ -98,6 +98,7 @@
     "browserslist": "4.29.0",
     "dompurify": "3.4.5",
     "fast-uri": "3.1.8",
+    "follow-redirects": "1.16.1",
     "form-data": "4.0.6",
     "hono": "4.13.8",
     "ip-address": "10.7.2",
