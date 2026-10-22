@@ -1,4 +1,4 @@
-FROM golang:1.26.4-alpine@sha256:7a3e50096189ad57c9f9f865e7e4aa8585ed1585248513dc5cda498e2f41812c AS go-builder
+FROM golang:1.26.10-alpine@sha256:5cb67f19c5e7994dcb80c074f7cfca8aeeada45bbdca035f73df269cefdcce61 AS go-builder
 ENV GO111MODULE=on CGO_ENABLED=0
 
 ARG COMMIT_HASH=""
