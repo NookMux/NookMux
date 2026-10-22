@@ -25,9 +25,6 @@ import { IconDir } from '@/assets/custom/icon-dir'
 import { IconLayoutCompact } from '@/assets/custom/icon-layout-compact'
 import { IconLayoutDefault } from '@/assets/custom/icon-layout-default'
 import { IconLayoutFull } from '@/assets/custom/icon-layout-full'
-import { IconSidebarFloating } from '@/assets/custom/icon-sidebar-floating'
-import { IconSidebarInset } from '@/assets/custom/icon-sidebar-inset'
-import { IconSidebarSidebar } from '@/assets/custom/icon-sidebar-sidebar'
 import { IconThemeDark } from '@/assets/custom/icon-theme-dark'
 import { IconThemeLight } from '@/assets/custom/icon-theme-light'
 import { IconThemeSystem } from '@/assets/custom/icon-theme-system'
@@ -106,7 +103,6 @@ export function ConfigDrawer() {
           <PresetConfig />
           <RadiusConfig />
           <ScaleConfig />
-          <SidebarConfig />
           <LayoutConfig />
           <ContentLayoutConfig />
           <DirConfig />
@@ -480,52 +476,6 @@ function ScaleConfig() {
           </Item>
         ))}
       </Radio>
-    </div>
-  )
-}
-
-function SidebarConfig() {
-  const { t } = useTranslation()
-  const { defaultVariant, variant, setVariant } = useLayout()
-  return (
-    <div className='max-md:hidden'>
-      <SectionTitle
-        title={t('common.fields.sidebar')}
-        showReset={defaultVariant !== variant}
-        onReset={() => setVariant(defaultVariant)}
-      />
-      <Radio
-        value={variant}
-        onValueChange={setVariant}
-        className='grid w-full max-w-md grid-cols-3 gap-4'
-        aria-label={t('common.placeholders.selectSidebarStyle')}
-        aria-describedby='sidebar-description'
-      >
-        {[
-          {
-            value: 'inset',
-            label: t('common.fields.inset'),
-            icon: IconSidebarInset,
-          },
-          {
-            value: 'floating',
-            label: t('common.fields.floating'),
-            icon: IconSidebarFloating,
-          },
-          {
-            value: 'sidebar',
-            label: t('common.fields.sidebar'),
-            icon: IconSidebarSidebar,
-          },
-        ].map((item) => (
-          <RadioGroupItem key={item.value} item={item} />
-        ))}
-      </Radio>
-      <div id='sidebar-description' className='sr-only'>
-        {t(
-          'common.placeholders.chooseBetweenInsetFloatingOrStandardSidebarLayout'
-        )}
-      </div>
     </div>
   )
 }

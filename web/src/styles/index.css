@@ -44,7 +44,7 @@ For commercial licensing, please contact support@quantumnous.com
     @apply overflow-x-hidden font-sans;
   }
   body {
-    @apply bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar min-h-svh w-full font-sans;
+    @apply bg-background text-foreground min-h-svh w-full font-sans;
   }
 
   /* Keep sticky headers stable while primitives lock body scrolling. */
@@ -146,6 +146,7 @@ For commercial licensing, please contact support@quantumnous.com
   /* Webkit browsers (Chrome, Safari, Edge) */
   &::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
   }
 
   &::-webkit-scrollbar-track {

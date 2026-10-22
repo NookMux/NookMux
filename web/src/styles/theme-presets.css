@@ -22,14 +22,13 @@ For commercial licensing, please contact support@quantumnous.com
  * Usage: applied via data attributes on <body>:
  *   <body data-theme-preset="rose-garden" data-theme-radius="lg" data-theme-scale="sm" />
  *
- * - `data-theme-preset` overrides the color palette defined in ./theme.css and
- *   ships a curated default `--radius` value to match the preset's mood
- *   (e.g. rose-garden uses 1rem, ocean-breeze uses 0.3rem).
+ * - `data-theme-preset` overrides ONLY the color palette defined in ./theme.css;
+ *   it never changes other appearance settings such as border radius or
+ *   density, which stay owned by their own settings below.
  * - Each preset declares both light and dark color values; dark values use
  *   the `.dark` ancestor selector so they apply when html has the `.dark` class.
  * - `data-theme-radius` and `data-theme-scale` adjust visual density
- *   independently. The radius block is intentionally placed AFTER the preset
- *   blocks so an explicit user choice overrides the preset's default radius.
+ *   independently.
  */
 
 /* ── Underground ──────────────────────────────────────────────────────── */
@@ -49,7 +48,6 @@ For commercial licensing, please contact support@quantumnous.com
   --sidebar-accent: oklch(0.9687 0.0051 247.88);
   --sidebar-accent-foreground: oklch(0.279 0.0299 260.05);
   --sidebar-ring: oklch(0.5315 0.0694 156.19);
-  --radius: 0.5rem;
 }
 .dark [data-theme-preset='underground'] {
   --primary: oklch(0.6147 0.0867 154.73);
@@ -86,7 +84,6 @@ For commercial licensing, please contact support@quantumnous.com
   --sidebar-accent: oklch(0.5827 0.2418 12.23);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.5827 0.2418 12.23);
-  --radius: 1rem;
 }
 .dark [data-theme-preset='rose-garden'] {
   --primary: oklch(0.6476 0.2348 10.36);
@@ -123,7 +120,6 @@ For commercial licensing, please contact support@quantumnous.com
   --sidebar-accent: oklch(0.765 0.177 163.22);
   --sidebar-accent-foreground: oklch(0.2742 0.0208 165.96);
   --sidebar-ring: oklch(0.765 0.177 163.22);
-  --radius: 0.75rem;
 }
 .dark [data-theme-preset='lake-view'] {
   --primary: oklch(0.765 0.177 163.22);
@@ -160,7 +156,6 @@ For commercial licensing, please contact support@quantumnous.com
   --sidebar-accent: oklch(0.5591 0.1882 25.33);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.5591 0.1882 25.33);
-  --radius: 1rem;
 }
 .dark [data-theme-preset='sunset-glow'] {
   --primary: oklch(0.6387 0.1822 23.51);
@@ -197,7 +192,6 @@ For commercial licensing, please contact support@quantumnous.com
   --sidebar-accent: oklch(0.5276 0.1072 182.22);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.5276 0.1072 182.22);
-  --radius: 0.5rem;
 }
 .dark [data-theme-preset='forest-whisper'] {
   --primary: oklch(0.5991 0.1318 180.39);
@@ -234,7 +228,6 @@ For commercial licensing, please contact support@quantumnous.com
   --sidebar-accent: oklch(0.5461 0.2152 262.88);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.5461 0.2152 262.88);
-  --radius: 0.3rem;
 }
 .dark [data-theme-preset='ocean-breeze'] {
   --primary: oklch(0.623 0.188 259.81);
@@ -271,7 +264,6 @@ For commercial licensing, please contact support@quantumnous.com
   --sidebar-accent: oklch(0.5709 0.1808 306.89);
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-ring: oklch(0.5709 0.1808 306.89);
-  --radius: 1rem;
 }
 .dark [data-theme-preset='lavender-dream'] {
   --primary: oklch(0.6359 0.1699 307.95);
@@ -375,13 +367,12 @@ For commercial licensing, please contact support@quantumnous.com
 }
 
 /* ── Content layout ───────────────────────────────────────────────────── */
-/* `centered` clamps inset content to a comfortable reading width on large screens.
- * Targets every direct child of <SidebarInset> so router outlet wrappers and
- * page content alike are centered. Only kicks in once the viewport exceeds the
- * clamp value. */
+/* `centered` clamps the page body to 90% of the content area (the viewport
+ * minus the header and sidebar), keeping the side gutters subtle instead of
+ * wasting a quarter of the screen. Full-width stays untouched. */
 @media (min-width: 1280px) {
   [data-theme-content-layout='centered'] [data-slot='sidebar-inset'] > * {
-    max-width: var(--max-content-width, 1280px);
+    max-width: 90%;
     margin-inline: auto;
     width: 100%;
   }
