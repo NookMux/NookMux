@@ -28,8 +28,8 @@ This document lists common NookMux environment variables and their defaults. The
 
 | Environment Variable | Description | Default Value | Example |
 | --- | --- | --- | --- |
-| `SQL_DSN` | Database connection string; SQLite is used when unset | SQLite (`data/one-api.db`) | MySQL: `SQL_DSN=user:password@tcp(127.0.0.1:3306)/dbname?parseTime=true`; PostgreSQL: `SQL_DSN=postgres://user:password@127.0.0.1:5432/dbname` |
-| `LOG_SQL_DSN` | Separate database connection string for log tables; leave empty to share the main database | - | `LOG_SQL_DSN=user:password@tcp(127.0.0.1:3306)/logs` |
+| `SQL_DSN` | Database connection string; it must start with `mysql://`, `postgres://` or `postgresql://` — any other prefix fails at startup; SQLite is used when unset | SQLite (`data/one-api.db`) | MySQL: `SQL_DSN=mysql://user:password@127.0.0.1:3306/dbname`; PostgreSQL: `SQL_DSN=postgres://user:password@127.0.0.1:5432/dbname` |
+| `LOG_SQL_DSN` | Separate database connection string for log tables; leave empty to share the main database | - | `LOG_SQL_DSN=mysql://user:password@127.0.0.1:3306/logs` |
 | `SQLITE_PATH` | SQLite database file path | `data/one-api.db` | `SQLITE_PATH=/var/lib/nookmux/nookmux.db` |
 | `SQL_MAX_IDLE_CONNS` | Maximum number of idle connections in the pool | `20` | `SQL_MAX_IDLE_CONNS=50` |
 | `SQL_MAX_OPEN_CONNS` | Maximum number of open connections in the pool | `1000` | `SQL_MAX_OPEN_CONNS=500` |

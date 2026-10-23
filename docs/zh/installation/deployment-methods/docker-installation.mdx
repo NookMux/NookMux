@@ -31,7 +31,7 @@ docker run --name nookmux -d --restart always \
 ```shell
 docker run --name nookmux -d --restart always \
   -p 3000:3000 \
-  -e SQL_DSN="user:password@tcp(db-host:3306)/nookmux?parseTime=true" \
+  -e SQL_DSN="mysql://user:password@db-host:3306/nookmux" \
   -e TZ=Asia/Shanghai \
   -e SESSION_SECRET=replace_with_a_random_string \
   -e CRYPTO_SECRET=replace_with_another_random_string \

@@ -41,7 +41,7 @@ title: 宝塔面板部署
 默认不设置 `SQL_DSN` 时使用 SQLite，数据库文件在 `/data/one-api.db`。如果使用外部数据库或 Redis，可添加：
 
 ```text
-SQL_DSN=user:password@tcp(db-host:3306)/nookmux?parseTime=true
+SQL_DSN=mysql://user:password@db-host:3306/nookmux
 REDIS_CONN_STRING=redis://:password@redis-host:6379
 ```
 

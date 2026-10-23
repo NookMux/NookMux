@@ -39,7 +39,7 @@ If no ready-made app is available, create a normal container in 1Panel:
 If you need an external database or Redis, add:
 
 ```text
-SQL_DSN=user:password@tcp(db-host:3306)/nookmux?parseTime=true
+SQL_DSN=mysql://user:password@db-host:3306/nookmux
 REDIS_CONN_STRING=redis://:password@redis-host:6379
 ```
 

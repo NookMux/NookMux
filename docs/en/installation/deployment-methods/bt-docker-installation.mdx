@@ -41,7 +41,7 @@ This document explains how to deploy NookMux using Baota Panel's Docker features
 SQLite is used when `SQL_DSN` is not set. The database file is stored at `/data/one-api.db`. If you use an external database or Redis, add:
 
 ```text
-SQL_DSN=user:password@tcp(db-host:3306)/nookmux?parseTime=true
+SQL_DSN=mysql://user:password@db-host:3306/nookmux
 REDIS_CONN_STRING=redis://:password@redis-host:6379
 ```
 

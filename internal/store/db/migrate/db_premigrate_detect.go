@@ -37,20 +37,6 @@ func currentLogDBType() (string, error) {
 	}
 }
 
-func parseDBTypeFromDSN(dsn string) (string, error) {
-	dsn = strings.TrimSpace(dsn)
-	if dsn == "" {
-		return "", errors.New("DSN 不能为空")
-	}
-	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
-		return db.DatabaseTypePostgreSQL, nil
-	}
-	if strings.HasPrefix(dsn, "local") {
-		return db.DatabaseTypeSQLite, nil
-	}
-	return db.DatabaseTypeMySQL, nil
-}
-
 func validateDBPreMigrateDirection(sourceType string, targetType string) error {
 	if sourceType == "" || targetType == "" {
 		return errors.New("数据库类型不能为空")

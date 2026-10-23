@@ -72,51 +72,44 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 	defer func() {
 		InitCol()
 	}()
-	dsn := os.Getenv(envName)
-	if dsn != "" {
-		if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
-			// Use PostgreSQL
-			common.SysLog("using PostgreSQL as database")
-			if !isLog {
-				db.UsingPostgreSQL = true
-			} else {
-				db.LogSqlType = db.DatabaseTypePostgreSQL
-			}
-			return gorm.Open(postgres.New(postgres.Config{
-				DSN:                  dsn,
-				PreferSimpleProtocol: true, // disables implicit prepared statement usage
-			}), newGormConfig())
+	dsn := strings.TrimSpace(os.Getenv(envName))
+	if dsn == "" {
+		// Use SQLite
+		common.SysLog("SQL_DSN not set, using SQLite as database")
+		db.UsingSQLite = true
+		return gorm.Open(sqlite.Open(db.SQLitePath), newGormConfig())
+	}
+	dbType, err := db.ParseDBTypeFromDSN(dsn)
+	if err != nil {
+		return nil, err
+	}
+	switch dbType {
+	case db.DatabaseTypePostgreSQL:
+		common.SysLog("using PostgreSQL as database")
+		if !isLog {
+			db.UsingPostgreSQL = true
+		} else {
+			db.LogSqlType = db.DatabaseTypePostgreSQL
 		}
-		if strings.HasPrefix(dsn, "local") {
-			common.SysLog("SQL_DSN not set, using SQLite as database")
-			if !isLog {
-				db.UsingSQLite = true
-			} else {
-				db.LogSqlType = db.DatabaseTypeSQLite
-			}
-			return gorm.Open(sqlite.Open(db.SQLitePath), newGormConfig())
-		}
-		// Use MySQL
+		return gorm.Open(postgres.New(postgres.Config{
+			DSN:                  dsn,
+			PreferSimpleProtocol: true, // disables implicit prepared statement usage
+		}), newGormConfig())
+	case db.DatabaseTypeMySQL:
 		common.SysLog("using MySQL as database")
-		// check parseTime
-		if !strings.Contains(dsn, "parseTime") {
-			if strings.Contains(dsn, "?") {
-				dsn += "&parseTime=true"
-			} else {
-				dsn += "?parseTime=true"
-			}
+		driverDSN, err := db.MySQLDsnFromURL(dsn)
+		if err != nil {
+			return nil, err
 		}
 		if !isLog {
 			db.UsingMySQL = true
 		} else {
 			db.LogSqlType = db.DatabaseTypeMySQL
 		}
-		return gorm.Open(mysql.Open(dsn), newGormConfig())
+		return gorm.Open(mysql.Open(db.EnsureMySQLParseTime(driverDSN)), newGormConfig())
+	default:
+		return nil, fmt.Errorf("未知数据库类型: %s", dbType)
 	}
-	// Use SQLite
-	common.SysLog("SQL_DSN not set, using SQLite as database")
-	db.UsingSQLite = true
-	return gorm.Open(sqlite.Open(db.SQLitePath), newGormConfig())
 }
 
 // newGormConfig 构建统一的 GORM 配置。

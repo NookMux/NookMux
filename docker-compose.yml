@@ -23,8 +23,8 @@ services:
       - TZ=Asia/Shanghai
       - ERROR_LOG_ENABLED=true
       - BATCH_UPDATE_ENABLED=true
-#      - SQL_DSN=postgresql://root:123456@postgres:5432/nookmux  # Uncomment to use PostgreSQL
-#      - SQL_DSN=root:123456@tcp(mysql:3306)/nookmux              # Uncomment to use MySQL
+#      - SQL_DSN=postgres://root:123456@postgres:5432/nookmux    # Uncomment to use PostgreSQL
+#      - SQL_DSN=mysql://root:123456@mysql:3306/nookmux          # Uncomment to use MySQL
 #      - STREAMING_TIMEOUT=300
 #      - SESSION_SECRET=random_string  # Multi-node deployment, must change this random string!
 #      - SYNC_FREQUENCY=60

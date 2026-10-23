@@ -68,7 +68,7 @@ If `SQL_DSN` is not set, SQLite is used and the database path defaults to `/data
 
 ```yaml
 environment:
-  - SQL_DSN=user:password@tcp(mysql-host:3306)/nookmux?parseTime=true
+  - SQL_DSN=mysql://user:password@mysql-host:3306/nookmux
 ```
 
 ### External PostgreSQL

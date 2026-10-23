@@ -26,7 +26,7 @@ func StartDBSameTypeMigrate(params DBSameTypeMigrateStartParams) (string, error)
 	}
 
 	// 解析目标库类型
-	targetType, err := parseDBTypeFromDSN(params.TargetDSN)
+	targetType, err := db.ParseDBTypeFromDSN(params.TargetDSN)
 	if err != nil {
 		return "", err
 	}

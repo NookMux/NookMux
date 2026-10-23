@@ -30,7 +30,7 @@ func runDBSameTypeMigrateJobWithContext(ctx context.Context, job *DBSameTypeMigr
 		return errors.New("job 不能为空")
 	}
 
-	targetType, err := parseDBTypeFromDSN(params.TargetDSN)
+	targetType, err := infradb.ParseDBTypeFromDSN(params.TargetDSN)
 	if err != nil {
 		return err
 	}
@@ -159,7 +159,7 @@ func openAndCheckTargetLogDB(ctx context.Context, job *DBSameTypeMigrateJob, par
 	if targetLogDSN == "" {
 		targetLogDSN = strings.TrimSpace(params.TargetDSN)
 	}
-	logType, err := parseDBTypeFromDSN(targetLogDSN)
+	logType, err := infradb.ParseDBTypeFromDSN(targetLogDSN)
 	if err != nil {
 		return nil, false, err
 	}
