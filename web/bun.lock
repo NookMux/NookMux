@@ -25,6 +25,7 @@
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
         "dayjs": "^1.11.23",
+        "dompurify": "^3.4.5",
         "i18next": "^26.4.5",
         "i18next-browser-languagedetector": "^8.2.1",
         "input-otp": "^1.5.0",
@@ -89,7 +90,7 @@
     "@modelcontextprotocol/sdk": "1.32.1",
     "brace-expansion": "5.0.12",
     "browserslist": "4.29.0",
-    "dompurify": "3.4.5",
+    "dompurify": "3.4.17",
     "fast-uri": "3.1.8",
     "follow-redirects": "1.16.1",
     "form-data": "4.0.6",
@@ -1217,7 +1218,7 @@
 
     "diff": ["diff@8.0.4", "", {}, "sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw=="],
 
-    "dompurify": ["dompurify@3.4.5", "", { "optionalDependencies": { "@types/trusted-types": "^2.0.7" } }, "sha512-OrwIBKsdNSVEeubdJ1HBv/wNENRM9ytAVCv7YXt//A3vPdVMNuACRqK9mXCGCBW2ln7BT/A4X0jXHo2Gu89miA=="],
+    "dompurify": ["dompurify@3.4.17", "", { "optionalDependencies": { "@types/trusted-types": "^2.0.7" } }, "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w=="],
 
     "dotenv": ["dotenv@17.4.1", "", {}, "sha512-k8DaKGP6r1G30Lx8V4+pCsLzKr8vLmV2paqEj1Y55GdAgJuIqpRp5FfajGF8KtwMxCz9qJc6wUIJnm053d/WCw=="],
 
