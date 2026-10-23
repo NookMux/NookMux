@@ -5,9 +5,9 @@
 ## Mintlify 文档站
 
 - `docs.json` 是站点唯一配置：导航、主题、多语言结构全部在此定义，目录内不再维护 `meta.json`。
-- `docs/en/` 与 `docs/cn/` 是英文与简体中文内容，一一对应；页面路径在导航中须带语言前缀（如 `en/guide/home`、`cn/index`）。
+- 英文内容（默认语言）位于 `docs/` 根（`index.mdx`、`guide/`、`installation/`、`api/`、`apps/`）；简体中文位于 `docs/cn/`，两边文件一一对应。导航中英文页面路径不带前缀（如 `guide/home`），中文页面路径带 `cn/` 前缀（如 `cn/index`）。
 - 新增/改名页面必须同步更新 `docs.json`，否则页面不会出现在侧栏。
-- 内部链接使用根相对路径且不带语言前缀（如 `/installation/index`），由 Mintlify i18n 按语言解析。
+- 内部链接使用根相对路径：英文页面不带语言前缀（如 `/installation/index`），中文页面带 `/cn` 前缀（如 `/cn/installation/index`）。
 - API 端点页使用 frontmatter `api: "METHOD /path"` 声明端点，页面正文只保留描述。
 
 ## 规范结构与渐进式披露

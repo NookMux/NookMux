@@ -19,72 +19,72 @@
               {
                 "group": "Introduction",
                 "pages": [
-                  "en/index",
+                  "index",
                   {
                     "group": "Basic Concepts",
                     "pages": [
-                      "en/guide/wiki/basic-concepts/project-introduction",
-                      "en/guide/wiki/basic-concepts/features-introduction",
-                      "en/guide/wiki/basic-concepts/technical-architecture",
-                      "en/guide/wiki/basic-concepts/analytics-setup",
-                      "en/guide/wiki/basic-concepts/performance-analysis"
+                      "guide/wiki/basic-concepts/project-introduction",
+                      "guide/wiki/basic-concepts/features-introduction",
+                      "guide/wiki/basic-concepts/technical-architecture",
+                      "guide/wiki/basic-concepts/analytics-setup",
+                      "guide/wiki/basic-concepts/performance-analysis"
                     ]
                   },
                   {
                     "group": "Project Records",
                     "pages": [
-                      "en/guide/wiki/project-records/changelog",
-                      "en/guide/wiki/project-records/special-thanks"
+                      "guide/wiki/project-records/changelog",
+                      "guide/wiki/project-records/special-thanks"
                     ]
                   },
-                  "en/guide/wiki/changelog",
-                  "en/guide/wiki/special-thanks"
+                  "guide/wiki/changelog",
+                  "guide/wiki/special-thanks"
                 ]
               },
               {
                 "group": "Feature Guide",
                 "pages": [
-                  "en/guide/home",
+                  "guide/home",
                   {
                     "group": "Console",
                     "pages": [
-                      "en/guide/console/dashboard",
-                      "en/guide/console/playground",
-                      "en/guide/console/chat",
-                      "en/guide/console/api-token",
-                      "en/guide/console/usage-log",
-                      "en/guide/console/multimodal-files",
-                      "en/guide/console/wallet",
-                      "en/guide/console/order-query",
-                      "en/guide/console/profile",
-                      "en/guide/console/ticket",
-                      "en/guide/console/channel-management",
-                      "en/guide/console/models",
-                      "en/guide/console/dynamic-ratio",
-                      "en/guide/console/user-management",
-                      "en/guide/console/redeem-code-management",
-                      "en/guide/console/audit-logs",
-                      "en/guide/console/voice-management",
+                      "guide/console/dashboard",
+                      "guide/console/playground",
+                      "guide/console/chat",
+                      "guide/console/api-token",
+                      "guide/console/usage-log",
+                      "guide/console/multimodal-files",
+                      "guide/console/wallet",
+                      "guide/console/order-query",
+                      "guide/console/profile",
+                      "guide/console/ticket",
+                      "guide/console/channel-management",
+                      "guide/console/models",
+                      "guide/console/dynamic-ratio",
+                      "guide/console/user-management",
+                      "guide/console/redeem-code-management",
+                      "guide/console/audit-logs",
+                      "guide/console/voice-management",
                       {
                         "group": "Settings",
                         "pages": [
-                          "en/guide/console/settings/system-settings",
-                          "en/guide/console/settings/other-settings",
-                          "en/guide/console/settings/payment-settings",
-                          "en/guide/console/settings/rate-settings",
-                          "en/guide/console/settings/model-settings",
-                          "en/guide/console/settings/rate-limit-settings",
-                          "en/guide/console/settings/dashboard-settings",
-                          "en/guide/console/settings/operation-settings",
-                          "en/guide/console/settings/chat-settings",
-                          "en/guide/console/settings/drawing-settings"
+                          "guide/console/settings/system-settings",
+                          "guide/console/settings/other-settings",
+                          "guide/console/settings/payment-settings",
+                          "guide/console/settings/rate-settings",
+                          "guide/console/settings/model-settings",
+                          "guide/console/settings/rate-limit-settings",
+                          "guide/console/settings/dashboard-settings",
+                          "guide/console/settings/operation-settings",
+                          "guide/console/settings/chat-settings",
+                          "guide/console/settings/drawing-settings"
                         ]
                       }
                     ]
                   },
-                  "en/guide/pricing",
-                  "en/guide/document",
-                  "en/guide/about"
+                  "guide/pricing",
+                  "guide/document",
+                  "guide/about"
                 ]
               }
             ]
@@ -93,24 +93,24 @@
             "tab": "Installation",
             "icon": "wrench",
             "pages": [
-              "en/installation/index",
+              "installation/index",
               {
                 "group": "Deployment Methods",
                 "pages": [
-                  "en/installation/deployment-methods/docker-installation",
-                  "en/installation/deployment-methods/docker-compose-installation",
-                  "en/installation/deployment-methods/1panel-installation",
-                  "en/installation/deployment-methods/bt-docker-installation",
-                  "en/installation/deployment-methods/cluster-deployment",
-                  "en/installation/deployment-methods/local-development"
+                  "installation/deployment-methods/docker-installation",
+                  "installation/deployment-methods/docker-compose-installation",
+                  "installation/deployment-methods/1panel-installation",
+                  "installation/deployment-methods/bt-docker-installation",
+                  "installation/deployment-methods/cluster-deployment",
+                  "installation/deployment-methods/local-development"
                 ]
               },
               {
                 "group": "Configuration & Maintenance",
                 "pages": [
-                  "en/installation/config-maintenance/system-update",
-                  "en/installation/config-maintenance/environment-variables",
-                  "en/installation/config-maintenance/docker-compose-yml"
+                  "installation/config-maintenance/system-update",
+                  "installation/config-maintenance/environment-variables",
+                  "installation/config-maintenance/docker-compose-yml"
                 ]
               }
             ]
@@ -119,21 +119,21 @@
             "tab": "API Reference",
             "icon": "code",
             "pages": [
-              "en/api/index",
-              "en/api/current-contract",
+              "api/index",
+              "api/current-contract",
               {
                 "group": "AI Model API",
                 "pages": [
                   {
                     "group": "Audio",
                     "pages": [
-                      "en/api/ai-model/audio/geminirelayv1beta-383836364",
+                      "api/ai-model/audio/geminirelayv1beta-383836364",
                       {
                         "group": "OpenAI",
                         "pages": [
-                          "en/api/ai-model/audio/openai/createspeech",
-                          "en/api/ai-model/audio/openai/createtranscription",
-                          "en/api/ai-model/audio/openai/createtranslation"
+                          "api/ai-model/audio/openai/createspeech",
+                          "api/ai-model/audio/openai/createtranscription",
+                          "api/ai-model/audio/openai/createtranslation"
                         ]
                       }
                     ]
@@ -141,19 +141,19 @@
                   {
                     "group": "Chat",
                     "pages": [
-                      "en/api/ai-model/chat/createmessage",
+                      "api/ai-model/chat/createmessage",
                       {
                         "group": "Gemini",
                         "pages": [
-                          "en/api/ai-model/chat/gemini/geminirelayv1beta",
-                          "en/api/ai-model/chat/gemini/geminirelayv1beta-391536411"
+                          "api/ai-model/chat/gemini/geminirelayv1beta",
+                          "api/ai-model/chat/gemini/geminirelayv1beta-391536411"
                         ]
                       },
                       {
                         "group": "OpenAI",
                         "pages": [
-                          "en/api/ai-model/chat/openai/createchatcompletion",
-                          "en/api/ai-model/chat/openai/createresponse"
+                          "api/ai-model/chat/openai/createchatcompletion",
+                          "api/ai-model/chat/openai/createresponse"
                         ]
                       }
                     ]
@@ -161,14 +161,14 @@
                   {
                     "group": "Completions",
                     "pages": [
-                      "en/api/ai-model/completions/createcompletion"
+                      "api/ai-model/completions/createcompletion"
                     ]
                   },
                   {
                     "group": "Embeddings",
                     "pages": [
-                      "en/api/ai-model/embeddings/createembedding",
-                      "en/api/ai-model/embeddings/createengineembedding"
+                      "api/ai-model/embeddings/createembedding",
+                      "api/ai-model/embeddings/createengineembedding"
                     ]
                   },
                   {
@@ -177,22 +177,22 @@
                       {
                         "group": "Gemini",
                         "pages": [
-                          "en/api/ai-model/images/gemini/geminirelayv1beta-383837589",
-                          "en/api/ai-model/images/gemini/geminirelayv1beta-389846313"
+                          "api/ai-model/images/gemini/geminirelayv1beta-383837589",
+                          "api/ai-model/images/gemini/geminirelayv1beta-389846313"
                         ]
                       },
                       {
                         "group": "OpenAI",
                         "pages": [
-                          "en/api/ai-model/images/openai/post-v1-images-edits",
-                          "en/api/ai-model/images/openai/post-v1-images-generations"
+                          "api/ai-model/images/openai/post-v1-images-edits",
+                          "api/ai-model/images/openai/post-v1-images-generations"
                         ]
                       },
                       {
                         "group": "Qwen",
                         "pages": [
-                          "en/api/ai-model/images/qwen/createimage",
-                          "en/api/ai-model/images/qwen/editimage"
+                          "api/ai-model/images/qwen/createimage",
+                          "api/ai-model/images/qwen/editimage"
                         ]
                       }
                     ]
@@ -203,8 +203,8 @@
                       {
                         "group": "List",
                         "pages": [
-                          "en/api/ai-model/models/list/listmodels",
-                          "en/api/ai-model/models/list/listmodelsgemini"
+                          "api/ai-model/models/list/listmodels",
+                          "api/ai-model/models/list/listmodelsgemini"
                         ]
                       }
                     ]
@@ -212,19 +212,19 @@
                   {
                     "group": "Moderations",
                     "pages": [
-                      "en/api/ai-model/moderations/createmoderation"
+                      "api/ai-model/moderations/createmoderation"
                     ]
                   },
                   {
                     "group": "Realtime",
                     "pages": [
-                      "en/api/ai-model/realtime/createrealtimesession"
+                      "api/ai-model/realtime/createrealtimesession"
                     ]
                   },
                   {
                     "group": "Rerank",
                     "pages": [
-                      "en/api/ai-model/rerank/creatererank"
+                      "api/ai-model/rerank/creatererank"
                     ]
                   },
                   {
@@ -233,21 +233,21 @@
                       {
                         "group": "Files",
                         "pages": [
-                          "en/api/ai-model/unimplemented/files/createfile",
-                          "en/api/ai-model/unimplemented/files/deletefile",
-                          "en/api/ai-model/unimplemented/files/downloadfile",
-                          "en/api/ai-model/unimplemented/files/listfiles",
-                          "en/api/ai-model/unimplemented/files/retrievefile"
+                          "api/ai-model/unimplemented/files/createfile",
+                          "api/ai-model/unimplemented/files/deletefile",
+                          "api/ai-model/unimplemented/files/downloadfile",
+                          "api/ai-model/unimplemented/files/listfiles",
+                          "api/ai-model/unimplemented/files/retrievefile"
                         ]
                       },
                       {
                         "group": "Fine-tuning",
                         "pages": [
-                          "en/api/ai-model/unimplemented/fine-tuning/cancelfinetune",
-                          "en/api/ai-model/unimplemented/fine-tuning/createfinetune",
-                          "en/api/ai-model/unimplemented/fine-tuning/listfinetuneevents",
-                          "en/api/ai-model/unimplemented/fine-tuning/listfinetunes",
-                          "en/api/ai-model/unimplemented/fine-tuning/retrievefinetune"
+                          "api/ai-model/unimplemented/fine-tuning/cancelfinetune",
+                          "api/ai-model/unimplemented/fine-tuning/createfinetune",
+                          "api/ai-model/unimplemented/fine-tuning/listfinetuneevents",
+                          "api/ai-model/unimplemented/fine-tuning/listfinetunes",
+                          "api/ai-model/unimplemented/fine-tuning/retrievefinetune"
                         ]
                       }
                     ]
@@ -257,219 +257,219 @@
               {
                 "group": "Management API",
                 "pages": [
-                  "en/api/management/auth",
+                  "api/management/auth",
                   {
                     "group": "Channel Management",
                     "pages": [
-                      "en/api/management/channel-management/channel-batch-post",
-                      "en/api/management/channel-management/channel-batch-tag-post",
-                      "en/api/management/channel-management/channel-copy-id-post",
-                      "en/api/management/channel-management/channel-disabled-delete",
-                      "en/api/management/channel-management/channel-fetch_models-id-get",
-                      "en/api/management/channel-management/channel-fetch_models-post",
-                      "en/api/management/channel-management/channel-fix-post",
-                      "en/api/management/channel-management/channel-get",
-                      "en/api/management/channel-management/channel-id-delete",
-                      "en/api/management/channel-management/channel-id-get",
-                      "en/api/management/channel-management/channel-id-key-post",
-                      "en/api/management/channel-management/channel-models-get",
-                      "en/api/management/channel-management/channel-models_enabled-get",
-                      "en/api/management/channel-management/channel-multi_key-manage-post",
-                      "en/api/management/channel-management/channel-post",
-                      "en/api/management/channel-management/channel-put",
-                      "en/api/management/channel-management/channel-search-get",
-                      "en/api/management/channel-management/channel-tag-disabled-post",
-                      "en/api/management/channel-management/channel-tag-enabled-post",
-                      "en/api/management/channel-management/channel-tag-models-get",
-                      "en/api/management/channel-management/channel-tag-put",
-                      "en/api/management/channel-management/channel-test-get",
-                      "en/api/management/channel-management/channel-test-id-get",
-                      "en/api/management/channel-management/channel-update_balance-get",
-                      "en/api/management/channel-management/channel-update_balance-id-get"
+                      "api/management/channel-management/channel-batch-post",
+                      "api/management/channel-management/channel-batch-tag-post",
+                      "api/management/channel-management/channel-copy-id-post",
+                      "api/management/channel-management/channel-disabled-delete",
+                      "api/management/channel-management/channel-fetch_models-id-get",
+                      "api/management/channel-management/channel-fetch_models-post",
+                      "api/management/channel-management/channel-fix-post",
+                      "api/management/channel-management/channel-get",
+                      "api/management/channel-management/channel-id-delete",
+                      "api/management/channel-management/channel-id-get",
+                      "api/management/channel-management/channel-id-key-post",
+                      "api/management/channel-management/channel-models-get",
+                      "api/management/channel-management/channel-models_enabled-get",
+                      "api/management/channel-management/channel-multi_key-manage-post",
+                      "api/management/channel-management/channel-post",
+                      "api/management/channel-management/channel-put",
+                      "api/management/channel-management/channel-search-get",
+                      "api/management/channel-management/channel-tag-disabled-post",
+                      "api/management/channel-management/channel-tag-enabled-post",
+                      "api/management/channel-management/channel-tag-models-get",
+                      "api/management/channel-management/channel-tag-put",
+                      "api/management/channel-management/channel-test-get",
+                      "api/management/channel-management/channel-test-id-get",
+                      "api/management/channel-management/channel-update_balance-get",
+                      "api/management/channel-management/channel-update_balance-id-get"
                     ]
                   },
                   {
                     "group": "Default",
                     "pages": [
-                      "en/api/management/default/user-topup-post"
+                      "api/management/default/user-topup-post"
                     ]
                   },
                   {
                     "group": "Groups",
                     "pages": [
-                      "en/api/management/groups/group-get",
-                      "en/api/management/groups/prefill_group-get",
-                      "en/api/management/groups/prefill_group-id-delete",
-                      "en/api/management/groups/prefill_group-post",
-                      "en/api/management/groups/prefill_group-put"
+                      "api/management/groups/group-get",
+                      "api/management/groups/prefill_group-get",
+                      "api/management/groups/prefill_group-id-delete",
+                      "api/management/groups/prefill_group-post",
+                      "api/management/groups/prefill_group-put"
                     ]
                   },
                   {
                     "group": "Model Management",
                     "pages": [
-                      "en/api/management/model-management/models-get",
-                      "en/api/management/model-management/models-id-delete",
-                      "en/api/management/model-management/models-id-get",
-                      "en/api/management/model-management/models-missing-get",
-                      "en/api/management/model-management/models-post",
-                      "en/api/management/model-management/models-put",
-                      "en/api/management/model-management/models-search-get",
-                      "en/api/management/model-management/models-sync_upstream-post",
-                      "en/api/management/model-management/models-sync_upstream-preview-get"
+                      "api/management/model-management/models-get",
+                      "api/management/model-management/models-id-delete",
+                      "api/management/model-management/models-id-get",
+                      "api/management/model-management/models-missing-get",
+                      "api/management/model-management/models-post",
+                      "api/management/model-management/models-put",
+                      "api/management/model-management/models-search-get",
+                      "api/management/model-management/models-sync_upstream-post",
+                      "api/management/model-management/models-sync_upstream-preview-get"
                     ]
                   },
                   {
                     "group": "OAuth",
                     "pages": [
-                      "en/api/management/oauth/oauth-email-bind-post",
-                      "en/api/management/oauth/oauth-github-get",
-                      "en/api/management/oauth/oauth-linuxdo-get",
-                      "en/api/management/oauth/oauth-state-get"
+                      "api/management/oauth/oauth-email-bind-post",
+                      "api/management/oauth/oauth-github-get",
+                      "api/management/oauth/oauth-linuxdo-get",
+                      "api/management/oauth/oauth-state-get"
                     ]
                   },
                   {
                     "group": "Payment",
                     "pages": [
-                      "en/api/management/payment/stripe-webhook-post",
-                      "en/api/management/payment/user-amount-post",
-                      "en/api/management/payment/user-epay-notify-get",
-                      "en/api/management/payment/user-pay-post",
-                      "en/api/management/payment/user-stripe-amount-post",
-                      "en/api/management/payment/user-stripe-pay-post",
-                      "en/api/management/payment/user-topup-info-get",
-                      "en/api/management/payment/user-topup-self-get"
+                      "api/management/payment/stripe-webhook-post",
+                      "api/management/payment/user-amount-post",
+                      "api/management/payment/user-epay-notify-get",
+                      "api/management/payment/user-pay-post",
+                      "api/management/payment/user-stripe-amount-post",
+                      "api/management/payment/user-stripe-pay-post",
+                      "api/management/payment/user-topup-info-get",
+                      "api/management/payment/user-topup-self-get"
                     ]
                   },
                   {
                     "group": "Redemption",
                     "pages": [
-                      "en/api/management/redemption/redemption-get",
-                      "en/api/management/redemption/redemption-id-delete",
-                      "en/api/management/redemption/redemption-id-get",
-                      "en/api/management/redemption/redemption-invalid-delete",
-                      "en/api/management/redemption/redemption-post",
-                      "en/api/management/redemption/redemption-put",
-                      "en/api/management/redemption/redemption-search-get"
+                      "api/management/redemption/redemption-get",
+                      "api/management/redemption/redemption-id-delete",
+                      "api/management/redemption/redemption-id-get",
+                      "api/management/redemption/redemption-invalid-delete",
+                      "api/management/redemption/redemption-post",
+                      "api/management/redemption/redemption-put",
+                      "api/management/redemption/redemption-search-get"
                     ]
                   },
                   {
                     "group": "Security Verification",
                     "pages": [
-                      "en/api/management/security-verification/verify-post"
+                      "api/management/security-verification/verify-post"
                     ]
                   },
                   {
                     "group": "Statistics",
                     "pages": [
-                      "en/api/management/statistics/data-get",
-                      "en/api/management/statistics/data-self-get"
+                      "api/management/statistics/data-get",
+                      "api/management/statistics/data-self-get"
                     ]
                   },
                   {
                     "group": "System Settings",
                     "pages": [
-                      "en/api/management/system-settings/option-get",
-                      "en/api/management/system-settings/option-migrate_console_setting-post",
-                      "en/api/management/system-settings/option-put",
-                      "en/api/management/system-settings/option-rest_model_ratio-post"
+                      "api/management/system-settings/option-get",
+                      "api/management/system-settings/option-migrate_console_setting-post",
+                      "api/management/system-settings/option-put",
+                      "api/management/system-settings/option-rest_model_ratio-post"
                     ]
                   },
                   {
                     "group": "System",
                     "pages": [
-                      "en/api/management/system/about-get",
-                      "en/api/management/system/home_page_content-get",
-                      "en/api/management/system/models-get",
-                      "en/api/management/system/notice-get",
-                      "en/api/management/system/pricing-get",
-                      "en/api/management/system/privacy-policy-get",
-                      "en/api/management/system/setup-get",
-                      "en/api/management/system/setup-post",
-                      "en/api/management/system/status-get",
-                      "en/api/management/system/status-test-get",
-                      "en/api/management/system/uptime-status-get",
-                      "en/api/management/system/user-agreement-get"
+                      "api/management/system/about-get",
+                      "api/management/system/home_page_content-get",
+                      "api/management/system/models-get",
+                      "api/management/system/notice-get",
+                      "api/management/system/pricing-get",
+                      "api/management/system/privacy-policy-get",
+                      "api/management/system/setup-get",
+                      "api/management/system/setup-post",
+                      "api/management/system/status-get",
+                      "api/management/system/status-test-get",
+                      "api/management/system/uptime-status-get",
+                      "api/management/system/user-agreement-get"
                     ]
                   },
                   {
                     "group": "Token Management",
                     "pages": [
-                      "en/api/management/token-management/token-batch-post",
-                      "en/api/management/token-management/token-get",
-                      "en/api/management/token-management/token-id-delete",
-                      "en/api/management/token-management/token-id-get",
-                      "en/api/management/token-management/token-post",
-                      "en/api/management/token-management/token-put",
-                      "en/api/management/token-management/token-search-get",
-                      "en/api/management/token-management/usage-token-get"
+                      "api/management/token-management/token-batch-post",
+                      "api/management/token-management/token-get",
+                      "api/management/token-management/token-id-delete",
+                      "api/management/token-management/token-id-get",
+                      "api/management/token-management/token-post",
+                      "api/management/token-management/token-put",
+                      "api/management/token-management/token-search-get",
+                      "api/management/token-management/usage-token-get"
                     ]
                   },
                   {
                     "group": "Two-Factor Authentication",
                     "pages": [
-                      "en/api/management/two-factor-auth/user-2fa-backup_codes-post",
-                      "en/api/management/two-factor-auth/user-2fa-disable-post",
-                      "en/api/management/two-factor-auth/user-2fa-enable-post",
-                      "en/api/management/two-factor-auth/user-2fa-setup-post",
-                      "en/api/management/two-factor-auth/user-2fa-stats-get",
-                      "en/api/management/two-factor-auth/user-2fa-status-get"
+                      "api/management/two-factor-auth/user-2fa-backup_codes-post",
+                      "api/management/two-factor-auth/user-2fa-disable-post",
+                      "api/management/two-factor-auth/user-2fa-enable-post",
+                      "api/management/two-factor-auth/user-2fa-setup-post",
+                      "api/management/two-factor-auth/user-2fa-stats-get",
+                      "api/management/two-factor-auth/user-2fa-status-get"
                     ]
                   },
                   {
                     "group": "User Authentication",
                     "pages": [
-                      "en/api/management/user-auth/reset_password-get",
-                      "en/api/management/user-auth/user-groups-get",
-                      "en/api/management/user-auth/user-login-2fa-post",
-                      "en/api/management/user-auth/user-login-post",
-                      "en/api/management/user-auth/user-logout-get",
-                      "en/api/management/user-auth/user-passkey-login-begin-post",
-                      "en/api/management/user-auth/user-passkey-login-finish-post",
-                      "en/api/management/user-auth/user-register-post",
-                      "en/api/management/user-auth/user-reset-post",
-                      "en/api/management/user-auth/verification-get"
+                      "api/management/user-auth/reset_password-get",
+                      "api/management/user-auth/user-groups-get",
+                      "api/management/user-auth/user-login-2fa-post",
+                      "api/management/user-auth/user-login-post",
+                      "api/management/user-auth/user-logout-get",
+                      "api/management/user-auth/user-passkey-login-begin-post",
+                      "api/management/user-auth/user-passkey-login-finish-post",
+                      "api/management/user-auth/user-register-post",
+                      "api/management/user-auth/user-reset-post",
+                      "api/management/user-auth/verification-get"
                     ]
                   },
                   {
                     "group": "User Management",
                     "pages": [
-                      "en/api/management/user-management/user-aff-get",
-                      "en/api/management/user-management/user-aff_transfer-post",
-                      "en/api/management/user-management/user-get",
-                      "en/api/management/user-management/user-id-2fa-delete",
-                      "en/api/management/user-management/user-id-delete",
-                      "en/api/management/user-management/user-id-get",
-                      "en/api/management/user-management/user-id-reset_passkey-delete",
-                      "en/api/management/user-management/user-manage-post",
-                      "en/api/management/user-management/user-models-get",
-                      "en/api/management/user-management/user-passkey-delete",
-                      "en/api/management/user-management/user-passkey-get",
-                      "en/api/management/user-management/user-passkey-register-begin-post",
-                      "en/api/management/user-management/user-passkey-register-finish-post",
-                      "en/api/management/user-management/user-passkey-verify-begin-post",
-                      "en/api/management/user-management/user-passkey-verify-finish-post",
-                      "en/api/management/user-management/user-post",
-                      "en/api/management/user-management/user-put",
-                      "en/api/management/user-management/user-search-get",
-                      "en/api/management/user-management/user-self-delete",
-                      "en/api/management/user-management/user-self-get",
-                      "en/api/management/user-management/user-self-groups-get",
-                      "en/api/management/user-management/user-self-put",
-                      "en/api/management/user-management/user-setting-put",
-                      "en/api/management/user-management/user-token-get",
-                      "en/api/management/user-management/user-topup-complete-post",
-                      "en/api/management/user-management/user-topup-get"
+                      "api/management/user-management/user-aff-get",
+                      "api/management/user-management/user-aff_transfer-post",
+                      "api/management/user-management/user-get",
+                      "api/management/user-management/user-id-2fa-delete",
+                      "api/management/user-management/user-id-delete",
+                      "api/management/user-management/user-id-get",
+                      "api/management/user-management/user-id-reset_passkey-delete",
+                      "api/management/user-management/user-manage-post",
+                      "api/management/user-management/user-models-get",
+                      "api/management/user-management/user-passkey-delete",
+                      "api/management/user-management/user-passkey-get",
+                      "api/management/user-management/user-passkey-register-begin-post",
+                      "api/management/user-management/user-passkey-register-finish-post",
+                      "api/management/user-management/user-passkey-verify-begin-post",
+                      "api/management/user-management/user-passkey-verify-finish-post",
+                      "api/management/user-management/user-post",
+                      "api/management/user-management/user-put",
+                      "api/management/user-management/user-search-get",
+                      "api/management/user-management/user-self-delete",
+                      "api/management/user-management/user-self-get",
+                      "api/management/user-management/user-self-groups-get",
+                      "api/management/user-management/user-self-put",
+                      "api/management/user-management/user-setting-put",
+                      "api/management/user-management/user-token-get",
+                      "api/management/user-management/user-topup-complete-post",
+                      "api/management/user-management/user-topup-get"
                     ]
                   },
                   {
                     "group": "Vendors",
                     "pages": [
-                      "en/api/management/vendors/vendors-get",
-                      "en/api/management/vendors/vendors-id-delete",
-                      "en/api/management/vendors/vendors-id-get",
-                      "en/api/management/vendors/vendors-post",
-                      "en/api/management/vendors/vendors-put",
-                      "en/api/management/vendors/vendors-search-get"
+                      "api/management/vendors/vendors-get",
+                      "api/management/vendors/vendors-id-delete",
+                      "api/management/vendors/vendors-id-get",
+                      "api/management/vendors/vendors-post",
+                      "api/management/vendors/vendors-put",
+                      "api/management/vendors/vendors-search-get"
                     ]
                   }
                 ]
@@ -480,17 +480,17 @@
             "tab": "AI Applications",
             "icon": "sparkles",
             "pages": [
-              "en/apps/index",
-              "en/apps/aionui",
-              "en/apps/cherry-studio",
-              "en/apps/claude-code",
-              "en/apps/codex-cli",
-              "en/apps/factory-droid-cli",
-              "en/apps/fluent-read",
-              "en/apps/langbot",
-              "en/apps/luna-translator",
-              "en/apps/astrbot",
-              "en/apps/cc-switch"
+              "apps/index",
+              "apps/aionui",
+              "apps/cherry-studio",
+              "apps/claude-code",
+              "apps/codex-cli",
+              "apps/factory-droid-cli",
+              "apps/fluent-read",
+              "apps/langbot",
+              "apps/luna-translator",
+              "apps/astrbot",
+              "apps/cc-switch"
             ]
           }
         ],
