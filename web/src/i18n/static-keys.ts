@@ -669,4 +669,14 @@ export const STATIC_I18N_KEYS = [
   'channels.fields.baseUrlDomestic',
   'channels.fields.baseUrlInternational',
   'channels.fields.baseUrlOfficial',
+
+  // Config drawer color preset names (keys derived from THEME_PRESETS values)
+  'common.themePresets.default',
+  'common.themePresets.underground',
+  'common.themePresets.rose-garden',
+  'common.themePresets.lake-view',
+  'common.themePresets.sunset-glow',
+  'common.themePresets.forest-whisper',
+  'common.themePresets.ocean-breeze',
+  'common.themePresets.lavender-dream',
 ] as const

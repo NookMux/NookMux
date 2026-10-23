@@ -267,48 +267,49 @@ function PresetConfig() {
         className='grid w-full grid-cols-4 gap-3'
         aria-label={t('common.placeholders.selectColorPreset')}
       >
-        {THEME_PRESETS.map((preset) => (
-          <Item
-            key={preset.value}
-            value={preset.value}
-            className='group flex flex-col items-stretch outline-none'
-            aria-label={preset.name}
-          >
-            <div
-              className={cn(
-                'ring-border relative h-12 rounded-md ring-[1px] transition',
-                'group-data-checked:ring-primary group-data-checked:shadow-md',
-                'group-focus-visible:ring-2',
-                'group-hover:ring-primary/60'
-              )}
+        {THEME_PRESETS.map((preset) => {
+          const label = t(`common.themePresets.${preset.value}`)
+          return (
+            <Item
+              key={preset.value}
+              value={preset.value}
+              className='group flex flex-col items-stretch outline-none'
+              aria-label={label}
             >
               <div
-                aria-hidden='true'
-                className='absolute inset-0 rounded-md'
-                style={
-                  preset.value === 'default'
-                    ? {
-                        background:
-                          'linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--foreground) 100%)',
-                      }
-                    : {
-                        background: `linear-gradient(135deg, ${preset.swatches[0]} 0%, ${preset.swatches[1] ?? preset.swatches[0]} 100%)`,
-                      }
-                }
-              />
-              <CircleCheck
                 className={cn(
-                  'fill-primary absolute top-0 right-0 z-10 size-5 translate-x-1/2 -translate-y-1/2 stroke-white',
-                  'group-data-unchecked:hidden'
+                  'ring-border relative h-12 rounded-md ring-[1px] transition',
+                  'group-data-checked:ring-primary group-data-checked:shadow-md',
+                  'group-focus-visible:ring-2',
+                  'group-hover:ring-primary/60'
                 )}
-                aria-hidden='true'
-              />
-            </div>
-            <div className='mt-1.5 truncate text-center text-xs'>
-              {preset.name}
-            </div>
-          </Item>
-        ))}
+              >
+                <div
+                  aria-hidden='true'
+                  className='absolute inset-0 rounded-md'
+                  style={
+                    preset.value === 'default'
+                      ? {
+                          background:
+                            'linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--foreground) 100%)',
+                        }
+                      : {
+                          background: `linear-gradient(135deg, ${preset.swatches[0]} 0%, ${preset.swatches[1] ?? preset.swatches[0]} 100%)`,
+                        }
+                  }
+                />
+                <CircleCheck
+                  className={cn(
+                    'fill-primary absolute top-0 right-0 z-10 size-5 translate-x-1/2 -translate-y-1/2 stroke-white',
+                    'group-data-unchecked:hidden'
+                  )}
+                  aria-hidden='true'
+                />
+              </div>
+              <div className='mt-1.5 truncate text-center text-xs'>{label}</div>
+            </Item>
+          )
+        })}
       </Radio>
     </div>
   )
