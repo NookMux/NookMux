@@ -1,0 +1,36 @@
+---
+title: AstrBot - Agent 聊天机器人
+---
+
+<Info>
+  AstrBot 是一个开源的一站式 Agent 聊天机器人平台，可将大模型能力接入 QQ、飞书、钉钉、企业微信等主流即时通讯软件，为个人、开发者和团队提供可靠、可扩展的对话式智能基础设施。
+</Info>
+
+- 官方网站：[https://astrbot.app](https://astrbot.app)
+- 官方文档：[https://docs.astrbot.app](https://docs.astrbot.app)
+- 项目主页：[https://github.com/astrbotdevs/astrbot](https://github.com/astrbotdevs/astrbot)
+
+## 接入方法
+
+AstrBot 通过 OpenAI 兼容接口接入 NookMux，可使用 Chat Completion 和 Responses 接口。
+
+### 配置步骤
+
+#### 获取 NookMux API Key
+
+在 NookMux 注册并登录后，进入控制台「密钥」页面，创建一个新的令牌并复制生成的 API Key（`sk-` 开头）。
+
+#### 在 AstrBot 中配置服务提供商
+
+1. 打开 AstrBot 管理面板，进入「模型提供商」页面，点击「新增模型提供商」。
+2. 选择「OpenAI」类型进入配置页面。
+3. 将 API Base URL 设置为 NookMux 的接口地址：
+   - 本地部署：`http://localhost:3000/v1`
+   - 线上部署：`https://your-domain.com/v1`
+4. 将 API Key 填入「API Key」字段，点击「保存」。
+
+#### 应用服务提供商
+
+进入「配置文件」页面，找到模型一节，将「默认聊天模型」修改为刚刚创建的提供商并保存。
+
+至此，AstrBot 会通过 NookMux 调用渠道中配置的各种 AI 模型。

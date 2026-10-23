@@ -1,0 +1,22 @@
+---
+title: 绑定邮箱
+---
+
+当前运行时代码实现的是 `POST /api/oauth/email/bind`。
+
+该接口用于把邮箱绑定到当前已登录账户，已经不再接受旧的 GET 查询参数形式。
+
+请求体:
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+说明:
+
+- 必须携带有效的登录会话。
+- 验证码需要先通过 `/api/verification` 为同一个邮箱签发。
+- 不应再使用旧的 `GET /api/oauth/email/bind?email=...&code=...` 调用方式。

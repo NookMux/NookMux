@@ -1,0 +1,54 @@
+---
+title: AI Applications
+description: Supported AI applications and integration solutions
+---
+
+
+## Overview
+
+NookMux provides OpenAI-, Claude-, and Gemini-compatible APIs that can plug directly into many mainstream AI apps and tools. Below are integration guides for common applications.
+
+## Supported Applications
+
+<Columns cols={2}>
+  <Card icon="sparkles" title="AionUi" href="/apps/aionui">
+  A free, open-source Cowork client with multi-model support, file management, and live previews.
+  </Card>
+  <Card icon="cherry" title="Cherry Studio" href="/apps/cherry-studio">
+  A powerful desktop AI client with multi-model conversations.
+  </Card>
+  <Card icon="terminal" title="Claude Code" href="/apps/claude-code">
+  Anthropic's official command-line coding assistant, connected through an Anthropic-compatible interface.
+  </Card>
+  <Card icon="terminal" title="Codex CLI" href="/apps/codex-cli">
+  OpenAI's official command-line coding agent, connected through an OpenAI Responses-compatible interface.
+  </Card>
+  <Card icon="terminal" title="Factory Droid CLI" href="/apps/factory-droid-cli">
+  Factory AI's command-line AI agent, connected through BYOK custom models.
+  </Card>
+  <Card icon="book-open" title="Fluent Read" href="/apps/fluent-read">
+  An AI-powered browser translation extension.
+  </Card>
+  <Card icon="message-circle" title="Lang Bot" href="/apps/langbot">
+  A chatbot framework built on large language models.
+  </Card>
+  <Card icon="languages" title="Luna Translator" href="/apps/luna-translator">
+  A real-time translation tool for games and documents.
+  </Card>
+  <Card icon="bot" title="AstrBot" href="/apps/astrbot">
+  An open-source, all-in-one Agent chatbot platform.
+  </Card>
+  <Card icon="arrow-left-right" title="CC Switch" href="/apps/cc-switch">
+  A provider switching tool for Claude Code and Codex CLI, with one-click import from NookMux token pages.
+  </Card>
+</Columns>
+
+## Integration Guide
+
+Most apps only need the following to connect to NookMux:
+
+1. **API Address**: Your NookMux service address. OpenAI-compatible endpoints usually use `https://your-domain/v1`; Claude-compatible integrations use the site root, and the gateway handles `/v1/messages`; Gemini-compatible integrations are covered in the individual app docs.
+2. **API Key**: The token created on the NookMux console's "Keys" page, starting with `sk-`.
+3. **Model Name**: Choose a model that has been configured in the channel.
+
+For detailed setup steps, see the individual app pages.

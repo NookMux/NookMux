@@ -1,0 +1,12 @@
+---
+title: Native OpenAI Format
+api: "GET /v1/models"
+---
+
+Get a list of currently available models.
+
+Automatically identify the return format based on the request headers:
+- Returns Anthropic format when `x-api-key` and `anthropic-version` headers are present
+- Returns Gemini format when `x-goog-api-key` header or `key` query parameter is present
+- Returns OpenAI format in other cases
+

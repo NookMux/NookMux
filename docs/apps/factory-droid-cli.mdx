@@ -1,0 +1,106 @@
+---
+title: Factory Droid CLI
+---
+
+<Card type="info" title="Project Introduction">
+  Droid CLI is a command-line AI software engineering agent developed by Factory AI. It supports custom model gateways through BYOK (Bring Your Own Key).
+
+  - Official Homepage: [https://factory.ai/product/cli](https://factory.ai/product/cli)
+  - Official BYOK Docs: [https://docs.factory.ai/cli/byok/overview](https://docs.factory.ai/cli/byok/overview)
+</Card>
+
+## Install
+
+macOS / Linux:
+
+```bash
+curl -fsSL https://app.factory.ai/cli | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://app.factory.ai/cli/windows | iex
+```
+
+After installation, follow the prompts to add the executable directory to your PATH. Droid CLI requires logging in to the official account (free) before use.
+
+## Connect to NookMux
+
+Droid CLI configures custom models through the `customModels` array in `~/.factory/settings.json`. NookMux provides an OpenAI-compatible interface:
+
+```json
+{
+  "customModels": [
+    {
+      "model": "gpt-5.6",
+      "displayName": "NookMux GPT",
+      "baseUrl": "https://your-domain.com/v1",
+      "apiKey": "${NOOKMUX_API_KEY}",
+      "provider": "generic-chat-completion-api",
+      "maxOutputTokens": 16384
+    }
+  ]
+}
+```
+
+- `model`: Must match the model name configured in the NookMux channel.
+- `baseUrl`: NookMux site address + `/v1`.
+- `apiKey`: Supports `${VAR_NAME}` syntax to reference an environment variable, for example `export NOOKMUX_API_KEY=sk-your-nookmux-token` first; you can also write the token directly, but mind file permissions.
+- `provider`:
+  - `generic-chat-completion-api`: OpenAI Chat Completions-compatible (works for most cases).
+  - `openai`: OpenAI Responses API (for newer models such as `gpt-5` / `gpt-5-codex`).
+  - `anthropic`: Anthropic Messages API. In this case, set `baseUrl` to the NookMux site root and use a `claude-*` model.
+
+Anthropic model example:
+
+```json
+{
+  "customModels": [
+    {
+      "model": "claude-sonnet-4-5-20250929",
+      "displayName": "NookMux Claude",
+      "baseUrl": "https://your-domain.com",
+      "apiKey": "${NOOKMUX_API_KEY}",
+      "provider": "anthropic",
+      "maxOutputTokens": 16384
+    }
+  ]
+}
+```
+
+## Usage
+
+1. Create a token on the NookMux console's "Keys" page and copy the full `sk-` secret.
+2. Export the environment variable:
+
+   ```bash
+   export NOOKMUX_API_KEY=sk-your-nookmux-token
+   ```
+
+3. Start Droid CLI:
+
+   ```bash
+   cd /path/to/your/project
+   droid
+   ```
+
+4. Use the `/model` command to pick the configured model from the "Custom models" group.
+
+## Common Issues
+
+### The Model Does Not Appear in the Selector
+
+- Check that `~/.factory/settings.json` is valid JSON.
+- Make sure the required fields `model`, `baseUrl`, and `provider` are complete.
+
+### Authentication Failed
+
+- Confirm the environment variable is exported and matches the `${...}` reference in `apiKey`.
+- Confirm the token is a full `sk-` NookMux secret and has not been disabled.
+
+### PowerShell Execution Policy Restriction
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```

@@ -1,0 +1,48 @@
+---
+title: Installation & Deployment
+description: Choose the NookMux deployment method that fits your setup
+---
+
+
+## Overview
+
+NookMux is a Go-based AI API gateway and admin console. It supports Docker, Docker Compose, panel deployments, cluster deployments, and local development. For production, Docker Compose is recommended so you can manage the app, Redis, data directory, and logs in one place.
+
+The current official container image is `ghcr.io/nookmux/nookmux:latest`.
+
+## Deployment Methods
+
+<Columns cols={2}>
+  <Card icon="boxes" title="Docker Compose Deployment" href="/installation/deployment-methods/docker-compose-installation">
+  Deploy NookMux and Redis with the bundled compose file, suitable for production.
+  </Card>
+  <Card icon="container" title="Docker Single Container Deployment" href="/installation/deployment-methods/docker-installation">
+  Run the official image directly, suitable for testing or setups with external database/Redis.
+  </Card>
+  <Card icon="server" title="1Panel Deployment" href="/installation/deployment-methods/1panel-installation">
+  Deploy NookMux through 1Panel's container features.
+  </Card>
+  <Card icon="server" title="Baota Panel Deployment" href="/installation/deployment-methods/bt-docker-installation">
+  Deploy NookMux through Baota Panel's Docker features.
+  </Card>
+  <Card icon="network" title="Cluster Deployment Mode" href="/installation/deployment-methods/cluster-deployment">
+  Use shared database and Redis across nodes for high availability and load balancing.
+  </Card>
+  <Card icon="code-xml" title="Local Development Deployment" href="/installation/deployment-methods/local-development">
+  Suitable for contributors who need coding, debugging, and feature customization.
+  </Card>
+</Columns>
+
+## Configuration & Maintenance
+
+<Columns cols={2}>
+  <Card icon="file-code" title="docker-compose.yml Configuration" href="/installation/config-maintenance/docker-compose-yml">
+  Learn the current Docker Compose file and common extension patterns.
+  </Card>
+  <Card icon="settings" title="Environment Variables Configuration" href="/installation/config-maintenance/environment-variables">
+  Common environment variables, defaults, and multi-node deployment settings.
+  </Card>
+  <Card icon="refresh-cw" title="System Update" href="/installation/config-maintenance/system-update">
+  Learn how to safely update NookMux to the latest version.
+  </Card>
+</Columns>

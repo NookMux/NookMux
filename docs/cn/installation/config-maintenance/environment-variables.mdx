@@ -1,0 +1,265 @@
+---
+title: 环境变量配置指南
+---
+
+本文档列出 NookMux 常用环境变量及默认值。完整清单以仓库根目录的 `.env.example` 为准，后端解析逻辑见 `internal/app/env.go`、`internal/infra/redis/redis.go`、`internal/store/db/migrate/` 等。
+
+<Card type="info" title="提示">
+  NookMux 支持从项目根目录的 `.env` 文件读取环境变量。可复制 `.env.example` 为 `.env` 后按需修改；未设置的变量使用下表默认值。
+</Card>
+
+## 基本配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `PORT` | 服务监听端口（也可用 `--port` 启动参数） | `3000` | `PORT=8080` |
+| `TZ` | 时区设置 | - | `TZ=Asia/Shanghai` |
+| `VERSION` | 覆盖运行版本号（默认为编译时注入的 git commit） | 编译值 | `VERSION=1.2.3` |
+| `GIN_MODE` | Gin 运行模式，设为 `release` 关闭调试日志 | - | `GIN_MODE=release` |
+| `FRONTEND_BASE_URL` | 仅从节点生效；设置后非 API 路由重定向到该地址 | - | `FRONTEND_BASE_URL=https://your-domain.com` |
+
+## 真实客户端 IP（反向代理 / CDN）
+
+| 环境变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `TRUSTED_PROXIES` | 逗号分隔的可信代理 IP/CIDR 列表；仅当请求来自可信代理时才解析 `CF-Connecting-IP`、`X-Forwarded-For` 等头。特殊值：`private`/`local`、`cloudflare`/`cf`、`all`/`unsafe`、`none`/`disable` | `private,cloudflare` |
+
+## 数据库配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `SQL_DSN` | 数据库连接字符串，必须以 `mysql://`、`postgres://` 或 `postgresql://` 开头，其他前缀启动时报错；不设置使用 SQLite | SQLite（`data/one-api.db`） | MySQL: `SQL_DSN=mysql://user:password@127.0.0.1:3306/dbname`；PostgreSQL: `SQL_DSN=postgres://user:password@127.0.0.1:5432/dbname` |
+| `LOG_SQL_DSN` | 日志表独立数据库连接字符串，留空与主库共用 | - | `LOG_SQL_DSN=mysql://user:password@127.0.0.1:3306/logs` |
+| `SQLITE_PATH` | SQLite 数据库文件路径 | `data/one-api.db` | `SQLITE_PATH=/var/lib/nookmux/nookmux.db` |
+| `SQL_MAX_IDLE_CONNS` | 空闲连接池最大连接数 | `20` | `SQL_MAX_IDLE_CONNS=50` |
+| `SQL_MAX_OPEN_CONNS` | 连接池最大打开连接数 | `1000` | `SQL_MAX_OPEN_CONNS=500` |
+| `SQL_MAX_LIFETIME` | 连接最大生命周期（秒） | `60` | `SQL_MAX_LIFETIME=120` |
+| `SQL_PREPARE_STMT` | 启用 GORM 预编译语句缓存（高频 SQL 路径可开启） | `false` | `SQL_PREPARE_STMT=true` |
+
+## 缓存与 Redis 配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `REDIS_CONN_STRING` | Redis 连接字符串；不设置则禁用 Redis | -（禁用） | `REDIS_CONN_STRING=redis://:password@localhost:6379/0` |
+| `REDIS_POOL_SIZE` | Redis 连接池大小 | `50` | `REDIS_POOL_SIZE=20` |
+| `REDIS_MIN_IDLE_CONNS` | Redis 最小空闲连接数 | `5` | `REDIS_MIN_IDLE_CONNS=2` |
+| `REDIS_DIAL_TIMEOUT` | Redis 连接超时（秒） | `5` | - |
+| `REDIS_READ_TIMEOUT` | Redis 读超时（秒） | `3` | - |
+| `REDIS_WRITE_TIMEOUT` | Redis 写超时（秒） | `3` | - |
+| `REDIS_MAX_RETRIES` | Redis 命令重试次数 | `3` | - |
+| `MEMORY_CACHE_ENABLED` | 是否启用进程内存缓存 | `false` | `MEMORY_CACHE_ENABLED=true` |
+| `SYNC_FREQUENCY` | 缓存与数据库同步频率（秒） | `60` | `SYNC_FREQUENCY=60` |
+| `BATCH_UPDATE_ENABLED` | 是否启用数据库批量更新聚合 | `false` | `BATCH_UPDATE_ENABLED=true` |
+| `BATCH_UPDATE_INTERVAL` | 批量更新聚合时间间隔（秒） | `5` | `BATCH_UPDATE_INTERVAL=10` |
+
+<Info>
+  配置 `REDIS_CONN_STRING` 后会自动启用内存缓存（兼容旧行为）。
+</Info>
+
+## 多节点与安全配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `SESSION_SECRET` | 会话密钥；多机部署必须设置且所有节点一致。设为 `random_string` 时启动会直接失败 | - | `SESSION_SECRET=<random>` |
+| `COOKIE_SECURE` | 会话 cookie 是否附加 `Secure` 标记（仅经 HTTPS 传输）。HTTPS 部署（或反向代理终止 TLS）必须开启，否则长期会话 cookie 可能经明文 HTTP 信道泄露 | `false` | `COOKIE_SECURE=true` |
+| `CRYPTO_SECRET` | 加密密钥（加密数据库敏感内容）；不设置时复用 `SESSION_SECRET` | `SESSION_SECRET` | `CRYPTO_SECRET=<random>` |
+| `NODE_TYPE` | 节点类型；设为 `slave` 的节点跳过数据库迁移、根账号创建和定时渠道测试 | `master` | `NODE_TYPE=slave` |
+
+<Card type="info" title="集群部署">
+  关于如何使用这些环境变量构建完整的集群部署，请参考[集群部署指南](/cn/installation/deployment-methods/cluster-deployment)。
+</Card>
+
+## 用户及令牌配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `GENERATE_DEFAULT_TOKEN` | 为新注册用户生成初始令牌 | `false` | `GENERATE_DEFAULT_TOKEN=true` |
+| `NOTIFICATION_LIMIT_DURATION_MINUTE` | 通知限制的持续时间（分钟） | `10` | `NOTIFICATION_LIMIT_DURATION_MINUTE=15` |
+| `NOTIFY_LIMIT_COUNT` | 指定持续时间内的最大通知数量 | `2` | `NOTIFY_LIMIT_COUNT=3` |
+
+## 请求与响应限制配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `GLOBAL_API_RATE_LIMIT_ENABLE` | 全局 API 速率限制开关 | `true` | `GLOBAL_API_RATE_LIMIT_ENABLE=false` |
+| `GLOBAL_API_RATE_LIMIT` | 全局 API 速率限制次数（单 IP） | `180` | - |
+| `GLOBAL_API_RATE_LIMIT_DURATION` | 全局 API 速率限制时间窗口（秒） | `180` | - |
+| `GLOBAL_WEB_RATE_LIMIT_ENABLE` | 全局 Web 速率限制开关 | `true` | - |
+| `GLOBAL_WEB_RATE_LIMIT` | 全局 Web 速率限制次数（单 IP） | `60` | - |
+| `GLOBAL_WEB_RATE_LIMIT_DURATION` | 全局 Web 速率限制时间窗口（秒） | `180` | - |
+| `CRITICAL_RATE_LIMIT_ENABLE` | 关键操作速率限制开关 | `true` | - |
+| `CRITICAL_RATE_LIMIT` | 关键操作速率限制次数 | `20` | - |
+| `CRITICAL_RATE_LIMIT_DURATION` | 关键操作速率限制时间窗口（秒） | `1200` | - |
+| `SEARCH_RATE_LIMIT_ENABLE` | 搜索接口速率限制开关 | `true` | - |
+| `SEARCH_RATE_LIMIT` | 搜索接口速率限制次数（单 IP） | `10` | - |
+| `SEARCH_RATE_LIMIT_DURATION` | 搜索接口速率限制时间窗口（秒） | `60` | - |
+| `RELAY_TIMEOUT` | 中继请求超时时间（秒），`0` 表示不限制 | `0` | `RELAY_TIMEOUT=60` |
+| `RELAY_MAX_IDLE_CONNS` | 中继 HTTP 客户端最大空闲连接数 | `200` | - |
+| `RELAY_MAX_IDLE_CONNS_PER_HOST` | 中继 HTTP 客户端每 Host 最大空闲连接数 | `32` | - |
+| `RELAY_IDLE_CONN_TIMEOUT` | 中继 HTTP 客户端空闲连接保留时间（秒） | `90` | - |
+| `STREAMING_TIMEOUT` | 流式一次回复的超时时间（秒） | `300` | `STREAMING_TIMEOUT=120` |
+| `STREAM_SCANNER_MAX_BUFFER_MB` | 单个流式 SSE 帧最大缓冲（MB） | `8` | - |
+| `MAX_FILE_DOWNLOAD_MB` | 最大文件下载大小（MB） | `64` | `MAX_FILE_DOWNLOAD_MB=50` |
+| `MAX_REQUEST_BODY_MB` | 最大请求体大小（MB，解压后计） | `128` | `MAX_REQUEST_BODY_MB=100` |
+| `ANONYMOUS_REQUEST_BODY_LIMIT_KB` | 匿名请求体大小限制（KB） | `512` | - |
+| `MAX_RESPONSE_BODY_MB` | 上游响应体大小限制基线（MB） | `16` | - |
+| `MAX_TEXT_RESPONSE_BODY_MB` | 文本类响应体限制（MB） | 同 `MAX_RESPONSE_BODY_MB` | - |
+| `MAX_EMBEDDING_RESPONSE_BODY_MB` | 向量类响应体限制（MB） | `64` | - |
+| `MAX_MEDIA_RESPONSE_BODY_MB` | 媒体类响应体限制（MB） | `64` | - |
+| `MAX_ERROR_RESPONSE_BODY_MB` | 错误响应体限制（MB） | `4` | - |
+| `MAX_MODEL_LIST_RESPONSE_BODY_MB` | 模型列表响应体限制（MB） | `8` | - |
+
+<Card type="warning" title="RELAY_TIMEOUT 设置警告">
+  设置 `RELAY_TIMEOUT` 时请谨慎：过短的超时可能导致上游 API 已完成请求并计费，但本地因超时未完成计费，造成计费不同步。建议保持默认 `0`，除非您知道自己在做什么。
+</Card>
+
+## 渠道管理配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `CHANNEL_UPDATE_FREQUENCY` | 定期更新渠道余额频率（分钟），不设置则不启用 | - | `CHANNEL_UPDATE_FREQUENCY=1440` |
+| `CHANNEL_TEST_FREQUENCY` | 定期检查渠道可用性频率（分钟），不设置则不启用 | - | `CHANNEL_TEST_FREQUENCY=1440` |
+| `POLLING_INTERVAL` | 批量更新渠道时请求间隔（秒） | `0` | `POLLING_INTERVAL=5` |
+
+## 模型和请求处理配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `FORCE_STREAM_OPTION` | 覆盖客户端 `stream_options` 参数以强制返回 usage | `true` | `FORCE_STREAM_OPTION=false` |
+| `CountToken` | 是否统计文本 token | `true` | `CountToken=false` |
+| `GET_MEDIA_TOKEN` | 是否统计图片 token（流式） | `true` | - |
+| `GET_MEDIA_TOKEN_NOT_STREAM` | 非流模式下是否统计图片 token | `false` | - |
+
+## 多模态资源存储配置
+
+用于 text-only 模型调用 MCP 图像/视频理解工具时的自动转 URL 存储。
+
+| 环境变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `MAX_IMAGE_UPLOAD_MB` | 单个图片大小限制（MB），`0` 表示不限制 | `64` |
+| `MAX_VIDEO_UPLOAD_MB` | 单个视频大小限制（MB），`0` 表示不限制 | `128` |
+| `STORED_IMAGE_POOL_MB` | 图片存储池上限（MB），超过后自动删除最早资源 | `512` |
+| `STORED_VIDEO_POOL_MB` | 视频存储池上限（MB），超过后自动删除最早资源 | `1024` |
+
+## 特定模型配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `AZURE_DEFAULT_API_VERSION` | Azure 渠道默认 API 版本 | `2025-04-01-preview` | - |
+| `COHERE_SAFETY_SETTING` | Cohere 模型安全设置 | `NONE` | - |
+| `GEMINI_VISION_MAX_IMAGE_NUM` | Gemini 模型最大图片数量 | `16` | - |
+| `DIFY_DEBUG` | Dify 渠道输出工作流和节点信息 | `true` | - |
+
+## TLS 与可信重定向
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `TLS_INSECURE_SKIP_VERIFY` | 跳过 TLS 证书验证（自签名证书场景） | `false` | - |
+| `TRUSTED_REDIRECT_DOMAINS` | 逗号分隔的可信域名列表（支持子域名匹配），用于验证支付回调 URL | 空 | `TRUSTED_REDIRECT_DOMAINS=example.com` |
+
+## 元数据同步
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `SYNC_UPSTREAM_BASE` | 模型/厂商元数据上游地址 | `https://basellm.github.io/llm-metadata` | - |
+| `SYNC_HTTP_TIMEOUT_SECONDS` | 同步 HTTP 超时（秒） | `10` | - |
+| `SYNC_HTTP_RETRY` | 同步重试次数 | `3` | - |
+| `SYNC_HTTP_MAX_MB` | 同步响应体最大大小（MB） | `10` | - |
+| `SYNC_HTTP_MAX_IDLE_CONNS` | 模型元数据同步客户端最大空闲连接数 | `10` | - |
+| `SYNC_HTTP_IDLE_CONN_TIMEOUT` | 模型元数据同步客户端空闲连接保留时间（秒） | `30` | - |
+
+## 分析统计
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `UMAMI_WEBSITE_ID` | Umami 站点 ID，设置后注入 Umami 统计脚本 | - | - |
+| `UMAMI_SCRIPT_URL` | Umami 脚本地址 | `https://analytics.umami.is/script.js` | - |
+| `GOOGLE_ANALYTICS_ID` | Google Analytics 4 站点 ID | - | - |
+
+## 其他配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `ERROR_LOG_ENABLED` | 是否记录并在前端显示错误日志 | `false` | `ERROR_LOG_ENABLED=true` |
+
+## 调试与性能分析
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `ENABLE_PPROF` | 启用 pprof 性能分析端点（端口 8005） | `false` | - |
+| `DEBUG` | 启用调试模式（详细日志、GORM 调试查询） | `false` | - |
+| `PYROSCOPE_URL` | Pyroscope 持续性能分析服务地址，不设置则禁用 | - | `PYROSCOPE_URL=http://localhost:4040` |
+| `PYROSCOPE_APP_NAME` | Pyroscope 应用名 | `nookmux` | - |
+| `PYROSCOPE_BASIC_AUTH_USER` / `PYROSCOPE_BASIC_AUTH_PASSWORD` | Pyroscope Basic Auth 凭据 | - | - |
+| `PYROSCOPE_MUTEX_RATE` / `PYROSCOPE_BLOCK_RATE` | Pyroscope 采样率 | `5` | - |
+| `HOSTNAME` | 上报主机名 | - | - |
+
+## LinuxDo 相关（通常无需修改）
+
+| 环境变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `LINUX_DO_TOKEN_ENDPOINT` | LinuxDo 令牌端点 | `https://connect.linux.do/oauth2/token` |
+| `LINUX_DO_USER_ENDPOINT` | LinuxDo 用户端点 | `https://connect.linux.do/api/user` |
+
+## 前端构建时配置
+
+| 环境变量 | 说明 | 默认值 | 示例 |
+| --- | --- | --- | --- |
+| `VITE_REACT_APP_SERVER_URL` | 前端构建/开发时代理的后端地址 | 开发代理指向 `http://localhost:3000` | `VITE_REACT_APP_SERVER_URL=https://api.example.com` |
+
+<Info>
+  `VITE_REACT_APP_SERVER_URL` 仅影响前端开发服务器的代理目标。生产环境前端默认同源请求后端，无需设置。
+</Info>
+
+## 已废弃 / 已移除的环境变量
+
+以下变量在当前代码中已不再读取，保留表格以免误配：
+
+| 环境变量 | 状态 |
+| --- | --- |
+| `UPDATE_TASK` | 已移除，异步任务更新行为由系统内部调度控制 |
+| `ENABLE_METRIC`、`METRIC_QUEUE_SIZE`、`METRIC_SUCCESS_RATE_THRESHOLD` | 已移除，渠道自动禁用等能力由系统设置中的监控配置控制 |
+| `TEST_PROMPT` | 已移除，测试 prompt 由系统设置控制 |
+| `TASK_PRICE_PATCH` | 已移除，任务计费请使用系统设置中的倍率配置 |
+| `REDIS_MASTER_NAME`、`REDIS_CONN_POOL_SIZE`、`REDIS_PASSWORD` | 已移除，Redis 配置统一通过 `REDIS_CONN_STRING` 连接字符串及 `REDIS_POOL_SIZE` 等变量控制 |
+| `GEMINI_MODEL_MAP`、`GEMINI_SAFETY_SETTING` | 已废弃，请在系统设置-模型相关设置中配置 |
+
+## 多机部署示例
+
+### 主节点配置
+
+```bash
+# 数据库配置 - 使用外部数据库
+SQL_DSN=postgres://user:password@db-server:5432/nookmux
+
+# 安全配置
+SESSION_SECRET=your_unique_session_secret
+CRYPTO_SECRET=your_unique_crypto_secret
+
+# Redis 缓存配置
+REDIS_CONN_STRING=redis://:password@redis-server:6379
+```
+
+### 从节点配置
+
+```bash
+# 数据库配置 - 使用相同的远程数据库
+SQL_DSN=postgres://user:password@db-server:5432/nookmux
+
+# 安全配置 - 与主节点使用相同的密钥
+SESSION_SECRET=your_unique_session_secret
+CRYPTO_SECRET=your_unique_crypto_secret
+
+# Redis 缓存配置 - 与主节点使用相同的 Redis
+REDIS_CONN_STRING=redis://:password@redis-server:6379
+
+# 节点类型设置
+NODE_TYPE=slave
+
+# 前端基础 URL（仅从节点生效）
+FRONTEND_BASE_URL=https://your-domain.com
+```
+
+<Card type="info" title="完整集群配置">
+  完整的集群部署配置、架构说明和最佳实践，请参考[集群部署指南](/cn/installation/deployment-methods/cluster-deployment)。
+</Card>

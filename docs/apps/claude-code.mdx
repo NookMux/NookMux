@@ -1,0 +1,114 @@
+---
+title: Claude Code
+---
+
+<Card type="info" title="Project Introduction">
+  Claude Code is Anthropic's official command-line coding assistant. It can search codebases, edit files, and run commands directly in the terminal.
+
+  - Official Homepage: [https://www.anthropic.com/claude-code](https://www.anthropic.com/claude-code)
+  - Gateway Docs: [Connect Claude Code to an LLM gateway](https://docs.anthropic.com/en/docs/claude-code/llm-gateway-connect)
+</Card>
+
+## Install
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+
+# Verify
+claude --version
+```
+
+Windows users should install and run it in WSL2 or Git Bash.
+
+## Connect to NookMux
+
+Claude Code uses environment variables to point at the gateway. NookMux provides an Anthropic Messages-compatible endpoint. The minimum setup uses two variables:
+
+| Environment Variable | Value |
+| --- | --- |
+| `ANTHROPIC_BASE_URL` | NookMux site root, for example `https://your-domain.com` (do not include `/v1/messages`) |
+| `ANTHROPIC_AUTH_TOKEN` | NookMux token (`sk-` prefix) |
+
+### macOS / Linux
+
+```bash
+export ANTHROPIC_BASE_URL=https://your-domain.com
+export ANTHROPIC_AUTH_TOKEN=sk-your-nookmux-token
+claude
+```
+
+To make it persistent, add the two lines to `~/.zshrc` or `~/.bashrc`, then `source` the file.
+
+### Windows PowerShell
+
+```powershell
+$env:ANTHROPIC_BASE_URL = "https://your-domain.com"
+$env:ANTHROPIC_AUTH_TOKEN = "sk-your-nookmux-token"
+claude
+```
+
+To persist it, write the settings to `%USERPROFILE%\.claude\settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://your-domain.com",
+    "ANTHROPIC_AUTH_TOKEN": "sk-your-nookmux-token"
+  }
+}
+```
+
+<Card type="warning" title="Do not commit secrets to the repository">
+  If you need a project-level `.claude/settings.local.json`, add it to `.gitignore` first to avoid leaking the token.
+</Card>
+
+### Get the Secret from NookMux
+
+1. Create or select a token on the console's "Keys" page and copy the full `sk-` secret.
+2. Make sure the channel already has `claude-*` models configured.
+
+NookMux's Anthropic-compatible entry supports both authentication headers: `Authorization: Bearer <token>` (for `ANTHROPIC_AUTH_TOKEN`) and `x-api-key: <token>` (for `ANTHROPIC_API_KEY`). `ANTHROPIC_AUTH_TOKEN` is recommended.
+
+## Verify the Connection
+
+Before starting Claude Code, send a minimal request to the gateway to confirm the configuration:
+
+```bash
+curl -X POST "$ANTHROPIC_BASE_URL/v1/messages" \
+  -H "Authorization: Bearer $ANTHROPIC_AUTH_TOKEN" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{"model": "claude-sonnet-4-6", "max_tokens": 1, "messages": [{"role": "user", "content": "."}]}'
+```
+
+If the response starts with `{"id":"msg_`, the address and token are valid. Then run `claude` and use `/status` to confirm that `Anthropic base URL` points to your NookMux site.
+
+## Start Using
+
+```bash
+cd /path/to/your/project
+claude
+```
+
+After launch, use `/model` to select a model.
+
+<Info>
+  After setting `ANTHROPIC_BASE_URL`, all models, including officially preset names, are routed through NookMux instead of consuming the official account quota.
+</Info>
+
+## Common Issues
+
+### 401 / Invalid Token
+
+- Make sure the token is the full NookMux token with the `sk-` prefix.
+- If you still have a claude.ai login session or both `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` set, the credentials may conflict. Run `/logout` to clear the session and try again.
+
+### Environment Variables Do Not Take Effect
+
+- Make sure you edited the right shell config file (`.bashrc`, `.zshrc`, or PowerShell `$PROFILE`).
+- Restart the terminal or run `source ~/.zshrc`.
+- Verify with `echo $ANTHROPIC_BASE_URL`.
+
+### The Gateway Rejects the Session with 400
+
+- Some upstreams are not fully compatible with the pre-release fields sent by Claude Code. Confirm that the upstream supports the Anthropic Messages protocol in the NookMux channel/model mapping, then try again.

@@ -1,0 +1,44 @@
+---
+title: LunaTranslator - 开源 GalGame 翻译器
+---
+
+<Info>
+  LunaTranslator 是一款开源免费的视觉小说（GalGame）翻译器，支持 HOOK 提取文本、OCR、离线翻译和大模型翻译，可通过「大模型通用接口」接入 OpenAI 兼容服务。
+</Info>
+
+- 项目地址：[https://github.com/HIllya51/LunaTranslator](https://github.com/HIllya51/LunaTranslator)
+- 项目文档：[https://docs.lunatranslator.org/zh/README.html](https://docs.lunatranslator.org/zh/README.html)
+
+## 功能支持
+
+- **HOOK**：提取游戏文本，适配绝大多数视觉小说
+- **内嵌翻译**：部分游戏支持将译文内嵌到游戏中
+- **OCR**：内置离线 OCR，并支持多种在线 OCR 引擎
+- **大模型翻译**：支持 OpenAI 兼容接口作为翻译引擎
+- **语言学习**：日语分词、假名注音、AnkiConnect、Yomitan
+- **语音合成 / 语音识别**：支持多种在线和离线方案
+
+## 安装
+
+在 [LunaTranslator 文档 - 下载 & 启动 & 更新](https://docs.lunatranslator.org/zh/README.html) 下载安装。
+
+## 在 LunaTranslator 中接入 NookMux
+
+LunaTranslator 的「大模型通用接口」使用 OpenAI 兼容协议，可直接指向 NookMux。
+
+### 配置步骤
+
+1. 在 NookMux 控制台「密钥」页面创建令牌并复制 API Key。
+2. 打开 LunaTranslator → `设置` → `翻译设置` → `大模型`，选择添加。
+3. 复制 **大模型通用接口** 模板新增接口。
+4. 在新增接口中填写：
+
+| 配置项 | 内容 |
+| --- | --- |
+| API 地址 | NookMux 站点地址 + `/v1`，例如 `https://your-domain.com/v1` |
+| API Key | NookMux 令牌（`sk-` 开头） |
+| 模型 | 点击 model 下拉框旁的刷新按钮拉取模型列表，或手动输入模型名 |
+
+5. 打开该接口旁的开关按钮，启用接口即可开始使用。
+
+更多用法请查看 LunaTranslator 官方文档：[LunaTranslator 文档 - 大模型翻译接口](https://docs.lunatranslator.org/zh/guochandamoxing.html)

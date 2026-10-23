@@ -1,0 +1,111 @@
+---
+title: OpenAI Codex CLI
+---
+
+<Card type="info" title="项目介绍">
+  Codex CLI 是一个来自 OpenAI 的编码代理，可在您的计算机上本地运行。
+
+  - 官方主页：[https://chatgpt.com/codex](https://chatgpt.com/codex)
+  - 项目主页：[https://github.com/openai/codex](https://github.com/openai/codex)
+  - 配置参考：[Codex Config Reference](https://developers.openai.com/codex/config-reference)
+</Card>
+
+## 安装
+
+Codex CLI 需要 Node.js 环境（建议 22 及以上），安装方式以 [官方文档](https://github.com/openai/codex) 为准：
+
+```bash
+npm install -g @openai/codex
+
+# 验证安装
+codex --version
+```
+
+Windows 用户建议在 WSL2 中运行；macOS/Linux 直接在终端运行即可。
+
+## 接入 NookMux
+
+NookMux 提供 OpenAI Responses 兼容接口，Codex CLI 通过修改用户级配置文件 `~/.codex/config.toml` 接入（Windows WSL 下为 WSL 内的 `~/.codex/config.toml`）。
+
+<Card type="warning" title="配置位置">
+  `openai_base_url`、`model_provider`、`model_providers` 等供应商配置只在用户级 `~/.codex/config.toml` 中生效，项目级 `.codex/config.toml` 会忽略这些键。
+</Card>
+
+### 方式一：覆盖内置 OpenAI 提供商的 base URL
+
+```toml
+# ~/.codex/config.toml
+model = "gpt-5.6" # 换成你在 NookMux 渠道中配置的模型
+model_provider = "openai"
+openai_base_url = "https://your-domain.com/v1"
+```
+
+然后设置 API Key 环境变量并启动：
+
+```bash
+export OPENAI_API_KEY=sk-your-nookmux-token
+codex
+```
+
+### 方式二：自定义模型提供商
+
+```toml
+# ~/.codex/config.toml
+model = "gpt-5.6" # 换成你在 NookMux 渠道中配置的模型
+model_provider = "nookmux"
+
+[model_providers.nookmux]
+name = "NookMux"
+base_url = "https://your-domain.com/v1"
+env_key = "NOOKMUX_API_KEY"
+wire_api = "responses"
+```
+
+```bash
+export NOOKMUX_API_KEY=sk-your-nookmux-token
+codex
+```
+
+### 在 NookMux 侧获得密钥
+
+1. 控制台「密钥」页面创建或选择令牌。
+2. 复制完整 `sk-` 密钥。
+3. 确认渠道中已配置 Codex 要使用的模型（如 `gpt-5.*` 系列），且模型名与配置文件中的 `model` 一致。
+
+## 开始使用
+
+```bash
+# 直接启动
+codex
+
+# 在特定项目中使用
+cd /path/to/your/project
+codex
+```
+
+启动后可以用 `/model` 命令切换模型。
+
+<Info>
+  接入自定义 base URL 后，所有模型（包括官方预设模型名）都会经由 NookMux 转发，不再消耗官方账号额度。
+</Info>
+
+## 常见问题
+
+### 提示 401 / 无效令牌
+
+- 确认环境变量中的密钥是完整 `sk-` 开头的 NookMux 令牌。
+- 确认 `env_key` 指向的变量名已导出。
+
+### 请求仍发往 api.openai.com
+
+- `openai_base_url` 必须是 `config.toml` 的顶层键，不要写成 `[model_providers.openai]`（内置提供商 ID 不可覆盖）或 `[model_provider_config]` 下的子键。
+- 旧版本支持的 `OPENAI_BASE_URL` 环境变量已被官方移除，请使用 `openai_base_url` 配置键。
+
+### npm 权限错误
+
+```bash
+sudo npm install -g @openai/codex
+# 或
+npm config set prefix ~/.npm-global
+export PATH=~/.npm-global/bin:$PATH
+```

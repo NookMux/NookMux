@@ -1,0 +1,176 @@
+---
+title: Local Development
+---
+
+This document explains how to run and develop NookMux locally. The backend is Go, the frontend is React 19 + TypeScript + Rsbuild, and the frontend package manager is Bun.
+
+## Development Environment Requirements
+
+- **Go**: follow `go.mod`; the current version is `1.26.2`.
+- **Bun**: used to install and build frontend dependencies.
+- **Git**: used to fetch the source code.
+- **MySQL / PostgreSQL / Redis**: optional. SQLite is used by default when `SQL_DSN` is not set.
+
+## Clone the Project
+
+```bash
+git clone https://github.com/NookMux/NookMux.git
+cd NookMux
+```
+
+## Backend Development Setup
+
+### Install Dependencies
+
+```bash
+go mod download
+```
+
+### Configure Environment Variables
+
+```bash
+cp .env.example .env
+```
+
+The minimal local development setup can keep the defaults. Common settings:
+
+```bash
+PORT=3000
+# SQL_DSN=mysql://user:password@localhost:3306/nookmux
+# REDIS_CONN_STRING=redis://:password@localhost:6379
+```
+
+<Card type="info" title="Default database">
+  SQLite is used when `SQL_DSN` is not set. The default database file is `data/one-api.db`. You can change it with `SQLITE_PATH`.
+</Card>
+
+### Build Frontend Assets
+
+The backend entry point lives in `cmd/server/`, and `web/embed.go` embeds `web/dist/index.html` via Go `embed`, so you must build the frontend at least once before running or compiling the backend:
+
+```bash
+cd web
+bun install
+bun run build
+cd ..
+```
+
+### Run the Backend
+
+```bash
+go run ./cmd/server
+```
+
+Or build and run it:
+
+```bash
+go build -ldflags "-X 'github.com/NookMux/NookMux/internal/common.Version=$(git rev-parse HEAD)'" -o NookMux ./cmd/server
+./NookMux --port 3000 --log-dir ./logs
+```
+
+The service runs at `http://localhost:3000` by default.
+
+## Frontend Development Setup
+
+The frontend lives in `web/` and uses React 19, TypeScript, Rsbuild, TanStack Router, TanStack Query, Base UI, and Tailwind CSS 4.
+
+```bash
+cd web
+bun install
+bun run dev
+```
+
+The Rsbuild dev server reads `VITE_REACT_APP_SERVER_URL` by default and proxies to `http://localhost:3000` when it is not set. The current dev proxy covers `/api`, `/mj`, and `/pg`, and the frontend runtime uses same-origin requests by default.
+
+Common commands:
+
+```bash
+bun run typecheck
+bun run lint
+bun run build
+bun run build:check
+```
+
+## Common Development Workflow
+
+### Backend API Only
+
+1. Run `cd web && bun install && bun run build` once to make sure `web/dist` exists.
+2. Go back to the project root and run `go run ./cmd/server`.
+3. Visit `http://localhost:3000` or call `/api` and `/v1` directly.
+
+### Develop Frontend and Backend Together
+
+1. Terminal A: run `go run ./cmd/server` from the project root.
+2. Terminal B: run `cd web && bun run dev`.
+3. Open the frontend dev server in your browser. API requests will be proxied to the backend.
+
+### Using make
+
+```bash
+make build-frontend
+make build-backend
+make test-backend
+```
+
+## Project Structure Overview
+
+```text
+NookMux/
+├─ cmd/server/             # Backend entry point (main.go)
+├─ internal/app/           # Bootstrap, gin assembly, webdist facade
+├─ internal/httpapi/       # HTTP boundary: router + middleware + controller (per-resource subpackages)
+├─ internal/store/         # GORM models, migrations, database access (per-resource subpackages)
+├─ internal/domain/        # Domain services: billing, channel, audit, rankings, ticket, sensitive, group
+├─ internal/infra/         # Infrastructure: db, redis, cache, email, security, runtime, log, httpclient, media, tokenizer, notify, payment, passkey, custom_voice
+├─ internal/relay/         # AI protocol translation and vendor adapters
+├─ internal/config/        # System, operation, model, and ratio settings (formerly setting/)
+├─ internal/common/        # Kernel of business globals and misc utilities (ContextKey registry, SysLog, GetEnvOrDefault, etc.)
+├─ internal/i18n/          # Backend response message translations
+├─ pkg/                    # Reusable dependency-free libraries (jsonx, cachex)
+├─ Dockerfile              # Image build, requires web/dist/index.html to exist
+├─ docker-compose.yml      # Default SQLite + Redis deployment config
+├─ nookmux.service         # systemd sample service
+├─ docs/                   # Documentation
+└─ web/                    # React 19 + TypeScript + Rsbuild frontend; embed declaration lives in web/embed.go
+```
+
+## Debugging Tips
+
+### Backend Logs
+
+```bash
+go run ./cmd/server --log-dir ./logs
+```
+
+### Frontend Type Checking
+
+```bash
+cd web
+bun run typecheck
+```
+
+### Common Issues
+
+#### `pattern web/dist/index.html: no matching files found`
+
+This means the frontend assets have not been built yet. Run:
+
+```bash
+cd web
+bun install
+bun run build
+```
+
+#### The frontend dev server cannot reach the backend
+
+Make sure the backend is running at `http://localhost:3000`, or set it explicitly:
+
+```bash
+VITE_REACT_APP_SERVER_URL=http://localhost:3000 bun run dev
+```
+
+## Get Help
+
+- GitHub Issues: [https://github.com/NookMux/NookMux/issues](https://github.com/NookMux/NookMux/issues)
+- GitHub repository: [https://github.com/NookMux/NookMux](https://github.com/NookMux/NookMux)

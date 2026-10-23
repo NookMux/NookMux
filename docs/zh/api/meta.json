@@ -1,7 +1,0 @@
-{
-  "title": "API 参考",
-  "description": "NookMux 接口文档",
-  "icon": "Code",
-  "root": true,
-  "pages": ["index", "current-contract", "ai-model", "management"]
-}

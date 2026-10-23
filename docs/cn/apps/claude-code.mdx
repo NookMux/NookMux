@@ -1,0 +1,114 @@
+---
+title: Claude Code
+---
+
+<Card type="info" title="项目介绍">
+  Claude Code 是 Anthropic 官方的命令行编码助手，可直接在终端中搜索代码库、编辑文件和运行命令。
+
+  - 官方主页：[https://www.anthropic.com/claude-code](https://www.anthropic.com/claude-code)
+  - 网关接入官方文档：[Connect Claude Code to an LLM gateway](https://docs.anthropic.com/en/docs/claude-code/llm-gateway-connect)
+</Card>
+
+## 安装
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+
+# 验证
+claude --version
+```
+
+Windows 建议在 WSL2 或 Git Bash 环境中安装使用。
+
+## 接入 NookMux
+
+Claude Code 通过环境变量指向网关。NookMux 提供 Anthropic Messages 兼容接口，最小配置是两个变量：
+
+| 环境变量 | 值 |
+| --- | --- |
+| `ANTHROPIC_BASE_URL` | NookMux 站点根地址，例如 `https://your-domain.com`（不要带 `/v1/messages`） |
+| `ANTHROPIC_AUTH_TOKEN` | NookMux 令牌（`sk-` 开头） |
+
+### macOS / Linux
+
+```bash
+export ANTHROPIC_BASE_URL=https://your-domain.com
+export ANTHROPIC_AUTH_TOKEN=sk-your-nookmux-token
+claude
+```
+
+要持久化，把这两行加入 `~/.zshrc` 或 `~/.bashrc` 后 `source` 生效。
+
+### Windows PowerShell
+
+```powershell
+$env:ANTHROPIC_BASE_URL = "https://your-domain.com"
+$env:ANTHROPIC_AUTH_TOKEN = "sk-your-nookmux-token"
+claude
+```
+
+要持久化，可写入用户级设置文件 `%USERPROFILE%\.claude\settings.json`：
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://your-domain.com",
+    "ANTHROPIC_AUTH_TOKEN": "sk-your-nookmux-token"
+  }
+}
+```
+
+<Card type="warning" title="不要把密钥提交进仓库">
+  如需项目级 `.claude/settings.local.json`，请先将其加入 `.gitignore`，避免令牌泄漏。
+</Card>
+
+### 在 NookMux 侧获得密钥
+
+1. 控制台「密钥」页面创建或选择令牌，复制完整 `sk-` 密钥。
+2. 确认渠道中已配置 `claude-*` 系列模型。
+
+NookMux 的 Anthropic 兼容入口支持两种认证头：`Authorization: Bearer <token>`（对应 `ANTHROPIC_AUTH_TOKEN`）和 `x-api-key: <token>`（对应 `ANTHROPIC_API_KEY`）。推荐使用 `ANTHROPIC_AUTH_TOKEN`。
+
+## 验证连接
+
+启动前可直接向网关发一条最小请求确认配置正确：
+
+```bash
+curl -X POST "$ANTHROPIC_BASE_URL/v1/messages" \
+  -H "Authorization: Bearer $ANTHROPIC_AUTH_TOKEN" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{"model": "claude-sonnet-4-6", "max_tokens": 1, "messages": [{"role": "user", "content": "."}]}'
+```
+
+返回以 `{"id":"msg_` 开头的 JSON 即说明地址和密钥可用。随后运行 `claude`，用 `/status` 检查 `Anthropic base URL` 是否指向您的 NookMux 站点。
+
+## 开始使用
+
+```bash
+cd /path/to/your/project
+claude
+```
+
+启动后可用 `/model` 选择模型。
+
+<Info>
+  设置 `ANTHROPIC_BASE_URL` 后，所有模型（包括官方预设模型名）都会经由 NookMux 转发，不再使用官方账号额度。
+</Info>
+
+## 常见问题
+
+### 401 / 无效令牌
+
+- 确认使用的是完整 `sk-` 开头的 NookMux 令牌。
+- 若同时残留了 claude.ai 登录态或同时设置了 `ANTHROPIC_API_KEY` 与 `ANTHROPIC_AUTH_TOKEN`，可能产生凭据冲突，可运行 `/logout` 清理后重试。
+
+### 环境变量不生效
+
+- 确认修改的是当前 shell 使用的配置文件（`.bashrc` / `.zshrc` / PowerShell `$PROFILE`）。
+- 重启终端或执行 `source ~/.zshrc`。
+- 验证：`echo $ANTHROPIC_BASE_URL`。
+
+### 会话被网关 400 拒绝
+
+部分上游对 Claude Code 发送的预发布字段不完全兼容，可在 NookMux 渠道/模型映射侧确认上游支持 Anthropic Messages 协议后再重试。

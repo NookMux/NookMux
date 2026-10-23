@@ -1,0 +1,39 @@
+---
+title: Fluent Read (FluentRead) - Open Source Translation Plugin
+---
+
+<Info>
+  Fluent Read (FluentRead) is an open-source browser translation extension dedicated to providing a native-like reading experience, with support for multiple translation engines including OpenAI-compatible interfaces.
+</Info>
+
+- Project Address: [https://github.com/Bistutu/FluentRead](https://github.com/Bistutu/FluentRead)
+
+## Core Features
+
+- **Multi-Engine Support**: Microsoft Translate, Google Translate, DeepL, and OpenAI-compatible large-model interfaces
+- **Bilingual Comparison**: Original and translated text shown side by side
+- **Selection Translation / Full-Page Translation**: Translate selected text instantly or translate the whole page with one click
+- **Local Storage**: Data stays local, with open and transparent code
+
+## Installation
+
+| Browser | Installation |
+| --- | --- |
+| Chrome | [Chrome Web Store](https://chromewebstore.google.com/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/djnlaiohfaaifbibleebjggkghlmcpcj?hl=zh-CN) |
+| Edge | [Edge Add-ons Store](https://microsoftedge.microsoft.com/addons/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/kakgmllfpjldjhcnkghpplmlbnmcoflp?hl=zh-CN) |
+| Firefox | [Firefox Add-ons Store](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
+
+## Configuration
+
+In Fluent Read's translation service settings, choose the OpenAI-compatible (large model) type and fill in:
+
+| Item | Content |
+| --- | --- |
+| Translation Service | OpenAI / custom OpenAI interface |
+| API Address | NookMux site address (follow the plugin's field requirements; `/v1` is usually not needed, but if requests fail, try adding `/v1`) |
+| Access Token | NookMux token (`sk-` prefix) |
+| Model | The model name configured in the channel |
+
+<Card type="warning" title="Use the plugin's actual field names">
+  Fluent Read's settings UI and field names can vary by version. The key idea is the same: point the API address at your NookMux site, use the NookMux token, and make sure the model name matches the channel. If translation does not respond, first confirm that the model works in NookMux.
+</Card>

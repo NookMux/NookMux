@@ -1,0 +1,109 @@
+---
+title: System Update Guide
+---
+
+This document provides the update methods and checklist for NookMux.
+
+## Pre-update Preparation
+
+1. **Back up data**: back up the database, `./data`, `./logs`, and the environment variables/compose files used for deployment.
+2. **Review release notes**: check version changes on [GitHub Releases](https://github.com/NookMux/NookMux/releases).
+3. **Keep the original config**: make sure the new container or binary uses the same `SQL_DSN`, `REDIS_CONN_STRING`, `SESSION_SECRET`, and `CRYPTO_SECRET` as the old instance.
+4. **Choose an off-peak window**: avoid affecting in-flight API calls during the update.
+
+## Docker Single-Container Update
+
+```shell
+# Pull the latest image
+docker pull ghcr.io/nookmux/nookmux:latest
+
+# Stop and remove the old container
+docker stop nookmux
+docker rm nookmux
+
+# Recreate the container with the original volume and environment settings
+docker run --name nookmux -d --restart always \
+  -p 3000:3000 \
+  -e TZ=Asia/Shanghai \
+  -e SESSION_SECRET=replace_with_the_original_value \
+  -e CRYPTO_SECRET=replace_with_the_original_value \
+  -v /your/data/path:/data \
+  ghcr.io/nookmux/nookmux:latest
+```
+
+<Card type="warning" title="Keep the parameters identical">
+  During an update, you must reuse the original data volume, database connection, Redis address, and secrets. Changing them may cause login failures, missing data, or inconsistent multi-node state.
+</Card>
+
+## Docker Compose Update
+
+```shell
+cd NookMux
+docker compose pull
+docker compose up -d
+```
+
+If you need to stop first and then start again:
+
+```shell
+docker compose pull && docker compose down && docker compose up -d
+```
+
+## 1Panel / Baota Panel Update
+
+- For instances installed through the panel app store, prefer the panel's built-in upgrade entry.
+- For instances created with a custom image, pull `ghcr.io/nookmux/nookmux:latest` again and recreate the container.
+- Before recreating, confirm that the data volume, port mapping, and environment variables are not reset by the panel.
+
+## Update from Source Compilation
+
+The backend is bundled with `web/dist` through Go `embed`, so the frontend assets must be built before compiling from source.
+
+```shell
+cd NookMux
+git pull
+
+cd web
+bun install
+bun run build
+cd ..
+
+go build -ldflags "-X 'github.com/NookMux/NookMux/internal/common.Version=$(git rev-parse HEAD)'" -o NookMux ./cmd/server
+./NookMux --port 3000 --log-dir ./logs
+```
+
+You can also use the repository's make targets:
+
+```shell
+make build-frontend
+make build-backend
+```
+
+## Multi-node Update Strategy
+
+1. Update one slave node first and watch the logs and API calls.
+2. After confirming stability, update the remaining slave nodes one by one.
+3. Update the master node last.
+4. After all nodes are updated, check cache synchronization, channel availability, and login state.
+
+## Post-update Checklist
+
+- Open the admin interface and confirm you can log in.
+- Check `docker compose logs -f nookmux` or the application logs for startup errors.
+- Request `/api/status` to verify service health.
+- Make one `/v1` API call with an existing token to confirm the relay path is working.
+- Verify database migrations completed, especially after a major version jump.
+
+## Rollback
+
+If you need to roll back the Docker image, pull and run the target version tag:
+
+```shell
+docker pull ghcr.io/nookmux/nookmux:v1.x.x
+```
+
+You must still use the original data volume and environment variables when rolling back. Database migrations may be irreversible, so confirm backups are available before rolling back in production.
+
+## Automatic Update Tools (Use with Caution)
+
+Automatic update tools such as Watchtower can cause uncontrolled issues during database migrations, config changes, or image problems. Manual updates are recommended in production. If you need automatic updates, validate them in a test environment first.

@@ -1,0 +1,112 @@
+---
+title: Docker Compose 配置说明
+---
+
+本文档说明当前 NookMux `docker-compose.yml` 的结构和常见扩展方式。根目录实际配置以 `docker-compose.yml` 为准：默认启动 NookMux 与 Redis，不内置 MySQL/PostgreSQL 服务；如需外部数据库，请设置 `SQL_DSN`。
+
+## 当前推荐配置
+
+```yaml
+services:
+  nookmux:
+    image: ghcr.io/nookmux/nookmux:latest
+    container_name: nookmux
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+    environment:
+      - REDIS_CONN_STRING=redis://:change_this_password@redis:6379
+      - TZ=Asia/Shanghai
+      - ERROR_LOG_ENABLED=true
+      - BATCH_UPDATE_ENABLED=true
+      - SESSION_SECRET=replace_with_a_random_string
+      - CRYPTO_SECRET=replace_with_another_random_string
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    command: ["redis-server", "--requirepass", "change_this_password"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "change_this_password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+<Card type="warning" title="不要直接使用示例密码">
+  示例中的 `change_this_password`、`replace_with_a_random_string` 都必须替换为生产环境专用的随机值。
+</Card>
+
+## NookMux 服务字段说明
+
+| 参数 | 说明 |
+| --- | --- |
+| `image` | 官方镜像，当前为 `ghcr.io/nookmux/nookmux:latest`。 |
+| `container_name` | 容器名称，默认示例为 `nookmux`。 |
+| `command` | 启动参数。`--log-dir /app/logs` 将日志目录指向持久化路径。 |
+| `ports` | 端口映射，默认 `3000:3000`。 |
+| `volumes` | 数据和日志持久化。至少应挂载 `/data`。 |
+| `environment` | 环境变量配置，见[环境变量配置指南](/cn/installation/config-maintenance/environment-variables)。 |
+| `depends_on` | 等待 Redis 健康后启动应用。 |
+| `healthcheck` | 可选健康检查，检查 `/api/status` 是否返回成功。 |
+
+## 数据库配置
+
+### 默认 SQLite
+
+不设置 `SQL_DSN` 时使用 SQLite，数据库路径默认是 `/data/one-api.db`。这适合个人或小规模部署。
+
+### 外部 MySQL
+
+```yaml
+environment:
+  - SQL_DSN=mysql://user:password@mysql-host:3306/nookmux
+```
+
+### 外部 PostgreSQL
+
+```yaml
+environment:
+  - SQL_DSN=postgres://user:password@postgres-host:5432/nookmux
+```
+
+NookMux 后端需要兼容 SQLite、MySQL 和 PostgreSQL。请确保数据库字符集和权限满足生产需求。
+
+## Redis 配置
+
+```yaml
+environment:
+  - REDIS_CONN_STRING=redis://:password@redis:6379
+```
+
+Redis 可用于缓存和多节点同步。若不配置 Redis，单节点仍可运行，但多节点部署必须共享同一个 Redis。
+
+## 多节点部署入口
+
+多节点部署需要所有节点共享同一数据库、同一 Redis，以及相同的 `SESSION_SECRET` / `CRYPTO_SECRET`。从节点额外设置：
+
+```yaml
+environment:
+  - NODE_TYPE=slave
+  - FRONTEND_BASE_URL=https://your-domain.example.com
+```
+
+完整示例请参考[集群部署](/cn/installation/deployment-methods/cluster-deployment)。
+
+## 常用命令
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs -f nookmux
+docker compose pull && docker compose up -d
+docker compose down
+```

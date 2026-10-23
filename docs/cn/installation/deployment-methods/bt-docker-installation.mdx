@@ -1,0 +1,75 @@
+---
+title: 宝塔面板部署
+---
+
+本文档提供使用宝塔面板 Docker 功能部署 NookMux 的步骤。
+
+## 前置要求
+
+- 宝塔面板 9.2.0 或更高版本。
+- 已在面板中安装 Docker 服务。
+- 服务器已放行 `3000` 或您计划映射的外部端口。
+
+## 创建容器
+
+1. 登录宝塔面板，进入 **Docker**。
+2. 首次进入时按提示安装 Docker 服务。
+3. 进入 **镜像管理**，拉取镜像：
+
+   ```text
+   ghcr.io/nookmux/nookmux:latest
+   ```
+
+4. 进入 **容器列表**，点击创建容器。
+5. 填写容器参数：
+
+| 配置项 | 建议值 |
+| --- | --- |
+| 容器名称 | `nookmux` |
+| 镜像 | `ghcr.io/nookmux/nookmux:latest` |
+| 端口映射 | `3000:3000` |
+| 目录映射 | `/your/host/data:/data`、`/your/host/logs:/app/logs` |
+| 启动命令 | `--log-dir /app/logs` |
+| 环境变量 | `TZ=Asia/Shanghai`、`SESSION_SECRET=...`、`CRYPTO_SECRET=...` |
+
+<Card type="warning" title="生产环境安全配置">
+  `SESSION_SECRET` 和 `CRYPTO_SECRET` 应使用不同的随机字符串。不要使用示例值或公开泄露的字符串。
+</Card>
+
+## 可选数据库与 Redis
+
+默认不设置 `SQL_DSN` 时使用 SQLite，数据库文件在 `/data/one-api.db`。如果使用外部数据库或 Redis，可添加：
+
+```text
+SQL_DSN=mysql://user:password@db-host:3306/nookmux
+REDIS_CONN_STRING=redis://:password@redis-host:6379
+```
+
+PostgreSQL 示例：
+
+```text
+SQL_DSN=postgres://user:password@db-host:5432/nookmux
+```
+
+## 访问系统
+
+容器启动后访问：
+
+```text
+http://服务器IP:3000
+```
+
+首次访问会进入初始化页面。完成管理员账号创建后即可登录。
+
+## 常见问题
+
+### 无法访问界面
+
+- 检查端口映射是否正确。
+- 确认服务器防火墙和云安全组已放行端口。
+- 查看容器日志确认服务是否启动成功。
+
+### 数据丢失
+
+- 确认已正确映射 `/data`。
+- 确认主机目录权限允许容器读写。

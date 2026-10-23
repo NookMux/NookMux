@@ -1,0 +1,90 @@
+---
+title: Docker Compose 部署
+---
+
+本文档提供使用 Docker Compose 部署 NookMux 的步骤。当前仓库自带的 `docker-compose.yml` 使用 SQLite 作为默认数据库，并启动一个带密码的 Redis 服务；如需 MySQL 或 PostgreSQL，请配置外部数据库并设置 `SQL_DSN`。
+
+## 前置要求
+
+- 已安装 Docker 和 Docker Compose 插件。
+- 服务器已放行要暴露的端口，默认是 `3000`。
+- 生产环境请提前准备随机的 `SESSION_SECRET` / `CRYPTO_SECRET`，并修改示例 Redis 密码。
+
+## 使用项目自带配置部署（推荐）
+
+```shell
+git clone https://github.com/NookMux/NookMux.git
+cd NookMux
+
+# 生产环境务必先编辑 Redis 密码、SESSION_SECRET 等配置
+nano docker-compose.yml
+
+docker compose up -d
+```
+
+<Card type="warning" title="上线前必须修改默认密码">
+  根目录 `docker-compose.yml` 中的 Redis 示例密码为 `123456`。生产环境必须同步修改 `redis` 服务的 `--requirepass` 和 `nookmux` 服务的 `REDIS_CONN_STRING`。
+</Card>
+
+## 手动创建 compose 文件
+
+如果只需要从镜像部署，可在任意目录创建 `docker-compose.yml`：
+
+```yaml
+services:
+  nookmux:
+    image: ghcr.io/nookmux/nookmux:latest
+    container_name: nookmux
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+    environment:
+      - REDIS_CONN_STRING=redis://:change_this_password@redis:6379
+      - TZ=Asia/Shanghai
+      - ERROR_LOG_ENABLED=true
+      - BATCH_UPDATE_ENABLED=true
+      - SESSION_SECRET=replace_with_a_random_string
+      - CRYPTO_SECRET=replace_with_another_random_string
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    command: ["redis-server", "--requirepass", "change_this_password"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "change_this_password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+不设置 `SQL_DSN` 时，NookMux 会使用 SQLite，数据库文件默认位于容器内 `/data/one-api.db`，因此必须持久化挂载 `/data`。
+
+## 启动与检查
+
+```shell
+docker compose up -d
+docker compose ps
+docker compose logs -f nookmux
+```
+
+访问 `http://服务器IP:3000`，首次访问会进入初始化页面。按页面提示创建管理员账号后即可登录。
+
+<Card type="warning" title="首次初始化的安全窗口">
+  初始化接口（`/api/setup`）在完成初始化之前匿名可达。新实例直接暴露公网时，外部访问者可能抢在您之前注册 root 管理员账号。请确保首次初始化在内网完成，或先通过防火墙/安全组限制对 `3000` 端口（尤其是 `/api/setup` 路径）的访问来源，初始化完成后再对外开放。初始化完成后该接口自动失效，重复调用 `/api/setup` 会被拒绝。
+</Card>
+
+## 停止服务
+
+```shell
+docker compose down
+```
+
+如果需要同时删除本地数据库和日志，请先备份 `./data`、`./logs` 后再手动清理目录。

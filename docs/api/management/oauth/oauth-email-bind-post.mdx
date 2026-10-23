@@ -1,0 +1,23 @@
+---
+title: Bind Email
+api: "POST /api/oauth/email/bind"
+---
+
+The current runtime implementation is `POST /api/oauth/email/bind`.
+
+This endpoint binds an email address to the currently logged-in account, and it no longer accepts the old GET query parameter form.
+
+Request body:
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456"
+}
+```
+
+Notes:
+
+- A valid login session is required.
+- The verification code must first be issued through `/api/verification` for the same email.
+- Do not use the old `GET /api/oauth/email/bind?email=...&code=...` call pattern.

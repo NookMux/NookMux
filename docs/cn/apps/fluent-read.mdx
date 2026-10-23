@@ -1,0 +1,39 @@
+---
+title: 流畅阅读 (FluentRead) - 开源翻译插件
+---
+
+<Info>
+  流畅阅读（FluentRead）是一款开源浏览器翻译插件，致力于提供母语般的阅读体验，支持包括 OpenAI 兼容接口在内的多种翻译引擎。
+</Info>
+
+- 项目地址：[https://github.com/Bistutu/FluentRead](https://github.com/Bistutu/FluentRead)
+
+## 核心特性
+
+- **多引擎支持**：微软翻译、谷歌翻译、DeepL 等传统引擎，以及 OpenAI 兼容的大模型接口
+- **双语对照**：原文与译文并列显示
+- **划词翻译 / 全文翻译**：选中文本即时翻译，或一键翻译整个网页
+- **本地存储**：数据保存在本地，开源透明
+
+## 安装方式
+
+| 浏览器 | 安装方式 |
+| --- | --- |
+| Chrome | [Chrome 应用商店](https://chromewebstore.google.com/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/djnlaiohfaaifbibleebjggkghlmcpcj?hl=zh-CN) |
+| Edge | [Edge 应用商店](https://microsoftedge.microsoft.com/addons/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/kakgmllfpjldjhcnkghpplmlbnmcoflp?hl=zh-CN) |
+| Firefox | [Firefox 附加组件商店](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
+
+## 配置方法
+
+在流畅阅读的翻译服务设置中选择 OpenAI 兼容（大模型）类型，并填写：
+
+| 配置项 | 内容 |
+| --- | --- |
+| 翻译服务 | OpenAI / 自定义 OpenAI 接口 |
+| API 地址 | NookMux 站点地址（按插件要求填写，通常不需要带 `/v1`，若请求失败可尝试追加 `/v1`） |
+| 访问令牌 | NookMux 令牌（`sk-` 开头） |
+| 模型 | 填写渠道中已配置的模型名称 |
+
+<Card type="warning" title="请以插件实际字段为准">
+  不同版本的流畅阅读设置界面和字段名可能不同。核心原则是：接口地址指向您的 NookMux 站点，令牌使用 NookMux 密钥，模型名与渠道一致。若翻译无响应，请先确认模型本身在 NookMux 中可正常调用。
+</Card>

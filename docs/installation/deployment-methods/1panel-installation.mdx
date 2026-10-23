@@ -1,0 +1,48 @@
+---
+title: 1Panel Deployment
+---
+
+This document explains how to deploy NookMux through 1Panel's container features. Different 1Panel app store versions may show different application names. If the app store does not provide NookMux, you can deploy it with a custom image.
+
+## Prerequisites
+
+- 1Panel installed. See the [1Panel Official Documentation](https://1panel.cn/docs/) for basic usage.
+- The server has port `3000` or the external port you plan to map open.
+- For production, prepare random `SESSION_SECRET` / `CRYPTO_SECRET` values.
+
+## Method One: App Store Install
+
+If the 1Panel app store already includes a NookMux app:
+
+1. Go to **App Store** and search for `NookMux` in the AI or tools category.
+2. Click install and follow the prompts to set the app name, port, data directory, and timezone.
+3. Enable external access for the port.
+4. After installation, open the access address from the installed apps list.
+
+<Card type="info" title="Naming compatibility">
+  Some third-party panel templates may still use the names `New API` or `New-API`. Prefer templates whose image is `ghcr.io/nookmux/nookmux:latest` or that are clearly adapted to the current NookMux project.
+</Card>
+
+## Method Two: Custom Container Deployment
+
+If no ready-made app is available, create a normal container in 1Panel:
+
+| Item | Suggested Value |
+| --- | --- |
+| Image | `ghcr.io/nookmux/nookmux:latest` |
+| Container Name | `nookmux` |
+| Port Mapping | `3000:3000` |
+| Volume Mapping | `/host/data/nookmux:/data`, `/host/logs/nookmux:/app/logs` |
+| Startup Command | `--log-dir /app/logs` |
+| Environment Variables | `TZ=Asia/Shanghai`, `SESSION_SECRET=...`, `CRYPTO_SECRET=...` |
+
+If you need an external database or Redis, add:
+
+```text
+SQL_DSN=mysql://user:password@db-host:3306/nookmux
+REDIS_CONN_STRING=redis://:password@redis-host:6379
+```
+
+## Access and Initialization
+
+After the container starts, visit `http://Server_IP:3000`. The first visit opens the initialization page. Follow the prompts to create an administrator account and password, then start using the system.

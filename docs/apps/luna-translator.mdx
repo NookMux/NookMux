@@ -1,0 +1,44 @@
+---
+title: LunaTranslator - Open-source GalGame Translator
+---
+
+<Info>
+  LunaTranslator is an open-source and free visual novel (GalGame) translator that supports HOOK text extraction, OCR, offline translation, and large-model translation. It can connect to OpenAI-compatible services through the "Large Model General Interface".
+</Info>
+
+- Project Address: [https://github.com/HIllya51/LunaTranslator](https://github.com/HIllya51/LunaTranslator)
+- Project Documentation: [https://docs.lunatranslator.org/en/README.html](https://docs.lunatranslator.org/en/README.html)
+
+## Feature Support
+
+- **HOOK**: Extracts game text and works with almost all common and niche visual novels.
+- **In-game Translation**: Some games can display translations directly in the game for a more immersive experience.
+- **OCR**: Built-in offline OCR, plus support for multiple online OCR engines.
+- **Large Model Translation**: Supports OpenAI-compatible interfaces as a translation engine.
+- **Language Learning**: Japanese word segmentation, furigana, AnkiConnect, and Yomitan.
+- **Speech Synthesis / Speech Recognition**: Supports many online and offline options.
+
+## Installation
+
+Download and install it from [LunaTranslator Documentation - Download & Launch & Update](https://docs.lunatranslator.org/en/README.html).
+
+## Connect NookMux in LunaTranslator
+
+LunaTranslator's "Large Model General Interface" uses the OpenAI-compatible protocol and can point directly to NookMux.
+
+### Configuration Steps
+
+1. Create a token on the NookMux console's "Keys" page and copy the API Key.
+2. Open LunaTranslator -> `Settings` -> `Translation Settings` -> `Large Models`, then choose Add.
+3. Copy the **Large Model General Interface** template and add a new interface.
+4. In the new interface, fill in:
+
+| Item | Content |
+| --- | --- |
+| API Address | NookMux site address + `/v1`, for example `https://your-domain.com/v1` |
+| API Key | NookMux token (`sk-` prefix) |
+| Model | Click the refresh button next to the model dropdown to fetch the model list, or enter the model name manually |
+
+5. Turn on the switch next to the interface to enable it.
+
+For more usage details, see the official LunaTranslator documentation: [LunaTranslator Documentation - Large Model Translation Interface](https://docs.lunatranslator.org/en/guochandamoxing.html).

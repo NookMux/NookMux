@@ -1,0 +1,75 @@
+---
+title: Baota Panel Deployment
+---
+
+This document explains how to deploy NookMux using Baota Panel's Docker features.
+
+## Prerequisites
+
+- Baota Panel version 9.2.0 or later.
+- Docker service installed in the panel.
+- The server has port `3000` or the external port you plan to map open.
+
+## Create the Container
+
+1. Log in to Baota Panel and open **Docker**.
+2. On first entry, follow the prompts to install the Docker service.
+3. Open **Image Management** and pull the image:
+
+   ```text
+   ghcr.io/nookmux/nookmux:latest
+   ```
+
+4. Open **Container List** and click create container.
+5. Fill in the container settings:
+
+| Item | Suggested Value |
+| --- | --- |
+| Container Name | `nookmux` |
+| Image | `ghcr.io/nookmux/nookmux:latest` |
+| Port Mapping | `3000:3000` |
+| Directory Mapping | `/your/host/data:/data`, `/your/host/logs:/app/logs` |
+| Startup Command | `--log-dir /app/logs` |
+| Environment Variables | `TZ=Asia/Shanghai`, `SESSION_SECRET=...`, `CRYPTO_SECRET=...` |
+
+<Card type="warning" title="Production security settings">
+  `SESSION_SECRET` and `CRYPTO_SECRET` should be different random strings. Do not use sample values or publicly exposed strings.
+</Card>
+
+## Optional Database and Redis
+
+SQLite is used when `SQL_DSN` is not set. The database file is stored at `/data/one-api.db`. If you use an external database or Redis, add:
+
+```text
+SQL_DSN=mysql://user:password@db-host:3306/nookmux
+REDIS_CONN_STRING=redis://:password@redis-host:6379
+```
+
+PostgreSQL example:
+
+```text
+SQL_DSN=postgres://user:password@db-host:5432/nookmux
+```
+
+## Access the System
+
+After the container starts, visit:
+
+```text
+http://Server_IP:3000
+```
+
+The first visit opens the initialization page. After creating the administrator account, you can log in.
+
+## Common Issues
+
+### Cannot Access the Interface
+
+- Check whether the port mapping is correct.
+- Confirm that the server firewall and cloud security group allow the port.
+- Check the container logs to confirm the service started successfully.
+
+### Data Loss
+
+- Confirm `/data` is mapped correctly.
+- Confirm the host directory permissions allow container read/write access.

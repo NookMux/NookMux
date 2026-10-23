@@ -1,0 +1,9 @@
+---
+title: Generate Images
+api: "POST /v1/images/generations"
+---
+
+Creates an image given a prompt. [Learn more](https://platform.openai.com/docs/guides/images).
+
+The current runtime path has no trailing `/`. The request body uses direct OpenAI-style fields such as `model`, `prompt`, `n`, `size`, `quality`, and `response_format` instead of the old `input` + `parameters` wrapper.
+

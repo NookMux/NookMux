@@ -1,0 +1,176 @@
+---
+title: 本地开发部署
+---
+
+本文档说明如何在本地运行和开发 NookMux。当前后端为 Go，前端为 React 19 + TypeScript + Rsbuild，前端包管理器使用 Bun。
+
+## 开发环境要求
+
+- **Go**：以 `go.mod` 为准，当前为 `1.26.2`。
+- **Bun**：用于安装和构建前端依赖。
+- **Git**：用于拉取源码。
+- **MySQL / PostgreSQL / Redis**：可选。默认不设置 `SQL_DSN` 时使用 SQLite。
+
+## 克隆项目
+
+```bash
+git clone https://github.com/NookMux/NookMux.git
+cd NookMux
+```
+
+## 后端开发设置
+
+### 安装依赖
+
+```bash
+go mod download
+```
+
+### 配置环境变量
+
+```bash
+cp .env.example .env
+```
+
+本地开发最小配置可以保持默认值。常用配置如下：
+
+```bash
+PORT=3000
+# SQL_DSN=mysql://user:password@localhost:3306/nookmux
+# REDIS_CONN_STRING=redis://:password@localhost:6379
+```
+
+<Card type="info" title="默认数据库">
+  不设置 `SQL_DSN` 时使用 SQLite，默认数据库文件为 `data/one-api.db`。可通过 `SQLITE_PATH` 修改。
+</Card>
+
+### 构建前端资源
+
+后端入口位于 `cmd/server/`，`web/embed.go` 通过 Go `embed` 引入 `web/dist/index.html`，因此直接运行或编译后端前，需要至少构建一次前端：
+
+```bash
+cd web
+bun install
+bun run build
+cd ..
+```
+
+### 运行后端
+
+```bash
+go run ./cmd/server
+```
+
+或编译后运行：
+
+```bash
+go build -ldflags "-X 'github.com/NookMux/NookMux/internal/common.Version=$(git rev-parse HEAD)'" -o NookMux ./cmd/server
+./NookMux --port 3000 --log-dir ./logs
+```
+
+服务默认运行在 `http://localhost:3000`。
+
+## 前端开发设置
+
+前端位于 `web/`，技术栈为 React 19、TypeScript、Rsbuild、TanStack Router、TanStack Query、Base UI 和 Tailwind CSS 4。
+
+```bash
+cd web
+bun install
+bun run dev
+```
+
+Rsbuild 开发服务默认会读取 `VITE_REACT_APP_SERVER_URL`，未设置时代理到 `http://localhost:3000`。当前开发代理覆盖 `/api`、`/mj`、`/pg`，前端运行时 axios 默认使用同源请求。
+
+常用命令：
+
+```bash
+bun run typecheck
+bun run lint
+bun run build
+bun run build:check
+```
+
+## 常用开发流程
+
+### 只调后端 API
+
+1. 先执行一次 `cd web && bun install && bun run build`，确保 `web/dist` 存在。
+2. 回到项目根目录运行 `go run ./cmd/server`。
+3. 访问 `http://localhost:3000` 或直接请求 `/api`、`/v1`。
+
+### 前后端同时开发
+
+1. 终端 A：根目录运行 `go run ./cmd/server`。
+2. 终端 B：`cd web && bun run dev`。
+3. 浏览器打开前端开发服务地址，API 请求会代理到后端。
+
+### 使用 make
+
+```bash
+make build-frontend
+make build-backend
+make test-backend
+```
+
+## 项目结构概览
+
+```text
+NookMux/
+├─ cmd/server/             # 后端入口 main.go
+├─ internal/app/           # 启动装配、Gin 装配、webdist 门面
+├─ internal/httpapi/       # HTTP 边界聚合：router + middleware + controller（按资源子包）
+├─ internal/store/         # 持久层：GORM 模型、迁移、缓存、数据库访问（按资源子包）
+├─ internal/domain/        # 领域层：计费、渠道、审计、排行榜、工单、敏感词、分组等领域服务
+├─ internal/infra/         # 基础设施层：db、redis、cache、email、security、runtime、log、httpclient、media、tokenizer、notify、payment、passkey、custom_voice
+├─ internal/relay/         # AI 协议转换与供应商适配
+├─ internal/config/        # 系统、运营、模型、倍率等配置（原 setting/）
+├─ internal/common/        # 业务全局变量与零碎工具内核（ContextKey 注册表、SysLog、GetEnvOrDefault 等）
+├─ internal/i18n/          # 后端响应消息翻译
+├─ pkg/                    # 可独立复用的无业务依赖基础库（jsonx、cachex）
+├─ Dockerfile              # 镜像构建，要求 web/dist/index.html 已存在
+├─ docker-compose.yml      # 默认 SQLite + Redis 的部署配置
+├─ nookmux.service         # systemd 示例服务
+├─ docs/                   # 文档
+└─ web/                    # React 19 + TypeScript + Rsbuild 前端，embed 声明位于 web/embed.go
+```
+
+## 调试技巧
+
+### 后端日志
+
+```bash
+go run ./cmd/server --log-dir ./logs
+```
+
+### 前端类型检查
+
+```bash
+cd web
+bun run typecheck
+```
+
+### 常见问题
+
+#### `pattern web/dist/index.html: no matching files found`
+
+说明还没有构建前端资源。请先运行：
+
+```bash
+cd web
+bun install
+bun run build
+```
+
+#### 前端开发服务请求后端失败
+
+确认后端已运行在 `http://localhost:3000`，或显式设置：
+
+```bash
+VITE_REACT_APP_SERVER_URL=http://localhost:3000 bun run dev
+```
+
+## 获取帮助
+
+- GitHub Issues：[https://github.com/NookMux/NookMux/issues](https://github.com/NookMux/NookMux/issues)
+- GitHub 仓库：[https://github.com/NookMux/NookMux](https://github.com/NookMux/NookMux)

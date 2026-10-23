@@ -1,0 +1,11 @@
+---
+title: 生成图像
+api: "POST /v1/images/generations"
+---
+
+在给定提示的情况下创建图像。[了解更多](https://platform.openai.com/docs/guides/images)。
+
+当前运行时路径无尾随 `/`。请求体直接使用 `model`、`prompt`、`n`、`size`、
+`quality`、`response_format` 等 OpenAI 风格字段，不使用旧定义中的
+`input` + `parameters` 包装。
+

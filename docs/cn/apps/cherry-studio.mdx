@@ -1,0 +1,40 @@
+---
+title: Cherry Studio - 桌面 AI 客户端
+---
+
+<Info>
+  Cherry Studio 是一款功能强大的桌面 AI 客户端，支持多提供商配置、多模型对话、知识库和智能助手，适合日常工作和专业场景。
+</Info>
+
+- 官网地址：[https://cherry-ai.com/](https://cherry-ai.com/)
+- 下载地址：[https://cherry-ai.com/download](https://cherry-ai.com/download)
+- 官方文档：[https://docs.cherry-ai.com](https://docs.cherry-ai.com)
+
+## 接入方法
+
+Cherry Studio 通过 OpenAI 兼容接口接入 NookMux。
+
+### 参数填写
+
+| 配置项 | 填写内容 |
+| --- | --- |
+| 提供商类型 | OpenAI / OpenAI 兼容 |
+| API 密钥 | NookMux 令牌（`sk-` 开头），在「密钥」页面创建并复制 |
+| API 地址 | NookMux 站点地址 + `/v1`，例如 `https://your-domain.com/v1` |
+| 模型 | 手动添加或从接口拉取模型列表 |
+
+### 配置步骤
+
+1. 在 NookMux 控制台「密钥」页面创建令牌并复制 API Key。
+2. 打开 Cherry Studio 的「设置」→「模型服务」，添加一个 OpenAI 类型的提供商。
+3. 填入 API 地址 `https://your-domain.com/v1` 和 API 密钥。
+4. 添加需要使用的模型，模型名称需与 NookMux 渠道中配置的模型名一致。
+5. 返回聊天页面，选择刚添加的模型开始对话。
+
+## 画图
+
+如果渠道中配置了图像生成模型（如 DALL·E、Gemini 图像模型等），在 Cherry Studio 的绘图页面选择对应模型即可使用，配置方式与聊天模型一致。
+
+## 更多用法
+
+知识库、智能助手等功能的模型配置方式相同，均可指向同一个 NookMux 提供商。详细用法请参考 [Cherry Studio 官方文档](https://docs.cherry-ai.com)。

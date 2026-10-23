@@ -1,0 +1,109 @@
+---
+title: 系统更新指南
+---
+
+本文档提供 NookMux 的更新方法和检查清单。
+
+## 更新前准备
+
+1. **备份数据**：备份数据库、`./data`、`./logs` 和部署用的环境变量/compose 文件。
+2. **查看更新说明**：在 [GitHub Releases](https://github.com/NookMux/NookMux/releases) 查看版本变更。
+3. **保留原配置**：确认新容器或新二进制使用与旧实例相同的 `SQL_DSN`、`REDIS_CONN_STRING`、`SESSION_SECRET`、`CRYPTO_SECRET`。
+4. **选择低峰期**：避免更新过程影响正在进行的 API 调用。
+
+## Docker 单容器更新
+
+```shell
+# 拉取最新镜像
+docker pull ghcr.io/nookmux/nookmux:latest
+
+# 停止并移除旧容器
+docker stop nookmux
+docker rm nookmux
+
+# 使用原来的数据卷和环境变量重新创建容器
+docker run --name nookmux -d --restart always \
+  -p 3000:3000 \
+  -e TZ=Asia/Shanghai \
+  -e SESSION_SECRET=replace_with_the_original_value \
+  -e CRYPTO_SECRET=replace_with_the_original_value \
+  -v /your/data/path:/data \
+  ghcr.io/nookmux/nookmux:latest
+```
+
+<Card type="warning" title="保持参数一致">
+  更新时必须复用原来的数据卷、数据库连接、Redis 地址和密钥。更换这些配置可能导致登录失效、数据不可见或多节点状态不一致。
+</Card>
+
+## Docker Compose 更新
+
+```shell
+cd NookMux
+docker compose pull
+docker compose up -d
+```
+
+如果需要先停机再启动：
+
+```shell
+docker compose pull && docker compose down && docker compose up -d
+```
+
+## 1Panel / 宝塔面板更新
+
+- 通过面板应用商店安装的实例，优先使用面板提供的升级入口。
+- 通过自定义镜像创建的实例，重新拉取 `ghcr.io/nookmux/nookmux:latest` 并重建容器。
+- 重建前确认数据卷、端口映射和环境变量没有被面板重置。
+
+## 从源码编译更新
+
+当前后端通过 Go `embed` 打包 `web/dist`，因此源码编译前必须先构建前端资源。
+
+```shell
+cd NookMux
+git pull
+
+cd web
+bun install
+bun run build
+cd ..
+
+go build -ldflags "-X 'github.com/NookMux/NookMux/internal/common.Version=$(git rev-parse HEAD)'" -o NookMux ./cmd/server
+./NookMux --port 3000 --log-dir ./logs
+```
+
+也可以使用仓库中的 make 目标：
+
+```shell
+make build-frontend
+make build-backend
+```
+
+## 多节点更新策略
+
+1. 先更新一个从节点并观察日志和 API 调用是否正常。
+2. 确认稳定后逐个更新其他从节点。
+3. 最后更新主节点。
+4. 所有节点更新后，检查缓存同步、渠道可用性和登录状态。
+
+## 更新后检查
+
+- 访问管理界面并确认可以登录。
+- 查看 `docker compose logs -f nookmux` 或应用日志，确认没有启动错误。
+- 请求 `/api/status` 检查服务状态。
+- 用已有令牌发起一次 `/v1` API 调用，确认中继链路正常。
+- 检查数据库迁移是否完成，尤其是跨大版本更新后。
+
+## 版本回滚
+
+如需回滚 Docker 镜像，请拉取并运行目标版本标签：
+
+```shell
+docker pull ghcr.io/nookmux/nookmux:v1.x.x
+```
+
+回滚时仍需使用原数据卷和原环境变量。数据库迁移可能不可逆，生产环境回滚前必须先确认备份可用。
+
+## 自动更新工具（谨慎使用）
+
+Watchtower 等自动更新工具可能在数据库迁移、配置变更或镜像问题时造成不可控影响。生产环境建议手动更新；如需自动更新，请先在测试环境验证。

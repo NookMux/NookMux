@@ -1,0 +1,230 @@
+---
+title: Cluster Deployment
+---
+
+This document provides the configuration steps and best practices for NookMux multi-node deployments, helping you build a highly available, load-balanced distributed system.
+
+## Prerequisites
+
+- Multiple servers, with at least two nodes in a master-slave architecture.
+- Docker and Docker Compose installed.
+- A shared MySQL or PostgreSQL database that all nodes can access.
+- A shared Redis service for data synchronization and caching between nodes.
+- Optional: a load balancer such as Nginx, HAProxy, or a cloud load-balancing service.
+
+<Card type="info" title="Database selection">
+  Do not use SQLite in multi-node scenarios. Use external MySQL or PostgreSQL and make sure all nodes use the same `SQL_DSN`.
+</Card>
+
+## Cluster Architecture Overview
+
+NookMux multi-node deployments use a master-slave architecture:
+
+1. **Master node** (`NODE_TYPE` defaults to `master`): handles administration tasks such as database migrations, root account creation, and scheduled channel checks, while also serving traffic.
+2. **Slave node** (`NODE_TYPE=slave`): skips database migrations and scheduled tasks, and mainly serves traffic to improve overall throughput.
+
+Slave nodes still receive and process write requests, such as management operations. Multi-node environments must therefore share the same database and Redis to avoid data inconsistency.
+
+## Key Cluster Deployment Settings
+
+All nodes in a cluster must:
+
+1. **Share the same database**: all nodes use the same `SQL_DSN`.
+2. **Share the same Redis**: used for caching and inter-node communication.
+3. **Use the same secrets**: `SESSION_SECRET` and `CRYPTO_SECRET` must be identical on every node.
+4. **Configure the node type correctly**: leave the master node unset or set it to `master`, and set slave nodes to `slave`.
+5. **Set `FRONTEND_BASE_URL` on slave nodes**: non-API requests on slave nodes are redirected to this address, usually the master node's domain.
+
+## Deployment Steps
+
+### Step One: Prepare Shared Database and Redis
+
+Prepare external MySQL/PostgreSQL and Redis services. These can be:
+
+- Separately deployed highly available database and Redis services
+- Managed services provided by a cloud vendor
+- Self-hosted services running on independent servers
+
+The application only needs one unified `SQL_DSN` entry point. If the database itself uses replication or a proxy layer for load balancing, configure that on the database side.
+
+### Step Two: Configure the Master Node
+
+Create `docker-compose.yml` on the master node server:
+
+```yaml
+services:
+  nookmux-master:
+    image: ghcr.io/nookmux/nookmux:latest
+    container_name: nookmux-master
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - '3000:3000'
+    environment:
+      - SQL_DSN=postgres://user:password@your-db-host:5432/nookmux
+      - REDIS_CONN_STRING=redis://:password@your-redis-host:6379
+      - SESSION_SECRET=your_unique_session_secret
+      - CRYPTO_SECRET=your_unique_crypto_secret
+      - TZ=Asia/Shanghai
+      # Optional settings
+      - SYNC_FREQUENCY=60
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+```
+
+Start the master node:
+
+```bash
+docker compose up -d
+```
+
+### Step Three: Configure the Slave Nodes
+
+Create `docker-compose.yml` on each slave node server:
+
+```yaml
+services:
+  nookmux-slave:
+    image: ghcr.io/nookmux/nookmux:latest
+    container_name: nookmux-slave
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - '3000:3000' # Can use the same port as the master node because they are on different servers
+    environment:
+      - SQL_DSN=postgres://user:password@your-db-host:5432/nookmux # Same as the master node
+      - REDIS_CONN_STRING=redis://:password@your-redis-host:6379 # Same as the master node
+      - SESSION_SECRET=your_unique_session_secret # Must be the same as the master node
+      - CRYPTO_SECRET=your_unique_crypto_secret # Must be the same as the master node
+      - NODE_TYPE=slave # Key setting, mark this as a slave node
+      - FRONTEND_BASE_URL=https://your-domain.com # Public address pointing to the master node
+      - TZ=Asia/Shanghai
+      # Optional settings
+      - SYNC_FREQUENCY=60
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+```
+
+Start the slave node:
+
+```bash
+docker compose up -d
+```
+
+Repeat this step for each slave node server.
+
+### Step Four: Configure the Load Balancer
+
+The following is an Nginx load balancer example:
+
+```nginx
+upstream nookmux_cluster {
+    server master-node-ip:3000 weight=3;
+    server slave-node1-ip:3000 weight=5;
+    server slave-node2-ip:3000 weight=5;
+}
+
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://nookmux_cluster;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # SSE/streaming responses require buffering to be disabled
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+    }
+}
+```
+
+<Card type="info" title="Real client IP">
+  When using a reverse proxy or CDN, configure the `TRUSTED_PROXIES` environment variable so rate limiting and logs use the real client IP. The default value is `private,cloudflare`.
+</Card>
+
+## Advanced Configuration Options
+
+### Data Synchronization Settings
+
+| Environment Variable | Description | Recommended Value |
+| --- | --- | --- |
+| `SYNC_FREQUENCY` | Cache and database sync frequency (seconds) | `60` |
+| `BATCH_UPDATE_ENABLED` | Enable batch database update aggregation | `true` |
+| `BATCH_UPDATE_INTERVAL` | Batch update interval (seconds) | `5` |
+
+### Session Security Settings
+
+Make sure all nodes in the cluster use the same session and encryption keys:
+
+```yaml
+environment:
+  - SESSION_SECRET=your_unique_session_secret # Must be the same on all nodes
+  - CRYPTO_SECRET=your_unique_crypto_secret # Must be the same on all nodes
+```
+
+## Monitoring and Maintenance
+
+### Health Checks
+
+Configure regular health checks to monitor node status:
+
+```yaml
+healthcheck:
+  test:
+    [
+      'CMD-SHELL',
+      "wget -q -O - http://localhost:3000/api/status | grep -o '\"success\":\\s*true' || exit 1",
+    ]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
+
+### Log Management
+
+For large-scale clusters, consider a centralized log management system or a separate `LOG_SQL_DSN` database for logs.
+
+## Scaling Guide
+
+1. **Prepare new servers**: install Docker and Docker Compose.
+2. **Configure slave nodes**: follow Step Three to configure the new slave nodes.
+3. **Update the load balancer**: add the new nodes to the load balancer configuration.
+4. **Test the new nodes**: make sure they work correctly and participate in load balancing.
+
+## Best Practices
+
+1. **Back up the database regularly**: even in a cluster, the shared database should be backed up regularly.
+2. **Monitor resource usage**: keep an eye on CPU, memory, and disk usage.
+3. **Use rolling updates**: update slave nodes first, then the master node after stability is confirmed.
+4. **Set up alerting**: monitor node status and notify administrators when issues occur.
+
+## Troubleshooting
+
+### Nodes Cannot Sync Data
+
+- Check whether the Redis connection is healthy.
+- Confirm that `SESSION_SECRET` and `CRYPTO_SECRET` are identical on all nodes.
+- Verify the database connection settings.
+
+### Load Is Unbalanced
+
+- Check the load balancer configuration and weight settings.
+- Monitor resource usage on each node.
+- You may need to adjust node weights or add more nodes.
+
+### Session Loss Issues
+
+- Ensure all nodes use the same `SESSION_SECRET`.
+- Verify that Redis is configured correctly and reachable.
+- Check the load balancer's session persistence policy.
+
+## Related Documentation
+
+- [Environment Variables Configuration Guide](/installation/config-maintenance/environment-variables) - Contains all environment variables relevant to multi-node deployment
+- [System Update Guide](/installation/config-maintenance/system-update) - Update strategy for multi-node environments
+- [Docker Compose Configuration Guide](/installation/config-maintenance/docker-compose-yml) - Used for writing cluster node configuration files

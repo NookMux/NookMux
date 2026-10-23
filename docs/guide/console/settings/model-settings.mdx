@@ -1,0 +1,16 @@
+---
+title: Models & Routing
+---
+
+Current model-related configuration lives under **System Settings → Models & Routing**.
+
+Configurable sections:
+
+- **Global Model Config**: global behavior such as keep-alive.
+- **Gemini**: security settings, version settings, Imagine support models, thoughtSignature filling, and removal of `functionResponse.id`.
+- **Claude**: header overrides by model, default `max_tokens`, and similar settings.
+- **Grok**: violation billing settings.
+- **MiniMax**: model redirection, voice whitelist, custom voice, emotion tags, and tone-word mapping.
+- **Channel Affinity**: reuse the last successful channel based on request context to improve upstream cache hits.
+
+Model metadata and deployment management are not in system settings; use **Model Management** (`/models/metadata`).

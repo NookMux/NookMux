@@ -1,0 +1,90 @@
+---
+title: Docker Compose Deployment
+---
+
+This document explains how to deploy NookMux with Docker Compose. The bundled `docker-compose.yml` uses SQLite as the default database and starts a password-protected Redis service. If you need MySQL or PostgreSQL, configure an external database and set `SQL_DSN`.
+
+## Prerequisites
+
+- Docker and the Docker Compose plugin installed.
+- The server has the ports you plan to expose open, with `3000` as the default.
+- For production, prepare random `SESSION_SECRET` / `CRYPTO_SECRET` values in advance and change the sample Redis password.
+
+## Deploy with the bundled config (recommended)
+
+```shell
+git clone https://github.com/NookMux/NookMux.git
+cd NookMux
+
+# Edit the Redis password, SESSION_SECRET, and other settings before production use
+nano docker-compose.yml
+
+docker compose up -d
+```
+
+<Card type="warning" title="Change the default password before going live">
+  The sample Redis password in the root `docker-compose.yml` is `123456`. In production, you must change both the `redis` service `--requirepass` value and the `nookmux` service `REDIS_CONN_STRING`.
+</Card>
+
+## Create a compose file manually
+
+If you only need to deploy from an image, create `docker-compose.yml` in any directory:
+
+```yaml
+services:
+  nookmux:
+    image: ghcr.io/nookmux/nookmux:latest
+    container_name: nookmux
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+    environment:
+      - REDIS_CONN_STRING=redis://:change_this_password@redis:6379
+      - TZ=Asia/Shanghai
+      - ERROR_LOG_ENABLED=true
+      - BATCH_UPDATE_ENABLED=true
+      - SESSION_SECRET=replace_with_a_random_string
+      - CRYPTO_SECRET=replace_with_another_random_string
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    command: ["redis-server", "--requirepass", "change_this_password"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "change_this_password", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
+
+If `SQL_DSN` is not set, NookMux uses SQLite and stores the database file at `/data/one-api.db` inside the container, so `/data` must be persisted.
+
+## Start and check
+
+```shell
+docker compose up -d
+docker compose ps
+docker compose logs -f nookmux
+```
+
+Visit `http://Server_IP:3000`. The first visit opens the initialization page. Follow the prompts to create an administrator account, then log in.
+
+<Card type="warning" title="Security window during first-time initialization">
+  The initialization endpoint (`/api/setup`) is anonymous until initialization completes. If a fresh instance is exposed to the public internet, an external visitor could register the root administrator account before you do. Complete the first-time initialization from an internal network, or restrict access to port `3000` (in particular the `/api/setup` path) with a firewall/security group first and open it up after initialization. Once initialization is complete, the endpoint is automatically disabled: further calls to `/api/setup` are rejected.
+</Card>
+
+## Stop services
+
+```shell
+docker compose down
+```
+
+If you need to remove the local database and logs as well, back up `./data` and `./logs` first, then clean up the directories manually.

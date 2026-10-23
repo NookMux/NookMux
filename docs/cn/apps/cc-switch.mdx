@@ -1,0 +1,30 @@
+---
+title: CC Switch - Claude Code / Codex 供应商切换工具
+---
+
+<Info>
+  CC Switch 是一款开源的 Claude Code / Codex CLI 供应商管理与切换工具。NookMux 控制台的「密钥」页面内置了 CC Switch 一键导入入口，可自动把当前令牌和站点地址写入 CC Switch。
+</Info>
+
+- 项目地址：[https://github.com/farion1231/cc-switch](https://github.com/farion1231/cc-switch)
+
+## 从 NookMux 一键导入
+
+1. 确保本机已安装并至少运行过一次 CC Switch（需要其注册 `ccswitch://` 协议）。
+2. 在 NookMux 控制台「密钥」页面，找到要使用的令牌，打开行操作菜单，点击 **CC 切换**。
+3. 在弹出的对话框中选择应用类型（Claude / Codex / Gemini），填写配置名称并选择主模型；Claude 还可按需填写 Haiku / Sonnet / Opus 模型。
+4. 点击 **打开 CC Switch**，浏览器会唤起 CC Switch 并自动填入：
+
+| 字段 | 内容 |
+| --- | --- |
+| endpoint | Claude/Gemini 为站点根地址；Codex 为站点地址 + `/v1` |
+| apiKey | 当前令牌对应的完整 `sk-` 密钥 |
+| 模型字段 | 所选的主模型及可选模型 |
+
+5. 在 CC Switch 中确认保存即可完成导入。
+
+## 说明
+
+- 一键导入会解析令牌的真实完整密钥后再传递给 CC Switch，无需手动复制。
+- 如果浏览器没有弹出 CC Switch，请确认已安装客户端并允许浏览器打开外部应用。
+- 除一键导入外，也可以在 CC Switch 中手动添加供应商：Claude 类型填站点根地址，Codex 类型填 `https://your-domain.com/v1`，密钥使用 NookMux 令牌。

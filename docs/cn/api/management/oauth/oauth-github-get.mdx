@@ -1,0 +1,11 @@
+---
+title: GitHub OAuth登录
+api: "GET /api/oauth/github"
+---
+
+🔓 无需鉴权（OAuth回调）
+
+实际运行时由通用路由 `GET /api/oauth/{provider}` 处理，此处 `provider=github`。
+必须携带由 `GET /api/oauth/state` 生成并保存在同一会话中的 `state`，以及 GitHub
+回调返回的 `code`。`state` 缺失或与会话不一致时返回 `403`。
+

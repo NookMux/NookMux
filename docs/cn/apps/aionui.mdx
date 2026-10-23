@@ -1,0 +1,47 @@
+---
+title: AionUi - 免费开源的桌面办公 Agent
+---
+
+<Info>
+  AionUi 是一款免费、本地、开源的 Cowork 客户端，支持 Gemini CLI、Claude Code、Codex、OpenCode、Qwen Code、Goose CLI、Auggie 等多种 AI 代理，提供完整的 GUI 界面和 WebUI 远程访问功能。
+</Info>
+
+- 官网地址：[https://www.aionui.com](https://www.aionui.com)
+- GitHub 仓库：[https://github.com/iOfficeAI/AionUi](https://github.com/iOfficeAI/AionUi)
+- 下载地址：[https://github.com/iOfficeAI/AionUi/releases](https://github.com/iOfficeAI/AionUi/releases)
+
+## 核心特性
+
+- **多会话聊天**：多会话独立上下文，对话数据保存在本地
+- **多模型支持**：支持 OpenAI、Claude、Gemini、Qwen 等主流模型，以及 Ollama、LM Studio 等本地模型
+- **多代理模式**：可同时运行多个 AI 代理，通过 MCP 统一管理
+- **文件管理**：文件树浏览、拖拽上传、AI 智能整理
+- **预览面板**：支持 PDF、Office、代码、Markdown、图片等多种格式预览和实时编辑
+- **多渠道访问**：WebUI 远程访问、Telegram 集成、飞书集成
+
+## 接入方法
+
+AionUi 通过 OpenAI 兼容接口接入 NookMux。
+
+### 参数填写
+
+- 提供商类型：OpenAI / OpenAI 兼容
+- API 密钥：NookMux 令牌（`sk-` 开头）
+- API 地址：NookMux 站点地址 + `/v1`，例如 `https://your-domain.com/v1`
+
+### 配置步骤
+
+1. **获取 API Key**：在 NookMux 控制台「密钥」页面创建令牌并复制。
+2. **打开 AionUi 设置**：进入设置页面的「模型配置」Tab，点击「添加模型」。
+3. **添加提供商**：选择 OpenAI / OpenAI 兼容类型。
+4. **配置 API 信息**：
+   - API 地址填写 `https://your-domain.com/v1`
+   - API 密钥粘贴 NookMux 令牌
+5. **添加模型**：下拉选择或手动输入模型名称，模型名称需与 NookMux 渠道中配置的一致，并选择合适的请求协议。
+6. **开始使用**：返回聊天页面，选择已配置的模型开始对话。
+
+## 相关链接
+
+- [GitHub 仓库](https://github.com/iOfficeAI/AionUi)
+- [完整使用指南](https://github.com/iOfficeAI/AionUi#-detailed-usage-guide)
+- [FAQ 常见问题](https://github.com/iOfficeAI/AionUi#-support--help)

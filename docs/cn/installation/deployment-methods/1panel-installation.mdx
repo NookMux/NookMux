@@ -1,0 +1,48 @@
+---
+title: 1Panel 面板部署
+---
+
+本文档说明如何通过 1Panel 的容器能力部署 NookMux。不同 1Panel 应用商店版本可能显示不同的应用名称；如果应用商店未提供 NookMux，可使用自定义镜像方式部署。
+
+## 前置要求
+
+- 已安装 1Panel，基础用法请参考 [1Panel 官方文档](https://1panel.cn/docs/)。
+- 服务器已放行 `3000` 或您计划映射的外部端口。
+- 生产环境请准备随机的 `SESSION_SECRET` / `CRYPTO_SECRET`。
+
+## 方式一：应用商店安装
+
+如果 1Panel 应用商店中已有 NookMux 应用：
+
+1. 进入 **应用商店**，在 AI 或工具分类中搜索 `NookMux`。
+2. 点击安装，按页面提示设置应用名称、端口、数据目录和时区。
+3. 勾选外部访问端口。
+4. 安装完成后在已安装应用列表中打开访问地址。
+
+<Card type="info" title="兼容命名">
+  部分第三方面板模板可能仍以 `New API` 或 `New-API` 命名。请优先确认模板使用的镜像是否为 `ghcr.io/nookmux/nookmux:latest` 或明确适配当前 NookMux 项目。
+</Card>
+
+## 方式二：自定义容器部署
+
+如果没有现成应用，可在 1Panel 中创建普通容器：
+
+| 配置项 | 建议值 |
+| --- | --- |
+| 镜像 | `ghcr.io/nookmux/nookmux:latest` |
+| 容器名 | `nookmux` |
+| 端口映射 | `3000:3000` |
+| 数据卷 | `/主机/data/nookmux:/data`、`/主机/logs/nookmux:/app/logs` |
+| 启动命令 | `--log-dir /app/logs` |
+| 环境变量 | `TZ=Asia/Shanghai`、`SESSION_SECRET=...`、`CRYPTO_SECRET=...` |
+
+如需使用外部数据库或 Redis，再添加：
+
+```text
+SQL_DSN=mysql://user:password@db-host:3306/nookmux
+REDIS_CONN_STRING=redis://:password@redis-host:6379
+```
+
+## 访问与初始化
+
+容器启动后访问 `http://服务器IP:3000`，首次访问会进入初始化页面。按页面指引创建管理员账号和密码即可开始使用。

@@ -1,0 +1,36 @@
+---
+title: AstrBot - Agent Chatbot
+---
+
+<Info>
+  AstrBot is an open-source, all-in-one Agent chatbot platform that connects large model capabilities to mainstream instant messaging software such as QQ, Feishu, DingTalk, and WeCom, providing reliable and scalable conversational AI infrastructure.
+</Info>
+
+- Official Website: [https://astrbot.app](https://astrbot.app)
+- Official Documentation: [https://docs.astrbot.app](https://docs.astrbot.app)
+- Project Homepage: [https://github.com/astrbotdevs/astrbot](https://github.com/astrbotdevs/astrbot)
+
+## Integration
+
+AstrBot connects to NookMux through an OpenAI-compatible interface and supports both Chat Completion and Responses APIs.
+
+### Configuration Steps
+
+#### Get a NookMux API Key
+
+After registering and logging in to NookMux, open the console's "Keys" page, create a token, and copy the generated API Key (`sk-` prefix).
+
+#### Configure the Service Provider in AstrBot
+
+1. Open the AstrBot admin panel, go to "Model Providers", and click "Add Model Provider".
+2. Choose the "OpenAI" provider type.
+3. Set the API Base URL to the NookMux endpoint:
+   - Local deployment: `http://localhost:3000/v1`
+   - Online deployment: `https://your-domain.com/v1`
+4. Fill in the API Key field and click Save.
+
+#### Apply the Provider
+
+Go to "Configuration File", find the model section, set "Default Chat Model" to the provider you just created, and save.
+
+AstrBot will then call the AI models configured in NookMux.

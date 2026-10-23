@@ -1,0 +1,45 @@
+---
+title: AionUi - Free, Open-Source Desktop Office Agent
+---
+
+<Info>
+  AionUi is a free, local, open-source Cowork client that supports Gemini CLI, Claude Code, Codex, OpenCode, Qwen Code, Goose CLI, Auggie, and more. It provides a complete GUI and WebUI remote access.
+</Info>
+
+- Official Website: [https://www.aionui.com](https://www.aionui.com)
+- GitHub Repository: [https://github.com/iOfficeAI/AionUi](https://github.com/iOfficeAI/AionUi)
+- Download Address: [https://github.com/iOfficeAI/AionUi/releases](https://github.com/iOfficeAI/AionUi/releases)
+
+## Core Features
+
+- **Multi-Session Chat**: Independent contexts for each session, with conversation data stored locally.
+- **Multi-Model Support**: Supports OpenAI, Claude, Gemini, Qwen, and other mainstream models, plus local models such as Ollama and LM Studio.
+- **Multi-Agent Mode**: Run multiple AI agents at the same time and manage them through MCP.
+- **File Management**: File tree browsing, drag-and-drop uploads, and AI-assisted organization.
+- **Preview Panel**: Previews PDF, Office, code, Markdown, images, and other formats, with live editing support.
+- **Multi-Channel Access**: WebUI remote access, Telegram integration, and Feishu integration.
+
+## Integration
+
+AionUi connects to NookMux through an OpenAI-compatible interface.
+
+### Parameters
+
+- Provider Type: OpenAI / OpenAI-compatible
+- API Key: NookMux token (`sk-` prefix)
+- API Address: NookMux site address + `/v1`, for example `https://your-domain.com/v1`
+
+### Configuration Steps
+
+1. Create a token on the NookMux console's "Keys" page and copy it.
+2. Open AionUi settings, go to "Model Configuration", and click "Add Model".
+3. Choose the OpenAI / OpenAI-compatible provider type.
+4. Fill in the API address and API key.
+5. Add a model: pick or enter the model name so it matches the name configured in NookMux, then choose the appropriate request protocol.
+6. Return to the chat page and start a conversation with the configured model.
+
+## Related Links
+
+- [GitHub Repository](https://github.com/iOfficeAI/AionUi)
+- [Complete Usage Guide](https://github.com/iOfficeAI/AionUi#-detailed-usage-guide)
+- [FAQ](https://github.com/iOfficeAI/AionUi#-support--help)
