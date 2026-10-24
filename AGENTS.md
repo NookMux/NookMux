@@ -1,23 +1,16 @@
 # AGENTS.md
 
-本文件是仓库级统一入口。按 `docs/AGENTS.md完全使用指南.md` 的约定，子目录中更近的
-`AGENTS.md` 会补充或覆盖这里的规则；用户在对话中的明确要求优先级最高。
+本文件是仓库级统一入口。子目录中更近的 `AGENTS.md` 会补充或覆盖这里的规则；用户在对话中的明确要求优先级最高。
 
-## ⚠ 必读：分层规则
+## ⚠ 必读：分层规则与子规则索引
 
 **修改某个包/目录下的代码前，必须先阅读该目录下的 `AGENTS.md`。** 根文件只包含
 全局规则和概览，每个子目录的 `AGENTS.md` 包含该包特有的约定、模式和检查清单。
 跳过子目录规则会导致违反项目约定（如遗漏审计埋点、数据库兼容性问题、前端 i18n 缺失等）。
-
 阅读顺序：根 `AGENTS.md` → 目标目录的 `AGENTS.md` → 如有更深层级继续向下。
-
 涉及跨包改动时，阅读所有受影响包的 `AGENTS.md`。例如改 controller 调用计费
 的逻辑时，同时阅读 `internal/httpapi/controller/AGENTS.md`、`internal/domain/AGENTS.md`
-和 `internal/domain/billing/` 相关子包规则。
-
-## 架构层级与子规则索引
-
-修改某个包/目录下的代码前，必须先阅读该目录下的 `AGENTS.md`。各目录特有约定按渐进式披露组织：
+和 `internal/domain/billing/` 相关子包规则。各目录特有约定按渐进式披露组织：
 
 ### 启动与装配
 
@@ -65,7 +58,7 @@
 ## 全局工作规则
 
 - 先建立证据链再改代码：现象、入口、相关代码/配置、根因层级、最小修复点、验证方式。
-- 终态干净交付：代码修改、注释、文档与提交信息只呈现最终目标设计，严禁残留"之前写错了/多加了逻辑，在此处删掉"等历史纠错痕迹与自我辩解（详见下文反模式警示）。
+- 终态干净交付：代码修改、注释、文档与提交信息只呈现最终目标设计，严禁残留"之前写错了/多加了逻辑，在此处删掉"等历史纠错痕迹与自我辩解（详见工作区根 AGENTS.md 的反模式警示一节）。
 - 保持工作区脏改隔离。不要回滚、覆盖或格式化与当前任务无关的用户改动。
 - 不做破坏性 Git 操作，不自动 commit/push；需要提交时只 add 相关具体文件。
 - 严禁用 sed、awk、正则脚本或自动化批处理脚本盲改源码，一律使用行级精准编辑工具，防止隐式破坏。
@@ -92,16 +85,14 @@
   `.env.example` 和中英文环境变量文档，并说明低流量/待机场景的内存影响。
 - 路由层不要承载业务逻辑；控制器只做边界处理；领域层（`internal/domain/`）承载业务；存储层（`internal/store/`）承载持久化。
 - relay 改动要保护流式输出、usage 统计、错误映射、计费和供应商协议差异。
-- relay 请求 DTO 中需要转发给上游的可选标量字段，优先用指针类型配合 `omitempty`，保留客户端显式传入的 `0`、`0.0`、`false`。
 - 后端 API 响应消息的多语言翻译遵守 [internal/i18n/AGENTS.md](internal/i18n/AGENTS.md)：用户可见提示走 `i18n.Msg*` 常量，不要硬编码中英文字符串。
 
 ### 审计日志
 
-管理员对系统资源（渠道、用户、令牌、系统设置等）的增删改操作必须接入审计日志。
-通过 `audit.RecordAudit(...)`（包路径 `internal/domain/audit`）记录，详见 `internal/httpapi/controller/AGENTS.md`
-和 `internal/domain/audit/AGENTS.md`。
-新增需要审计的资源类型时，按 `internal/httpapi/controller/AGENTS.md` 中的检查清单同步更新 store（audit 常量）、
-config、前端常量和 i18n。
+管理员对系统资源（渠道、用户、令牌、系统设置等）的增删改操作必须接入审计日志，
+通过 `audit.RecordAudit(...)`（`internal/domain/audit`）记录。埋点时机、before/after
+约定与新增资源类型的检查清单见 [internal/httpapi/controller/AGENTS.md](internal/httpapi/controller/AGENTS.md)
+和 [internal/domain/audit/AGENTS.md](internal/domain/audit/AGENTS.md)。
 
 ## 本地 CI 门禁检查
 
@@ -119,8 +110,7 @@ config、前端常量和 i18n。
 - 前端包管理器使用 Bun。`web/` 目录有独立 `package.json` 和 `bun.lock`。
 - 改 `web/` 后按影响执行 `bun run typecheck`、`bun run lint`、`bun run build`，适度使用knip。
 - 不允许用 mock 数据替代真实后端能力。
-- 列表/表格类页面必须使用 `DataTablePage` + `SectionPageLayout`，不得手拼 `Table`
-  或用 `Card` 包裹表格。详见 [web/AGENTS.md](web/AGENTS.md) 和
-  [docs/开发规范/list-page-table-spec.md](docs/开发规范/list-page-table-spec.md)。
+- 列表/表格类页面必须使用 `DataTablePage` + `SectionPageLayout`；细则与检查清单见
+  [web/AGENTS.md](web/AGENTS.md) 和 [docs/开发规范/list-page-table-spec.md](docs/开发规范/list-page-table-spec.md)。
 - 前端组件优先复用 `src/components/ui/`、`src/components/data-table/`、
   `src/components/layout/` 等通用组件，避免重复造轮子。
