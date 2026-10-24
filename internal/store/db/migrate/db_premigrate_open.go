@@ -25,11 +25,7 @@ func openDBByType(dsn string, dbType string) (*gorm.DB, error) {
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
 	case db.DatabaseTypeOpenGauss:
-		sqlDB, err := dbstore.OpenOpenGaussSQL(dsn)
-		if err != nil {
-			return nil, err
-		}
-		return gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
+		return dbstore.OpenOpenGaussGorm(dsn, &gorm.Config{
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
 	case db.DatabaseTypeMySQL:

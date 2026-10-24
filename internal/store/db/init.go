@@ -105,11 +105,7 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 		} else {
 			db.LogSqlType = db.DatabaseTypeOpenGauss
 		}
-		sqlDB, err := OpenOpenGaussSQL(dsn)
-		if err != nil {
-			return nil, err
-		}
-		return gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), newGormConfig())
+		return OpenOpenGaussGorm(dsn, newGormConfig())
 	case db.DatabaseTypeMySQL:
 		common.SysLog("using MySQL as database")
 		driverDSN, err := db.MySQLDsnFromURL(dsn)

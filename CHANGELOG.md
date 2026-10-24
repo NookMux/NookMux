@@ -17,7 +17,7 @@
   - 迁移链路同步适配：预迁移支持 MySQL/PostgreSQL/SQLite ↔ openGauss 方向，
     同类型迁移支持 openGauss → openGauss（含实例身份校验与自增序列修复，
     openGauss 序列 `pg_class.relkind` 为 `'z'`）。
-  - openGauss 整数除法返回 numeric（不截断），用量排行的时间分桶表达式按
+  - openGauss 整数除法返回 double precision（不截断），用量排行的时间分桶表达式按
     数据库类型自动切换 FLOOR 截断。
   - 安装向导数据库类型展示新增 `opengauss`。
 

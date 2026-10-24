@@ -38,7 +38,7 @@
 - 布尔值、JSON 存取、类型转换与 ALTER 行为必须兼容各库方言差异。
 - JSON 数据统一以 `TEXT` 类型持久化，严禁引入缺乏跨库回退方案的专有类型（如 JSONB）。
 - SQLite 原生不支持 `ALTER COLUMN`，表结构演进必须采用追加新列或兼容转换模式。
-- openGauss 连接必须走官方 connector（`gitcode.com/opengauss/openGauss-connector-go-pq`，私有 sha256 认证与 pgx/libpq 不兼容），DSN 以 `opengauss://` 前缀识别，目标库需以 `DBCOMPATIBILITY='PG'` 创建；其序列 `pg_class.relkind` 为 `'z'`（PostgreSQL 为 `'S'`），整数除法返回 numeric 不截断（时间分桶等截断语义需 `FLOOR`）。
+- openGauss 连接必须走官方 connector（`gitcode.com/opengauss/openGauss-connector-go-pq`，私有 sha256 认证与 pgx/libpq 不兼容），DSN 以 `opengauss://` 前缀识别，目标库需以 `DBCOMPATIBILITY='PG'` 创建；其序列 `pg_class.relkind` 为 `'z'`（PostgreSQL 为 `'S'`），整数除法返回 double precision 不截断（时间分桶等截断语义需 `FLOOR`）。openGauss 连接无法使用 postgres 方言的简单协议优化，点查吞吐对语句缓存更敏感，生产部署建议开启 `SQL_PREPARE_STMT=true`（实测默认关闭时点查约慢 2.7 倍）。
 
 ## 缓存与数据一致性
 

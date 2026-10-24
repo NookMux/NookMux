@@ -52,7 +52,7 @@ func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64, da
 }
 
 func rankingBucketExpr(bucketSize int64, dayOffset int64) string {
-	// openGauss 的整数除法返回 numeric（不截断），与 MySQL 一致需要 FLOOR 对齐桶边界；
+	// openGauss 的整数除法返回 double precision（不截断），与 MySQL 一致需要 FLOOR 对齐桶边界；
 	// PostgreSQL/SQLite 的整数除法截断，可直接整除。
 	useFloorDivision := infradb.UsingMySQL || infradb.UsingOpenGauss
 	if dayOffset != 0 && bucketSize%86400 == 0 {
