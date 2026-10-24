@@ -23,7 +23,6 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -51,9 +50,6 @@ export function ApiKeysCreatedDialog() {
             <KeyRound className='size-4' aria-hidden='true' />
             {t('keys.fields.newApiKey')}
           </DialogTitle>
-          <DialogDescription>
-            {t('keys.tips.onlyTimeTheseApiKeysAreShownStoreThem')}
-          </DialogDescription>
         </DialogHeader>
 
         <Textarea
