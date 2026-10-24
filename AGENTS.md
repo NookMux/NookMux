@@ -3,19 +3,6 @@
 本文件是仓库级统一入口。按 `docs/AGENTS.md完全使用指南.md` 的约定，子目录中更近的
 `AGENTS.md` 会补充或覆盖这里的规则；用户在对话中的明确要求优先级最高。
 
-## 特殊工具提示
-
-本项目配置了 Serena与 CodeGraph两个 MCP，与原生工具按任务形状分工，不要无条件只用某一个：
-
-- 跨文件架构、功能入口、调用链、依赖关系、改动影响面，且当前项目已初始化
-  CodeGraph 时，优先使用 CodeGraph 获取全局上下文。
-- 已知具体符号后的定义查看、引用查找、精确修改、重命名，使用 Serena/LSP。
-- 精确文本搜索（错误信息、日志字符串、配置键）、整文件阅读、行级编辑、
-  命令执行，使用原生工具。
-- 索引结果（CodeGraph 图数据、调用计数）与实际源码不一致时，以当前源码和
-  可执行验证结果为准；逐点精确的引用清单以 Serena（LSP references）为准。
-- Serena 返回的行号是 0-based，向用户报告时 +1。
-
 ## ⚠ 必读：分层规则
 
 **修改某个包/目录下的代码前，必须先阅读该目录下的 `AGENTS.md`。** 根文件只包含
@@ -33,19 +20,23 @@
 修改某个包/目录下的代码前，必须先阅读该目录下的 `AGENTS.md`。各目录特有约定按渐进式披露组织：
 
 ### 启动与装配
+
 - [cmd/](cmd/AGENTS.md) / [cmd/server/](cmd/server/AGENTS.md)：进程启动入口，仅处理系统退出码并调用 `internal/app.Run()`。
 - [internal/app/](internal/app/AGENTS.md)：应用启动装配层，负责初始化环境、依赖注入、后台任务装配、HTTP 服务生命周期及前端嵌入资产门面。
 
 ### HTTP 边界层
+
 - [internal/httpapi/controller/](internal/httpapi/controller/AGENTS.md)：按资源垂直拆分的 HTTP 控制器。
 - [internal/httpapi/router/](internal/httpapi/router/AGENTS.md) 与 [internal/httpapi/middleware/](internal/httpapi/middleware/AGENTS.md)：路由组装、鉴权、限流与上下文注入中间件。
 
 ### 核心领域层
+
 - [internal/domain/](internal/domain/AGENTS.md)：领域服务总入口与公共业务契约。
 - [internal/domain/billing/](internal/domain/billing/AGENTS.md)：计费核算、配额冻结/扣减与额度校验。
 - [internal/domain/audit/](internal/domain/audit/AGENTS.md)：系统管理员资源操作审计埋点。
 
 ### 数据与基础设施层
+
 - [internal/store/](internal/store/AGENTS.md)：数据持久层，基于 GORM 的多资源存储实现，兼容 SQLite / MySQL / PostgreSQL 三库。
 - [internal/config/](internal/config/AGENTS.md)：系统、运营、模型、倍率与性能配置的集中注册与动态管理。
 - [internal/infra/](internal/infra/AGENTS.md)：代理 HTTP 客户端、Redis/缓存、安全校验、业务日志、媒体解析与 Token 计数。
@@ -56,9 +47,9 @@
 - [pkg/](pkg/AGENTS.md)：无业务依赖、可独立复用的底层库（`jsonx`、`cachex`）。
 
 ### 前端与文档
+
 - [web/](web/AGENTS.md)：前端单页应用（React 19 + TypeScript + Rsbuild + Tailwind CSS 4）。
 - [DESIGN.md](DESIGN.md)：前端外观与感受的唯一设计规范（调性、颜色、字体、组件、布局、动效），修改任何 UI 前必读。
-- [docs/](docs/AGENTS.md)：跨模块详细规范、系统设计与开发参考文档。
 
 `参考项目/` 是本地参考源码，已被忽略；除非用户明确要求，不要修改其中内容。
 
@@ -87,14 +78,6 @@
 - 外部输入必须在系统边界校验：HTTP 参数、表单、文件、网络、数据库、缓存、权限、安全逻辑。
 - 新增通用能力前先搜索现有工具函数；确有复用价值再放入 `internal/common/` 或对应前端 `lib/`。
 - 不要顺手删除、替换或改名项目标识、AGPL/版权头、Go module path、Docker/CI 镜像名等元数据。
-
-### 行为反模式警示：拒绝纠错残留
-
-严厉禁止以下“纠偏后残留历史痕迹与自我辩解”的行为模式：
-
-> 用户让做一盘“番茄炒蛋”，Agent 擅自加了“东坡肉”；被指出后虽然去掉了，但提交/PR 时写着「番茄炒蛋（无东坡肉）」，并在注释中大篇幅解释为什么本道菜不需要加东坡肉。
-
-**交付要求**：任何代码、注释、文档、提交信息及回复，都必须直接呈现对齐后的**干净终态设计**（Clean final-state design），严禁包含任何前序错误、自我辩解或“在此删掉某逻辑”的纠错痕迹。
 
 ## 后端规则
 
@@ -131,7 +114,6 @@ config、前端常量和 i18n。
 - **Git Hook 与提交闭环**：
   - 执行 `git config core.hooksPath .githooks` 激活本地拦截；推送后若 Actions 失败须当场修复，不留坏提交。
 
-
 ## 前端规则
 
 - 前端包管理器使用 Bun。`web/` 目录有独立 `package.json` 和 `bun.lock`。
@@ -142,31 +124,3 @@ config、前端常量和 i18n。
   [docs/开发规范/list-page-table-spec.md](docs/开发规范/list-page-table-spec.md)。
 - 前端组件优先复用 `src/components/ui/`、`src/components/data-table/`、
   `src/components/layout/` 等通用组件，避免重复造轮子。
-
-## 文档与参考项目
-
-- `参考项目/` 仅用于比对上游实现。复制代码前必须适配本项目 API 和配置。
-- 跨模块详细开发规范文档放在 `docs/开发规范/`，根 `AGENTS.md` 和子目录
-  `AGENTS.md` 通过链接引用，避免在 AGENTS.md 中堆砌长篇规范正文。
-- `docs/AGENTS.md` 中的规则适用于 `docs/` 目录下的所有文档文件。
-
-## AI协助开发声明
-
-凡使用了 AI 辅助生成或修改的代码，必须在 **commit 信息结尾**（以及对应 **PR 描述**中）按以下格式注明所使用的工具环境和模型：
-
-```
-assisted-by：{agent_name}：{model}
-```
-
-- `{agent_name}`：使用的 AI 编码工具/环境，如 `opencode`、`codex`、`cursor`
-- `{model}`：实际使用的模型（含供应商，格式可参考 `供应商/模型`），如 `Zhipu/GLM-5.3[Max]`
-
-示例：
-
-```bash
-git commit -m "feat(channel): support batch model pulling
-
-assisted-by：opencode：Zhipu/GLM-5.3[Max]"
-```
-
-多个模型/工具参与时逐行列出。纯人工改动无需此声明，但需在 PR 描述中说明。
