@@ -351,6 +351,7 @@ const (
 	MsgOptionAudioCompletionRatioFailed   = "option.audio_completion_ratio_failed"
 	MsgOptionCreateCacheRatioFailed       = "option.create_cache_ratio_failed"
 	MsgOptionContextPricingFailed         = "option.context_pricing_failed"
+	MsgOptionTokenKeyPrefixInvalid        = "option.token_key_prefix_invalid"
 	MsgOptionRetryTimesRange              = "option.retry_times_range"
 	MsgOptionRetryTimesPositiveWhenEnable = "option.retry_times_positive_when_enable"
 	MsgOptionRetryEnabledMustBool         = "option.retry_enabled_must_bool"

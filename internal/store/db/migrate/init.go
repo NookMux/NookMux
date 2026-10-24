@@ -138,6 +138,12 @@ func migrateDB() error {
 		return err
 	}
 
+	// 历史令牌 key 补默认密钥前缀（sk-），统一为完整密钥存储形态。
+	// 须在 AutoMigrate 扩宽 tokens.key 列之后执行。
+	if err := migrateTokenKeyPrefixes(); err != nil {
+		return err
+	}
+
 	if err := userstore.CleanupEmptyAccessTokens(); err != nil {
 		return err
 	}

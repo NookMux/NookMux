@@ -48,6 +48,7 @@ const SITE_SECTIONS = [
           },
           general_setting: {
             docs_link: settings['general_setting.docs_link'],
+            token_key_prefix: settings['general_setting.token_key_prefix'],
           },
         }}
       />

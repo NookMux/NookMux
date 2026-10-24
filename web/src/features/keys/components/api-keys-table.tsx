@@ -225,12 +225,9 @@ export function ApiKeysTable() {
       if (hasServerFilter) {
         const wrapSearchTerm = (value: string) =>
           value.length >= 2 && !value.includes('%') ? `%${value}%` : value
-        const normalizedTokenFilter = keyFilter.startsWith('sk-')
-          ? keyFilter.slice(3)
-          : keyFilter
         const result = await searchApiKeys({
           keyword: wrapSearchTerm(nameFilter.trim()),
-          token: wrapSearchTerm(normalizedTokenFilter.trim()),
+          token: wrapSearchTerm(keyFilter.trim()),
           group: groupFilter || undefined,
           status: statusFilterNum > 0 ? statusFilterNum : undefined,
           all: true,

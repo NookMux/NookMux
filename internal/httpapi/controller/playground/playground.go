@@ -54,7 +54,7 @@ func Playground(c *gin.Context) {
 		UnlimitedQuota: true, // Playground uses wallet billing, skip token quota checks
 		RemainQuota:    0,
 	}
-	_ = middleware.SetupContextForToken(c, tempToken)
+	_ = middleware.SetupContextForToken(c, tempToken, "")
 
 	relaycontroller.Relay(c, relayconstant.RelayFormatOpenAI)
 }

@@ -287,11 +287,14 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 		if strings.HasPrefix(key, "Bearer ") || strings.HasPrefix(key, "bearer ") {
 			key = strings.TrimSpace(key[7:])
 		}
-		key = strings.TrimPrefix(key, "sk-")
-		parts := strings.Split(key, "-")
-		key = parts[0]
-
+		// 完整密钥（密钥前缀 + 随机串）即数据库存储形态，直接查库匹配；
+		// 未命中时剥离「-渠道ID」样式后缀重试，兼容密钥随机部分不含 '-' 之外的旧用法。
 		token, err := tokenstore.GetTokenByKey(key, false)
+		if err != nil {
+			if baseKey, _ := splitTokenChannelSuffix(key); baseKey != key {
+				token, err = tokenstore.GetTokenByKey(baseKey, false)
+			}
+		}
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"success": false,
@@ -377,10 +380,17 @@ func TokenAuth() func(c *gin.Context) {
 		if strings.HasPrefix(key, "Bearer ") || strings.HasPrefix(key, "bearer ") {
 			key = strings.TrimSpace(key[7:])
 		}
-		key = strings.TrimPrefix(key, "sk-")
-		parts := strings.Split(key, "-")
-		key = parts[0]
+		// 完整密钥（密钥前缀 + 随机串）即数据库存储形态，直接查库匹配；
+		// 未命中时兼容管理员「完整密钥-渠道ID」指定渠道语法，剥离末尾数字段重试。
+		specificChannelId := ""
 		token, err := tokenstore.ValidateUserToken(key)
+		if err != nil {
+			if baseKey, channelId := splitTokenChannelSuffix(key); channelId != "" {
+				key = baseKey
+				specificChannelId = channelId
+				token, err = tokenstore.ValidateUserToken(key)
+			}
+		}
 		if token != nil {
 			id := c.GetInt("id")
 			if id == 0 {
@@ -446,7 +456,7 @@ func TokenAuth() func(c *gin.Context) {
 		}
 		httpapi.SetContextKey(c, common.ContextKeyUsingGroup, userGroup)
 
-		err = SetupContextForToken(c, token, parts...)
+		err = SetupContextForToken(c, token, specificChannelId)
 		if err != nil {
 			return
 		}
@@ -454,7 +464,24 @@ func TokenAuth() func(c *gin.Context) {
 	}
 }
 
-func SetupContextForToken(c *gin.Context, token *tokenstore.Token, parts ...string) error {
+// splitTokenChannelSuffix 将「完整密钥-渠道ID」形态的请求密钥拆为完整密钥与渠道 ID。
+// 仅当密钥含 '-' 且末段为非空纯数字时视为渠道后缀；完整密钥的随机部分为纯字母数字，
+// 正常密钥不会以「-纯数字」结尾，仅在完整密钥未命中时调用。
+func splitTokenChannelSuffix(key string) (string, string) {
+	idx := strings.LastIndex(key, "-")
+	if idx <= 0 || idx == len(key)-1 {
+		return key, ""
+	}
+	suffix := key[idx+1:]
+	for _, r := range suffix {
+		if r < '0' || r > '9' {
+			return key, ""
+		}
+	}
+	return key[:idx], suffix
+}
+
+func SetupContextForToken(c *gin.Context, token *tokenstore.Token, specificChannelId string) error {
 	if token == nil {
 		return fmt.Errorf("token is nil")
 	}
@@ -503,9 +530,9 @@ func SetupContextForToken(c *gin.Context, token *tokenstore.Token, parts ...stri
 	}
 	httpapi.SetContextKey(c, common.ContextKeyTokenGroup, token.Group)
 	httpapi.SetContextKey(c, common.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
-	if len(parts) > 1 {
+	if specificChannelId != "" {
 		if userstore.IsAdmin(token.UserId) {
-			c.Set("specific_channel_id", parts[1])
+			c.Set("specific_channel_id", specificChannelId)
 		} else {
 			abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgAuthSpecificChannelDenied))
 			return fmt.Errorf("%s", i18n.T(c, i18n.MsgAuthSpecificChannelDenied))

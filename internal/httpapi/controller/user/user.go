@@ -229,7 +229,7 @@ func Register(c *gin.Context) {
 	}
 	// 生成默认令牌
 	if shared.GenerateDefaultToken {
-		key, err := common.GenerateKey()
+		key, err := tokenstore.GenerateFullTokenKey()
 		if err != nil {
 			httpapi.ApiErrorI18n(c, i18n.MsgUserDefaultTokenFailed)
 			common.SysLog("failed to generate token key: " + err.Error())

@@ -26,7 +26,8 @@ import {
   type KeyUsageResponse,
 } from './types'
 
-const KEY_PATTERN = /^sk-[a-zA-Z0-9]{48}$/
+// 完整密钥 = 自定义前缀（以 - 结尾）+ 48 位字母数字随机串
+const KEY_PATTERN = /^[^\s]+-[a-zA-Z0-9]{48}$/
 
 interface BackendErrorResponse {
   success?: boolean

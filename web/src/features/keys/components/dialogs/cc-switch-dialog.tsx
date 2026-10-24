@@ -157,10 +157,7 @@ export function CCSwitchDialog(props: Props) {
       toast.warning(t('keys.errors.pleaseSelectAPrimaryModel'))
       return
     }
-    const key = props.tokenKey.startsWith('sk-')
-      ? props.tokenKey
-      : `sk-${props.tokenKey}`
-    const url = buildCCSwitchURL(app, name, models, key)
+    const url = buildCCSwitchURL(app, name, models, props.tokenKey)
     window.open(url, '_blank')
     props.onOpenChange(false)
   }

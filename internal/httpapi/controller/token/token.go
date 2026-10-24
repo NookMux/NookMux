@@ -384,7 +384,7 @@ func AddToken(c *gin.Context) {
 		})
 		return
 	}
-	key, err := common.GenerateKey()
+	key, err := tokenstore.GenerateFullTokenKey()
 	if err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgTokenGenerateFailed)
 		common.SysLog("failed to generate token key: " + err.Error())

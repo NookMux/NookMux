@@ -162,6 +162,7 @@ export type SiteSettings = {
   'legal.user_agreement': string
   'legal.privacy_policy': string
   'general_setting.docs_link': string
+  'general_setting.token_key_prefix': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
 }
