@@ -78,7 +78,11 @@ func copyTable[T any](ctx context.Context, src *gorm.DB, dst *gorm.DB, opts copy
 		if len(batch) == 0 {
 			return nil
 		}
-		if err := dst.WithContext(ctx).Session(&gorm.Session{CreateBatchSize: opts.BatchSize}).Create(&batch).Error; err != nil {
+		// 每批写入包在独立事务中：将整批语句钉定在同一连接上执行（达梦 IDENTITY_INSERT
+		// 的 SET/INSERT/SET OFF 依赖会话粘性），并保证批级原子性、减少 commit 次数。
+		if err := dst.WithContext(ctx).Transaction(func(dtx *gorm.DB) error {
+			return dtx.Session(&gorm.Session{CreateBatchSize: opts.BatchSize}).Create(&batch).Error
+		}); err != nil {
 			return err
 		}
 		copied += int64(len(batch))

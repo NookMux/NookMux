@@ -11,16 +11,20 @@
 
 - **达梦 DM8 数据库支持**：新增达梦 DM8 作为原生后端数据库（Oracle 系内核，不依赖
   MySQL/Oracle 兼容模式）。DSN 以 `dm://` 前缀识别（达梦官方 Go 驱动原生支持的 URL
-  scheme，口令按字面值写入且不得含 ':' 与 '?'），连接层使用 `godoes/gorm-dameng`
+  scheme，口令按字面值写入且不得含 '?'，':'、'@' 可用，连接前对 DSN 口令做
+  非法字符前置校验），连接层使用 `godoes/gorm-dameng`
   v0.7.2（GORM 的 OnConflict 由其 Create 回调翻译为 MERGE INTO，自增主键经 IDENTITY
   列自动回填，显式插值后计数器自动跟随、迁移后无需重置）。
   - 实例要求：以 CASE_SENSITIVE=N 初始化（连接时校验，不满足即启动失败），业务账号
-    授予 SELECT ANY DICTIONARY 权限（AutoMigrate 依赖 SYS 系统视图探测表结构）。
+    授予 SELECT ANY DICTIONARY 权限（AutoMigrate 依赖 SYS 系统视图探测表结构）；
+    高并发部署建议按实例 dm.ini 的 MAX_SESSIONS 调低 SQL_MAX_OPEN_CONNS（默认
+    1000），避免高峰耗尽会话。
   - 字符串列按 VARCHAR(n CHAR) 字符口径建列，与其他数据库的长度语义对齐，避免中文
     在字节口径下意外截断。
   - 方言分支适配：保留字列与渠道搜索/兑换码/充值单的列名引用在 DM 下走双引号；用量
     排行时间分桶纳入 FLOOR 截断分支；跨库预迁移支持 DM 与 MySQL/PostgreSQL/openGauss/
-    SQLite 互迁，同类型迁移支持 DM → DM（含实例身份校验，基于 V$INSTANCE 实例指纹）。
+    SQLite 互迁，同类型迁移支持 DM → DM（含实例身份校验，基于 V$INSTANCE 实例指纹）；
+    目标库写入按批包裹事务，钉定达梦 IDENTITY_INSERT 的会话粘性并获得批级原子回滚。
   - 安装向导数据库类型展示新增 `dameng`（前端含 DM 检测提示与中英文文案）。
 
 - **openGauss 数据库支持**：新增 openGauss 7.0 作为原生后端数据库。DSN 以

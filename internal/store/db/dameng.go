@@ -1,9 +1,11 @@
 package dbstore
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/NookMux/NookMux/internal/common"
 	"github.com/godoes/gorm-dameng"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -17,10 +19,12 @@ import (
 //
 //	dm://user:password@host:5236?schema=NOOKMUX
 //
-// 注意驱动 parseDSN 不做 percent-decode：口令按字面值写入（含 '@' 无碍，
-// 按 DSN 中最后一个 '@' 切分 userinfo 与主机），但口令不得包含 ':' 与
-// '?'（':' 为用户名/口令分隔符，'?' 会被当作 query 起始）；schema 指定
-// 登录后的当前模式，缺省为该用户的默认模式（同名 schema）。
+// 注意驱动 parseDSN 不做 percent-decode，口令按字面值写入：userinfo 与
+// 主机按 DSN 中最后一个 '@' 切分，userinfo 中第一个 ':' 之后的全部内容
+// 为口令，因此口令可以包含 ':' 与 '@'；但 '?' 会被 parseDSN 当作 query
+// 参数起始（按 DSN 中最后一个 '?' 切分），口令携带 '?' 时存在被截断而
+// 静默认证失败的风险，连接前由 validateDMDsnPassword 一律拦截。schema
+// 指定登录后的当前模式，缺省为该用户的默认模式（同名 schema）。
 //
 // 实例与账号要求：
 //   - 库必须以 CASE_SENSITIVE=N 初始化（dminit 参数），并在连接时校验：
@@ -36,6 +40,9 @@ import (
 // remark 等带 size 上限的中文列会在字节口径下意外截断/超长报错，字符口径
 // 与其他数据库的长度语义保持一致。
 func OpenDMGorm(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
+	if err := validateDMDsnPassword(dsn); err != nil {
+		return nil, err
+	}
 	gormDB, err := gorm.Open(dameng.New(dameng.Config{
 		DSN:                     dsn,
 		VarcharSizeIsCharLength: true,
@@ -43,14 +50,62 @@ func OpenDMGorm(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 校验失败分支必须关闭底层连接池再返回：预迁移是管理端 HTTP 运行时
+	// 可反复触发的动作，句柄不关闭会持续泄漏；关闭失败以主错误为准。
+	closeDB := func() {
+		if sqlDB, dbErr := gormDB.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	}
 	var caseSensitive int
 	if err := gormDB.Raw("SELECT SF_GET_CASE_SENSITIVE_FLAG()").Row().Scan(&caseSensitive); err != nil {
+		closeDB()
 		return nil, fmt.Errorf("读取达梦 CASE_SENSITIVE 标志失败: %w", err)
 	}
 	if caseSensitive != 0 {
+		closeDB()
 		return nil, fmt.Errorf("达梦实例为 CASE_SENSITIVE=Y（大小写敏感），NookMux 需要以 CASE_SENSITIVE=N 初始化的实例（dminit ... CASE_SENSITIVE=N），请重建实例或切换到符合要求的库")
 	}
 	return gormDB, nil
+}
+
+// validateDMDsnPassword 在建立连接前校验 dm:// DSN 用户名/口令中的非法
+// 字符，切分规则与驱动 parseDSN（dm8/n.go）一致：去掉 dm:// 前缀后，
+// userinfo 与主机按最后一个 '@' 切分，userinfo 中第一个 ':' 之后的全部
+// 内容为口令。
+//
+//   - userinfo 区间包含 '?' 时报错：驱动以整个 DSN 的最后一个 '?' 切分
+//     query 参数，口令携带 '?' 无法与"口令被截断"的形态区分（其后没有
+//     真正 query 参数时必然截断，导致静默认证失败或整体解析错误）；
+//   - ':' 与 '@' 对口令安全（第一个 ':' 之后、最后一个 '@' 之前全为
+//     口令），放行；
+//   - '%' 可能是口令字面值，也可能是用户按 URL 习惯 percent-encode 的
+//     残留，只记录警告不拦截。
+//
+// 非 dm:// 前缀、缺少 '@' 或未携带口令的畸形 DSN 不在此拦截，由驱动
+// parseDSN 与服务器认证按各自错误暴露。
+func validateDMDsnPassword(dsn string) error {
+	const scheme = "dm://"
+	if !strings.HasPrefix(dsn, scheme) {
+		return nil
+	}
+	body := dsn[len(scheme):]
+	ai := strings.LastIndex(body, "@")
+	if ai == -1 {
+		return nil
+	}
+	userInfo := body[:ai]
+	if strings.Contains(userInfo, "?") {
+		return errors.New("达梦 DSN 的用户名/口令包含非法字符 '?'：驱动解析 DSN 时不做 percent-decode，以 '?' 作为 query 参数起始，口令携带该字符会被截断导致静默认证失败；dm:// 口令须按字面值写入（不要 percent-encode），请改用不含 '?' 的口令")
+	}
+	_, password, hasColon := strings.Cut(userInfo, ":")
+	if !hasColon {
+		return nil
+	}
+	if strings.Contains(password, "%") {
+		common.SysLog("达梦 DSN 口令包含 '%'：驱动不做 percent-decode、口令按字面值传递，若该字符是 percent-encode 残留（如 '%40' 表示 '@'），请改写为原始口令")
+	}
+	return nil
 }
 
 // NormalizeDMBoolDefaultLiterals 把模型布尔字段的默认值字面量 true/false 归一为
