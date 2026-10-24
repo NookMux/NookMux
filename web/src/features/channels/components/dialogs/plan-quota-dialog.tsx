@@ -23,6 +23,7 @@ import { AlertTriangle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useChartTheme } from '@/lib/use-chart-theme'
+import { cn } from '@/lib/utils'
 import { VCHART_OPTION } from '@/lib/vchart'
 import { Button } from '@/components/ui/button'
 import {
@@ -93,6 +94,12 @@ type UsagePoint = {
   type: string
 }
 
+type UsageStat = {
+  label: string
+  display: string
+  trend: string
+}
+
 type ModelSummary = {
   modelName?: string
   totalTokens?: number
@@ -102,6 +109,7 @@ type FlattenedUsageData = {
   values: UsagePoint[]
   total: number
   summary: ModelSummary[]
+  stats: UsageStat[]
   fields: string[]
   times: string[]
 }
@@ -166,6 +174,34 @@ function formatCompactNumber(value: unknown): string {
     return sign + (abs / 1_000).toFixed(1).replace(/\.0$/, '') + 'K'
   }
   return sign + abs.toLocaleString()
+}
+
+// formatRatePercent 渲染上游返回的比率字段（cacheHitRate 等取值 0-1）。
+function formatRatePercent(value: unknown): string {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '0.0%'
+  return `${(num * 100).toFixed(1)}%`
+}
+
+// formatTrendPercent 渲染环比趋势（0.0823 → +8.2%），0 或非法值不展示。
+function formatTrendPercent(trend: unknown): string {
+  const num = Number(trend)
+  if (!Number.isFinite(num) || num === 0) return ''
+  const pct = num * 100
+  const magnitude =
+    Math.abs(pct) >= 100
+      ? String(Math.round(pct))
+      : String(Math.round(pct * 10) / 10)
+  return `${pct > 0 ? '+' : '-'}${magnitude}%`
+}
+
+// summaryStatValue 读取 summary 里 { value, trend } 形式的统计块。
+function summaryStatValue(block: unknown): { value: string; trend: string } {
+  if (!isRecord(block)) return { value: '', trend: '' }
+  return {
+    value: String(block.value ?? ''),
+    trend: String(block.trend ?? ''),
+  }
 }
 
 function getStatusVariant(status?: string, percentage?: number): StatusVariant {
@@ -293,50 +329,96 @@ function flattenUsageData(
   usageType: GlmUsageType
 ): FlattenedUsageData {
   const data = isRecord(rawData?.data) ? rawData.data : {}
-  const times = stringArray(data.x_time)
+  // token-usage 明细接口时间轴为驼峰 xTime，tool 旧接口仍为 x_time
+  const times = stringArray(usageType === 'model' ? data.xTime : data.x_time)
   if (times.length === 0) {
-    return { values: [], total: 0, summary: [], fields: [], times: [] }
+    return { values: [], total: 0, summary: [], stats: [], fields: [], times: [] }
   }
 
   if (usageType === 'model') {
-    const totalUsage = isRecord(data.totalUsage) ? data.totalUsage : {}
-    const totalTokens = Number(totalUsage.totalTokensUsage) || 0
-    const totalArr = numberArray(data.tokensUsage)
-    const modelList = Array.isArray(data.modelDataList)
-      ? data.modelDataList.filter(isRecord)
+    // token-usage/usage-detail 响应：summary 为比率/Token 汇总指标，
+    // modelUsage.modelDataList 按模型给出缓存/未缓存/输出 Tokens 时序。
+    const modelUsage = isRecord(data.modelUsage) ? data.modelUsage : {}
+    const totalUsage = isRecord(modelUsage.totalUsage)
+      ? modelUsage.totalUsage
+      : {}
+    const totalTokens = Number(totalUsage.totalTokens) || 0
+    const summaryBlock = isRecord(data.summary) ? data.summary : {}
+    const modelList = Array.isArray(modelUsage.modelDataList)
+      ? modelUsage.modelDataList.filter(isRecord)
       : []
-    const summarySource = Array.isArray(data.modelSummaryList)
-      ? data.modelSummaryList
-      : Array.isArray(totalUsage.modelSummaryList)
-        ? totalUsage.modelSummaryList
+    const summary = (
+      Array.isArray(modelUsage.modelSummaryList)
+        ? modelUsage.modelSummaryList
         : []
-    const summary = summarySource.filter(isRecord).map((item) => ({
-      modelName: String(item.modelName ?? ''),
-      totalTokens: Number(item.totalTokens) || 0,
-    }))
+    )
+      .filter(isRecord)
+      .map((item) => ({
+        modelName: String(item.modelName ?? ''),
+        totalTokens: Number(item.totalTokens) || 0,
+      }))
 
-    const fields = [
-      i18next.t('channels.fields.planTotalUsage'),
-      ...modelList.map((model) => String(model.modelName ?? '')),
-    ].filter(Boolean)
+    const statBlocks: [
+      label: string,
+      block: unknown,
+      format: (value: unknown) => string,
+    ][] = [
+      [
+        i18next.t('channels.fields.planCacheHitRate'),
+        summaryBlock.cacheHitRate,
+        formatRatePercent,
+      ],
+      [
+        i18next.t('channels.fields.planOffPeakUsageRate'),
+        summaryBlock.offPeakUsageRate,
+        formatRatePercent,
+      ],
+      [
+        i18next.t('channels.fields.planTokensTotal'),
+        summaryBlock.totalTokens,
+        formatCompactNumber,
+      ],
+      [
+        i18next.t('channels.fields.planAvgDailyTokens'),
+        summaryBlock.averageDailyTokens,
+        formatCompactNumber,
+      ],
+    ]
+    const stats = statBlocks.map(([label, block, format]) => {
+      const { value, trend } = summaryStatValue(block)
+      return { label, display: format(value), trend: formatTrendPercent(trend) }
+    })
+
+    const seriesDefs = [
+      {
+        key: 'cachedInputTokensUsage',
+        labelKey: 'channels.fields.planSeriesCached',
+      },
+      {
+        key: 'uncachedInputTokensUsage',
+        labelKey: 'channels.fields.planSeriesUncached',
+      },
+      {
+        key: 'outputTokensUsage',
+        labelKey: 'channels.fields.planSeriesOutput',
+      },
+    ] as const
+
+    const fields: string[] = []
     const values: UsagePoint[] = []
-    times.forEach((time, index) => {
-      values.push({
-        time,
-        value: totalArr[index] || 0,
-        type: i18next.t('channels.fields.planTotalUsage'),
-      })
-      modelList.forEach((model) => {
-        const usage = numberArray(model.tokensUsage)
-        values.push({
-          time,
-          value: usage[index] || 0,
-          type: String(model.modelName ?? ''),
+    modelList.forEach((model) => {
+      const modelName = String(model.modelName ?? '')
+      seriesDefs.forEach(({ key, labelKey }) => {
+        const usage = numberArray(model[key])
+        const type = i18next.t(labelKey, { model: modelName })
+        fields.push(type)
+        times.forEach((time, index) => {
+          values.push({ time, value: usage[index] || 0, type })
         })
       })
     })
 
-    return { values, total: totalTokens, summary, fields, times }
+    return { values, total: totalTokens, summary, stats, fields, times }
   }
 
   const networkSearch = numberArray(data.networkSearchCount)
@@ -368,6 +450,7 @@ function flattenUsageData(
     values,
     total,
     summary: [],
+    stats: [],
     fields: [
       i18next.t('channels.fields.planNetworkSearch'),
       i18next.t('channels.fields.planWebRead'),
@@ -573,7 +656,7 @@ function UsageChart({ channelId }: { channelId: number }) {
     fetchUsage()
   }, [fetchUsage])
 
-  const { values, total, summary, fields, times } = useMemo(
+  const { values, total, summary, stats, fields, times } = useMemo(
     () => flattenUsageData(rawData, usageType),
     [rawData, usageType]
   )
@@ -585,19 +668,19 @@ function UsageChart({ channelId }: { channelId: number }) {
   const spec = useMemo(() => {
     if (values.length === 0) return null
     const sampledLabels = sampleTimeLabels(times, 4)
-    const colorRange = fields.map((field, index) =>
-      field === i18next.t('channels.fields.planTotalUsage')
-        ? 'rgba(148, 163, 184, 0.85)'
-        : chartColors[index % chartColors.length]
+    const isModel = usageType === 'model'
+    const colorRange = fields.map(
+      (_, index) => chartColors[index % chartColors.length]
     )
 
     return {
-      type: 'area',
+      // 模型消耗为按模型堆叠的柱形图；工具调用保持折线/面积趋势图
+      type: isModel ? 'bar' : 'area',
       data: [{ id: 'usage', values }],
       xField: 'time',
       yField: 'value',
       seriesField: 'type',
-      stack: false,
+      stack: isModel,
       legends: {
         visible: true,
         position: 'top',
@@ -606,18 +689,28 @@ function UsageChart({ channelId }: { channelId: number }) {
         maxRow: 1,
       },
       color: { type: 'ordinal', range: colorRange, domain: fields },
-      area: {
-        style: {
-          fillOpacity: 0.08,
-          curveType: 'monotone',
-        },
-      },
-      line: {
-        style: {
-          lineWidth: 2,
-          curveType: 'monotone',
-        },
-      },
+      ...(isModel
+        ? {
+            bar: {
+              state: {
+                hover: { stroke: '#000', lineWidth: 1 },
+              },
+            },
+          }
+        : {
+            area: {
+              style: {
+                fillOpacity: 0.08,
+                curveType: 'monotone',
+              },
+            },
+            line: {
+              style: {
+                lineWidth: 2,
+                curveType: 'monotone',
+              },
+            },
+          }),
       point: { visible: false },
       axes: [
         {
@@ -666,7 +759,7 @@ function UsageChart({ channelId }: { channelId: number }) {
       background: 'transparent',
       animation: true,
     }
-  }, [chartColors, fields, times, values])
+  }, [chartColors, fields, times, usageType, values])
 
   const ranges = [
     { key: 0, label: t('channels.placeholders.planToday') },
@@ -746,6 +839,33 @@ function UsageChart({ channelId }: { channelId: number }) {
           </div>
         )}
       </div>
+
+      {usageType === 'model' && stats.length > 0 && (
+        <div className='grid grid-cols-2 gap-3 lg:grid-cols-4'>
+          {stats.map((stat) => (
+            <div key={stat.label} className='rounded-lg border p-3'>
+              <div className='text-muted-foreground text-xs'>{stat.label}</div>
+              <div className='mt-1 flex flex-wrap items-baseline gap-1.5'>
+                <span className='text-xl font-semibold tabular-nums'>
+                  {stat.display}
+                </span>
+                {stat.trend && (
+                  <span
+                    className={cn(
+                      'text-xs font-medium tabular-nums',
+                      stat.trend.startsWith('-')
+                        ? 'text-success'
+                        : 'text-destructive'
+                    )}
+                  >
+                    {stat.trend}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className='min-h-[240px]'>
         {loading ? (

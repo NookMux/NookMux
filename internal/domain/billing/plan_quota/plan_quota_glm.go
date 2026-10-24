@@ -22,6 +22,7 @@ const (
 	glmSubscriptionPath        = "/api/biz/subscription/list?pageSize=10&pageNum=1"
 	glmQuotaLimitPath          = "/api/monitor/usage/quota/limit"
 	glmCreditUsageActivityPath = "/api/monitor/credit-usage/activity"
+	glmModelUsageDetailPath    = "/api/monitor/token-usage/usage-detail"
 	glmActivityAccountPersonal = "1" // 个人套餐
 
 	// GlmActivityAccountPersonal 是导出别名，供 controller 按业务语义引用，
@@ -591,6 +592,9 @@ func getGlmUsageStatus(percentage int) string {
 
 // FetchGlmUsageData 代理拉取 GLM 用量图表数据，直接透传原始 JSON；
 // proxyURL 非空时请求经渠道代理发出。
+// 模型消耗走 token-usage 明细接口：type=1、usageType=MODEL 与智谱官方控制台
+// 参数一致，接口按时间范围自动返回小时/天粒度（granularity）与缓存命中率、
+// 低峰期占比等汇总指标；海内外上游域名沿用 getGlmApiBase 划分。
 func FetchGlmUsageData(apiKey string, planBaseURL string, dataType string, startTime string, endTime string, proxyURL string) (json.RawMessage, error) {
 	apiBase := getGlmApiBase(planBaseURL)
 	if apiBase == "" {
@@ -598,9 +602,12 @@ func FetchGlmUsageData(apiKey string, planBaseURL string, dataType string, start
 	}
 
 	var path string
+	query := url.Values{}
 	switch dataType {
 	case "model":
-		path = "/api/monitor/usage/model-usage"
+		path = glmModelUsageDetailPath
+		query.Set("type", "1")
+		query.Set("usageType", "MODEL")
 	case "tool":
 		path = "/api/monitor/usage/tool-usage"
 	case "performance":
@@ -610,7 +617,11 @@ func FetchGlmUsageData(apiKey string, planBaseURL string, dataType string, start
 	}
 
 	if startTime != "" && endTime != "" {
-		path += fmt.Sprintf("?startTime=%s&endTime=%s", url.QueryEscape(startTime), url.QueryEscape(endTime))
+		query.Set("startTime", startTime)
+		query.Set("endTime", endTime)
+	}
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
 	}
 
 	body, err := fetchGlmAPI(apiBase, path, apiKey, proxyURL, nil)
