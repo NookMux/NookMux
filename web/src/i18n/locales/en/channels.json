@@ -638,6 +638,7 @@
   "channels.tips.planQuotaComingSoon": "Quota query for {{name}} is coming soon, stay tuned.",
   "channels.tips.planQuotaComingSoonGeneric": "Quota query for this plan is coming soon, stay tuned.",
   "channels.tips.planResponseParseFailed": "Failed to parse response, the API format may have changed",
+  "channels.tips.planUsageLoadFailed": "Failed to load usage data",
   "channels.tips.pleaseFixTheJsonBeforeSaving": ". Please fix the JSON before saving.",
   "channels.tips.pleaseSetOllamaApiBaseUrlFirst": "Please set Ollama API Base URL first",
   "channels.tips.pollingModeRequiresRedisAndMemoryCacheOtherwisePerformance": "Polling mode requires Redis and memory cache, otherwise performance will be significantly degraded",

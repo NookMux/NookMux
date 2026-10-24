@@ -43,6 +43,15 @@ import {
 } from '@/components/ui/tooltip'
 import { StatusBadge, type StatusVariant } from '@/components/status-badge'
 import { getGlmPlanActivity, getGlmPlanUsage, getPlanQuota } from '../../api'
+import {
+  flattenModelUsageData,
+  formatCompactNumber,
+  isRecord,
+  numberArray,
+  stringArray,
+  type FlattenedUsageData,
+  type UsagePoint,
+} from '../../lib/glm-usage'
 import type {
   Channel,
   GlmActivityDay,
@@ -88,41 +97,11 @@ type PlanQuotaDialogProps = {
   onOpenChange: (open: boolean) => void
 }
 
-type UsagePoint = {
-  time: string
-  value: number
-  type: string
-}
-
-type UsageStat = {
-  label: string
-  display: string
-  trend: string
-}
-
-type ModelSummary = {
-  modelName?: string
-  totalTokens?: number
-}
-
-type FlattenedUsageData = {
-  values: UsagePoint[]
-  total: number
-  summary: ModelSummary[]
-  stats: UsageStat[]
-  fields: string[]
-  times: string[]
-}
-
 type PerformanceData = {
   values: UsagePoint[]
   avgSpeed: string
   avgRate: string
   times: string[]
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 function getThemeChartColors(themeKey?: string): string[] {
@@ -140,68 +119,10 @@ function getThemeChartColors(themeKey?: string): string[] {
   return colors.length > 0 ? colors : FALLBACK_MODEL_COLORS
 }
 
-function numberArray(value: unknown): number[] {
-  return Array.isArray(value)
-    ? value.map((item) => {
-        const n = Number(item)
-        return Number.isFinite(n) ? n : 0
-      })
-    : []
-}
-
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.map((item) => String(item)) : []
-}
-
 function clampPercent(value: unknown): number {
   const n = Number(value)
   if (!Number.isFinite(n)) return 0
   return Math.max(0, Math.min(100, Math.round(n)))
-}
-
-function formatCompactNumber(value: unknown): string {
-  const num = Number(value)
-  if (!Number.isFinite(num)) return '0'
-  const abs = Math.abs(num)
-  const sign = num < 0 ? '-' : ''
-  if (abs >= 1_000_000_000) {
-    return sign + (abs / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B'
-  }
-  if (abs >= 1_000_000) {
-    return sign + (abs / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
-  }
-  if (abs >= 1_000) {
-    return sign + (abs / 1_000).toFixed(1).replace(/\.0$/, '') + 'K'
-  }
-  return sign + abs.toLocaleString()
-}
-
-// formatRatePercent 渲染上游返回的比率字段（cacheHitRate 等取值 0-1）。
-function formatRatePercent(value: unknown): string {
-  const num = Number(value)
-  if (!Number.isFinite(num)) return '0.0%'
-  return `${(num * 100).toFixed(1)}%`
-}
-
-// formatTrendPercent 渲染环比趋势（0.0823 → +8.2%），0 或非法值不展示。
-function formatTrendPercent(trend: unknown): string {
-  const num = Number(trend)
-  if (!Number.isFinite(num) || num === 0) return ''
-  const pct = num * 100
-  const magnitude =
-    Math.abs(pct) >= 100
-      ? String(Math.round(pct))
-      : String(Math.round(pct * 10) / 10)
-  return `${pct > 0 ? '+' : '-'}${magnitude}%`
-}
-
-// summaryStatValue 读取 summary 里 { value, trend } 形式的统计块。
-function summaryStatValue(block: unknown): { value: string; trend: string } {
-  if (!isRecord(block)) return { value: '', trend: '' }
-  return {
-    value: String(block.value ?? ''),
-    trend: String(block.trend ?? ''),
-  }
 }
 
 function getStatusVariant(status?: string, percentage?: number): StatusVariant {
@@ -329,8 +250,13 @@ function flattenUsageData(
   usageType: GlmUsageType
 ): FlattenedUsageData {
   const data = isRecord(rawData?.data) ? rawData.data : {}
-  // token-usage 明细接口时间轴为驼峰 xTime，tool 旧接口仍为 x_time
-  const times = stringArray(usageType === 'model' ? data.xTime : data.x_time)
+
+  if (usageType === 'model') {
+    return flattenModelUsageData(data)
+  }
+
+  // tool 旧接口时间轴位于顶层 x_time
+  const times = stringArray(data.x_time)
   if (times.length === 0) {
     return {
       values: [],
@@ -340,92 +266,6 @@ function flattenUsageData(
       fields: [],
       times: [],
     }
-  }
-
-  if (usageType === 'model') {
-    // token-usage/usage-detail 响应：summary 为比率/Token 汇总指标，
-    // modelUsage.modelDataList 按模型给出缓存/未缓存/输出 Tokens 时序。
-    const modelUsage = isRecord(data.modelUsage) ? data.modelUsage : {}
-    const totalUsage = isRecord(modelUsage.totalUsage)
-      ? modelUsage.totalUsage
-      : {}
-    const totalTokens = Number(totalUsage.totalTokens) || 0
-    const summaryBlock = isRecord(data.summary) ? data.summary : {}
-    const modelList = Array.isArray(modelUsage.modelDataList)
-      ? modelUsage.modelDataList.filter(isRecord)
-      : []
-    const summary = (
-      Array.isArray(modelUsage.modelSummaryList)
-        ? modelUsage.modelSummaryList
-        : []
-    )
-      .filter(isRecord)
-      .map((item) => ({
-        modelName: String(item.modelName ?? ''),
-        totalTokens: Number(item.totalTokens) || 0,
-      }))
-
-    const statBlocks: [
-      label: string,
-      block: unknown,
-      format: (value: unknown) => string,
-    ][] = [
-      [
-        i18next.t('channels.fields.planCacheHitRate'),
-        summaryBlock.cacheHitRate,
-        formatRatePercent,
-      ],
-      [
-        i18next.t('channels.fields.planOffPeakUsageRate'),
-        summaryBlock.offPeakUsageRate,
-        formatRatePercent,
-      ],
-      [
-        i18next.t('channels.fields.planTokensTotal'),
-        summaryBlock.totalTokens,
-        formatCompactNumber,
-      ],
-      [
-        i18next.t('channels.fields.planAvgDailyTokens'),
-        summaryBlock.averageDailyTokens,
-        formatCompactNumber,
-      ],
-    ]
-    const stats = statBlocks.map(([label, block, format]) => {
-      const { value, trend } = summaryStatValue(block)
-      return { label, display: format(value), trend: formatTrendPercent(trend) }
-    })
-
-    const seriesDefs = [
-      {
-        key: 'cachedInputTokensUsage',
-        labelKey: 'channels.fields.planSeriesCached',
-      },
-      {
-        key: 'uncachedInputTokensUsage',
-        labelKey: 'channels.fields.planSeriesUncached',
-      },
-      {
-        key: 'outputTokensUsage',
-        labelKey: 'channels.fields.planSeriesOutput',
-      },
-    ] as const
-
-    const fields: string[] = []
-    const values: UsagePoint[] = []
-    modelList.forEach((model) => {
-      const modelName = String(model.modelName ?? '')
-      seriesDefs.forEach(({ key, labelKey }) => {
-        const usage = numberArray(model[key])
-        const type = i18next.t(labelKey, { model: modelName })
-        fields.push(type)
-        times.forEach((time, index) => {
-          values.push({ time, value: usage[index] || 0, type })
-        })
-      })
-    })
-
-    return { values, total: totalTokens, summary, stats, fields, times }
   }
 
   const networkSearch = numberArray(data.networkSearchCount)
@@ -642,18 +482,25 @@ function UsageChart({ channelId }: { channelId: number }) {
   const [usageType, setUsageType] = useState<GlmUsageType>('model')
   const [range, setRange] = useState(7)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [rawData, setRawData] = useState<Record<string, unknown> | null>(null)
 
   const fetchUsage = useCallback(async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       const response = await getGlmPlanUsage(channelId, {
         type: usageType,
         ...getUsageTimeParams(range),
       })
+      // 业务失败（Key 无效、上游异常等）以 success=false 返回，显式按错误暴露
+      if (isRecord(response) && response.success === false) {
+        throw new Error(String(response.message ?? ''))
+      }
       setRawData(response)
     } catch {
       setRawData(null)
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -889,6 +736,21 @@ function UsageChart({ channelId }: { channelId: number }) {
             }}
             option={VCHART_OPTION}
           />
+        ) : loadError ? (
+          <div className='flex h-[240px] flex-col items-center justify-center gap-3'>
+            <div className='text-destructive text-sm'>
+              {t('channels.tips.planUsageLoadFailed')}
+            </div>
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={fetchUsage}
+            >
+              <RefreshCw className='mr-1.5 h-3.5 w-3.5' />
+              {t('channels.actions.refresh')}
+            </Button>
+          </div>
         ) : (
           <div className='text-muted-foreground flex h-[120px] items-center justify-center text-sm'>
             {t('channels.fields.noData')}

@@ -638,6 +638,7 @@
   "channels.tips.planQuotaComingSoon": "{{name}} 的额度查询功能即将上线，敬请期待。",
   "channels.tips.planQuotaComingSoonGeneric": "该套餐的额度查询功能即将上线，敬请期待。",
   "channels.tips.planResponseParseFailed": "响应解析失败，API 格式可能已变更",
+  "channels.tips.planUsageLoadFailed": "模型消耗数据加载失败",
   "channels.tips.pleaseFixTheJsonBeforeSaving": "。请在保存前修复 JSON。",
   "channels.tips.pleaseSetOllamaApiBaseUrlFirst": "请先设置 Ollama API Base URL",
   "channels.tips.pollingModeRequiresRedisAndMemoryCacheOtherwisePerformance": "轮询模式需要 Redis 和内存缓存，否则性能将显著下降",
