@@ -9,6 +9,18 @@
 
 ### Added
 
+- **openGauss 数据库支持**：新增 openGauss 7.0 作为原生后端数据库。DSN 以
+  `opengauss://` 前缀识别（openGauss 官方 Go connector 原生支持的 URL scheme），
+  连接层使用 `gitcode.com/opengauss/openGauss-connector-go-pq`（openGauss 私有
+  sha256 认证协议与 pgx/libpq 不兼容，无法复用 PostgreSQL 驱动），SQL 方言复用
+  GORM postgres 方言（PG 兼容内核）。目标库需以 `DBCOMPATIBILITY='PG'` 创建。
+  - 迁移链路同步适配：预迁移支持 MySQL/PostgreSQL/SQLite ↔ openGauss 方向，
+    同类型迁移支持 openGauss → openGauss（含实例身份校验与自增序列修复，
+    openGauss 序列 `pg_class.relkind` 为 `'z'`）。
+  - openGauss 整数除法返回 numeric（不截断），用量排行的时间分桶表达式按
+    数据库类型自动切换 FLOOR 截断。
+  - 安装向导数据库类型展示新增 `opengauss`。
+
 - **密钥前缀自定义**：新增系统配置「密钥前缀」（站点与品牌 → 系统信息，配置键
   `general_setting.token_key_prefix`，默认 `sk-`），支持设置为 `自定义-`、`sk-自定义-`
   等以 `-` 结尾的前缀，仅影响之后新建的令牌密钥。（[#294](https://github.com/NookMux/NookMux/issues/294)）

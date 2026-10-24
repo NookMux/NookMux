@@ -30,6 +30,7 @@ func resetPostgresOwnedSequences(db *gorm.DB) (int, error) {
 }
 
 func listPostgresOwnedSequences(db *gorm.DB) ([]pgOwnedSequence, error) {
+	// relkind：'S' 为 PostgreSQL 序列，'z' 为 openGauss 序列（PG 兼容内核的私有取值）。
 	const q = `
 SELECT
   ns.nspname AS schema_name,
@@ -41,7 +42,7 @@ JOIN pg_namespace ns ON ns.oid = s.relnamespace
 JOIN pg_depend d ON d.objid = s.oid
 JOIN pg_class t ON t.oid = d.refobjid
 JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
-WHERE s.relkind = 'S' AND d.deptype = 'a'
+WHERE s.relkind IN ('S', 'z') AND d.deptype = 'a'
 ORDER BY ns.nspname, t.relname, a.attname`
 
 	var seqs []pgOwnedSequence

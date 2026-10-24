@@ -46,13 +46,14 @@ func GetSetup(c *gin.Context) {
 		return
 	}
 	setup.RootInit = userstore.RootUserExists()
+	// UsingOpenGauss 时 UsingPostgreSQL 同为 true（PG 兼容内核），统一互斥分支。
 	if db.UsingMySQL {
 		setup.DatabaseType = "mysql"
-	}
-	if db.UsingPostgreSQL {
+	} else if db.UsingOpenGauss {
+		setup.DatabaseType = "opengauss"
+	} else if db.UsingPostgreSQL {
 		setup.DatabaseType = "postgres"
-	}
-	if db.UsingSQLite {
+	} else if db.UsingSQLite {
 		setup.DatabaseType = "sqlite"
 	}
 	c.JSON(200, gin.H{

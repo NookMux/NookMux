@@ -40,6 +40,7 @@ const DATABASE_VARIANT: Record<
   sqlite: 'warning',
   mysql: 'success',
   postgres: 'success',
+  opengauss: 'success',
 }
 
 export function CompleteStep({ status, values }: CompleteStepProps) {

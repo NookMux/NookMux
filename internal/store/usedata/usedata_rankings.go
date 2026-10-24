@@ -52,18 +52,21 @@ func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64, da
 }
 
 func rankingBucketExpr(bucketSize int64, dayOffset int64) string {
+	// openGauss 的整数除法返回 numeric（不截断），与 MySQL 一致需要 FLOOR 对齐桶边界；
+	// PostgreSQL/SQLite 的整数除法截断，可直接整除。
+	useFloorDivision := infradb.UsingMySQL || infradb.UsingOpenGauss
 	if dayOffset != 0 && bucketSize%86400 == 0 {
 		// 天级及以上桶按指定偏移切分，使桶边界落在目标时区的自然日 00:00。
 		offsetExpr := fmt.Sprintf("(%d)", dayOffset)
 		if dayOffset > 0 {
 			offsetExpr = fmt.Sprintf("(+%d)", dayOffset)
 		}
-		if infradb.UsingMySQL {
+		if useFloorDivision {
 			return fmt.Sprintf("(FLOOR((created_at + %s) / %d) * %d) - %s", offsetExpr, bucketSize, bucketSize, offsetExpr)
 		}
 		return fmt.Sprintf("((((created_at + %s) / %d) * %d) - %s)", offsetExpr, bucketSize, bucketSize, offsetExpr)
 	}
-	if infradb.UsingMySQL {
+	if useFloorDivision {
 		return fmt.Sprintf("FLOOR(created_at / %d) * %d", bucketSize, bucketSize)
 	}
 	return fmt.Sprintf("(created_at / %d) * %d", bucketSize, bucketSize)

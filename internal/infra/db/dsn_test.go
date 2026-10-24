@@ -14,6 +14,8 @@ func TestParseDBTypeFromDSN(t *testing.T) {
 	}{
 		{name: "postgres URL", dsn: "postgres://user:pass@127.0.0.1:5432/nookmux", want: DatabaseTypePostgreSQL},
 		{name: "postgresql 官方别名", dsn: "postgresql://user:pass@127.0.0.1:5432/nookmux", want: DatabaseTypePostgreSQL},
+		{name: "opengauss URL", dsn: "opengauss://user:pass@127.0.0.1:5432/nookmux", want: DatabaseTypeOpenGauss},
+		{name: "opengauss URL 口令含特殊字符", dsn: "opengauss://user:p%2B%3A%3Fss@127.0.0.1:5432/nookmux?sslmode=disable", want: DatabaseTypeOpenGauss},
 		{name: "mysql URL", dsn: "mysql://user:pass@127.0.0.1:3306/nookmux", want: DatabaseTypeMySQL},
 		{name: "允许首尾空白", dsn: "  mysql://user:pass@127.0.0.1:3306/nookmux\n", want: DatabaseTypeMySQL},
 		{name: "裸 MySQL 驱动 DSN 非法", dsn: "user:pass@tcp(127.0.0.1:3306)/nookmux", wantErr: true},

@@ -41,7 +41,7 @@ func InitCol() {
 	}
 	if os.Getenv("LOG_SQL_DSN") != "" {
 		switch db.LogSqlType {
-		case db.DatabaseTypePostgreSQL:
+		case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss:
 			LogGroupCol = `"group"`
 		default:
 			LogGroupCol = CommonGroupCol
@@ -95,6 +95,21 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 			DSN:                  dsn,
 			PreferSimpleProtocol: true, // disables implicit prepared statement usage
 		}), newGormConfig())
+	case db.DatabaseTypeOpenGauss:
+		common.SysLog("using openGauss as database")
+		if !isLog {
+			// openGauss 为 PG 兼容内核，方言行为归入 PostgreSQL 家族；
+			// 需要区分具体产品处使用 UsingOpenGauss 判断。
+			db.UsingPostgreSQL = true
+			db.UsingOpenGauss = true
+		} else {
+			db.LogSqlType = db.DatabaseTypeOpenGauss
+		}
+		sqlDB, err := OpenOpenGaussSQL(dsn)
+		if err != nil {
+			return nil, err
+		}
+		return gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), newGormConfig())
 	case db.DatabaseTypeMySQL:
 		common.SysLog("using MySQL as database")
 		driverDSN, err := db.MySQLDsnFromURL(dsn)

@@ -564,6 +564,7 @@
   "common.errors.pleaseWaitAMomentBeforeTryingAgain": "请稍候再试。",
   "common.fields.poor": "差",
   "common.tips.postgreSqlOffersAdvancedReliabilityAndDataIntegrityFor": "PostgreSQL 为生产工作负载提供高级可靠性和数据完整性。",
+  "common.tips.openGaussIsAPostgresCompatibleEnterprise": "openGauss 是 PG 兼容的企业级数据库，适用于生产工作负载。",
   "common.fields.prefixSuffixText": "前后缀文本",
   "common.tips.preparingYourChatLinkPleaseTryAgainInA": "正在准备您的聊天链接，请稍后再试。",
   "common.fields.preparingYourChatLink": "正在准备您的聊天链接...",

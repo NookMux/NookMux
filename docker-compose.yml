@@ -5,7 +5,7 @@
 #   2. Access at http://localhost:3000
 #
 # Uses SQLite (built-in) as the default database.
-# To use an external database (PostgreSQL/MySQL), set SQL_DSN environment variable.
+# To use an external database (PostgreSQL/MySQL/openGauss), set SQL_DSN environment variable.
 
 services:
   nookmux:
@@ -25,6 +25,7 @@ services:
       - BATCH_UPDATE_ENABLED=true
 #      - SQL_DSN=postgres://root:123456@postgres:5432/nookmux    # Uncomment to use PostgreSQL
 #      - SQL_DSN=mysql://root:123456@mysql:3306/nookmux          # Uncomment to use MySQL
+#      - SQL_DSN=opengauss://root:123456@opengauss:5432/nookmux  # Uncomment to use openGauss (DB must be created with DBCOMPATIBILITY='PG')
 #      - STREAMING_TIMEOUT=300
 #      - SESSION_SECRET=random_string  # Multi-node deployment, must change this random string!
 #      - SYNC_FREQUENCY=60

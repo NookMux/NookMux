@@ -564,6 +564,7 @@
   "common.errors.pleaseWaitAMomentBeforeTryingAgain": "Please wait a moment before trying again.",
   "common.fields.poor": "Poor",
   "common.tips.postgreSqlOffersAdvancedReliabilityAndDataIntegrityFor": "PostgreSQL offers advanced reliability and data integrity for production workloads.",
+  "common.tips.openGaussIsAPostgresCompatibleEnterprise": "openGauss is a PostgreSQL-compatible enterprise database for production workloads.",
   "common.fields.prefixSuffixText": "Prefix/Suffix Text",
   "common.tips.preparingYourChatLinkPleaseTryAgainInA": "Preparing your chat link, please try again in a moment.",
   "common.fields.preparingYourChatLink": "Preparing your chat link…",

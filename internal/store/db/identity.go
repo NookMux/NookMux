@@ -24,11 +24,26 @@ func GetDBIdentity(db *gorm.DB, dbType string) (dbIdentity, error) {
 	switch dbType {
 	case infradb.DatabaseTypePostgreSQL:
 		return getPostgresIdentity(db)
+	case infradb.DatabaseTypeOpenGauss:
+		return getOpenGaussIdentity(db)
 	case infradb.DatabaseTypeMySQL:
 		return getMySQLIdentity(db)
 	default:
 		return dbIdentity{}, fmt.Errorf("不支持的数据库类型：%s", dbType)
 	}
+}
+
+func getOpenGaussIdentity(db *gorm.DB) (dbIdentity, error) {
+	// openGauss 内核无 pg_control_system()/system_identifier，且
+	// data_directory 需要超级用户权限；服务端监听地址 + 端口 + 数据库名
+	// 的组合已足以判定两个连接是否指向同一个库。
+	var host, port sql.NullString
+	var dbName string
+	row := db.Raw("SELECT inet_server_addr(), inet_server_port(), current_database()").Row()
+	if err := row.Scan(&host, &port, &dbName); err != nil {
+		return dbIdentity{}, fmt.Errorf("获取 openGauss 连接标识失败：%w", err)
+	}
+	return dbIdentity{Host: host.String, Port: port.String, Database: dbName}, nil
 }
 
 func getPostgresIdentity(db *gorm.DB) (dbIdentity, error) {

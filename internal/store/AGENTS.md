@@ -28,16 +28,17 @@
 - **批量更新机制**：批量聚合机制（stores/locks/定时 flush）统一收口在 `dbstore`，各资源包在 `init()` 中通过 `dbstore.RegisterBatchFlushers` 注册落盘函数（注册与实体同包，保证 flusher 存在；nil 时显式报错，严禁静默丢弃）。
 - **解耦动作日志**：用户管理操作日志（`RecordLog`/`RecordLogWithAdminInfo`）收口在 `userstore`，`logstore` 专注承载请求消费与错误日志查询，消除双向循环依赖。
 
-## 数据库三库兼容性规范
+## 数据库多库兼容性规范
 
-系统必须同时严谨支持 SQLite、MySQL >= 5.7.8、PostgreSQL >= 9.6：
+系统必须同时严谨支持 SQLite、MySQL >= 5.7.8、PostgreSQL >= 9.6、openGauss 7.0（PG 兼容内核）：
 
 - 优先使用 GORM 链式 API 执行查询、更新与迁移。
 - 原始 SQL 必须严格参数化，禁止通过字符串拼接外部输入。
 - 保留字列名（如 `group`、`key`）必须调用 `dbstore.CommonGroupCol` / `CommonKeyCol` / `LogGroupCol` 变量进行方言拼接，严禁手写反引号或双引号。
-- 布尔值、JSON 存取、类型转换与 ALTER 行为必须兼容三库方言差异。
+- 布尔值、JSON 存取、类型转换与 ALTER 行为必须兼容各库方言差异。
 - JSON 数据统一以 `TEXT` 类型持久化，严禁引入缺乏跨库回退方案的专有类型（如 JSONB）。
 - SQLite 原生不支持 `ALTER COLUMN`，表结构演进必须采用追加新列或兼容转换模式。
+- openGauss 连接必须走官方 connector（`gitcode.com/opengauss/openGauss-connector-go-pq`，私有 sha256 认证与 pgx/libpq 不兼容），DSN 以 `opengauss://` 前缀识别，目标库需以 `DBCOMPATIBILITY='PG'` 创建；其序列 `pg_class.relkind` 为 `'z'`（PostgreSQL 为 `'S'`），整数除法返回 numeric 不截断（时间分桶等截断语义需 `FLOOR`）。
 
 ## 缓存与数据一致性
 
@@ -47,6 +48,6 @@
 ## 验证
 
 - `go test ./internal/store/...`
-- 涉及 SQL 或模型迁移变动时，必须验证 SQLite 路径；有条件时运行 MySQL/PostgreSQL 验证。
+- 涉及 SQL 或模型迁移变动时，必须验证 SQLite 路径；有条件时运行 MySQL/PostgreSQL/openGauss 验证。
 - 跨层联动测试：
   `go test ./internal/store/... ./internal/domain/... ./internal/httpapi/controller/...`

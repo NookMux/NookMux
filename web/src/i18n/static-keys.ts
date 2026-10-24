@@ -283,6 +283,7 @@ export const STATIC_I18N_KEYS = [
   'common.tips.sqliteStoresAllDataInASingleFileMake',
   'common.tips.mySqlIsAProductionReadyRelationalDatabaseKeep',
   'common.tips.postgreSqlOffersAdvancedReliabilityAndDataIntegrityFor',
+  'common.tips.openGaussIsAPostgresCompatibleEnterprise',
   'common.tips.customDatabaseDriverDetected',
   'common.tips.setupWizardWillUseThisDatabaseDuringInitialization',
 

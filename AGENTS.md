@@ -30,7 +30,7 @@
 
 ### 数据与基础设施层
 
-- [internal/store/](internal/store/AGENTS.md)：数据持久层，基于 GORM 的多资源存储实现，兼容 SQLite / MySQL / PostgreSQL 三库。
+- [internal/store/](internal/store/AGENTS.md)：数据持久层，基于 GORM 的多资源存储实现，兼容 SQLite / MySQL / PostgreSQL / openGauss 四库。
 - [internal/config/](internal/config/AGENTS.md)：系统、运营、模型、倍率与性能配置的集中注册与动态管理。
 - [internal/infra/](internal/infra/AGENTS.md)：代理 HTTP 客户端、Redis/缓存、安全校验、业务日志、媒体解析与 Token 计数。
 - [internal/relay/](internal/relay/AGENTS.md)（含 [channel/](internal/relay/channel/AGENTS.md)）：AI 请求中继与协议转换核心，多模态 Adaptor 调度、OpenAI wire 双向转换与流式改写。
@@ -78,7 +78,7 @@
 - JSON 序列化/反序列化调用使用 `pkg/jsonx` 的包装函数（`jsonx.Marshal` / `jsonx.Unmarshal` /
   `jsonx.UnmarshalJsonStr` / `jsonx.DecodeJson`）；不要在业务代码里直接调用
   `encoding/json` 的 marshal/unmarshal/decode。
-- 数据库必须兼容 SQLite、MySQL >= 5.7.8、PostgreSQL >= 9.6。优先 GORM；原始 SQL 必须参数化并处理三库差异。
+- 数据库必须兼容 SQLite、MySQL >= 5.7.8、PostgreSQL >= 9.6、openGauss 7.0（PG 兼容内核，连接走官方 connector，方言差异见 internal/store/AGENTS.md）。优先 GORM；原始 SQL 必须参数化并处理各库差异。
 - 渠道相关的外网请求（中继、测试、模型拉取、余额/套餐查询、WebSocket 等）必须走该渠道配置的代理（`httpclient.NewProxyHttpClient` / `NewProxyWebSocketDialer`，包路径 `internal/infra/httpclient`）。
 - 待机内存相关默认值必须保守：连接池 idle 上限、prepared statement 缓存、后台 worker/goroutine 池、
   ticker 唤醒频率等常驻资源不能为追求峰值吞吐随意调大。确需调大时必须保留环境变量覆盖、同步

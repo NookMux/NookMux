@@ -26,6 +26,8 @@
   "setup.errors.pleaseEnterAnAdministratorUsername": "请输入管理员用户名",
   "setup.fields.postgreSqlDetected": "检测到 PostgreSQL",
   "setup.tips.postgreSqlOffersStrongReliabilityGuaranteesDoubleCheckYour": "PostgreSQL 提供强大的可靠性保证。在上线之前，请仔细检查您的维护窗口和保留策略。",
+  "setup.fields.openGaussDetected": "检测到 openGauss",
+  "setup.tips.openGaussRequiresTheTargetDatabaseCreatedWith": "openGauss 已准备就绪。请确保目标数据库以 DBCOMPATIBILITY='PG' 创建，并使用 openGauss 官方驱动的账号完成 sha256 认证。",
   "setup.fields.readyToInitialize": "准备初始化",
   "setup.tips.repeatTheAdministratorPassword": "重复输入管理员密码",
   "setup.placeholders.selectAUsageModeToContinue": "选择使用模式以继续",

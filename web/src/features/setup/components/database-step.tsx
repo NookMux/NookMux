@@ -50,6 +50,11 @@ const DATABASE_META: Record<
       'common.tips.postgreSqlOffersAdvancedReliabilityAndDataIntegrityFor',
     variant: 'success',
   },
+  opengauss: {
+    label: 'openGauss',
+    descriptionKey: 'common.tips.openGaussIsAPostgresCompatibleEnterprise',
+    variant: 'success',
+  },
 }
 
 function resolveDatabaseMeta(type?: string) {
@@ -150,6 +155,18 @@ export function DatabaseStep({ status }: DatabaseStepProps) {
             {t(
               'setup.tips.postgreSqlOffersStrongReliabilityGuaranteesDoubleCheckYour'
             )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {status?.database_type === 'opengauss' && (
+        <Alert className='border-violet-200 bg-violet-50 dark:border-violet-900/60 dark:bg-violet-950/40'>
+          <AlertTitle className='flex items-center gap-2'>
+            <Server className='size-4 text-violet-500' />
+            {t('setup.fields.openGaussDetected')}
+          </AlertTitle>
+          <AlertDescription>
+            {t('setup.tips.openGaussRequiresTheTargetDatabaseCreatedWith')}
           </AlertDescription>
         </Alert>
       )}

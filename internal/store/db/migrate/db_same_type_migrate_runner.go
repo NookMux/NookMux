@@ -243,11 +243,11 @@ func runSameTypeCopyStep(ctx context.Context, job *DBSameTypeMigrateJob, step db
 }
 
 func fixSameTypeTargetAutoIncrement(job *DBSameTypeMigrateJob, targetType string, mainDB *gorm.DB, logDB *gorm.DB, logDBNeedClose bool, includeLogs bool) error {
-	if targetType != infradb.DatabaseTypePostgreSQL {
+	if targetType != infradb.DatabaseTypePostgreSQL && targetType != infradb.DatabaseTypeOpenGauss {
 		return nil
 	}
 
-	job.setStep("修复 PostgreSQL 自增序列")
+	job.setStep("修复 PostgreSQL/openGauss 自增序列")
 	updated, err := resetPostgresOwnedSequences(mainDB)
 	if err != nil {
 		return fmt.Errorf("修复 PostgreSQL 自增序列失败：%w", err)

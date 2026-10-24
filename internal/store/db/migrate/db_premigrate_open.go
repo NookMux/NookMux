@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/infra/db"
+	"github.com/NookMux/NookMux/internal/store/db"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,6 +22,14 @@ func openDBByType(dsn string, dbType string) (*gorm.DB, error) {
 			DSN:                  dsn,
 			PreferSimpleProtocol: true,
 		}), &gorm.Config{
+			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
+		})
+	case db.DatabaseTypeOpenGauss:
+		sqlDB, err := dbstore.OpenOpenGaussSQL(dsn)
+		if err != nil {
+			return nil, err
+		}
+		return gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
 	case db.DatabaseTypeMySQL:
