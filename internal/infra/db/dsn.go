@@ -11,9 +11,10 @@ import (
 // 数据库迁移链路共用。
 //
 // 仅接受 URL 形式的 DSN：postgres://（含官方别名 postgresql://）、
-// opengauss://（openGauss 官方 connector 原生支持的 URL scheme）与 mysql://，
-// 其余前缀一律报错，不按 "非 postgres 即 MySQL" 兜底猜测；SQLite 不通过
-// DSN 前缀表达，由调用方在 DSN 为空时启用。
+// opengauss://（openGauss 官方 connector 原生支持的 URL scheme）、mysql://
+// 与 dm://（达梦官方 Go 驱动原生支持的 URL scheme），其余前缀一律报错，
+// 不按 "非 postgres 即 MySQL" 兜底猜测；SQLite 不通过 DSN 前缀表达，
+// 由调用方在 DSN 为空时启用。
 func ParseDBTypeFromDSN(dsn string) (string, error) {
 	dsn = strings.TrimSpace(dsn)
 	switch {
@@ -25,8 +26,10 @@ func ParseDBTypeFromDSN(dsn string) (string, error) {
 		return DatabaseTypeOpenGauss, nil
 	case strings.HasPrefix(dsn, "mysql://"):
 		return DatabaseTypeMySQL, nil
+	case strings.HasPrefix(dsn, "dm://"):
+		return DatabaseTypeDM, nil
 	default:
-		return "", errors.New("无法识别的 DSN：仅支持 postgres://、postgresql://、opengauss:// 与 mysql:// 前缀")
+		return "", errors.New("无法识别的 DSN：仅支持 postgres://、postgresql://、opengauss://、mysql:// 与 dm:// 前缀")
 	}
 }
 

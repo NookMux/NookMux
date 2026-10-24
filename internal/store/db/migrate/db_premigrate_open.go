@@ -36,6 +36,10 @@ func openDBByType(dsn string, dbType string) (*gorm.DB, error) {
 		return gorm.Open(mysql.Open(db.EnsureMySQLParseTime(driverDSN)), &gorm.Config{
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
+	case db.DatabaseTypeDM:
+		return dbstore.OpenDMGorm(dsn, &gorm.Config{
+			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
+		})
 	default:
 		return nil, errors.New("不支持的数据库类型")
 	}

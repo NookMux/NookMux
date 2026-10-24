@@ -41,6 +41,7 @@ const DATABASE_VARIANT: Record<
   mysql: 'success',
   postgres: 'success',
   opengauss: 'success',
+  dameng: 'success',
 }
 
 export function CompleteStep({ status, values }: CompleteStepProps) {

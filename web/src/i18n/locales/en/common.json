@@ -221,6 +221,7 @@
   "common.fields.custom": "Custom",
   "common.tips.customApiBaseUrlLeaveEmptyToUseProvider": "Custom API base URL. Leave empty to use provider default.",
   "common.tips.customDatabaseDriverDetected": "Custom database driver detected.",
+  "common.tips.damengIsAnOracleLineageDomesticDatabaseFor": "Dameng DM8 is an Oracle-lineage domestic database for production workloads.",
   "common.tips.customMultipliersWhenSpecificUserGroupsUseSpecificToken": "Custom multipliers when specific user groups use specific token groups. Example: VIP users get 0.9x rate when using \"edit_this\" group tokens.",
   "common.fields.customZoom": "Custom Zoom",
   "common.tips.dailyTokenUsageByModelThisMonth": "Daily token usage by model this month (server timezone)",

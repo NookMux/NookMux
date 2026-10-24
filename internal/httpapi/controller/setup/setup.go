@@ -51,6 +51,8 @@ func GetSetup(c *gin.Context) {
 		setup.DatabaseType = "mysql"
 	} else if db.UsingOpenGauss {
 		setup.DatabaseType = "opengauss"
+	} else if db.UsingDM {
+		setup.DatabaseType = "dameng"
 	} else if db.UsingPostgreSQL {
 		setup.DatabaseType = "postgres"
 	} else if db.UsingSQLite {

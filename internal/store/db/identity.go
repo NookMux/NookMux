@@ -12,7 +12,7 @@ type dbIdentity struct {
 	Host       string
 	Port       string
 	Database   string
-	ServerUUID string // MySQL: @@server_uuid; PostgreSQL: system_identifier; openGauss: pg_postmaster_start_time 实例指纹
+	ServerUUID string // MySQL: @@server_uuid; PostgreSQL: system_identifier; openGauss: pg_postmaster_start_time 实例指纹; DM: V$INSTANCE 实例名
 }
 
 func (id dbIdentity) String() string {
@@ -32,6 +32,8 @@ func GetDBIdentity(db *gorm.DB, dbType string) (dbIdentity, error) {
 		return getOpenGaussIdentity(db)
 	case infradb.DatabaseTypeMySQL:
 		return getMySQLIdentity(db)
+	case infradb.DatabaseTypeDM:
+		return getDMIdentity(db)
 	default:
 		return dbIdentity{}, fmt.Errorf("不支持的数据库类型：%s", dbType)
 	}
@@ -62,6 +64,26 @@ func getPostgresIdentity(db *gorm.DB) (dbIdentity, error) {
 		return dbIdentity{}, fmt.Errorf("获取 PostgreSQL 连接标识失败：%w", err)
 	}
 	return dbIdentity{Host: host, Port: port, Database: dbName, ServerUUID: sysID}, nil
+}
+
+// getDMIdentity 以 V$INSTANCE 实例名 + 监听端口构成 DM 实例指纹。
+// DM 的逻辑"数据库"概念是 schema（当前模式），以 SYS_CONTEXT('USERENV',
+// 'CURRENT_SCHEMA') 取值；HOST_NAME 描述服务端主机而非监听地址，与
+// MySQL 一样仅用于展示，不参与同库判定。
+func getDMIdentity(db *gorm.DB) (dbIdentity, error) {
+	var host, schema, instanceName string
+	var port sql.NullString
+	row := db.Raw(`SELECT HOST_NAME,
+		(SELECT PARA_VALUE FROM V$DM_INI WHERE PARA_NAME = 'PORT_NUM' LIMIT 1),
+		SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA'), NAME FROM V$INSTANCE`).Row()
+	if err := row.Scan(&host, &port, &schema, &instanceName); err != nil {
+		return dbIdentity{}, fmt.Errorf("获取达梦连接标识失败：%w", err)
+	}
+	p := ""
+	if port.Valid {
+		p = port.String
+	}
+	return dbIdentity{Host: host, Port: p, Database: schema, ServerUUID: instanceName}, nil
 }
 
 func getMySQLIdentity(db *gorm.DB) (dbIdentity, error) {

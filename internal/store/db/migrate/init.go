@@ -133,6 +133,14 @@ func migrateDB() error {
 		return err
 	}
 
+	// 达梦：把布尔字段默认值字面量 true/false 归一为 1/0，避免驱动列迁移
+	// 比较误判漂移后生成达梦不支持的 DEFAULT true/false 表达式。
+	if infradb.UsingDM {
+		if err := dbstore.NormalizeDMBoolDefaultLiterals(dbstore.DB, mainDBModels()); err != nil {
+			return err
+		}
+	}
+
 	err := dbstore.DB.AutoMigrate(mainDBModels()...)
 	if err != nil {
 		return err
@@ -166,6 +174,11 @@ func migrateDB() error {
 
 func migrateLOGDB() error {
 	var err error
+	if infradb.LogSqlType == infradb.DatabaseTypeDM {
+		if err := dbstore.NormalizeDMBoolDefaultLiterals(dbstore.LOG_DB, []any{&logstore.Log{}}); err != nil {
+			return err
+		}
+	}
 	if err = dbstore.LOG_DB.AutoMigrate(&logstore.Log{}); err != nil {
 		return err
 	}

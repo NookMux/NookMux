@@ -15,10 +15,12 @@ func currentMainDBType() (string, error) {
 		return db.DatabaseTypePostgreSQL, nil
 	case db.UsingMySQL:
 		return db.DatabaseTypeMySQL, nil
+	case db.UsingDM:
+		return db.DatabaseTypeDM, nil
 	case db.UsingSQLite:
 		return db.DatabaseTypeSQLite, nil
 	default:
-		return "", errors.New("无法识别当前主数据库类型（UsingMySQL/UsingPostgreSQL/UsingOpenGauss/UsingSQLite 均为 false）")
+		return "", errors.New("无法识别当前主数据库类型（UsingMySQL/UsingPostgreSQL/UsingDM/UsingSQLite 均为 false）")
 	}
 }
 
@@ -32,7 +34,7 @@ func currentLogDBType() (string, error) {
 		return mainType, nil
 	}
 	switch db.LogSqlType {
-	case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeMySQL, db.DatabaseTypeSQLite:
+	case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeMySQL, db.DatabaseTypeDM, db.DatabaseTypeSQLite:
 		return db.LogSqlType, nil
 	default:
 		return "", errors.New("无法识别当前日志数据库类型")
@@ -48,20 +50,24 @@ func validateDBPreMigrateDirection(sourceType string, targetType string) error {
 	}
 	switch sourceType {
 	case db.DatabaseTypeMySQL:
-		if targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeOpenGauss {
-			return errors.New("仅支持 MySQL -> PostgreSQL / MySQL -> openGauss 的预迁移")
+		if targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeOpenGauss && targetType != db.DatabaseTypeDM {
+			return errors.New("仅支持 MySQL -> PostgreSQL / MySQL -> openGauss / MySQL -> DM 的预迁移")
 		}
 	case db.DatabaseTypePostgreSQL:
-		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypeOpenGauss {
-			return errors.New("仅支持 PostgreSQL -> MySQL / PostgreSQL -> openGauss 的预迁移")
+		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypeOpenGauss && targetType != db.DatabaseTypeDM {
+			return errors.New("仅支持 PostgreSQL -> MySQL / PostgreSQL -> openGauss / PostgreSQL -> DM 的预迁移")
 		}
 	case db.DatabaseTypeOpenGauss:
-		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypePostgreSQL {
-			return errors.New("仅支持 openGauss -> MySQL / openGauss -> PostgreSQL 的预迁移")
+		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeDM {
+			return errors.New("仅支持 openGauss -> MySQL / openGauss -> PostgreSQL / openGauss -> DM 的预迁移")
+		}
+	case db.DatabaseTypeDM:
+		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeOpenGauss {
+			return errors.New("仅支持 DM -> MySQL / DM -> PostgreSQL / DM -> openGauss 的预迁移")
 		}
 	case db.DatabaseTypeSQLite:
-		if targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypeOpenGauss {
-			return errors.New("仅支持 SQLite -> PostgreSQL / SQLite -> MySQL / SQLite -> openGauss 的预迁移")
+		if targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypeOpenGauss && targetType != db.DatabaseTypeDM {
+			return errors.New("仅支持 SQLite -> PostgreSQL / SQLite -> MySQL / SQLite -> openGauss / SQLite -> DM 的预迁移")
 		}
 	default:
 		return errors.New("不支持的源数据库类型")

@@ -32,7 +32,9 @@ func init() {
 
 func InitCol() {
 	// init common column names
-	if db.UsingPostgreSQL {
+	// DM 标识符引用与 PostgreSQL 同为双引号（Oracle 风格），大小写敏感
+	// 内核下反引号列名无法识别。
+	if db.UsingPostgreSQL || db.UsingDM {
 		CommonGroupCol = `"group"`
 		CommonKeyCol = `"key"`
 	} else {
@@ -41,14 +43,14 @@ func InitCol() {
 	}
 	if os.Getenv("LOG_SQL_DSN") != "" {
 		switch db.LogSqlType {
-		case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss:
+		case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM:
 			LogGroupCol = `"group"`
 		default:
 			LogGroupCol = CommonGroupCol
 		}
 	} else {
 		// LOG_SQL_DSN 为空时，日志数据库与主数据库相同
-		if db.UsingPostgreSQL {
+		if db.UsingPostgreSQL || db.UsingDM {
 			LogGroupCol = `"group"`
 		} else {
 			LogGroupCol = CommonGroupCol
@@ -118,6 +120,14 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 			db.LogSqlType = db.DatabaseTypeMySQL
 		}
 		return gorm.Open(mysql.Open(db.EnsureMySQLParseTime(driverDSN)), newGormConfig())
+	case db.DatabaseTypeDM:
+		common.SysLog("using DM (达梦) as database")
+		if !isLog {
+			db.UsingDM = true
+		} else {
+			db.LogSqlType = db.DatabaseTypeDM
+		}
+		return OpenDMGorm(dsn, newGormConfig())
 	default:
 		return nil, fmt.Errorf("未知数据库类型: %s", dbType)
 	}
