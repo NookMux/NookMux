@@ -332,7 +332,14 @@ function flattenUsageData(
   // token-usage 明细接口时间轴为驼峰 xTime，tool 旧接口仍为 x_time
   const times = stringArray(usageType === 'model' ? data.xTime : data.x_time)
   if (times.length === 0) {
-    return { values: [], total: 0, summary: [], stats: [], fields: [], times: [] }
+    return {
+      values: [],
+      total: 0,
+      summary: [],
+      stats: [],
+      fields: [],
+      times: [],
+    }
   }
 
   if (usageType === 'model') {
