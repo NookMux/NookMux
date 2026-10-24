@@ -33,3 +33,15 @@
 ### Fixed
 
 - 恢复误删的 .github 工作流（CI、Docker 镜像发布、dependabot、飞书通知）。
+
+### Security
+
+- **web 依赖安全升级**：修复 CI 依赖审计（`bun audit --audit-level=high`）报出的
+  3 个 high 级漏洞：
+  - `zod` < 4.6.6 校验超大受限集合可耗尽内存
+    （GHSA-mrhx-c7xc-m3w5）：直接依赖升至 4.6.7 并经 overrides 全树锁定；
+    `shadcn` CLI 升至 4.22.1，消除其依赖树中携带的 zod 3.x（3.x 无补丁版本）。
+  - `undici` 7.18.0 ~ 7.30.0 因过多 content-encodings 触发未处理错误导致 DoS
+    （GHSA-xjj6-f33q-929c）：overrides 由 7.29.1 升至 7.30.1。
+  - `body-parser` 2.0.0 ~ 2.3.x 压缩请求体后尾随字节导致 DoS
+    （GHSA-27r3-jxmh-p828）：overrides 锁定 2.4.0（express 传递依赖）。

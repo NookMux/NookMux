@@ -31,7 +31,7 @@
 - 生产打包：`bun run build`
 - 完整打包检查：`bun run build:check`
 - 国际化字典同步：`bun run i18n:sync`
-- 依赖漏洞审计：`bun audit --audit-level=high`
+- 依赖漏洞审计：`bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm`（与 CI 门禁保持一致；braces 上游无修复版本，显式豁免）
 
 改动 TS/TSX 文件后必须执行 `bun run typecheck`。涉及路由、API 契约、页面核心组件或构建配置修改时，必须执行 `bun run build` 或 `bun run build:check`。
 
