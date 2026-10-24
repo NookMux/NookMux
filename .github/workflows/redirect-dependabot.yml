@@ -1,0 +1,50 @@
+name: Redirect Dependabot PRs to dev
+
+# Dependabot 版本更新通过 dependabot.yml 的 target-branch: "dev" 已指向 dev。
+# 但安全更新（security updates）是 GitHub 的设计行为：当 dependabot.yml 配置了
+# 非默认分支的 target-branch 时，该 package-ecosystem 的安全更新会忽略配置，
+# 始终指向仓库默认分支（本仓库为 main）。
+#
+# 本 workflow 在 Dependabot PR 以 main 为目标分支打开时，自动将 base 改为 dev，
+# 使安全更新也走 dev -> main 的正常评审流程。
+#
+# 参考:
+#   https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#target-branch
+
+on:
+  pull_request_target:
+    types: [opened, edited]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  redirect-to-dev:
+    # 仅处理 Dependabot 的 PR
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Redirect base from main to dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CURRENT_BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          if [[ "$CURRENT_BASE" != "main" ]]; then
+            echo "Base branch is '$CURRENT_BASE', not 'main'. No action needed."
+            exit 0
+          fi
+
+          echo "Dependabot PR #$PR_NUMBER targets 'main', changing base to 'dev'..."
+
+          # 更新 PR 的 base 分支为 dev
+          gh pr edit "$PR_NUMBER" --base dev --repo "$GITHUB_REPOSITORY"
+
+          # 留下说明评论
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "此 PR 的目标分支已从 \`main\` 自动更改为 \`dev\`。
+
+          Dependabot 安全更新会忽略 \`dependabot.yml\` 中的 \`target-branch\` 配置，始终指向仓库默认分支（\`main\`）。本仓库以 \`dev\` 为活跃开发分支，安全更新需要先合并到 \`dev\` 再同步到 \`main\`。"
+
+          echo "Done."
