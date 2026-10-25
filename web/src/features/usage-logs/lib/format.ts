@@ -26,8 +26,6 @@ import {
 import type { UsageLog } from '../data/schema'
 import type { LogOtherData } from '../types'
 
-export { normalizeTierLabel }
-
 const PARAM_OVERRIDE_ACTION_MAP: Record<string, string> = {
   set: 'Set',
   delete: 'Delete',
@@ -223,7 +221,7 @@ export function decodeBillingExprB64(exprB64: string | undefined): string {
  * entry. Missing or unknown labels do not fall back to another tier because
  * that would display guessed unit prices.
  */
-export function resolveMatchedTier(
+function resolveMatchedTier(
   tiers: ParsedTier[],
   matchedLabel: string | undefined
 ): ParsedTier | null {

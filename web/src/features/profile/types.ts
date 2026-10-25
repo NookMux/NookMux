@@ -193,7 +193,7 @@ export interface CheckinRecord {
 /**
  * Checkin statistics
  */
-export interface CheckinStats {
+interface CheckinStats {
   /** Whether user has checked in today */
   checked_in_today: boolean
   /** Total number of check-ins */

@@ -43,6 +43,7 @@ type Voice struct {
 	// RedirectId 重定向到上游的真实音色 ID；为空则直接使用 VoiceId 发给上游。
 	RedirectId string `json:"redirect_id" gorm:"type:varchar(256)"`
 	// Allowed 是否允许用于 TTS。Type=created 时才生效；预览中的音色不受此开关约束（仅在定制页面可用）。
+	// 确认定制（支付）流转为 created 时自动置 true（支付即激活）；管理员可将其关闭以禁用单个音色。
 	Allowed bool `json:"allowed" gorm:"default:false"`
 	// Remark 备注（可选）。
 	Remark string `json:"remark" gorm:"type:varchar(255)"`
@@ -98,17 +99,18 @@ func UpdateVoice(voice *Voice) error {
 	return dbstore.DB.Save(voice).Error
 }
 
-// ConfirmVoice 原子地把“试听中”记录流转为“已创建”并写入扣费额度。
+// ConfirmVoice 原子地把“试听中”记录流转为“已创建”：写入扣费额度并开启 TTS 放行
+// （allowed=true，支付即激活；支付前该标记恒为 false）。
 // 仅当当前 type=preview 且操作人匹配时更新成功，避免并发/越权覆盖。
 // 返回是否更新成功（rowsAffected>0）。
 //
-// 修复要点：先仅更新状态、再整条保存记录的两步写法中，
-// 内存里的 voice.Type 仍是 preview，DB.Save 会把 type 覆盖回 preview。
-// 这里改为一次性条件更新 type + quota_cost，杜绝状态回滚风险。
+// 使用一次性条件更新而非先改状态再整条保存：两步写法中内存里的 voice.Type
+// 仍是 preview，DB.Save 会把 type 覆盖回 preview。
 func ConfirmVoice(id int64, operatorId int, quotaCost int) (bool, error) {
 	updates := map[string]interface{}{
 		"type":       VoiceTypeCreated,
 		"quota_cost": quotaCost,
+		"allowed":    true,
 		"updated_at": time.Now().Unix(),
 	}
 	tx := dbstore.DB.Model(&Voice{}).

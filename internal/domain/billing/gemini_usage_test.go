@@ -84,6 +84,27 @@ func TestGeminiUsageMetadataToOpenAIUsageAcceptsSnakeCaseToolUseFields(t *testin
 	}
 }
 
+func TestGeminiUsageMetadataToOpenAIUsageInclusiveThinking(t *testing.T) {
+	// AI Studio 风格：candidatesTokenCount 已包含 thoughtsTokenCount，
+	// totalTokenCount == promptTokenCount + candidatesTokenCount，不应再单独累加 thoughts。
+	usage := GeminiUsageMetadataToOpenAIUsage(shared.GeminiUsageMetadata{
+		PromptTokenCount:     8,
+		CandidatesTokenCount: 664,
+		ThoughtsTokenCount:   651,
+		TotalTokenCount:      672,
+	})
+
+	if usage.CompletionTokens != 664 || usage.OutputTokens != 664 {
+		t.Fatalf("completion/output = %d/%d, want 664/664 (thoughts already included)", usage.CompletionTokens, usage.OutputTokens)
+	}
+	if usage.CompletionTokenDetails.ReasoningTokens != 651 {
+		t.Fatalf("reasoning tokens = %d, want 651", usage.CompletionTokenDetails.ReasoningTokens)
+	}
+	if usage.TotalTokens != 672 {
+		t.Fatalf("total = %d, want 672", usage.TotalTokens)
+	}
+}
+
 func TestOpenAIUsageToGeminiUsage(t *testing.T) {
 	metadata := OpenAIUsageToGeminiUsage(shared.Usage{
 		PromptTokens:     12,

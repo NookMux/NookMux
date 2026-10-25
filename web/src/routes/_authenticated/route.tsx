@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSelf } from '@/lib/api'
+import { isPhoneUA } from '@/lib/is-phone'
 import { AuthenticatedLayout } from '@/components/layout'
 
 // 内存中的验证标记，避免同一会话中重复验证
@@ -26,6 +27,12 @@ let sessionVerified = false
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: async ({ location }) => {
+    // 手机 UA 不渲染控制台：在任何组件渲染前重定向到提示页，首帧即终态；
+    // 手机浏览器的「桌面模式」会替换为桌面 UA，因此天然放行
+    if (isPhoneUA()) {
+      throw redirect({ to: '/mobile-unsupported', replace: true })
+    }
+
     const { auth } = useAuthStore.getState()
 
     // 如果本地没有用户信息，直接跳转登录页

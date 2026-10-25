@@ -32,7 +32,7 @@ func Run() int {
 		return 1
 	}
 
-	common.SysLog("New API " + common.Version + " started")
+	common.SysLog("NookMux " + common.Version + " started")
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -122,7 +122,7 @@ func Run() int {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": gin.H{
 				"message": fmt.Sprintf("Panic detected, error: %v. Please submit a issue here: https://github.com/NookMux/NookMux", err),
-				"type":    "new_api_panic",
+				"type":    "nookmux_panic",
 			},
 		})
 	}))

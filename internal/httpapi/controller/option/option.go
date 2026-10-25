@@ -720,6 +720,12 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "general_setting.token_key_prefix":
+		if err := operation.ValidateTokenKeyPrefix(option.Value.(string)); err != nil {
+			common.SysLog("invalid token key prefix option: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionTokenKeyPrefixInvalid)
+			return
+		}
 	case "RetryTimes":
 		// RetryTimes must be a non-negative integer strictly less than 100.
 		retryValue, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string)))

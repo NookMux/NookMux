@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/config/operation"
 	"github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/store/db"
@@ -13,6 +14,16 @@ import (
 	"strings"
 	"sync"
 )
+
+// GenerateFullTokenKey 生成完整令牌密钥：站点配置的密钥前缀（默认 sk-）+ 48 位随机串。
+// 完整密钥是 tokens.key 的唯一存储形态，鉴权、展示与复制均直接使用。
+func GenerateFullTokenKey() (string, error) {
+	randomPart, err := common.GenerateKey()
+	if err != nil {
+		return "", err
+	}
+	return operation.GetGeneralSetting().TokenKeyPrefix + randomPart, nil
+}
 
 // maxUserTokens 每用户最大令牌数量（硬编码）
 const maxUserTokens = 1000
@@ -30,9 +41,11 @@ func getTokenResetLock(id int) *sync.Mutex {
 }
 
 type Token struct {
-	Id                 int    `json:"id"`
-	UserId             int    `json:"user_id" gorm:"index"`
-	Key                string `json:"key" gorm:"type:char(48);uniqueIndex"`
+	Id     int `json:"id"`
+	UserId int `json:"user_id" gorm:"index"`
+	// Key 完整令牌密钥（密钥前缀 + 48 位随机串，随机部分字符集不含 '-'），
+	// 是鉴权、展示与存储的唯一形态，前端不再拼接前缀。
+	Key                string `json:"key" gorm:"type:varchar(64);uniqueIndex"`
 	Status             int    `json:"status" gorm:"default:1"`
 	Name               string `json:"name" gorm:"index" `
 	CreatedTime        int64  `json:"created_time" gorm:"bigint"`
@@ -75,8 +88,7 @@ func (token *Token) Clean() {
 	token.Key = ""
 }
 
-// MaskTokenKey 将令牌密钥脱敏为等长星号，供列表/详情等接口返回，避免泄露真实 key。
-// 数据库中的 key 不含 sk- 前缀；前端展示时再拼接 sk-。
+// MaskTokenKey 将令牌密钥脱敏为等长星号，供列表/详情等接口返回，避免泄露真实密钥。
 func MaskTokenKey(key string) string {
 	if key == "" {
 		return ""
@@ -84,7 +96,7 @@ func MaskTokenKey(key string) string {
 	return strings.Repeat("*", len(key))
 }
 
-// GetFullKey 返回数据库中存储的完整密钥（不含 sk- 前缀）。
+// GetFullKey 返回数据库中存储的完整密钥（含密钥前缀）。
 func (token *Token) GetFullKey() string {
 	return token.Key
 }
@@ -168,10 +180,6 @@ func SearchUserTokens(userId int, keyword string, token string, group string, st
 	}
 	if offset < 0 {
 		offset = 0
-	}
-
-	if token != "" {
-		token = strings.TrimPrefix(token, "sk-")
 	}
 
 	// 超量用户（令牌数超过上限）只允许精确搜索，禁止模糊搜索
@@ -829,7 +837,7 @@ func ResetTokenKey(id int, userId int) (newKey string, err error) {
 		return "", err
 	}
 	// 生成新 key
-	newKey, err = common.GenerateKey()
+	newKey, err = GenerateFullTokenKey()
 	if err != nil {
 		return "", err
 	}

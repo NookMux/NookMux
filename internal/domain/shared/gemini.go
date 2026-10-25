@@ -126,6 +126,34 @@ func (r *GeminiChatRequest) SetModelName(modelName string) {
 	// GeminiChatRequest does not have a model field, so this method does nothing.
 }
 
+// GeminiCountTokensRequest 对应 Gemini 原生 countTokens 请求体。官方接口接受
+// 顶层 contents 或 generateContentRequest 包裹两种形态，模型名只在 URL 路径中。
+type GeminiCountTokensRequest struct {
+	Contents               []GeminiChatContent `json:"contents,omitempty"`
+	GenerateContentRequest *GeminiChatRequest  `json:"generateContentRequest,omitempty"`
+}
+
+func (r *GeminiCountTokensRequest) GetTokenCountMeta() *TokenCountMeta {
+	chatReq := r.GenerateContentRequest
+	if chatReq == nil {
+		chatReq = &GeminiChatRequest{Contents: r.Contents}
+	}
+	return chatReq.GetTokenCountMeta()
+}
+
+func (r *GeminiCountTokensRequest) IsStream(c *gin.Context) bool {
+	return false
+}
+
+func (r *GeminiCountTokensRequest) SetModelName(modelName string) {
+	// countTokens 的模型在 URL 路径中，请求体无 model 字段。
+}
+
+type GeminiCountTokensResponse struct {
+	TotalTokens             int `json:"totalTokens"`
+	TotalBillableCharacters int `json:"totalBillableCharacters"`
+}
+
 func (r *GeminiChatRequest) GetTools() []GeminiChatTool {
 	var tools []GeminiChatTool
 	if strings.HasPrefix(string(r.Tools), "[") {

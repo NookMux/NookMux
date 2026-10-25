@@ -32,7 +32,9 @@ func init() {
 
 func InitCol() {
 	// init common column names
-	if db.UsingPostgreSQL {
+	// DM 标识符引用与 PostgreSQL 同为双引号（Oracle 风格），大小写敏感
+	// 内核下反引号列名无法识别。
+	if db.UsingPostgreSQL || db.UsingDM {
 		CommonGroupCol = `"group"`
 		CommonKeyCol = `"key"`
 	} else {
@@ -41,14 +43,14 @@ func InitCol() {
 	}
 	if os.Getenv("LOG_SQL_DSN") != "" {
 		switch db.LogSqlType {
-		case db.DatabaseTypePostgreSQL:
+		case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM:
 			LogGroupCol = `"group"`
 		default:
 			LogGroupCol = CommonGroupCol
 		}
 	} else {
 		// LOG_SQL_DSN 为空时，日志数据库与主数据库相同
-		if db.UsingPostgreSQL {
+		if db.UsingPostgreSQL || db.UsingDM {
 			LogGroupCol = `"group"`
 		} else {
 			LogGroupCol = CommonGroupCol
@@ -72,51 +74,63 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 	defer func() {
 		InitCol()
 	}()
-	dsn := os.Getenv(envName)
-	if dsn != "" {
-		if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
-			// Use PostgreSQL
-			common.SysLog("using PostgreSQL as database")
-			if !isLog {
-				db.UsingPostgreSQL = true
-			} else {
-				db.LogSqlType = db.DatabaseTypePostgreSQL
-			}
-			return gorm.Open(postgres.New(postgres.Config{
-				DSN:                  dsn,
-				PreferSimpleProtocol: true, // disables implicit prepared statement usage
-			}), newGormConfig())
+	dsn := strings.TrimSpace(os.Getenv(envName))
+	if dsn == "" {
+		// Use SQLite
+		common.SysLog("SQL_DSN not set, using SQLite as database")
+		db.UsingSQLite = true
+		return gorm.Open(sqlite.Open(db.SQLitePath), newGormConfig())
+	}
+	dbType, err := db.ParseDBTypeFromDSN(dsn)
+	if err != nil {
+		return nil, err
+	}
+	switch dbType {
+	case db.DatabaseTypePostgreSQL:
+		common.SysLog("using PostgreSQL as database")
+		if !isLog {
+			db.UsingPostgreSQL = true
+		} else {
+			db.LogSqlType = db.DatabaseTypePostgreSQL
 		}
-		if strings.HasPrefix(dsn, "local") {
-			common.SysLog("SQL_DSN not set, using SQLite as database")
-			if !isLog {
-				db.UsingSQLite = true
-			} else {
-				db.LogSqlType = db.DatabaseTypeSQLite
-			}
-			return gorm.Open(sqlite.Open(db.SQLitePath), newGormConfig())
+		return gorm.Open(postgres.New(postgres.Config{
+			DSN:                  dsn,
+			PreferSimpleProtocol: true, // disables implicit prepared statement usage
+		}), newGormConfig())
+	case db.DatabaseTypeOpenGauss:
+		common.SysLog("using openGauss as database")
+		if !isLog {
+			// openGauss 为 PG 兼容内核，方言行为归入 PostgreSQL 家族；
+			// 需要区分具体产品处使用 UsingOpenGauss 判断。
+			db.UsingPostgreSQL = true
+			db.UsingOpenGauss = true
+		} else {
+			db.LogSqlType = db.DatabaseTypeOpenGauss
 		}
-		// Use MySQL
+		return OpenOpenGaussGorm(dsn, newGormConfig())
+	case db.DatabaseTypeMySQL:
 		common.SysLog("using MySQL as database")
-		// check parseTime
-		if !strings.Contains(dsn, "parseTime") {
-			if strings.Contains(dsn, "?") {
-				dsn += "&parseTime=true"
-			} else {
-				dsn += "?parseTime=true"
-			}
+		driverDSN, err := db.MySQLDsnFromURL(dsn)
+		if err != nil {
+			return nil, err
 		}
 		if !isLog {
 			db.UsingMySQL = true
 		} else {
 			db.LogSqlType = db.DatabaseTypeMySQL
 		}
-		return gorm.Open(mysql.Open(dsn), newGormConfig())
+		return gorm.Open(mysql.Open(db.EnsureMySQLParseTime(driverDSN)), newGormConfig())
+	case db.DatabaseTypeDM:
+		common.SysLog("using DM (达梦) as database")
+		if !isLog {
+			db.UsingDM = true
+		} else {
+			db.LogSqlType = db.DatabaseTypeDM
+		}
+		return OpenDMGorm(dsn, newGormConfig())
+	default:
+		return nil, fmt.Errorf("未知数据库类型: %s", dbType)
 	}
-	// Use SQLite
-	common.SysLog("SQL_DSN not set, using SQLite as database")
-	db.UsingSQLite = true
-	return gorm.Open(sqlite.Open(db.SQLitePath), newGormConfig())
 }
 
 // newGormConfig 构建统一的 GORM 配置。

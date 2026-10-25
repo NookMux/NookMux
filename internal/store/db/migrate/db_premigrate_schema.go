@@ -38,7 +38,22 @@ func autoMigrateTargetMainSchema(db *gorm.DB) error {
 	if infradb.UsingMySQL {
 		dbstore.CleanupLegacyUniqueConstraints(db, "passkey_credentials", "user_id", []string{"uni_passkey_credentials_user_id", "idx_passkey_credentials_user_id"})
 	}
-	if err := db.AutoMigrate(
+	if db.Dialector.Name() == infradb.DatabaseTypeDM {
+		if err := dbstore.NormalizeDMBoolDefaultLiterals(db, targetMainModels()); err != nil {
+			return err
+		}
+	}
+	if err := db.AutoMigrate(targetMainModels()...); err != nil {
+		return err
+	}
+	dbcleanup.CleanupRemovedQuotaDataCacheStats(db)
+	return nil
+}
+
+// targetMainModels 迁移目标库的主库 AutoMigrate 模型清单（与 mainDBModels
+// 的差异仅在于这是面向"目标库"的重复清单，见上方注释）。
+func targetMainModels() []any {
+	return []any{
 		&channelstore.Channel{},
 		&tokenstore.Token{},
 		&userstore.User{},
@@ -65,13 +80,14 @@ func autoMigrateTargetMainSchema(db *gorm.DB) error {
 		&channelstore.DynamicRatioRule{},
 		&auditstore.AuditLog{},
 		&voicestore.Voice{},
-	); err != nil {
-		return err
 	}
-	dbcleanup.CleanupRemovedQuotaDataCacheStats(db)
-	return nil
 }
 
 func autoMigrateTargetLogSchema(db *gorm.DB) error {
+	if db.Dialector.Name() == infradb.DatabaseTypeDM {
+		if err := dbstore.NormalizeDMBoolDefaultLiterals(db, []any{&logstore.Log{}}); err != nil {
+			return err
+		}
+	}
 	return db.AutoMigrate(&logstore.Log{})
 }

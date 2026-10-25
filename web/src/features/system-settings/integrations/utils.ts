@@ -93,23 +93,6 @@ function formatJsonError(error: unknown, jsonString: string): string {
   return message
 }
 
-export function isValidJson(
-  value: string,
-  predicate?: (parsed: unknown) => boolean
-): boolean {
-  const trimmed = value.trim()
-  if (!trimmed) return true
-  try {
-    const parsed = JSON.parse(trimmed)
-    if (predicate && !predicate(parsed)) {
-      return false
-    }
-    return true
-  } catch {
-    return false
-  }
-}
-
 export function getJsonError(
   value: string,
   predicate?: (parsed: unknown) => boolean

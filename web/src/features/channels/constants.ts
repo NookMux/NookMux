@@ -75,13 +75,6 @@ export const CHANNEL_STATUS = {
   AUTO_DISABLED: 3,
 } as const
 
-export const CHANNEL_STATUS_LABELS = {
-  [CHANNEL_STATUS.UNKNOWN]: 'channels.fields.unknown',
-  [CHANNEL_STATUS.ENABLED]: 'channels.status.enabled',
-  [CHANNEL_STATUS.MANUAL_DISABLED]: 'channels.status.disabled',
-  [CHANNEL_STATUS.AUTO_DISABLED]: 'channels.status.autoDisabled',
-} as const
-
 export const CHANNEL_STATUS_OPTIONS = [
   { value: 'all', label: 'channels.fields.allStatus' },
   { value: 'enabled', label: 'channels.status.enabled' },
@@ -111,16 +104,10 @@ export const CHANNEL_STATUS_CONFIG = {
 // Multi-Key Status
 // ============================================================================
 
-export const MULTI_KEY_STATUS = {
+const MULTI_KEY_STATUS = {
   ENABLED: 1,
   MANUAL_DISABLED: 2,
   AUTO_DISABLED: 3,
-} as const
-
-export const MULTI_KEY_STATUS_LABELS = {
-  [MULTI_KEY_STATUS.ENABLED]: 'channels.status.enabled',
-  [MULTI_KEY_STATUS.MANUAL_DISABLED]: 'channels.status.manualDisabled',
-  [MULTI_KEY_STATUS.AUTO_DISABLED]: 'channels.status.autoDisabled',
 } as const
 
 export const MULTI_KEY_STATUS_CONFIG = {
@@ -141,11 +128,6 @@ export const MULTI_KEY_STATUS_CONFIG = {
 // ============================================================================
 // Multi-Key Modes
 // ============================================================================
-
-export const MULTI_KEY_MODES = [
-  { value: 'random', label: 'channels.fields.random' },
-  { value: 'polling', label: 'channels.fields.polling' },
-] as const
 
 export const ADD_MODE_OPTIONS = [
   { value: 'single', label: 'common.fields.singleKey' },
@@ -175,15 +157,6 @@ export const MULTI_KEY_CONFIRM_MESSAGES = {
   DISABLE_ALL: 'common.status.sureYouWantToDisableAllEnabledKeys',
   DELETE_DISABLED: 'common.errors.sureYouWantToDeleteAllAutoDisabledKeys',
 } as const
-
-// ============================================================================
-// Auto Ban Options
-// ============================================================================
-
-export const AUTO_BAN_OPTIONS = [
-  { value: 1, label: 'channels.status.enabled' },
-  { value: 0, label: 'channels.status.disabled' },
-] as const
 
 // ============================================================================
 // Error / Success Messages (i18n keys: use t(ERROR_MESSAGES.xxx) when displaying)
@@ -224,48 +197,6 @@ export const SUCCESS_MESSAGES = {
 // ============================================================================
 
 export const DEFAULT_PAGE_SIZE = 20
-
-export const DEFAULT_CHANNEL_VALUES = {
-  name: '',
-  type: 0,
-  base_url: '',
-  key: '',
-  models: '',
-  group: 'default',
-  status: CHANNEL_STATUS.ENABLED,
-  priority: 0,
-  weight: 0,
-  auto_ban: 1,
-  remark: '',
-} as const
-
-// ============================================================================
-// Table Configuration
-// ============================================================================
-
-export const CHANNELS_TABLE_PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
-
-// ============================================================================
-// Sort Options (label values are i18n keys)
-// ============================================================================
-
-export const SORT_OPTIONS = [
-  { value: 'priority', label: 'common.fields.priorityDefault' },
-  { value: 'id', label: 'channels.fields.id' },
-  { value: 'name', label: 'channels.fields.name' },
-  { value: 'balance', label: 'usageLogs.fields.balance' },
-  { value: 'response_time', label: 'usageLogs.fields.responseTime' },
-] as const
-
-// ============================================================================
-// Balance Display
-// ============================================================================
-
-export const BALANCE_THRESHOLDS = {
-  LOW: 1,
-  MEDIUM: 10,
-  HIGH: 100,
-} as const
 
 // ============================================================================
 // Response Time Thresholds (in ms)

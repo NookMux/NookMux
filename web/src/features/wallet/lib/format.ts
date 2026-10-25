@@ -34,19 +34,6 @@ export function formatCreemPrice(
 }
 
 /**
- * Format large quota numbers with K/M suffix
- */
-export function formatQuotaShort(quota: number): string {
-  if (quota >= 1000000) {
-    return `${(quota / 1000000).toFixed(1)}M`
-  }
-  if (quota >= 1000) {
-    return `${(quota / 1000).toFixed(1)}K`
-  }
-  return quota.toString()
-}
-
-/**
  * Format currency amount that is already in local currency.
  * This is used for payment amounts that have been calculated via priceRatio.
  */

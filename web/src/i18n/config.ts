@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
+import { normalizeInterfaceLanguage } from './languages'
 // Locale strings are physically split per-feature under locales/<lng>/<section>.json
 // to keep individual files maintainable. They are merged back here into the exact
 // i18next resources shape that consumers depend on (single `translation` namespace,
@@ -149,7 +150,7 @@ const zh = {
   },
 } as const
 
-export const resources = {
+const resources = {
   en,
   zh,
 } as const
@@ -173,6 +174,15 @@ i18n
       caches: ['localStorage'],
     },
   })
+  .then(() => {
+    // Browser detection leaves the region tag in i18n.language (e.g. 'zh-CN'),
+    // which then gets cached verbatim in localStorage and never compares equal
+    // to a supported code. Pin the interface to a supported code up front.
+    const normalized = normalizeInterfaceLanguage(i18n.language)
+    if (normalized !== i18n.language) {
+      return i18n.changeLanguage(normalized)
+    }
+  })
 
 // Keep <html lang="..."> in sync with the resolved language so browsers
 // don't offer to translate a page whose declared lang differs from the
@@ -182,5 +192,3 @@ function syncDocumentLang(lng: string) {
 }
 i18n.on('languageChanged', syncDocumentLang)
 syncDocumentLang(i18n.language)
-
-export default i18n

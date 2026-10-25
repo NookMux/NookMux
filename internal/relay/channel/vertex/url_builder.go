@@ -57,17 +57,23 @@ func BuildAPIBaseURL(baseURL, version, projectID, region string) string {
 	}
 
 	region = normalizeVertexRegion(region)
+	host := defaultVertexAPIHost(region, version)
 	if strings.TrimSpace(projectID) == "" {
-		if region == "global" {
-			return fmt.Sprintf("https://aiplatform.googleapis.com/%s", version)
-		}
-		return fmt.Sprintf("https://%s-aiplatform.googleapis.com/%s", region, version)
+		return host
 	}
+	return fmt.Sprintf("%s/projects/%s/locations/%s", host, projectID, region)
+}
 
+// defaultVertexAPIHost 返回官方默认主机：global 与 us/eu 多区域端点使用各自
+// 不带区域前缀的专属域名，其余区域使用 {region}-aiplatform.googleapis.com。
+func defaultVertexAPIHost(region, version string) string {
 	if region == "global" {
-		return fmt.Sprintf("https://aiplatform.googleapis.com/%s/projects/%s/locations/global", version, projectID)
+		return fmt.Sprintf("https://aiplatform.googleapis.com/%s", version)
 	}
-	return fmt.Sprintf("https://%s-aiplatform.googleapis.com/%s/projects/%s/locations/%s", region, version, projectID, region)
+	if region == "us" || region == "eu" {
+		return fmt.Sprintf("https://aiplatform.%s.rep.googleapis.com/%s", region, version)
+	}
+	return fmt.Sprintf("https://%s-aiplatform.googleapis.com/%s", region, version)
 }
 
 func BuildPublisherModelURL(baseURL, version, projectID, region, publisher, modelName, action string) string {

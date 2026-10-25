@@ -73,22 +73,6 @@ import { DataTableRowActions } from './data-table-row-actions'
 import { DataTableTagRowActions } from './data-table-tag-row-actions'
 import { NumericSpinnerInput } from './numeric-spinner-input'
 
-function parseIonetMeta(otherInfo: string | null | undefined): null | {
-  source?: string
-  deployment_id?: string
-} {
-  if (!otherInfo) return null
-  try {
-    const parsed = JSON.parse(otherInfo)
-    if (parsed && typeof parsed === 'object') {
-      return parsed
-    }
-  } catch {
-    return null
-  }
-  return null
-}
-
 /**
  * Render limited items with "and X more" indicator
  */
@@ -489,13 +473,6 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
             ? t('channels.fields.multiKeyRandomRotation')
             : t('channels.fields.multiKeyPollingRotation')
 
-        const ionetMeta = parseIonetMeta(channel.other_info)
-        const isIonet = ionetMeta?.source === 'ionet'
-        const deploymentId =
-          typeof ionetMeta?.deployment_id === 'string'
-            ? ionetMeta?.deployment_id
-            : undefined
-
         return (
           <div className='flex items-center gap-2'>
             <div className='flex items-center gap-1.5'>
@@ -523,48 +500,6 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
               size='sm'
               copyable={false}
             />
-            {isIonet && (
-              <TooltipProvider delay={100}>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <span
-                        className='flex cursor-pointer items-center gap-1.5 text-xs font-medium'
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (!deploymentId) return
-                          const targetUrl = `/models/deployments?dFilter=${encodeURIComponent(String(deploymentId))}`
-                          window.open(targetUrl, '_blank', 'noopener')
-                        }}
-                      />
-                    }
-                  >
-                    <StatusBadge
-                      label='IO.NET'
-                      variant='purple'
-                      size='sm'
-                      copyable={false}
-                      className='cursor-pointer'
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent side='top'>
-                    <div className='max-w-xs space-y-1'>
-                      <div className='text-xs'>
-                        {t('channels.tips.ioNetDeployment')}
-                      </div>
-                      {deploymentId && (
-                        <div className='text-muted-foreground font-mono text-xs'>
-                          {t('channels.fields.deploymentId')}: {deploymentId}
-                        </div>
-                      )}
-                      <div className='text-muted-foreground text-xs'>
-                        {t('channels.fields.clickToOpenDeployment')}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </div>
         )
       },

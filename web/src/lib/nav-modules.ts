@@ -56,10 +56,7 @@ function cloneHeaderNavDefaults(): HeaderNavModules {
   }
 }
 
-export function parseHeaderNavBoolean(
-  raw: unknown,
-  fallback: boolean
-): boolean {
+function parseHeaderNavBoolean(raw: unknown, fallback: boolean): boolean {
   if (typeof raw === 'boolean') return raw
   if (typeof raw === 'number') {
     if (raw === 1) return true
@@ -144,16 +141,6 @@ export function parseHeaderNavModulesFromStatus(
   return parseHeaderNavModules(status?.HeaderNavModules)
 }
 
-function getCachedStatus(): Record<string, unknown> | null {
-  try {
-    if (typeof window === 'undefined') return null
-    const raw = window.localStorage.getItem('status')
-    return raw ? (JSON.parse(raw) as Record<string, unknown>) : null
-  } catch {
-    return null
-  }
-}
-
 function cacheStatus(status: Record<string, unknown> | null): void {
   try {
     if (typeof window !== 'undefined' && status) {
@@ -164,15 +151,11 @@ function cacheStatus(status: Record<string, unknown> | null): void {
   }
 }
 
-export function getModuleAccessFromStatus(
+function getModuleAccessFromStatus(
   status: Record<string, unknown> | null,
   module: HeaderNavModule
 ): ModuleAccess {
   return parseHeaderNavModulesFromStatus(status)[module] ?? DEFAULTS[module]
-}
-
-export function getModuleAccess(module: HeaderNavModule): ModuleAccess {
-  return getModuleAccessFromStatus(getCachedStatus(), module)
 }
 
 export async function getFreshModuleAccess(
@@ -202,7 +185,7 @@ export async function getFreshModuleAccess(
 
 const USER_MODULES_STORAGE_KEY = 'user-modules'
 
-export function getCachedUserSidebarModules(): string | null {
+function getCachedUserSidebarModules(): string | null {
   try {
     if (typeof window === 'undefined') return null
     return window.localStorage.getItem(USER_MODULES_STORAGE_KEY)
@@ -211,7 +194,7 @@ export function getCachedUserSidebarModules(): string | null {
   }
 }
 
-export function cacheUserSidebarModules(raw: string): void {
+function cacheUserSidebarModules(raw: string): void {
   try {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(USER_MODULES_STORAGE_KEY, raw)

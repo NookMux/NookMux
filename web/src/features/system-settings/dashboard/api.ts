@@ -56,18 +56,3 @@ export async function updateDashboardConfig(
   }
   return response.data.data!
 }
-
-/**
- * 重置仪表板配置为默认值
- */
-export async function resetDashboardConfig(): Promise<DashboardConfig> {
-  const response = await api.post<DashboardConfigResponse>(
-    '/api/dashboard/config/reset'
-  )
-  if (!response.data.success || !response.data.data) {
-    throw new Error(
-      response.data.message || i18next.t('dashboard.errors.resetConfigFailed')
-    )
-  }
-  return response.data.data
-}

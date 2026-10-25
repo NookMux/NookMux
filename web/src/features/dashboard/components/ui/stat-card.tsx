@@ -30,7 +30,7 @@ type StatCardDetailTone =
   | 'warning'
   | 'destructive'
 
-export interface StatCardDetail {
+interface StatCardDetail {
   label: string
   value: string
   tone?: StatCardDetailTone

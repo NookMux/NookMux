@@ -26,7 +26,7 @@ import {
 
 const defaultSiteSettings: SiteSettings = {
   Notice: '',
-  SystemName: 'New API',
+  SystemName: 'NookMux',
   Logo: '',
   Footer: '',
   About: '',
@@ -35,6 +35,7 @@ const defaultSiteSettings: SiteSettings = {
   'legal.user_agreement': '',
   'legal.privacy_policy': '',
   'general_setting.docs_link': '',
+  'general_setting.token_key_prefix': 'sk-',
   HeaderNavModules: '',
   SidebarModulesAdmin: '',
 }

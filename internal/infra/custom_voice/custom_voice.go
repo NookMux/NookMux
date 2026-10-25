@@ -757,7 +757,8 @@ func CustomVoiceConfirmQuote(c *gin.Context, userId int, voiceId string) (*Custo
 	}, nil
 }
 
-// CustomVoiceConfirm 确认定制：按配置的扣费模型 ID 扣费，成功后把记录从试听中转为已创建。
+// CustomVoiceConfirm 确认定制：按配置的扣费模型 ID 扣费，成功后把记录从试听中转为已创建
+// 并开启 TTS 放行（allowed=true，支付即激活）。
 //
 // 安全要点：
 //   - 必须命中本用户的“试听中”记录，防止越权确认他人音色。

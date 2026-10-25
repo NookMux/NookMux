@@ -91,7 +91,7 @@ export const REDEMPTION_VALIDATION = {
 // ============================================================================
 
 // i18n keys; use t(ERROR_MESSAGES.xxx) when displaying. For form schema with interpolation use getRedemptionFormErrorMessages(t).
-export const ERROR_MESSAGES = {
+const ERROR_MESSAGES = {
   UNEXPECTED: 'common.fields.unexpectedErrorOccurred',
   LOAD_FAILED: 'common.errors.failedToLoadRedemptionCodes',
   SEARCH_FAILED: 'common.errors.failedToSearchRedemptionCodes',

@@ -44,7 +44,7 @@ export type BillingVar = {
   group?: string
 }
 
-export const BILLING_VARS: BillingVar[] = [
+const BILLING_VARS: BillingVar[] = [
   {
     key: 'p',
     field: 'inputPrice',
@@ -142,23 +142,9 @@ export const BILLING_PRICING_VARS: BillingVar[] = BILLING_VARS.filter(
   (v) => !v.isConditionOnly
 )
 
-/** Vars valid in tier conditions (`p`, `c`, `len`) */
-export const BILLING_CONDITION_VARS: string[] = BILLING_VARS.filter(
-  (v) => v.isBase || v.isConditionOnly
-).map((v) => v.key)
-
 const BILLING_VAR_KEY_TO_FIELD = Object.fromEntries(
   BILLING_PRICING_VARS.map((v) => [v.key, v.field as string])
 ) as Record<string, string>
-
-export const BILLING_EXTRA_VARS: BillingVar[] = BILLING_VARS.filter(
-  (v) => !v.isBase && !v.isConditionOnly
-)
-
-export const BILLING_CACHE_VAR_MAP = BILLING_EXTRA_VARS.map((v) => ({
-  field: v.tierField as string,
-  exprVar: v.key,
-}))
 
 const BILLING_VAR_REGEX = new RegExp(
   `\\b(${BILLING_PRICING_VARS.map((v) => v.key).join('|')})\\s*\\*\\s*([\\d.eE+-]+)`,
@@ -169,49 +155,29 @@ const BILLING_VAR_REGEX = new RegExp(
 // Request rule constants
 // ---------------------------------------------------------------------------
 
-export const SOURCE_PARAM = 'param'
-export const SOURCE_HEADER = 'header'
 export const SOURCE_TIME = 'time'
 
 export const MATCH_EQ = 'eq'
 export const MATCH_CONTAINS = 'contains'
-export const MATCH_GT = 'gt'
+const MATCH_GT = 'gt'
 export const MATCH_GTE = 'gte'
 export const MATCH_LT = 'lt'
-export const MATCH_LTE = 'lte'
+const MATCH_LTE = 'lte'
 export const MATCH_EXISTS = 'exists'
 export const MATCH_RANGE = 'range'
 
-export const TIME_FUNCS = ['hour', 'minute', 'weekday', 'month', 'day'] as const
-export type TimeFunc = (typeof TIME_FUNCS)[number]
-
-export const COMMON_TIMEZONES: { value: string; label: string }[] = [
-  { value: 'Asia/Shanghai', label: 'UTC+8 Shanghai (Asia/Shanghai)' },
-  { value: 'UTC', label: 'UTC' },
-  { value: 'America/New_York', label: 'UTC-5 New York (America/New_York)' },
-  {
-    value: 'America/Los_Angeles',
-    label: 'UTC-8 Los Angeles (America/Los_Angeles)',
-  },
-  { value: 'America/Chicago', label: 'UTC-6 Chicago (America/Chicago)' },
-  { value: 'Europe/London', label: 'UTC+0 London (Europe/London)' },
-  { value: 'Europe/Berlin', label: 'UTC+1 Berlin (Europe/Berlin)' },
-  { value: 'Asia/Tokyo', label: 'UTC+9 Tokyo (Asia/Tokyo)' },
-  { value: 'Asia/Singapore', label: 'UTC+8 Singapore (Asia/Singapore)' },
-  { value: 'Asia/Seoul', label: 'UTC+9 Seoul (Asia/Seoul)' },
-  { value: 'Australia/Sydney', label: 'UTC+10 Sydney (Australia/Sydney)' },
-]
+type TimeFunc = 'hour' | 'minute' | 'weekday' | 'month' | 'day'
 
 const NUMERIC_LITERAL_REGEX = /^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/
 
-export type ParamHeaderCondition = {
+type ParamHeaderCondition = {
   source: 'param' | 'header'
   path: string
   mode: string
   value: string
 }
 
-export type TimeCondition = {
+type TimeCondition = {
   source: 'time'
   timeFunc: TimeFunc
   timezone: string
@@ -560,220 +526,4 @@ export function splitBillingExprAndRequestRules(expr: string): {
     billingExpr: unwrapOuterParens(baseParts[0]),
     requestRuleExpr: ruleParts.join(' * '),
   }
-}
-
-export function combineBillingExpr(
-  baseExpr: string,
-  requestRuleExpr: string
-): string {
-  const base = (baseExpr || '').trim()
-  const rules = (requestRuleExpr || '').trim()
-  if (!base) return ''
-  if (!rules) return base
-  return `(${base}) * ${rules}`
-}
-
-// ---------------------------------------------------------------------------
-// Editor: empty constructors
-// ---------------------------------------------------------------------------
-
-export function createEmptyCondition(): ParamHeaderCondition {
-  return { source: 'param', path: '', mode: MATCH_EQ, value: '' }
-}
-
-export function createEmptyTimeCondition(): TimeCondition {
-  return {
-    source: 'time',
-    timeFunc: 'hour',
-    timezone: 'Asia/Shanghai',
-    mode: MATCH_GTE,
-    value: '',
-    rangeStart: '',
-    rangeEnd: '',
-  }
-}
-
-export function createEmptyRuleGroup(): RequestRuleGroup {
-  return { conditions: [createEmptyCondition()], multiplier: '' }
-}
-
-export function createEmptyTimeRuleGroup(): RequestRuleGroup {
-  return { conditions: [createEmptyTimeCondition()], multiplier: '' }
-}
-
-// ---------------------------------------------------------------------------
-// Editor: match option helpers
-// ---------------------------------------------------------------------------
-
-export type MatchOption = { value: string; labelKey: string }
-
-export function getRequestRuleMatchOptions(source: string): MatchOption[] {
-  if (source === SOURCE_TIME) {
-    return [
-      { value: MATCH_EQ, labelKey: 'common.fields.equals' },
-      { value: MATCH_GTE, labelKey: 'common.fields.greaterThanOrEqual' },
-      { value: MATCH_LT, labelKey: 'common.fields.lessThan' },
-      { value: MATCH_RANGE, labelKey: 'common.fields.overnightRange' },
-    ]
-  }
-  const base: MatchOption[] = [
-    { value: MATCH_EQ, labelKey: 'common.fields.equals' },
-    { value: MATCH_CONTAINS, labelKey: 'models.fields.contains' },
-    { value: MATCH_EXISTS, labelKey: 'pricing.fields.exists' },
-  ]
-  if (source === SOURCE_HEADER) return base
-  return [
-    ...base,
-    { value: MATCH_GT, labelKey: 'common.fields.greaterThan' },
-    { value: MATCH_GTE, labelKey: 'common.fields.greaterThanOrEqual' },
-    { value: MATCH_LT, labelKey: 'common.fields.lessThan' },
-    { value: MATCH_LTE, labelKey: 'common.fields.lessThanOrEqual' },
-  ]
-}
-
-// ---------------------------------------------------------------------------
-// Editor: normalize a single condition
-// ---------------------------------------------------------------------------
-
-function isTimeFunc(value: unknown): value is TimeFunc {
-  return typeof value === 'string' && TIME_FUNCS.includes(value as TimeFunc)
-}
-
-export function normalizeCondition(
-  cond: Partial<RequestCondition> | null | undefined
-): RequestCondition {
-  const source =
-    cond?.source === 'time'
-      ? 'time'
-      : cond?.source === 'header'
-        ? 'header'
-        : 'param'
-
-  if (source === 'time') {
-    const timeCond = cond as Partial<TimeCondition> | null | undefined
-    const timeFunc: TimeFunc = isTimeFunc(timeCond?.timeFunc)
-      ? timeCond.timeFunc
-      : 'hour'
-    const options = getRequestRuleMatchOptions(SOURCE_TIME)
-    const mode = options.some((item) => item.value === timeCond?.mode)
-      ? (timeCond?.mode as string)
-      : MATCH_GTE
-    return {
-      source: 'time',
-      timeFunc,
-      timezone: timeCond?.timezone || 'Asia/Shanghai',
-      mode,
-      value: timeCond?.value == null ? '' : String(timeCond.value),
-      rangeStart:
-        timeCond?.rangeStart == null ? '' : String(timeCond.rangeStart),
-      rangeEnd: timeCond?.rangeEnd == null ? '' : String(timeCond.rangeEnd),
-    }
-  }
-
-  const phCond = cond as Partial<ParamHeaderCondition> | null | undefined
-  const options = getRequestRuleMatchOptions(source)
-  const mode = options.some((item) => item.value === phCond?.mode)
-    ? (phCond?.mode as string)
-    : MATCH_EQ
-  return {
-    source,
-    path: phCond?.path || '',
-    mode,
-    value: phCond?.value == null ? '' : String(phCond.value),
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Editor: build expression strings
-// ---------------------------------------------------------------------------
-
-function buildExprLiteral(mode: string, value: string): string {
-  const text = String(value || '').trim()
-  if (mode === MATCH_CONTAINS) return JSON.stringify(text)
-  if (text === 'true' || text === 'false') return text
-  if (NUMERIC_LITERAL_REGEX.test(text)) return text
-  return JSON.stringify(text)
-}
-
-function buildTimeConditionExpr(cond: TimeCondition): string {
-  const normalized = normalizeCondition(cond) as TimeCondition
-  const { timeFunc, timezone, mode } = normalized
-  const tz = JSON.stringify(timezone)
-  const fn = `${timeFunc}(${tz})`
-
-  if (mode === MATCH_RANGE) {
-    const s = normalized.rangeStart.trim()
-    const e = normalized.rangeEnd.trim()
-    if (!NUMERIC_LITERAL_REGEX.test(s) || !NUMERIC_LITERAL_REGEX.test(e)) {
-      return ''
-    }
-    return `${fn} >= ${s} || ${fn} < ${e}`
-  }
-  const v = normalized.value.trim()
-  if (!NUMERIC_LITERAL_REGEX.test(v)) return ''
-  const opMap: Record<string, string> = {
-    [MATCH_EQ]: '==',
-    [MATCH_GTE]: '>=',
-    [MATCH_LT]: '<',
-  }
-  return `${fn} ${opMap[mode] || '=='} ${v}`
-}
-
-function buildRequestConditionExpr(cond: RequestCondition): string {
-  if (cond.source === 'time') return buildTimeConditionExpr(cond)
-  const normalized = normalizeCondition(cond) as ParamHeaderCondition
-  const path = normalized.path.trim()
-  if (!path) return ''
-
-  const sourceExpr =
-    normalized.source === 'header'
-      ? `header(${JSON.stringify(path)})`
-      : `param(${JSON.stringify(path)})`
-
-  switch (normalized.mode) {
-    case MATCH_EXISTS:
-      return normalized.source === 'header'
-        ? `${sourceExpr} != ""`
-        : `${sourceExpr} != nil`
-    case MATCH_CONTAINS:
-      return normalized.source === 'header'
-        ? `has(${sourceExpr}, ${buildExprLiteral(normalized.mode, normalized.value)})`
-        : `${sourceExpr} != nil && has(${sourceExpr}, ${buildExprLiteral(normalized.mode, normalized.value)})`
-    case MATCH_GT:
-    case MATCH_GTE:
-    case MATCH_LT:
-    case MATCH_LTE: {
-      const opMap: Record<string, string> = {
-        [MATCH_GT]: '>',
-        [MATCH_GTE]: '>=',
-        [MATCH_LT]: '<',
-        [MATCH_LTE]: '<=',
-      }
-      const numText = String(normalized.value).trim()
-      if (!NUMERIC_LITERAL_REGEX.test(numText)) return ''
-      return `${sourceExpr} != nil && ${sourceExpr} ${opMap[normalized.mode]} ${numText}`
-    }
-    case MATCH_EQ:
-    default:
-      return `${sourceExpr} == ${buildExprLiteral(normalized.mode, normalized.value)}`
-  }
-}
-
-function buildRuleGroupFactor(group: RequestRuleGroup): string {
-  const multiplier = (group.multiplier || '').trim()
-  if (!NUMERIC_LITERAL_REGEX.test(multiplier)) return ''
-  const condExprs = (group.conditions || [])
-    .map(buildRequestConditionExpr)
-    .filter(Boolean)
-  if (condExprs.length === 0) return ''
-
-  const combined =
-    condExprs.length === 1
-      ? condExprs[0]
-      : condExprs.map((e) => (e.includes(' || ') ? `(${e})` : e)).join(' && ')
-  return `(${combined} ? ${multiplier} : 1)`
-}
-
-export function buildRequestRuleExpr(groups: RequestRuleGroup[]): string {
-  return (groups || []).map(buildRuleGroupFactor).filter(Boolean).join(' * ')
 }

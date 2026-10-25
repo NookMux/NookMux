@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-/* eslint-disable react-refresh/only-export-components */
 import * as React from 'react'
 import { type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -24,55 +23,7 @@ import { stringToColor } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 
-export const dotColorMap = {
-  success: 'bg-success',
-  warning: 'bg-warning',
-  danger: 'bg-destructive',
-  info: 'bg-info',
-  neutral: 'bg-neutral',
-  purple: 'bg-chart-4',
-  amber: 'bg-warning',
-  blue: 'bg-chart-1',
-  cyan: 'bg-chart-2',
-  green: 'bg-success',
-  grey: 'bg-neutral',
-  indigo: 'bg-chart-1',
-  'light-blue': 'bg-info',
-  'light-green': 'bg-success',
-  lime: 'bg-chart-3',
-  orange: 'bg-warning',
-  pink: 'bg-chart-5',
-  red: 'bg-destructive',
-  teal: 'bg-chart-2',
-  violet: 'bg-chart-4',
-  yellow: 'bg-warning',
-} as const
-
-export const textColorMap = {
-  success: 'text-success',
-  warning: 'text-warning',
-  danger: 'text-destructive',
-  info: 'text-info',
-  neutral: 'text-muted-foreground',
-  purple: 'text-chart-4',
-  amber: 'text-warning',
-  blue: 'text-chart-1',
-  cyan: 'text-chart-2',
-  green: 'text-success',
-  grey: 'text-muted-foreground',
-  indigo: 'text-chart-1',
-  'light-blue': 'text-info',
-  'light-green': 'text-success',
-  lime: 'text-chart-3',
-  orange: 'text-warning',
-  pink: 'text-chart-5',
-  red: 'text-destructive',
-  teal: 'text-chart-2',
-  violet: 'text-chart-4',
-  yellow: 'text-warning',
-} as const
-
-export type StatusVariant = keyof typeof dotColorMap
+export type StatusVariant = keyof typeof badgeSurfaceMap
 
 const sizeMap = {
   sm: 'h-6 gap-1 px-2 text-sm leading-none',
@@ -238,35 +189,3 @@ export function StatusBadgeList<T>(props: StatusBadgeListProps<T>) {
     </div>
   )
 }
-
-export const statusPresets = {
-  active: {
-    variant: 'success' as const,
-    label: 'subscriptions.status.active',
-  },
-  inactive: {
-    variant: 'neutral' as const,
-    label: 'common.status.inactive',
-  },
-  invited: {
-    variant: 'info' as const,
-    label: 'users.fields.invited',
-  },
-  suspended: {
-    variant: 'danger' as const,
-    label: 'common.fields.suspended',
-  },
-  pending: {
-    variant: 'warning' as const,
-    label: 'common.status.pending',
-    pulse: true,
-  },
-} as const
-
-/** Render a status preset label through i18n */
-export function useStatusPresetLabel(preset: StatusPreset): string {
-  const { t } = useTranslation()
-  return t(statusPresets[preset].label)
-}
-
-export type StatusPreset = keyof typeof statusPresets

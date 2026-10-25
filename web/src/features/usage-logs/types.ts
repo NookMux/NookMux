@@ -37,7 +37,7 @@ export type LogCategory = 'common' | 'drawing' | 'task'
 /**
  * Common filters (shared across all log types)
  */
-export interface CommonFilters {
+interface CommonFilters {
   startTime?: Date
   endTime?: Date
   channel?: string
@@ -96,7 +96,7 @@ export interface ChannelAffinityInfo {
   using_group?: string
 }
 
-export interface ContextPricingPrices {
+interface ContextPricingPrices {
   model_ratio?: number
   completion_ratio?: number
   cache_ratio?: number
@@ -107,7 +107,7 @@ export interface ContextPricingPrices {
   audio_completion_ratio?: number
 }
 
-export interface ContextPricingResult {
+interface ContextPricingResult {
   enabled?: boolean
   context_tokens_for_tier?: number
   tier_index?: number

@@ -21,8 +21,6 @@ export type SystemOption = {
   value: string
 }
 
-export type SystemOptionKey = string
-
 export type SystemOptionsResponse = {
   success: boolean
   message: string
@@ -35,7 +33,7 @@ export type SystemOptionValueResponse = {
   data: SystemOption
 }
 
-export type OptionJsonMapEntry = {
+type OptionJsonMapEntry = {
   key: string
   value: string
 }
@@ -45,21 +43,6 @@ export type OptionJsonMapResponse = {
   message: string
   data: {
     items: OptionJsonMapEntry[]
-    page: number
-    page_size: number
-    total: number
-  }
-}
-
-export type OptionJsonArrayEntry = {
-  value: string
-}
-
-export type OptionJsonArrayResponse = {
-  success: boolean
-  message: string
-  data: {
-    items: OptionJsonArrayEntry[]
     page: number
     page_size: number
     total: number
@@ -76,17 +59,6 @@ export type UpsertOptionJsonMapEntryRequest = {
   map_key: string
   old_map_key?: string
   value: string
-}
-
-export type DeleteOptionJsonArrayEntryRequest = {
-  key: string
-  value: string
-}
-
-export type UpsertOptionJsonArrayEntryRequest = {
-  key: string
-  value: string
-  old_value?: string
 }
 
 export type UpdateOptionRequest = {
@@ -129,13 +101,13 @@ export type DatabaseMigrationInfo = {
   log_db_is_separated: boolean
 }
 
-export type DatabaseMigrationTableProgress = {
+type DatabaseMigrationTableProgress = {
   name: string
   copied: number
   total: number
 }
 
-export type DatabaseMigrationJobStatus = 'running' | 'success' | 'failed'
+type DatabaseMigrationJobStatus = 'running' | 'success' | 'failed'
 
 export type DatabaseMigrationJob = {
   id: string
@@ -190,6 +162,7 @@ export type SiteSettings = {
   'legal.user_agreement': string
   'legal.privacy_policy': string
   'general_setting.docs_link': string
+  'general_setting.token_key_prefix': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
 }
@@ -235,37 +208,12 @@ export type ContentSettings = {
   DataExportInterval: number
 }
 
-export type DashboardSettings = {
-  'dashboard_config.quota_data_enabled': boolean
-  'dashboard_config.user_analytics_enabled': boolean
-  'dashboard_config.rankings_enabled': boolean
-  'dashboard_config.media_convert_stats_enabled': boolean
-  'dashboard_config.quota_data_track_tokens': boolean
-  'dashboard_config.quota_data_track_by_model': boolean
-  'dashboard_config.quota_data_track_by_user': boolean
-  'dashboard_config.api_info_enabled': boolean
-  'dashboard_config.uptime_kuma_enabled': boolean
-  'dashboard_config.announcements_enabled': boolean
-  'dashboard_config.faq_enabled': boolean
-  'dashboard_config.quota_data_refresh_interval': number
-  'dashboard_config.user_analytics_refresh_interval': number
-  'dashboard_config.rankings_refresh_interval': number
-  'dashboard_config.uptime_kuma_refresh_interval': number
-  'dashboard_config.default_time_range_days': number
-  'dashboard_config.max_time_range_days': number
-  'dashboard_config.rankings_model_limit': number
-  'dashboard_config.rankings_vendor_limit': number
-  'dashboard_config.user_analytics_top_n': number
-}
-
 export type ModelSettings = {
   'general_setting.ping_interval_enabled': boolean
   'general_setting.ping_interval_seconds': number
   'gemini.safety_settings': string
   'gemini.version_settings': string
   'gemini.supported_imagine_models': string
-  'gemini.function_call_thought_signature_enabled': boolean
-  'gemini.remove_function_response_id_enabled': boolean
   'claude.model_headers_settings': string
   'claude.default_max_tokens': string
   'claude.remove_claude_code_billing_header_enabled': boolean

@@ -78,7 +78,7 @@ export type CustomVoiceTags = {
   tone_word_tags: string[] | null
 }
 
-export type CustomVoiceTagsResponse = {
+type CustomVoiceTagsResponse = {
   success: boolean
   message: string
   data: CustomVoiceTags

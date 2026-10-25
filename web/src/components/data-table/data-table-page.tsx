@@ -45,7 +45,7 @@ import { DataTableToolbar } from './toolbar'
  * Pass-through configuration for the default {@link DataTableToolbar}.
  * Pass `toolbar` (ReactNode) instead to fully replace the default toolbar.
  */
-export type DataTablePageToolbarProps<TData extends RowData> = Omit<
+type DataTablePageToolbarProps<TData extends RowData> = Omit<
   React.ComponentProps<typeof DataTableToolbar<TData>>,
   'table'
 >

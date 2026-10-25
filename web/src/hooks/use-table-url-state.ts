@@ -25,7 +25,7 @@ import type {
 
 type SearchRecord = Record<string, unknown>
 
-export type NavigateFn = (opts: {
+type NavigateFn = (opts: {
   search:
     | true
     | SearchRecord

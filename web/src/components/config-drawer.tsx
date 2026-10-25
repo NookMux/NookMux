@@ -25,9 +25,6 @@ import { IconDir } from '@/assets/custom/icon-dir'
 import { IconLayoutCompact } from '@/assets/custom/icon-layout-compact'
 import { IconLayoutDefault } from '@/assets/custom/icon-layout-default'
 import { IconLayoutFull } from '@/assets/custom/icon-layout-full'
-import { IconSidebarFloating } from '@/assets/custom/icon-sidebar-floating'
-import { IconSidebarInset } from '@/assets/custom/icon-sidebar-inset'
-import { IconSidebarSidebar } from '@/assets/custom/icon-sidebar-sidebar'
 import { IconThemeDark } from '@/assets/custom/icon-theme-dark'
 import { IconThemeLight } from '@/assets/custom/icon-theme-light'
 import { IconThemeSystem } from '@/assets/custom/icon-theme-system'
@@ -106,7 +103,6 @@ export function ConfigDrawer() {
           <PresetConfig />
           <RadiusConfig />
           <ScaleConfig />
-          <SidebarConfig />
           <LayoutConfig />
           <ContentLayoutConfig />
           <DirConfig />
@@ -271,48 +267,49 @@ function PresetConfig() {
         className='grid w-full grid-cols-4 gap-3'
         aria-label={t('common.placeholders.selectColorPreset')}
       >
-        {THEME_PRESETS.map((preset) => (
-          <Item
-            key={preset.value}
-            value={preset.value}
-            className='group flex flex-col items-stretch outline-none'
-            aria-label={preset.name}
-          >
-            <div
-              className={cn(
-                'ring-border relative h-12 rounded-md ring-[1px] transition',
-                'group-data-checked:ring-primary group-data-checked:shadow-md',
-                'group-focus-visible:ring-2',
-                'group-hover:ring-primary/60'
-              )}
+        {THEME_PRESETS.map((preset) => {
+          const label = t(`common.themePresets.${preset.value}`)
+          return (
+            <Item
+              key={preset.value}
+              value={preset.value}
+              className='group flex flex-col items-stretch outline-none'
+              aria-label={label}
             >
               <div
-                aria-hidden='true'
-                className='absolute inset-0 rounded-md'
-                style={
-                  preset.value === 'default'
-                    ? {
-                        background:
-                          'linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--foreground) 100%)',
-                      }
-                    : {
-                        background: `linear-gradient(135deg, ${preset.swatches[0]} 0%, ${preset.swatches[1] ?? preset.swatches[0]} 100%)`,
-                      }
-                }
-              />
-              <CircleCheck
                 className={cn(
-                  'fill-primary absolute top-0 right-0 z-10 size-5 translate-x-1/2 -translate-y-1/2 stroke-white',
-                  'group-data-unchecked:hidden'
+                  'ring-border relative h-12 rounded-md ring-[1px] transition',
+                  'group-data-checked:ring-primary group-data-checked:shadow-md',
+                  'group-focus-visible:ring-2',
+                  'group-hover:ring-primary/60'
                 )}
-                aria-hidden='true'
-              />
-            </div>
-            <div className='mt-1.5 truncate text-center text-xs'>
-              {preset.name}
-            </div>
-          </Item>
-        ))}
+              >
+                <div
+                  aria-hidden='true'
+                  className='absolute inset-0 rounded-md'
+                  style={
+                    preset.value === 'default'
+                      ? {
+                          background:
+                            'linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--foreground) 100%)',
+                        }
+                      : {
+                          background: `linear-gradient(135deg, ${preset.swatches[0]} 0%, ${preset.swatches[1] ?? preset.swatches[0]} 100%)`,
+                        }
+                  }
+                />
+                <CircleCheck
+                  className={cn(
+                    'fill-primary absolute top-0 right-0 z-10 size-5 translate-x-1/2 -translate-y-1/2 stroke-white',
+                    'group-data-unchecked:hidden'
+                  )}
+                  aria-hidden='true'
+                />
+              </div>
+              <div className='mt-1.5 truncate text-center text-xs'>{label}</div>
+            </Item>
+          )
+        })}
       </Radio>
     </div>
   )
@@ -380,7 +377,11 @@ function RadiusConfig() {
                 style={{ borderTopLeftRadius: option.preview }}
               />
             </div>
-            <div className='mt-1.5 text-center text-xs'>{option.label}</div>
+            <div className='mt-1.5 text-center text-xs'>
+              {option.value === 'default'
+                ? t('common.fields.auto')
+                : option.label}
+            </div>
           </Item>
         ))}
       </Radio>
@@ -476,52 +477,6 @@ function ScaleConfig() {
           </Item>
         ))}
       </Radio>
-    </div>
-  )
-}
-
-function SidebarConfig() {
-  const { t } = useTranslation()
-  const { defaultVariant, variant, setVariant } = useLayout()
-  return (
-    <div className='max-md:hidden'>
-      <SectionTitle
-        title={t('common.fields.sidebar')}
-        showReset={defaultVariant !== variant}
-        onReset={() => setVariant(defaultVariant)}
-      />
-      <Radio
-        value={variant}
-        onValueChange={setVariant}
-        className='grid w-full max-w-md grid-cols-3 gap-4'
-        aria-label={t('common.placeholders.selectSidebarStyle')}
-        aria-describedby='sidebar-description'
-      >
-        {[
-          {
-            value: 'inset',
-            label: t('common.fields.inset'),
-            icon: IconSidebarInset,
-          },
-          {
-            value: 'floating',
-            label: t('common.fields.floating'),
-            icon: IconSidebarFloating,
-          },
-          {
-            value: 'sidebar',
-            label: t('common.fields.sidebar'),
-            icon: IconSidebarSidebar,
-          },
-        ].map((item) => (
-          <RadioGroupItem key={item.value} item={item} />
-        ))}
-      </Radio>
-      <div id='sidebar-description' className='sr-only'>
-        {t(
-          'common.placeholders.chooseBetweenInsetFloatingOrStandardSidebarLayout'
-        )}
-      </div>
     </div>
   )
 }

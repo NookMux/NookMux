@@ -23,22 +23,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function sleep(ms: number = 1000) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/**
- * 清理 CSS 变量名，替换特殊字符
- * 用于将模型名称（如 gpt-3.5-turbo）转换为有效的 CSS 变量名（gpt-3-5-turbo）
- * @param name - 原始名称
- * @returns 清理后的 CSS 变量名
- */
-export function sanitizeCssVariableName(name: string): string {
-  // 将点号、空格、斜杠替换为连字符
-  // 移除其他不允许在 CSS 变量名中的特殊字符
-  return name.replace(/[.\s/]/g, '-').replace(/[^\w-]/g, '')
-}
-
 /**
  * Generates page numbers for pagination with ellipsis
  * @param currentPage - Current page number (1-based)
@@ -95,19 +79,4 @@ export function getPageNumbers(currentPage: number, totalPages: number) {
 export function truncateText(text: string, maxLength: number): string {
   if (!text || text.length <= maxLength) return text
   return text.slice(0, maxLength) + '...'
-}
-
-/**
- * Try to parse and pretty-print JSON, fallback to original text if invalid
- * @param text - Text that might be JSON
- * @returns Pretty-printed JSON or original text
- */
-export function tryPrettyJson(text: string): string {
-  const raw = (text ?? '').toString().trim()
-  if (!raw) return ''
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2)
-  } catch {
-    return raw
-  }
 }

@@ -388,14 +388,14 @@ func NormalizeChannelSearchLimit(pageSize int) int {
 func buildSearchChannelsQuery(keyword string, group string, model string, idFilter int, nameFilter string, tagFilter string) *gorm.DB {
 	modelsCol := "`models`"
 
-	// 如果是 PostgreSQL，使用双引号
-	if infradb.UsingPostgreSQL {
+	// PostgreSQL/DM 标识符引用为双引号（DM 中反引号是非法字符）
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		modelsCol = `"models"`
 	}
 
 	baseURLCol := "`base_url`"
-	// 如果是 PostgreSQL，使用双引号
-	if infradb.UsingPostgreSQL {
+	// PostgreSQL/DM 标识符引用为双引号（DM 中反引号是非法字符）
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		baseURLCol = `"base_url"`
 	}
 
@@ -978,14 +978,14 @@ func SearchTags(keyword string, group string, model string, idSort bool, idFilte
 	var tags []*string
 	modelsCol := "`models`"
 
-	// 如果是 PostgreSQL，使用双引号
-	if infradb.UsingPostgreSQL {
+	// PostgreSQL/DM 标识符引用为双引号（DM 中反引号是非法字符）
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		modelsCol = `"models"`
 	}
 
 	baseURLCol := "`base_url`"
-	// 如果是 PostgreSQL，使用双引号
-	if infradb.UsingPostgreSQL {
+	// PostgreSQL/DM 标识符引用为双引号（DM 中反引号是非法字符）
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		baseURLCol = `"base_url"`
 	}
 

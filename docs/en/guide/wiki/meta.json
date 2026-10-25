@@ -1,6 +1,0 @@
-{
-  "title": "Project Knowledge Base",
-  "description": "NookMux project documentation and basics",
-  "icon": "BookOpen",
-  "pages": ["basic-concepts", "project-records"]
-}

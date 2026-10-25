@@ -47,7 +47,7 @@ export type DynamicRatioStatus = {
   rules: DynamicRatioSummary[]
 }
 
-export type DynamicRatioSummary = {
+type DynamicRatioSummary = {
   group: string
   concurrency: number | null
   weekdays: string

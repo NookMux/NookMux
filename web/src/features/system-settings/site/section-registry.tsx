@@ -48,6 +48,7 @@ const SITE_SECTIONS = [
           },
           general_setting: {
             docs_link: settings['general_setting.docs_link'],
+            token_key_prefix: settings['general_setting.token_key_prefix'],
           },
         }}
       />
@@ -92,7 +93,7 @@ const SITE_SECTIONS = [
   },
 ] as const
 
-export type SiteSectionId = (typeof SITE_SECTIONS)[number]['id']
+type SiteSectionId = (typeof SITE_SECTIONS)[number]['id']
 
 const siteRegistry = createSectionRegistry<SiteSectionId, SiteSettings>({
   sections: SITE_SECTIONS,

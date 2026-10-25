@@ -87,7 +87,7 @@ export interface ApiInfoItem {
 //   这是最常见的可定位原因，预先识别可以给出明确提示而不是笼统的"不可用"。
 // - null: 浏览器仅抛出 TypeError: Failed to fetch，无法进一步区分（CORS、网络不可达、
 //   DNS 解析失败、TLS 错误等都共享同一错误对象），统一归类为"无法访问"。
-export type LatencyErrorReason = 'mixed-content' | null
+type LatencyErrorReason = 'mixed-content' | null
 
 export interface PingStatus {
   latency: number | null

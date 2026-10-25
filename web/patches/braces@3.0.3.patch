@@ -1,0 +1,79 @@
+diff --git a/lib/compile.js b/lib/compile.js
+index dce69beb90ece5c3b0ca234a949418f9f34eedbc..9862866695b72c25648d54371a7f03a68566e422 100644
+--- a/lib/compile.js
++++ b/lib/compile.js
+@@ -4,7 +4,11 @@ const fill = require('fill-range');
+ const utils = require('./utils');
+ 
+ const compile = (ast, options = {}) => {
+-  const walk = (node, parent = {}) => {
++  const MAX_DEPTH = 128;
++  const walk = (node, parent = {}, depth = 0) => {
++    if (depth > MAX_DEPTH) {
++      throw new RangeError(`Brace pattern nesting depth exceeds maximum (${MAX_DEPTH})`);
++    }
+     const invalidBlock = utils.isInvalidBrace(parent);
+     const invalidNode = node.invalid === true && options.escapeInvalid === true;
+     const invalid = invalidBlock === true || invalidNode === true;
+@@ -47,7 +51,7 @@ const compile = (ast, options = {}) => {
+ 
+     if (node.nodes) {
+       for (const child of node.nodes) {
+-        output += walk(child, node);
++        output += walk(child, node, depth + 1);
+       }
+     }
+ 
+diff --git a/lib/expand.js b/lib/expand.js
+index 35b2c41d6afdb8f0197959e26079f266e48370d3..722aaae5dfac9c039d60d3371bee7786c59fc963 100644
+--- a/lib/expand.js
++++ b/lib/expand.js
+@@ -32,8 +32,12 @@ const append = (queue = '', stash = '', enclose = false) => {
+ 
+ const expand = (ast, options = {}) => {
+   const rangeLimit = options.rangeLimit === undefined ? 1000 : options.rangeLimit;
++  const MAX_DEPTH = 128;
+ 
+-  const walk = (node, parent = {}) => {
++  const walk = (node, parent = {}, depth = 0) => {
++    if (depth > MAX_DEPTH) {
++      throw new RangeError(`Brace pattern nesting depth exceeds maximum (${MAX_DEPTH})`);
++    }
+     node.queue = [];
+ 
+     let p = parent;
+@@ -100,7 +104,7 @@ const expand = (ast, options = {}) => {
+       }
+ 
+       if (child.nodes) {
+-        walk(child, node);
++        walk(child, node, depth + 1);
+       }
+     }
+ 
+diff --git a/lib/stringify.js b/lib/stringify.js
+index 8bcf872c31894f81a8c64d9202fd607e4fd7ea2b..c7b914e224fd16586cc7506b7bec0497521d6373 100644
+--- a/lib/stringify.js
++++ b/lib/stringify.js
+@@ -3,7 +3,11 @@
+ const utils = require('./utils');
+ 
+ module.exports = (ast, options = {}) => {
+-  const stringify = (node, parent = {}) => {
++  const MAX_DEPTH = 128;
++  const stringify = (node, parent = {}, depth = 0) => {
++    if (depth > MAX_DEPTH) {
++      throw new RangeError(`Brace pattern nesting depth exceeds maximum (${MAX_DEPTH})`);
++    }
+     const invalidBlock = options.escapeInvalid && utils.isInvalidBrace(parent);
+     const invalidNode = node.invalid === true && options.escapeInvalid === true;
+     let output = '';
+@@ -21,7 +25,7 @@ module.exports = (ast, options = {}) => {
+ 
+     if (node.nodes) {
+       for (const child of node.nodes) {
+-        output += stringify(child);
++        output += stringify(child, parent, depth + 1);
+       }
+     }
+     return output;

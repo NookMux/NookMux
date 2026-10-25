@@ -91,7 +91,6 @@
   "keys.tips.apiKeyHasBeenResetThePreviousKeyIs": "The API key has been reset. The previous key is invalid immediately.",
   "keys.tips.keyItselfHasNoQuotaCapButActualUsage": "The key itself has no quota cap, but actual usage is still limited by the account balance.",
   "keys.errors.actionCannotBeUndone951f49": "This action cannot be undone.",
-  "keys.tips.onlyTimeTheseApiKeysAreShownStoreThem": "This is the only time these API keys are shown. Store them securely.",
   "keys.tips.permanentlyDeleteApiKey": "This will permanently delete API key",
   "keys.tips.resetApiKey": "This will reset API key",
   "keys.tips.totalQuotaAvailableInEachDayCycle": "Total quota available in each day cycle",

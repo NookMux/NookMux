@@ -22,7 +22,7 @@ import type { AnnouncementItem, ApiInfoItem, FAQItem } from '../types'
 /**
  * Get specific list from status data
  */
-export function useStatusData<T = unknown>(
+function useStatusData<T = unknown>(
   enabledKey: string,
   dataKey: string
 ): { items: T[]; loading: boolean } {

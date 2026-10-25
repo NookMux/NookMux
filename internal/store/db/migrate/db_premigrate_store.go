@@ -3,6 +3,7 @@ package dbmigrate
 import (
 	"errors"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/google/uuid"
 	"strings"
 	"sync"
@@ -21,7 +22,7 @@ func StartDBPreMigrate(params DBPreMigrateStartParams) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	targetType, err := parseDBTypeFromDSN(params.TargetDSN)
+	targetType, err := db.ParseDBTypeFromDSN(params.TargetDSN)
 	if err != nil {
 		return "", err
 	}

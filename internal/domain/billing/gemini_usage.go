@@ -22,7 +22,17 @@ func HasGeminiUsageMetadata(metadata shared.GeminiUsageMetadata) bool {
 // GeminiUsageMetadataToOpenAIUsage normalizes Gemini usage metadata into the local OpenAI-compatible shape.
 func GeminiUsageMetadataToOpenAIUsage(metadata shared.GeminiUsageMetadata) shared.Usage {
 	promptTokens := metadata.PromptTokenCount + metadata.ToolUsePromptTokenCount
-	completionTokens := metadata.CandidatesTokenCount + metadata.ThoughtsTokenCount
+
+	// Gemini 的 usageMetadata 中 candidatesTokenCount 是否已包含 thoughtsTokenCount，
+	// 在不同端点（AI Studio 与 Vertex）及不同模型版本间口径不一致：当
+	// promptTokenCount + candidatesTokenCount + toolUsePromptTokenCount == totalTokenCount
+	// 时，candidatesTokenCount 已含 thoughts，单独累加会造成输出侧重复计费。用
+	// totalTokenCount 做运行时检测，参照 litellm 的 is_candidate_token_count_inclusive。
+	completionTokens := metadata.CandidatesTokenCount
+	if !isCandidateTokenCountInclusive(metadata) && metadata.ThoughtsTokenCount > 0 {
+		completionTokens += metadata.ThoughtsTokenCount
+	}
+
 	usage := shared.Usage{
 		PromptTokens:     promptTokens,
 		CompletionTokens: completionTokens,
@@ -68,6 +78,18 @@ func GeminiUsageMetadataToOpenAIUsage(metadata shared.GeminiUsageMetadata) share
 	}
 
 	return usage
+}
+
+// isCandidateTokenCountInclusive reports whether Gemini's candidatesTokenCount already
+// includes thoughtsTokenCount, detected by checking whether the non-thinking token sum
+// equals totalTokenCount. Google's usageMetadata is inconsistent across AI Studio /
+// Vertex and model versions, so this is detected at runtime rather than per model.
+// Mirrors litellm's is_candidate_token_count_inclusive.
+func isCandidateTokenCountInclusive(metadata shared.GeminiUsageMetadata) bool {
+	nonThinkingTokens := metadata.PromptTokenCount +
+		metadata.CandidatesTokenCount +
+		metadata.ToolUsePromptTokenCount
+	return nonThinkingTokens == metadata.TotalTokenCount
 }
 
 // OpenAIUsageToGeminiUsage rewrites OpenAI-compatible usage into Gemini's usage schema.

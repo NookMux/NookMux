@@ -189,25 +189,6 @@ export function validateModelMappingJson(modelMapping: string): {
 }
 
 /**
- * Get redirect models that are also in the models list
- * (These should be removed from models list to keep /v1/models clean)
- */
-export function findExposedTargetModels(
-  modelMapping: string,
-  currentModels: string[]
-): string[] {
-  const redirectModels = extractRedirectModels(modelMapping)
-  if (redirectModels.length === 0) return []
-
-  const normalizedModels = currentModels.map((m) => normalizeModelName(m))
-  const modelSet = new Set(normalizedModels)
-
-  return redirectModels.filter((model) =>
-    modelSet.has(normalizeModelName(model))
-  )
-}
-
-/**
  * Categorize models into different sets for UI display
  */
 export function categorizeModelsWithRedirect(

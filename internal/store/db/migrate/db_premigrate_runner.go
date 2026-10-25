@@ -30,7 +30,7 @@ func runDBPreMigrateJobWithContext(ctx context.Context, job *DBPreMigrateJob, pa
 		return errors.New("job 不能为空")
 	}
 
-	targetType, err := parseDBTypeFromDSN(params.TargetDSN)
+	targetType, err := infradb.ParseDBTypeFromDSN(params.TargetDSN)
 	if err != nil {
 		return err
 	}
@@ -91,11 +91,11 @@ func prepareTargetMainDB(ctx context.Context, params DBPreMigrateStartParams, ta
 }
 
 func fixTargetAutoIncrement(job *DBPreMigrateJob, targetType string, mainDB *gorm.DB, logDB *gorm.DB, logDBNeedClose bool, includeLogs bool) error {
-	if targetType != infradb.DatabaseTypePostgreSQL {
+	if targetType != infradb.DatabaseTypePostgreSQL && targetType != infradb.DatabaseTypeOpenGauss {
 		return nil
 	}
 
-	job.setStep("修复 PostgreSQL 自增序列")
+	job.setStep("修复 PostgreSQL/openGauss 自增序列")
 	updated, err := resetPostgresOwnedSequences(mainDB)
 	if err != nil {
 		return fmt.Errorf("修复 PostgreSQL 自增序列失败：%w", err)
@@ -143,7 +143,7 @@ func prepareTargetLogDB(ctx context.Context, job *DBPreMigrateJob, params DBPreM
 	if targetLogDSN == "" {
 		targetLogDSN = strings.TrimSpace(params.TargetDSN)
 	}
-	logType, err := parseDBTypeFromDSN(targetLogDSN)
+	logType, err := infradb.ParseDBTypeFromDSN(targetLogDSN)
 	if err != nil {
 		return nil, false, err
 	}

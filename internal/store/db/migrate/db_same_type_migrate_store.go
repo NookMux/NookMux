@@ -26,7 +26,7 @@ func StartDBSameTypeMigrate(params DBSameTypeMigrateStartParams) (string, error)
 	}
 
 	// 解析目标库类型
-	targetType, err := parseDBTypeFromDSN(params.TargetDSN)
+	targetType, err := db.ParseDBTypeFromDSN(params.TargetDSN)
 	if err != nil {
 		return "", err
 	}
@@ -100,9 +100,9 @@ func validateDBSameTypeMigrateDirection(sourceType string, targetType string) er
 		return errors.New("同类型迁移要求源数据库与目标数据库类型一致")
 	}
 	switch sourceType {
-	case db.DatabaseTypeMySQL, db.DatabaseTypePostgreSQL:
+	case db.DatabaseTypeMySQL, db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM:
 		return nil
 	default:
-		return errors.New("同类型迁移仅支持 MySQL -> MySQL 和 PostgreSQL -> PostgreSQL")
+		return errors.New("同类型迁移仅支持 MySQL -> MySQL、PostgreSQL -> PostgreSQL、openGauss -> openGauss 和 DM -> DM")
 	}
 }

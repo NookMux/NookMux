@@ -42,12 +42,12 @@ import { SidebarViewHeader } from './sidebar-view-header'
  * in the registry; this component requires no changes.
  */
 export function AppSidebar() {
-  const { collapsible, variant } = useLayout()
+  const { collapsible } = useLayout()
   const { key, view, navGroups } = useSidebarView()
   const shouldReduce = useReducedMotion()
 
   return (
-    <Sidebar collapsible={collapsible} variant={variant}>
+    <Sidebar collapsible={collapsible} variant='floating'>
       {view && <SidebarViewHeader view={view} />}
 
       <SidebarContent className='py-2'>

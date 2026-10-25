@@ -103,7 +103,7 @@ const AUTH_SECTIONS = [
   },
 ] as const
 
-export type AuthSectionId = (typeof AUTH_SECTIONS)[number]['id']
+type AuthSectionId = (typeof AUTH_SECTIONS)[number]['id']
 
 const authRegistry = createSectionRegistry<AuthSectionId, AuthSettings>({
   sections: AUTH_SECTIONS,

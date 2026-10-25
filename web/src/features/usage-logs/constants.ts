@@ -20,7 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
  * Shared constants for usage logs feature
  */
 import type { StatusBadgeProps } from '@/components/status-badge'
-import type { LogStatistics, LogCategory } from './types'
+import type { LogStatistics } from './types'
 
 // ============================================================================
 // Default Values
@@ -65,20 +65,6 @@ export const LOG_TYPE_ENUM = {
  * Row rendering still displays records with type=0 as "Unknown".
  */
 export const LOG_TYPE_ALL_VALUE = '0' as const
-
-// ============================================================================
-// Time Range Presets
-// ============================================================================
-
-/**
- * Quick time range presets for filter dialog
- */
-export const TIME_RANGE_PRESETS = [
-  { days: 1, label: 'common.placeholders.value24Hours' },
-  { days: 7, label: 'usageLogs.placeholders.value7Days' },
-  { days: 14, label: 'common.placeholders.value14Days' },
-  { days: 30, label: 'usageLogs.placeholders.value30Days' },
-] as const
 
 // ============================================================================
 // Common Logs Configuration
@@ -144,7 +130,7 @@ export const MJ_TASK_TYPES = {
 /**
  * Midjourney task status
  */
-export const MJ_TASK_STATUS = {
+const MJ_TASK_STATUS = {
   NOT_START: 'NOT_START', // 未启动
   SUBMITTED: 'SUBMITTED', // 队列中
   IN_PROGRESS: 'IN_PROGRESS', // 执行中
@@ -156,7 +142,7 @@ export const MJ_TASK_STATUS = {
 /**
  * Midjourney submit result codes
  */
-export const MJ_SUBMIT_RESULT_CODES = {
+const MJ_SUBMIT_RESULT_CODES = {
   NOT_SUBMITTED: 0, // 未提交
   SUBMITTED: 1, // 已提交
   WAITING: 21, // 等待中
@@ -195,17 +181,6 @@ export const TASK_STATUS = {
   FAILURE: 'FAILURE', // 失败
   QUEUED: 'QUEUED', // 排队中
   UNKNOWN: 'UNKNOWN', // 未知
-} as const
-
-/**
- * Task platforms
- */
-export const TASK_PLATFORMS = {
-  SUNO: 'suno',
-  KLING: 'kling',
-  RUNWAY: 'runway',
-  LUMA: 'luma',
-  VIGGLE: 'viggle',
 } as const
 
 // ============================================================================
@@ -361,30 +336,6 @@ export const TASK_STATUS_MAPPINGS: Record<string, StatusMapping> = {
     label: 'channels.fields.unknown',
     variant: 'neutral',
   },
-}
-
-/**
- * Task platform mappings
- */
-export const TASK_PLATFORM_MAPPINGS: Record<string, StatusMapping> = {
-  [TASK_PLATFORMS.SUNO]: { label: 'suno', variant: 'green' },
-  [TASK_PLATFORMS.KLING]: { label: 'kling', variant: 'blue' },
-  [TASK_PLATFORMS.RUNWAY]: { label: 'runway', variant: 'violet' },
-  [TASK_PLATFORMS.LUMA]: { label: 'luma', variant: 'orange' },
-  [TASK_PLATFORMS.VIGGLE]: { label: 'viggle', variant: 'pink' },
-}
-
-// ============================================================================
-// Log Category Labels
-// ============================================================================
-
-/**
- * Log category display labels
- */
-export const LOG_CATEGORY_LABELS: Record<LogCategory, string> = {
-  common: 'common.fields.value',
-  drawing: 'common.fields.drawing',
-  task: 'common.fields.task',
 }
 
 // ============================================================================

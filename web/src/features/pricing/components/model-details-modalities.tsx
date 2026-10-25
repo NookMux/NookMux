@@ -45,8 +45,6 @@ const MODALITY_META: Record<
   file: { icon: FileText, labelKey: 'common.fields.file' },
 }
 
-const ALL_MODALITIES: Modality[] = ['text', 'image', 'audio', 'video', 'file']
-
 /** Inline modality icons (used by the quick-stats flow). */
 export function ModalityIcons(props: {
   modalities: Modality[]
@@ -80,94 +78,5 @@ export function ModalityIcons(props: {
         )
       })}
     </span>
-  )
-}
-
-/**
- * 2 × N matrix showing which modalities are supported as input vs output.
- * Cells with a checkmark indicate support; empty cells show a dash.
- */
-export function ModalitiesMatrix(props: {
-  input: Modality[]
-  output: Modality[]
-}) {
-  const { t } = useTranslation()
-  const inputSet = new Set(props.input)
-  const outputSet = new Set(props.output)
-
-  const renderRow = (label: string, set: Set<Modality>) => (
-    <tr>
-      <th
-        scope='row'
-        className='text-muted-foreground bg-muted/30 px-3 py-2 text-left text-[11px] font-medium tracking-wider uppercase'
-      >
-        {label}
-      </th>
-      {ALL_MODALITIES.map((modality) => {
-        const enabled = set.has(modality)
-        const Icon = MODALITY_META[modality].icon
-        return (
-          <td
-            key={modality}
-            className={cn(
-              'border-l px-3 py-2 text-center',
-              enabled
-                ? 'bg-emerald-50/40 dark:bg-emerald-500/10'
-                : 'bg-background'
-            )}
-          >
-            <span
-              className={cn(
-                'inline-flex items-center justify-center',
-                enabled
-                  ? 'text-emerald-700 dark:text-emerald-300'
-                  : 'text-muted-foreground/40'
-              )}
-              aria-label={
-                enabled
-                  ? t('pricing.fields.modalitySupported', {
-                      modality: t(MODALITY_META[modality].labelKey),
-                    })
-                  : t('pricing.fields.modalityNotSupported', {
-                      modality: t(MODALITY_META[modality].labelKey),
-                    })
-              }
-            >
-              <Icon className='size-4' />
-            </span>
-          </td>
-        )
-      })}
-    </tr>
-  )
-
-  return (
-    <div className='overflow-x-auto rounded-lg border'>
-      <table className='w-full text-sm'>
-        <thead>
-          <tr className='bg-muted/40'>
-            <th
-              scope='col'
-              className='text-muted-foreground px-3 py-2 text-left text-[11px] font-medium tracking-wider uppercase'
-            >
-              {t('pricing.fields.modality')}
-            </th>
-            {ALL_MODALITIES.map((modality) => (
-              <th
-                key={modality}
-                scope='col'
-                className='text-muted-foreground border-l px-3 py-2 text-center text-[11px] font-medium tracking-wider uppercase'
-              >
-                {t(MODALITY_META[modality].labelKey)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {renderRow(t('pricing.fields.input'), inputSet)}
-          {renderRow(t('pricing.fields.output'), outputSet)}
-        </tbody>
-      </table>
-    </div>
   )
 }

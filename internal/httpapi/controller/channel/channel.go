@@ -17,6 +17,7 @@ import (
 	awschannel "github.com/NookMux/NookMux/internal/relay/channel/aws"
 	"github.com/NookMux/NookMux/internal/relay/channel/gemini"
 	"github.com/NookMux/NookMux/internal/relay/channel/ollama"
+	"github.com/NookMux/NookMux/internal/relay/channel/vertex"
 	"github.com/NookMux/NookMux/internal/store/audit"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/db"
@@ -457,6 +458,19 @@ func FetchUpstreamModels(c *gin.Context) {
 		return
 	}
 
+	// Vertex AI 没有公开的 publishers 模型列表端点（express API key 同样不支持
+	// models.list），通用 OpenAI 风格 /v1/models 探测对其不可用；返回适配器内置
+	// 的合并模型清单（Gemini + Claude + 开源）供管理员挑选。
+	if channel.Type == constant.ChannelTypeVertexAi {
+		vertexAdaptor := vertex.Adaptor{}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data":    vertexAdaptor.GetModelList(),
+		})
+		return
+	}
+
 	var url string
 	switch channel.Type {
 	case constant.ChannelTypeZhipu_v4:
@@ -511,9 +525,6 @@ func FetchUpstreamModels(c *gin.Context) {
 	var ids []string
 	for _, model := range result.Data {
 		id := normalizeModelID(model.ID)
-		if channel.Type == constant.ChannelTypeGemini {
-			id = strings.TrimPrefix(id, "models/")
-		}
 		if id == "" {
 			continue
 		}
@@ -1354,6 +1365,15 @@ func FetchModels(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"data":    models,
+		})
+		return
+	}
+
+	if req.Type == constant.ChannelTypeVertexAi {
+		vertexAdaptor := vertex.Adaptor{}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    vertexAdaptor.GetModelList(),
 		})
 		return
 	}

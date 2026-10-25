@@ -94,7 +94,7 @@ const SECURITY_SECTIONS = [
   },
 ] as const
 
-export type SecuritySectionId = (typeof SECURITY_SECTIONS)[number]['id']
+type SecuritySectionId = (typeof SECURITY_SECTIONS)[number]['id']
 
 const securityRegistry = createSectionRegistry<
   SecuritySectionId,

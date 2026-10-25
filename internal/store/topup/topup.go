@@ -109,7 +109,7 @@ func UpdatePendingTopUpStatus(tradeNo string, expectedPaymentProvider string, ta
 	}
 
 	refCol := "`trade_no`"
-	if infradb.UsingPostgreSQL {
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		refCol = `"trade_no"`
 	}
 
@@ -146,7 +146,7 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
-	if infradb.UsingPostgreSQL {
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		refCol = `"trade_no"`
 	}
 
@@ -222,7 +222,7 @@ func CompleteEpayTopUp(tradeNo string, paymentMethod string, paidMoney string, c
 	}
 
 	refCol := "`trade_no`"
-	if infradb.UsingPostgreSQL {
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		refCol = `"trade_no"`
 	}
 
@@ -448,7 +448,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	}
 
 	refCol := "`trade_no`"
-	if infradb.UsingPostgreSQL {
+	if infradb.UsingPostgreSQL || infradb.UsingDM {
 		refCol = `"trade_no"`
 	}
 

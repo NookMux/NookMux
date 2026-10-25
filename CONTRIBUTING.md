@@ -43,7 +43,7 @@ bun run build
 ## 代码规范
 
 - 遵循仓库根目录及各子目录 `AGENTS.md` 中的规则（分层、审计、数据库兼容、i18n 等），改动前必读对应目录的 `AGENTS.md`。
-- JSON 序列化使用 `pkg/jsonx` 包装函数；数据库操作兼容 SQLite、MySQL、PostgreSQL。
+- JSON 序列化使用 `pkg/jsonx` 包装函数；数据库操作兼容 SQLite、MySQL、PostgreSQL、openGauss。
 - 前端复用 `src/components/` 下的通用组件；列表页使用 `DataTablePage` + `SectionPageLayout`。
 - 用户可见的后端提示信息走 `internal/i18n` 多语言机制，不硬编码中英文字符串。
 

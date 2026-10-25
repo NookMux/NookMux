@@ -22,8 +22,10 @@ nul
 
 # ---- IDE / 编辑器 ----
 .idea
-.vscode
 .zed
+.vscode/*
+!/.vscode/extensions.json
+!/.vscode/settings.json
 
 # ---- 密钥与环境变量（仅 .env.example 入库） ----
 .env

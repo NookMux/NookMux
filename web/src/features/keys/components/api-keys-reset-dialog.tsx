@@ -63,7 +63,7 @@ export function ApiKeysResetDialog() {
     try {
       const result = await resetApiKey(currentRow.id)
       if (result.success && result.data?.key) {
-        const fullKey = `sk-${result.data.key}`
+        const fullKey = result.data.key
         setNewKey(fullKey)
         setResolvedKey(fullKey)
         setResolvedKeyForId(currentRow.id, fullKey)

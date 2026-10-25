@@ -60,6 +60,8 @@ func geminiRelayHandler(c *gin.Context, info *relaycommon.RelayInfo) *shared.Noo
 	var err *shared.NookMuxError
 	if strings.Contains(c.Request.URL.Path, "embed") {
 		err = relay.GeminiEmbeddingHandler(c, info)
+	} else if strings.Contains(c.Request.URL.Path, ":countTokens") {
+		err = relay.GeminiCountTokensHandler(c, info)
 	} else {
 		err = relay.GeminiHelper(c, info)
 	}
@@ -352,6 +354,11 @@ func shouldRetry(c *gin.Context, openaiErr *shared.NookMuxError, retryTimes int)
 	if openaiErr == nil {
 		return false
 	}
+	// 客户端已断开：重试无法把响应送达任何客户端，任何错误（含空 usage 502、
+	// 写客户端失败 500）都只是断开的副作用而非上游故障，不再重试。
+	if c.Request != nil && c.Request.Context().Err() != nil {
+		return false
+	}
 	if domainchannel.ShouldSkipRetryAfterChannelAffinityFailure(c) {
 		return false
 	}
@@ -462,7 +469,7 @@ func ProcessChannelError(c *gin.Context, channelError domainchannel.ChannelError
 func RelayNotImplemented(c *gin.Context) {
 	err := shared.OpenAIError{
 		Message: "API not implemented",
-		Type:    "new_api_error",
+		Type:    string(shared.ErrorTypeNookMuxError),
 		Param:   "",
 		Code:    "api_not_implemented",
 	}

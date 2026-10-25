@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-/* eslint-disable react-refresh/only-export-components */
 'use client'
 
 import {
@@ -72,7 +71,7 @@ const lineNumberTransformer: ShikiTransformer = {
   },
 }
 
-export async function highlightCode(
+async function highlightCode(
   code: string,
   language: BundledLanguage,
   showLineNumbers = false

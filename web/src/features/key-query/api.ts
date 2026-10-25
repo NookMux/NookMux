@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import {
   KeyQueryError,
   type KeyQueryLog,
-  type KeyQueryLogsLegacyResponse,
   type KeyQueryLogsParams,
   type KeyQueryLogsResponse,
   type KeyQueryUsageLogFieldsResponse,
@@ -27,7 +26,8 @@ import {
   type KeyUsageResponse,
 } from './types'
 
-const KEY_PATTERN = /^sk-[a-zA-Z0-9]{48}$/
+// 完整密钥 = 自定义前缀（以 - 结尾）+ 48 位字母数字随机串
+const KEY_PATTERN = /^[^\s]+-[a-zA-Z0-9]{48}$/
 
 interface BackendErrorResponse {
   success?: boolean
@@ -130,20 +130,6 @@ export async function fetchKeyLogs(
   return { items: paginated.items ?? [], total: paginated.total ?? 0 }
 }
 
-export async function fetchKeyLogsLegacy(
-  rawKey: string
-): Promise<KeyQueryLog[]> {
-  const key = validateKey(rawKey)
-  const data = await fetchJson<KeyQueryLogsLegacyResponse>(
-    '/api/log/token',
-    key
-  )
-  if (!data?.success) {
-    throw new KeyQueryError('keyQuery.errors.failedToLoadLogs', data?.message)
-  }
-  return data.data ?? []
-}
-
 export async function fetchKeyUsageLogFields(
   rawKey: string
 ): Promise<{ enabled: boolean; fields: string[] }> {
@@ -159,11 +145,4 @@ export async function fetchKeyUsageLogFields(
     )
   }
   return data.data
-}
-
-/**
- * 密钥格式校验（不发起网络请求），供输入框即时反馈使用。
- */
-export function isValidKeyFormat(rawKey: string): boolean {
-  return KEY_PATTERN.test(rawKey.trim())
 }

@@ -56,6 +56,11 @@ const _systemInfoSchema = z.object({
   }),
   general_setting: z.object({
     docs_link: z.string().optional(),
+    token_key_prefix: z
+      .string()
+      .min(1)
+      .max(16)
+      .regex(/^[^\s%]+-$/),
   }),
 })
 
@@ -87,6 +92,9 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     },
     general_setting: {
       docs_link: normalizeValue(defaultValues.general_setting?.docs_link),
+      token_key_prefix: normalizeValue(
+        defaultValues.general_setting?.token_key_prefix
+      ),
     },
   }
 
@@ -105,6 +113,17 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     }),
     general_setting: z.object({
       docs_link: z.string().optional(),
+      token_key_prefix: z
+        .string()
+        .min(1, {
+          error: () => t('systemSettings.errors.apiKeyPrefixRequired'),
+        })
+        .max(16, {
+          error: () => t('systemSettings.errors.apiKeyPrefixInvalid'),
+        })
+        .regex(/^[^\s%]+-$/, {
+          error: () => t('systemSettings.errors.apiKeyPrefixInvalid'),
+        }),
     }),
   })
 
@@ -206,6 +225,30 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                     </FormControl>
                     <FormDescription>
                       {t('systemSettings.fields.linkToYourDocumentationSite')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='general_setting.token_key_prefix'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.fields.apiKeyPrefix')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t(
+                          'systemSettings.placeholders.apiKeyPrefix'
+                        )}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('systemSettings.tips.apiKeyPrefixDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

@@ -676,7 +676,7 @@ function BillingBreakdown(props: { log: UsageLog; other: LogOtherData }) {
           <Label className='mb-1.5 block text-xs font-semibold'>
             {t('usageLogs.fields.currentPriceTable')}
           </Label>
-          <div className='overflow-x-auto rounded-md border'>
+          <div className='hover-scrollbar overflow-x-auto rounded-md border'>
             <table className='w-full min-w-[680px] text-left text-xs'>
               <thead className='bg-muted/60 text-muted-foreground'>
                 <tr>

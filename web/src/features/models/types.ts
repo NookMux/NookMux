@@ -25,7 +25,7 @@ import { z } from 'zod'
 /**
  * Bound channel information
  */
-export interface BoundChannel {
+interface BoundChannel {
   name: string
   type: number
 }
@@ -154,15 +154,6 @@ export interface GetVendorsResponse {
 }
 
 /**
- * Get vendor response
- */
-export interface GetVendorResponse {
-  success: boolean
-  message?: string
-  data?: Vendor
-}
-
-/**
  * Sync diff data
  */
 export interface SyncDiffData {
@@ -235,22 +226,6 @@ export interface PrefillGroupsResponse {
 // ============================================================================
 
 /**
- * Model form schema
- */
-export const modelFormSchema = z.object({
-  id: z.number().optional(),
-  model_name: z.string().min(1, 'Model name is required'),
-  icon: z.string().default(''),
-  tags: z.array(z.string()).default([]),
-  vendor_id: z.number().optional(),
-  endpoints: z.string().default(''),
-  name_rule: z.number().min(0).max(3).default(0),
-  status: z.boolean().default(true),
-})
-
-export type ModelFormValues = z.infer<typeof modelFormSchema>
-
-/**
  * Vendor form schema
  */
 export const vendorFormSchema = z.object({
@@ -293,11 +268,6 @@ export type NameRule = 0 | 1 | 2 | 3 // exact, prefix, contains, suffix
 export type ModelStatus = 0 | 1 // disabled, enabled
 
 /**
- * Quota type
- */
-export type QuotaType = 0 | 1 // usage-based, per-call
-
-/**
  * Sync locale
  */
 export type SyncLocale = 'zh' | 'en' | 'ja'
@@ -306,92 +276,3 @@ export type SyncLocale = 'zh' | 'en' | 'ja'
  * Sync upstream source
  */
 export type SyncSource = 'official' | 'config'
-
-// ============================================================================
-// Model Deployments Types
-// ============================================================================
-
-/**
- * Model tab type
- */
-export type ModelTabCategory = 'metadata' | 'deployments'
-
-/**
- * Deployment entity from API
- */
-export interface Deployment {
-  id: string | number
-  container_name?: string
-  deployment_name?: string
-  name?: string
-  status?: string
-  provider?: string
-  /**
-   * Human readable string returned by backend, e.g. "2 hour 15 minutes"
-   * or "completed".
-   */
-  time_remaining?: string
-  /**
-   * Remaining minutes (numeric) returned by backend.
-   */
-  compute_minutes_remaining?: number
-  /**
-   * Served minutes (numeric) returned by backend.
-   */
-  compute_minutes_served?: number
-  /**
-   * Completed percent (0-100) returned by backend.
-   */
-  completed_percent?: number
-  hardware_info?: string | Record<string, unknown>
-  hardware_name?: string
-  brand_name?: string
-  hardware_quantity?: number
-  created_at?: string | number
-  updated_at?: string | number
-  [key: string]: unknown
-}
-
-/**
- * Deployment settings response
- */
-export interface DeploymentSettingsResponse {
-  success: boolean
-  message?: string
-  data?: {
-    enabled?: boolean
-    [key: string]: unknown
-  }
-}
-
-/**
- * List deployments response
- */
-export interface ListDeploymentsResponse {
-  success: boolean
-  message?: string
-  data?: {
-    items?: Deployment[]
-    total?: number
-    page?: number
-    page_size?: number
-    status_counts?: Record<string, number>
-  }
-}
-
-/**
- * Deployment logs response
- */
-export interface DeploymentLogsResponse {
-  success: boolean
-  message?: string
-  data?: {
-    logs?: Array<{
-      timestamp?: string
-      level?: string
-      message?: string
-      source?: string
-    }>
-    cursor?: string
-  }
-}

@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 import type { BanIdentifierType } from '../types'
 
-export const banIdentifierTypeSchema = z.enum([
+const banIdentifierTypeSchema = z.enum([
   'github_id',
   'linuxdo_id',
   'email',

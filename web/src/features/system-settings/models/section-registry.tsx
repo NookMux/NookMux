@@ -53,10 +53,6 @@ const MODELS_SECTIONS = [
             version_settings: settings['gemini.version_settings'],
             supported_imagine_models:
               settings['gemini.supported_imagine_models'],
-            function_call_thought_signature_enabled:
-              settings['gemini.function_call_thought_signature_enabled'],
-            remove_function_response_id_enabled:
-              settings['gemini.remove_function_response_id_enabled'],
           },
         }}
       />
@@ -144,7 +140,7 @@ const MODELS_SECTIONS = [
   },
 ] as const
 
-export type ModelSectionId = (typeof MODELS_SECTIONS)[number]['id']
+type ModelSectionId = (typeof MODELS_SECTIONS)[number]['id']
 
 const modelsRegistry = createSectionRegistry<ModelSectionId, ModelSettings>({
   sections: MODELS_SECTIONS,

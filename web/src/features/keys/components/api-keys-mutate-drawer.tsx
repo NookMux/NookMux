@@ -195,7 +195,7 @@ export function ApiKeysMutateDrawer({
           })
           if (result.success && result.data?.key) {
             successCount++
-            newKeys.push(`sk-${result.data.key}`)
+            newKeys.push(result.data.key)
           } else if (result.success) {
             toast.error(t('keys.status.createdApiKeyResponseDidNotIncludeAKey'))
             break

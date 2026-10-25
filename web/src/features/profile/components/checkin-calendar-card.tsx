@@ -78,7 +78,6 @@ export function CheckinCalendarCard({
   }, [currentMonth])
 
   // Fetch checkin status
-  /* eslint-disable @tanstack/query/exhaustive-deps */
   const {
     data: checkinData,
     isLoading,
@@ -97,7 +96,6 @@ export function CheckinCalendarCard({
     enabled: checkinEnabled,
     staleTime: 30000,
   })
-  /* eslint-enable @tanstack/query/exhaustive-deps */
 
   const checkinRecordsMap = useMemo(() => {
     const map: Record<string, number> = {}

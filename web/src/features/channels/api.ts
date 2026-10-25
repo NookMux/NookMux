@@ -59,47 +59,6 @@ interface ExtendedApiConfig extends AxiosRequestConfig {
   disableDuplicate?: boolean
 }
 
-export type CodexOAuthStartResponse = {
-  success: boolean
-  message?: string
-  data?: {
-    authorize_url?: string
-  }
-}
-
-export type CodexOAuthCompleteResponse = {
-  success: boolean
-  message?: string
-  data?: {
-    key?: string
-    account_id?: string
-    email?: string
-    expires_at?: string
-    last_refresh?: string
-  }
-}
-
-export type CodexUsageResponse = {
-  success: boolean
-  message?: string
-  upstream_status?: number
-  data?: Record<string, unknown>
-}
-
-export type CodexCredentialRefreshResponse = {
-  success: boolean
-  message?: string
-  data?: {
-    expires_at?: string
-    last_refresh?: string
-    account_id?: string
-    email?: string
-    channel_id?: number
-    channel_type?: number
-    channel_name?: string
-  }
-}
-
 // ============================================================================
 // Base Channel CRUD Operations
 // ============================================================================
@@ -297,51 +256,6 @@ export async function getChannelKey(
 }
 
 // ============================================================================
-// Codex Channel Operations
-// ============================================================================
-
-export async function startCodexOAuth(): Promise<CodexOAuthStartResponse> {
-  const config: ExtendedApiConfig = { skipBusinessError: true }
-  const res = await api.post('/api/channel/codex/oauth/start', {}, config)
-  return res.data
-}
-
-export async function completeCodexOAuth(
-  input: string
-): Promise<CodexOAuthCompleteResponse> {
-  const config: ExtendedApiConfig = { skipBusinessError: true }
-  const res = await api.post(
-    '/api/channel/codex/oauth/complete',
-    { input },
-    config
-  )
-  return res.data
-}
-
-export async function refreshCodexCredential(
-  channelId: number
-): Promise<CodexCredentialRefreshResponse> {
-  const config: ExtendedApiConfig = { skipBusinessError: true }
-  const res = await api.post(
-    `/api/channel/${channelId}/codex/refresh`,
-    {},
-    config
-  )
-  return res.data
-}
-
-export async function getCodexUsage(
-  channelId: number
-): Promise<CodexUsageResponse> {
-  const config: ExtendedApiConfig = {
-    skipBusinessError: true,
-    disableDuplicate: true,
-  }
-  const res = await api.get(`/api/channel/${channelId}/codex/usage`, config)
-  return res.data
-}
-
-// ============================================================================
 // Builtin Channel URL Presets
 // ============================================================================
 
@@ -472,7 +386,7 @@ export async function applyGlmResetCard(
 /**
  * Manage multi-key channel operations
  */
-export async function manageMultiKeys(
+async function manageMultiKeys(
   params: MultiKeyManageParams
 ): Promise<MultiKeyStatusResponse | { success: boolean; message?: string }> {
   const res = await api.post('/api/channel/multi_key/manage', params)
@@ -703,20 +617,6 @@ export async function getEnabledModels(): Promise<{
   data?: string[]
 }> {
   const res = await api.get('/api/channel/models_enabled')
-  return res.data
-}
-
-// ============================================================================
-// Ollama Utilities
-// ============================================================================
-
-/**
- * Check Ollama version for a given channel
- */
-export async function getOllamaVersion(
-  channelId: number
-): Promise<{ success: boolean; message?: string; data?: { version: string } }> {
-  const res = await api.get(`/api/channel/ollama/version/${channelId}`)
   return res.data
 }
 

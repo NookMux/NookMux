@@ -23,6 +23,7 @@ import { AlertTriangle, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useChartTheme } from '@/lib/use-chart-theme'
+import { cn } from '@/lib/utils'
 import { VCHART_OPTION } from '@/lib/vchart'
 import { Button } from '@/components/ui/button'
 import {
@@ -42,6 +43,15 @@ import {
 } from '@/components/ui/tooltip'
 import { StatusBadge, type StatusVariant } from '@/components/status-badge'
 import { getGlmPlanActivity, getGlmPlanUsage, getPlanQuota } from '../../api'
+import {
+  flattenModelUsageData,
+  formatCompactNumber,
+  isRecord,
+  numberArray,
+  stringArray,
+  type FlattenedUsageData,
+  type UsagePoint,
+} from '../../lib/glm-usage'
 import type {
   Channel,
   GlmActivityDay,
@@ -87,34 +97,11 @@ type PlanQuotaDialogProps = {
   onOpenChange: (open: boolean) => void
 }
 
-type UsagePoint = {
-  time: string
-  value: number
-  type: string
-}
-
-type ModelSummary = {
-  modelName?: string
-  totalTokens?: number
-}
-
-type FlattenedUsageData = {
-  values: UsagePoint[]
-  total: number
-  summary: ModelSummary[]
-  fields: string[]
-  times: string[]
-}
-
 type PerformanceData = {
   values: UsagePoint[]
   avgSpeed: string
   avgRate: string
   times: string[]
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 function getThemeChartColors(themeKey?: string): string[] {
@@ -132,40 +119,10 @@ function getThemeChartColors(themeKey?: string): string[] {
   return colors.length > 0 ? colors : FALLBACK_MODEL_COLORS
 }
 
-function numberArray(value: unknown): number[] {
-  return Array.isArray(value)
-    ? value.map((item) => {
-        const n = Number(item)
-        return Number.isFinite(n) ? n : 0
-      })
-    : []
-}
-
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.map((item) => String(item)) : []
-}
-
 function clampPercent(value: unknown): number {
   const n = Number(value)
   if (!Number.isFinite(n)) return 0
   return Math.max(0, Math.min(100, Math.round(n)))
-}
-
-function formatCompactNumber(value: unknown): string {
-  const num = Number(value)
-  if (!Number.isFinite(num)) return '0'
-  const abs = Math.abs(num)
-  const sign = num < 0 ? '-' : ''
-  if (abs >= 1_000_000_000) {
-    return sign + (abs / 1_000_000_000).toFixed(1).replace(/\.0$/, '') + 'B'
-  }
-  if (abs >= 1_000_000) {
-    return sign + (abs / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
-  }
-  if (abs >= 1_000) {
-    return sign + (abs / 1_000).toFixed(1).replace(/\.0$/, '') + 'K'
-  }
-  return sign + abs.toLocaleString()
 }
 
 function getStatusVariant(status?: string, percentage?: number): StatusVariant {
@@ -293,50 +250,22 @@ function flattenUsageData(
   usageType: GlmUsageType
 ): FlattenedUsageData {
   const data = isRecord(rawData?.data) ? rawData.data : {}
-  const times = stringArray(data.x_time)
-  if (times.length === 0) {
-    return { values: [], total: 0, summary: [], fields: [], times: [] }
-  }
 
   if (usageType === 'model') {
-    const totalUsage = isRecord(data.totalUsage) ? data.totalUsage : {}
-    const totalTokens = Number(totalUsage.totalTokensUsage) || 0
-    const totalArr = numberArray(data.tokensUsage)
-    const modelList = Array.isArray(data.modelDataList)
-      ? data.modelDataList.filter(isRecord)
-      : []
-    const summarySource = Array.isArray(data.modelSummaryList)
-      ? data.modelSummaryList
-      : Array.isArray(totalUsage.modelSummaryList)
-        ? totalUsage.modelSummaryList
-        : []
-    const summary = summarySource.filter(isRecord).map((item) => ({
-      modelName: String(item.modelName ?? ''),
-      totalTokens: Number(item.totalTokens) || 0,
-    }))
+    return flattenModelUsageData(data)
+  }
 
-    const fields = [
-      i18next.t('channels.fields.planTotalUsage'),
-      ...modelList.map((model) => String(model.modelName ?? '')),
-    ].filter(Boolean)
-    const values: UsagePoint[] = []
-    times.forEach((time, index) => {
-      values.push({
-        time,
-        value: totalArr[index] || 0,
-        type: i18next.t('channels.fields.planTotalUsage'),
-      })
-      modelList.forEach((model) => {
-        const usage = numberArray(model.tokensUsage)
-        values.push({
-          time,
-          value: usage[index] || 0,
-          type: String(model.modelName ?? ''),
-        })
-      })
-    })
-
-    return { values, total: totalTokens, summary, fields, times }
+  // tool 旧接口时间轴位于顶层 x_time
+  const times = stringArray(data.x_time)
+  if (times.length === 0) {
+    return {
+      values: [],
+      total: 0,
+      summary: [],
+      stats: [],
+      fields: [],
+      times: [],
+    }
   }
 
   const networkSearch = numberArray(data.networkSearchCount)
@@ -368,6 +297,7 @@ function flattenUsageData(
     values,
     total,
     summary: [],
+    stats: [],
     fields: [
       i18next.t('channels.fields.planNetworkSearch'),
       i18next.t('channels.fields.planWebRead'),
@@ -552,18 +482,25 @@ function UsageChart({ channelId }: { channelId: number }) {
   const [usageType, setUsageType] = useState<GlmUsageType>('model')
   const [range, setRange] = useState(7)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [rawData, setRawData] = useState<Record<string, unknown> | null>(null)
 
   const fetchUsage = useCallback(async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       const response = await getGlmPlanUsage(channelId, {
         type: usageType,
         ...getUsageTimeParams(range),
       })
+      // 业务失败（Key 无效、上游异常等）以 success=false 返回，显式按错误暴露
+      if (isRecord(response) && response.success === false) {
+        throw new Error(String(response.message ?? ''))
+      }
       setRawData(response)
     } catch {
       setRawData(null)
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -573,7 +510,7 @@ function UsageChart({ channelId }: { channelId: number }) {
     fetchUsage()
   }, [fetchUsage])
 
-  const { values, total, summary, fields, times } = useMemo(
+  const { values, total, summary, stats, fields, times } = useMemo(
     () => flattenUsageData(rawData, usageType),
     [rawData, usageType]
   )
@@ -585,19 +522,19 @@ function UsageChart({ channelId }: { channelId: number }) {
   const spec = useMemo(() => {
     if (values.length === 0) return null
     const sampledLabels = sampleTimeLabels(times, 4)
-    const colorRange = fields.map((field, index) =>
-      field === i18next.t('channels.fields.planTotalUsage')
-        ? 'rgba(148, 163, 184, 0.85)'
-        : chartColors[index % chartColors.length]
+    const isModel = usageType === 'model'
+    const colorRange = fields.map(
+      (_, index) => chartColors[index % chartColors.length]
     )
 
     return {
-      type: 'area',
+      // 模型消耗为按模型堆叠的柱形图；工具调用保持折线/面积趋势图
+      type: isModel ? 'bar' : 'area',
       data: [{ id: 'usage', values }],
       xField: 'time',
       yField: 'value',
       seriesField: 'type',
-      stack: false,
+      stack: isModel,
       legends: {
         visible: true,
         position: 'top',
@@ -606,18 +543,28 @@ function UsageChart({ channelId }: { channelId: number }) {
         maxRow: 1,
       },
       color: { type: 'ordinal', range: colorRange, domain: fields },
-      area: {
-        style: {
-          fillOpacity: 0.08,
-          curveType: 'monotone',
-        },
-      },
-      line: {
-        style: {
-          lineWidth: 2,
-          curveType: 'monotone',
-        },
-      },
+      ...(isModel
+        ? {
+            bar: {
+              state: {
+                hover: { stroke: '#000', lineWidth: 1 },
+              },
+            },
+          }
+        : {
+            area: {
+              style: {
+                fillOpacity: 0.08,
+                curveType: 'monotone',
+              },
+            },
+            line: {
+              style: {
+                lineWidth: 2,
+                curveType: 'monotone',
+              },
+            },
+          }),
       point: { visible: false },
       axes: [
         {
@@ -666,7 +613,7 @@ function UsageChart({ channelId }: { channelId: number }) {
       background: 'transparent',
       animation: true,
     }
-  }, [chartColors, fields, times, values])
+  }, [chartColors, fields, times, usageType, values])
 
   const ranges = [
     { key: 0, label: t('channels.placeholders.planToday') },
@@ -747,6 +694,33 @@ function UsageChart({ channelId }: { channelId: number }) {
         )}
       </div>
 
+      {usageType === 'model' && stats.length > 0 && (
+        <div className='grid grid-cols-2 gap-3 lg:grid-cols-4'>
+          {stats.map((stat) => (
+            <div key={stat.label} className='rounded-lg border p-3'>
+              <div className='text-muted-foreground text-xs'>{stat.label}</div>
+              <div className='mt-1 flex flex-wrap items-baseline gap-1.5'>
+                <span className='text-xl font-semibold tabular-nums'>
+                  {stat.display}
+                </span>
+                {stat.trend && (
+                  <span
+                    className={cn(
+                      'text-xs font-medium tabular-nums',
+                      stat.trend.startsWith('-')
+                        ? 'text-success'
+                        : 'text-destructive'
+                    )}
+                  >
+                    {stat.trend}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className='min-h-[240px]'>
         {loading ? (
           <div className='flex h-[240px] items-center justify-center'>
@@ -762,6 +736,21 @@ function UsageChart({ channelId }: { channelId: number }) {
             }}
             option={VCHART_OPTION}
           />
+        ) : loadError ? (
+          <div className='flex h-[240px] flex-col items-center justify-center gap-3'>
+            <div className='text-destructive text-sm'>
+              {t('channels.tips.planUsageLoadFailed')}
+            </div>
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={fetchUsage}
+            >
+              <RefreshCw className='mr-1.5 h-3.5 w-3.5' />
+              {t('channels.actions.refresh')}
+            </Button>
+          </div>
         ) : (
           <div className='text-muted-foreground flex h-[120px] items-center justify-center text-sm'>
             {t('channels.fields.noData')}

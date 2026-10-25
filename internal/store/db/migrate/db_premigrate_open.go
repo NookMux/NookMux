@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/infra/db"
-	"github.com/glebarez/sqlite"
+	"github.com/NookMux/NookMux/internal/store/db"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -24,28 +24,25 @@ func openDBByType(dsn string, dbType string) (*gorm.DB, error) {
 		}), &gorm.Config{
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
-	case db.DatabaseTypeMySQL:
-		dsn = ensureMySQLParseTime(dsn)
-		return gorm.Open(mysql.Open(dsn), &gorm.Config{
+	case db.DatabaseTypeOpenGauss:
+		return dbstore.OpenOpenGaussGorm(dsn, &gorm.Config{
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
-	case db.DatabaseTypeSQLite:
-		return gorm.Open(sqlite.Open(dsn), &gorm.Config{
+	case db.DatabaseTypeMySQL:
+		driverDSN, err := db.MySQLDsnFromURL(dsn)
+		if err != nil {
+			return nil, err
+		}
+		return gorm.Open(mysql.Open(db.EnsureMySQLParseTime(driverDSN)), &gorm.Config{
+			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
+		})
+	case db.DatabaseTypeDM:
+		return dbstore.OpenDMGorm(dsn, &gorm.Config{
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
 	default:
 		return nil, errors.New("不支持的数据库类型")
 	}
-}
-
-func ensureMySQLParseTime(dsn string) string {
-	if strings.Contains(dsn, "parseTime") {
-		return dsn
-	}
-	if strings.Contains(dsn, "?") {
-		return dsn + "&parseTime=true"
-	}
-	return dsn + "?parseTime=true"
 }
 
 func closeGormDB(db *gorm.DB) error {

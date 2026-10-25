@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import useDialogState from '@/hooks/use-dialog'
+import { useDialogState } from '@/hooks/use-dialog'
 import { fetchTokenKey, fetchTokenKeysBatch } from '../api'
 import { ERROR_MESSAGES } from '../constants'
 import { type ApiKey, type ApiKeysDialogType } from '../types'
@@ -89,7 +89,7 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
         try {
           const res = await fetchTokenKey(id)
           if (res.success && res.data?.key) {
-            const fullKey = `sk-${res.data.key}`
+            const fullKey = res.data.key
             setResolvedKeys((prev) => ({ ...prev, [id]: fullKey }))
             return fullKey
           }
@@ -132,7 +132,7 @@ export function ApiKeysProvider({ children }: { children: React.ReactNode }) {
         if (res.success && res.data?.keys) {
           const newKeys: Record<number, string> = {}
           for (const [idStr, key] of Object.entries(res.data.keys)) {
-            newKeys[Number(idStr)] = `sk-${key}`
+            newKeys[Number(idStr)] = key
           }
           setResolvedKeys((prev) => ({ ...prev, ...newKeys }))
 

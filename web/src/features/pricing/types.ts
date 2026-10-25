@@ -117,9 +117,8 @@ export type PriceType =
   | 'image'
   | 'audio_input'
   | 'audio_output'
-export type QuotaType = 0 | 1 // 0: token-based, 1: per-request
 
-export type ContextPricingTier = {
+type ContextPricingTier = {
   name?: string
   min_tokens: number
   max_tokens?: number | null
@@ -131,7 +130,7 @@ export type ContextPricingTier = {
   audio_completion_ratio: number
 }
 
-export type ContextPricingConfig = {
+type ContextPricingConfig = {
   enabled: boolean
   tiers: ContextPricingTier[]
 }

@@ -41,21 +41,6 @@ export interface RegisterPayload {
   turnstile?: string
 }
 
-export interface PasswordResetPayload {
-  email: string
-  turnstile?: string
-}
-
-export interface EmailVerificationPayload {
-  email: string
-  turnstile?: string
-}
-
-export interface BindEmailPayload {
-  email: string
-  code: string
-}
-
 // ============================================================================
 // API Responses
 // ============================================================================
@@ -178,14 +163,6 @@ export interface SystemStatus {
 // ============================================================================
 // OAuth
 // ============================================================================
-
-export interface OAuthProvider {
-  name: string
-  type: 'github' | 'discord' | 'oidc' | 'linuxdo' | 'telegram' | 'wechat'
-  enabled: boolean
-  clientId?: string
-  authEndpoint?: string
-}
 
 export interface CustomOAuthProviderInfo {
   id: number

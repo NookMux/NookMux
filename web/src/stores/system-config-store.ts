@@ -101,12 +101,3 @@ export const useSystemConfigStore = create<SystemConfigState>()(
     }
   )
 )
-
-// Selector helpers for convenience
-export const getSystemName = () =>
-  useSystemConfigStore.getState().config.systemName
-
-export const getLogo = () => useSystemConfigStore.getState().config.logo
-
-export const getFooterHtml = () =>
-  useSystemConfigStore.getState().config.footerHtml

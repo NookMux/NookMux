@@ -149,7 +149,7 @@ function buildTimeRangeParams(
  * Build base parameters with time range (for drawing and task logs)
  * @param useMilliseconds - Whether to use millisecond timestamps (true for drawing logs, false for task logs)
  */
-export function buildBaseParams(config: {
+function buildBaseParams(config: {
   page: number
   pageSize: number
   searchParams: Record<string, unknown>
@@ -178,7 +178,7 @@ export function buildBaseParams(config: {
 /**
  * Build API params from search params and column filters (for common logs)
  */
-export function buildApiParams(config: {
+function buildApiParams(config: {
   page: number
   pageSize: number
   searchParams: Record<string, unknown>

@@ -120,14 +120,6 @@ export async function bindEmail(
   return res.data
 }
 
-/**
- * Bind WeChat account
- */
-export async function bindWeChat(code: string): Promise<ApiResponse> {
-  const res = await api.get(`/api/oauth/wechat/bind?code=${code}`)
-  return res.data
-}
-
 // ============================================================================
 // Custom OAuth Binding APIs
 // ============================================================================
