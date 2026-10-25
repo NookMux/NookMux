@@ -28,6 +28,10 @@ func GetDBIdentity(db *gorm.DB, dbType string) (dbIdentity, error) {
 	switch dbType {
 	case infradb.DatabaseTypePostgreSQL:
 		return getPostgresIdentity(db)
+	case infradb.DatabaseTypeKingbase:
+		// 金仓 KingbaseES 为 PG 兼容内核，保留 pg_control_system()/
+		// system_identifier 实例指纹，直接复用 PostgreSQL 身份探测。
+		return getPostgresIdentity(db)
 	case infradb.DatabaseTypeOpenGauss:
 		return getOpenGaussIdentity(db)
 	case infradb.DatabaseTypeMySQL:

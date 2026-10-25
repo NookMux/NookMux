@@ -222,6 +222,7 @@
   "common.tips.customApiBaseUrlLeaveEmptyToUseProvider": "自定义 API 基础 URL。留空以使用提供商默认值。",
   "common.tips.customDatabaseDriverDetected": "检测到自定义数据库驱动。",
   "common.tips.damengIsAnOracleLineageDomesticDatabaseFor": "达梦 DM8 是 Oracle 系国产数据库，适用于信创生产工作负载。",
+  "common.tips.kingbaseIsAnOracleCompatibleDomestic": "人大金仓 KingbaseES 是 Oracle 兼容的国产数据库，适用于信创生产工作负载。",
   "common.tips.customMultipliersWhenSpecificUserGroupsUseSpecificToken": "当特定用户分组使用特定令牌分组时的自定义乘数。示例：VIP 用户在使用“edit_this”分组令牌时获得 0.9 倍费率。",
   "common.fields.customZoom": "自定义缩放",
   "common.tips.dailyTokenUsageByModelThisMonth": "本月（按服务器时区）各模型的每日 Token 用量",

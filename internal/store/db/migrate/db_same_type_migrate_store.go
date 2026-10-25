@@ -100,9 +100,9 @@ func validateDBSameTypeMigrateDirection(sourceType string, targetType string) er
 		return errors.New("同类型迁移要求源数据库与目标数据库类型一致")
 	}
 	switch sourceType {
-	case db.DatabaseTypeMySQL, db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM:
+	case db.DatabaseTypeMySQL, db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM, db.DatabaseTypeKingbase:
 		return nil
 	default:
-		return errors.New("同类型迁移仅支持 MySQL -> MySQL、PostgreSQL -> PostgreSQL、openGauss -> openGauss 和 DM -> DM")
+		return errors.New("同类型迁移仅支持 MySQL -> MySQL、PostgreSQL -> PostgreSQL、openGauss -> openGauss、DM -> DM 和 KingbaseES -> KingbaseES")
 	}
 }

@@ -9,6 +9,23 @@
 
 ### Added
 
+- **金仓 KingbaseES 数据库支持**：新增人大金仓 KingbaseES（Oracle 兼容模式）作为
+  原生后端数据库（PG 兼容内核）。DSN 以 `kingbase://` 前缀识别（金仓官方 Gokb
+  驱动原生支持的 URL scheme，口令按标准 URL 规则 percent-encode），连接层使用
+  `godoes/gorm-kingbase` v1.11.0（内置金仓官方 Gokb 驱动，Migrator 基于
+  pg_catalog / information_schema 探测表结构），SQL 方言行为归入 PostgreSQL 家族
+  （双引号标识符、小写折叠）。
+  - Oracle 模式的空字符串即 NULL 语义（GUC `ora_input_emptystr_isnull`）在连接层
+    自动归一：连接建立时下发 `ora_input_emptystr_isnull=off` 启动参数，与
+    SQLite/MySQL/PostgreSQL/openGauss/DM 的空串与 NULL 严格区分语义对齐，
+    避免空串写入 NOT NULL 列失败与 `WHERE col = ''` 永远失配。
+  - 实例要求：不得开启 `enable_ci`（实例级 initdb 选项，字符串比较大小写不敏感会使
+    令牌密钥、用户名等等值比较跨大小写误匹配，连接时校验失败即拒绝启动）。
+  - 方言分支适配：用量排行时间分桶纳入 FLOOR 截断分支（金仓整数除法不截断）；
+    跨库预迁移支持金仓与 MySQL/PostgreSQL/openGauss/DM/SQLite 互迁，同类型迁移
+    支持 KingbaseES → KingbaseES（实例身份校验复用 pg_control_system 实例指纹）。
+  - 安装向导数据库类型展示新增 `kingbase`（前端含中英文文案）。
+
 - **达梦 DM8 数据库支持**：新增达梦 DM8 作为原生后端数据库（Oracle 系内核，不依赖
   MySQL/Oracle 兼容模式）。DSN 以 `dm://` 前缀识别（达梦官方 Go 驱动原生支持的 URL
   scheme，口令按字面值写入且不得含 '?'，':'、'@' 可用，连接前对 DSN 口令做

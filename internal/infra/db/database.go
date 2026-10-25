@@ -6,12 +6,14 @@ const (
 	DatabaseTypePostgreSQL = "postgres"
 	DatabaseTypeOpenGauss  = "opengauss"
 	DatabaseTypeDM         = "dm"
+	DatabaseTypeKingbase   = "kingbase"
 )
 
 var UsingSQLite = false
 var UsingPostgreSQL = false
 var UsingOpenGauss = false
 var UsingDM = false
+var UsingKingbase = false
 var LogSqlType = DatabaseTypeSQLite // Default to SQLite for logging SQL queries
 var UsingMySQL = false
 var UsingClickHouse = false

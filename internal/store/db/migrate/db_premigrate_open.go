@@ -40,6 +40,10 @@ func openDBByType(dsn string, dbType string) (*gorm.DB, error) {
 		return dbstore.OpenDMGorm(dsn, &gorm.Config{
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
+	case db.DatabaseTypeKingbase:
+		return dbstore.OpenKingbaseGorm(dsn, &gorm.Config{
+			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
+		})
 	default:
 		return nil, errors.New("不支持的数据库类型")
 	}

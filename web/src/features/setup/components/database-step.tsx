@@ -60,6 +60,11 @@ const DATABASE_META: Record<
     descriptionKey: 'common.tips.damengIsAnOracleLineageDomesticDatabaseFor',
     variant: 'success',
   },
+  kingbase: {
+    label: '人大金仓 KingbaseES',
+    descriptionKey: 'common.tips.kingbaseIsAnOracleCompatibleDomestic',
+    variant: 'success',
+  },
 }
 
 function resolveDatabaseMeta(type?: string) {

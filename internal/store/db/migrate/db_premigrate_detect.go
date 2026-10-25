@@ -11,6 +11,8 @@ func currentMainDBType() (string, error) {
 	switch {
 	case db.UsingOpenGauss:
 		return db.DatabaseTypeOpenGauss, nil
+	case db.UsingKingbase:
+		return db.DatabaseTypeKingbase, nil
 	case db.UsingPostgreSQL:
 		return db.DatabaseTypePostgreSQL, nil
 	case db.UsingMySQL:
@@ -34,11 +36,22 @@ func currentLogDBType() (string, error) {
 		return mainType, nil
 	}
 	switch db.LogSqlType {
-	case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeMySQL, db.DatabaseTypeDM, db.DatabaseTypeSQLite:
+	case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeMySQL, db.DatabaseTypeDM, db.DatabaseTypeSQLite, db.DatabaseTypeKingbase:
 		return db.LogSqlType, nil
 	default:
 		return "", errors.New("无法识别当前日志数据库类型")
 	}
+}
+
+// preMigratableTargetTypes 是预迁移允许的目标数据库类型集合（SQLite 仅可
+// 作为源）。金仓 KingbaseES 为 PG 兼容内核，与现有四库经 GORM 通用拷贝
+// 链路互迁的列类型映射一致。
+var preMigratableTargetTypes = map[string]bool{
+	db.DatabaseTypeMySQL:      true,
+	db.DatabaseTypePostgreSQL: true,
+	db.DatabaseTypeOpenGauss:  true,
+	db.DatabaseTypeDM:         true,
+	db.DatabaseTypeKingbase:   true,
 }
 
 func validateDBPreMigrateDirection(sourceType string, targetType string) error {
@@ -50,24 +63,28 @@ func validateDBPreMigrateDirection(sourceType string, targetType string) error {
 	}
 	switch sourceType {
 	case db.DatabaseTypeMySQL:
-		if targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeOpenGauss && targetType != db.DatabaseTypeDM {
-			return errors.New("仅支持 MySQL -> PostgreSQL / MySQL -> openGauss / MySQL -> DM 的预迁移")
+		if !preMigratableTargetTypes[targetType] {
+			return errors.New("仅支持 MySQL -> PostgreSQL / MySQL -> openGauss / MySQL -> DM / MySQL -> KingbaseES 的预迁移")
 		}
 	case db.DatabaseTypePostgreSQL:
-		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypeOpenGauss && targetType != db.DatabaseTypeDM {
-			return errors.New("仅支持 PostgreSQL -> MySQL / PostgreSQL -> openGauss / PostgreSQL -> DM 的预迁移")
+		if !preMigratableTargetTypes[targetType] {
+			return errors.New("仅支持 PostgreSQL -> MySQL / PostgreSQL -> openGauss / PostgreSQL -> DM / PostgreSQL -> KingbaseES 的预迁移")
 		}
 	case db.DatabaseTypeOpenGauss:
-		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeDM {
-			return errors.New("仅支持 openGauss -> MySQL / openGauss -> PostgreSQL / openGauss -> DM 的预迁移")
+		if !preMigratableTargetTypes[targetType] {
+			return errors.New("仅支持 openGauss -> MySQL / openGauss -> PostgreSQL / openGauss -> DM / openGauss -> KingbaseES 的预迁移")
 		}
 	case db.DatabaseTypeDM:
-		if targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeOpenGauss {
-			return errors.New("仅支持 DM -> MySQL / DM -> PostgreSQL / DM -> openGauss 的预迁移")
+		if !preMigratableTargetTypes[targetType] {
+			return errors.New("仅支持 DM -> MySQL / DM -> PostgreSQL / DM -> openGauss / DM -> KingbaseES 的预迁移")
+		}
+	case db.DatabaseTypeKingbase:
+		if !preMigratableTargetTypes[targetType] {
+			return errors.New("仅支持 KingbaseES -> MySQL / KingbaseES -> PostgreSQL / KingbaseES -> openGauss / KingbaseES -> DM 的预迁移")
 		}
 	case db.DatabaseTypeSQLite:
-		if targetType != db.DatabaseTypePostgreSQL && targetType != db.DatabaseTypeMySQL && targetType != db.DatabaseTypeOpenGauss && targetType != db.DatabaseTypeDM {
-			return errors.New("仅支持 SQLite -> PostgreSQL / SQLite -> MySQL / SQLite -> openGauss / SQLite -> DM 的预迁移")
+		if !preMigratableTargetTypes[targetType] {
+			return errors.New("仅支持 SQLite -> PostgreSQL / SQLite -> MySQL / SQLite -> openGauss / SQLite -> DM / SQLite -> KingbaseES 的预迁移")
 		}
 	default:
 		return errors.New("不支持的源数据库类型")

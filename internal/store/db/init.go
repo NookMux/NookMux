@@ -43,7 +43,7 @@ func InitCol() {
 	}
 	if os.Getenv("LOG_SQL_DSN") != "" {
 		switch db.LogSqlType {
-		case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM:
+		case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM, db.DatabaseTypeKingbase:
 			LogGroupCol = `"group"`
 		default:
 			LogGroupCol = CommonGroupCol
@@ -128,6 +128,17 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 			db.LogSqlType = db.DatabaseTypeDM
 		}
 		return OpenDMGorm(dsn, newGormConfig())
+	case db.DatabaseTypeKingbase:
+		common.SysLog("using KingbaseES (金仓) as database")
+		if !isLog {
+			// 金仓 KingbaseES 为 PG 兼容内核，方言行为归入 PostgreSQL 家族；
+			// 需要区分具体产品处使用 UsingKingbase 判断。
+			db.UsingPostgreSQL = true
+			db.UsingKingbase = true
+		} else {
+			db.LogSqlType = db.DatabaseTypeKingbase
+		}
+		return OpenKingbaseGorm(dsn, newGormConfig())
 	default:
 		return nil, fmt.Errorf("未知数据库类型: %s", dbType)
 	}

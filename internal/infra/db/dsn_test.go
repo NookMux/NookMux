@@ -19,6 +19,8 @@ func TestParseDBTypeFromDSN(t *testing.T) {
 		{name: "mysql URL", dsn: "mysql://user:pass@127.0.0.1:3306/nookmux", want: DatabaseTypeMySQL},
 		{name: "dm URL", dsn: "dm://user:pass@127.0.0.1:5236?schema=NOOKMUX", want: DatabaseTypeDM},
 		{name: "dm URL 口令含@", dsn: "dm://user:p@ss@127.0.0.1:5236?schema=NOOKMUX", want: DatabaseTypeDM},
+		{name: "kingbase URL", dsn: "kingbase://user:pass@127.0.0.1:54321/nookmux", want: DatabaseTypeKingbase},
+		{name: "kingbase URL 口令 percent-encode", dsn: "kingbase://user:p%40ss@127.0.0.1:54321/nookmux?sslmode=disable", want: DatabaseTypeKingbase},
 		{name: "允许首尾空白", dsn: "  mysql://user:pass@127.0.0.1:3306/nookmux\n", want: DatabaseTypeMySQL},
 		{name: "裸 MySQL 驱动 DSN 非法", dsn: "user:pass@tcp(127.0.0.1:3306)/nookmux", wantErr: true},
 		{name: "local 前缀非法", dsn: "local", wantErr: true},
