@@ -1,7 +1,10 @@
 package dbmigrate
 
 import (
+	"database/sql"
 	"fmt"
+	"strconv"
+
 	"github.com/NookMux/NookMux/internal/common"
 	infradb "github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/NookMux/NookMux/internal/store/audit"
@@ -52,6 +55,7 @@ func InitDB() (err error) {
 		sqlDB.SetMaxIdleConns(common.GetEnvOrDefault("SQL_MAX_IDLE_CONNS", dbstore.DefaultSQLMaxIdleConns))
 		sqlDB.SetMaxOpenConns(common.GetEnvOrDefault("SQL_MAX_OPEN_CONNS", 1000))
 		sqlDB.SetConnMaxLifetime(time.Second * time.Duration(common.GetEnvOrDefault("SQL_MAX_LIFETIME", 60)))
+		warnPoolVersusInstanceSessions(sqlDB, mainDBTypeForPoolWarn(), "主库")
 
 		if !common.IsMasterNode {
 			return nil
@@ -95,6 +99,7 @@ func InitLogDB() (err error) {
 		sqlDB.SetMaxIdleConns(common.GetEnvOrDefault("SQL_MAX_IDLE_CONNS", dbstore.DefaultSQLMaxIdleConns))
 		sqlDB.SetMaxOpenConns(common.GetEnvOrDefault("SQL_MAX_OPEN_CONNS", 1000))
 		sqlDB.SetConnMaxLifetime(time.Second * time.Duration(common.GetEnvOrDefault("SQL_MAX_LIFETIME", 60)))
+		warnPoolVersusInstanceSessions(sqlDB, infradb.LogSqlType, "日志库")
 
 		if !common.IsMasterNode {
 			return nil
@@ -111,6 +116,53 @@ func InitLogDB() (err error) {
 		common.FatalLog(err)
 	}
 	return err
+}
+
+// mainDBTypeForPoolWarn 返回主库类型供连接池告警使用；无法识别时返回空串
+// （该情形下启动路径会因同样的原因显式失败，无需在此告警）。
+func mainDBTypeForPoolWarn() string {
+	t, err := currentMainDBType()
+	if err != nil {
+		return ""
+	}
+	return t
+}
+
+// warnPoolVersusInstanceSessions 对会话上限偏低的实例做一次性启动告警：
+// 金仓默认 max_connections=100、DM 受 dm.ini MAX_SESSIONS 约束，而连接池
+// 默认上限 SQL_MAX_OPEN_CONNS=1000（主库与日志库两套池独立计算），默认
+// 部署在高峰可能耗尽实例会话（金仓 FATAL 53300）。仅告警不钳制——显式
+// 配置的环境变量优先，告警在未显式设置时才触发。
+func warnPoolVersusInstanceSessions(sqlDB *sql.DB, dbType string, label string) {
+	if os.Getenv("SQL_MAX_OPEN_CONNS") != "" {
+		return
+	}
+	var limit int
+	var err error
+	switch dbType {
+	case infradb.DatabaseTypeKingbase:
+		err = sqlDB.QueryRow("SHOW max_connections").Scan(&limit)
+	case infradb.DatabaseTypeDM:
+		var v string
+		err = sqlDB.QueryRow("SELECT PARA_VALUE FROM V$DM_INI WHERE PARA_NAME = 'MAX_SESSIONS'").Scan(&v)
+		if err == nil {
+			n, convErr := strconv.Atoi(strings.TrimSpace(v))
+			if convErr != nil {
+				common.SysLog(fmt.Sprintf("警告：%s为达梦实例但无法解析 MAX_SESSIONS=%q（%v），请自行确认 SQL_MAX_OPEN_CONNS 不超过实例会话上限", label, v, convErr))
+				return
+			}
+			limit = n
+		}
+	default:
+		return
+	}
+	if err != nil {
+		common.SysLog(fmt.Sprintf("警告：%s为 %s 实例但读取会话上限失败（%v）；默认连接池上限 SQL_MAX_OPEN_CONNS=1000 可能超过实例上限，请按实例实际会话上限显式设置", label, dbType, err))
+		return
+	}
+	if limit > 0 && limit < 1000 {
+		common.SysLog(fmt.Sprintf("警告：%s实例会话上限为 %d，低于默认连接池上限 SQL_MAX_OPEN_CONNS=1000（主库与日志库两套池独立计算），高峰可能耗尽实例会话，建议按实例上限显式调低 SQL_MAX_OPEN_CONNS", label, limit))
+	}
 }
 
 func migrateDB() error {

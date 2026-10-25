@@ -2,14 +2,19 @@ package dbstore
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 
-	infradb "github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/godoes/gorm-kingbase"
 	"gorm.io/gorm"
 )
+
+// kingbaseOraEmptyStrParam 空串语义 GUC 名。金仓 GUC 名服务端大小写不敏感，
+// DSN 中任意大小写变体都会作用于同一 GUC，守卫与归一化必须按大小写不敏感
+// 匹配全部取值。
+const kingbaseOraEmptyStrParam = "ora_input_emptystr_isnull"
 
 // OpenKingbaseGorm 统一封装金仓 KingbaseES 的 GORM 连接建立，使用
 // gorm-kingbase 方言（内置金仓官方 Gokb 驱动，database/sql 驱动名
@@ -28,18 +33,23 @@ import (
 // NULL 严格区分：空串入列会在 NOT NULL 列上直接违反约束，且
 // `WHERE col = ”` 类过滤条件因空串入库为 NULL 而永远失配。连接建立时由
 // EnsureKingbaseOraEmptyStrIsNotNull 统一归一该参数为 off；DSN 显式携带
-// =on 类取值时连接期直接拒绝（与 enable_ci 校验同为硬拒绝，不让破坏性
-// 语义推迟到运行期以数据异常暴露）。
+// =on 类取值（任意大小写变体、任意携带位置）时连接期直接拒绝（与 enable_ci
+// 校验同为硬拒绝，不让破坏性语义推迟到运行期以数据异常暴露）。
 func OpenKingbaseGorm(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
-	if v, carried := infradb.DSNQueryParam(dsn, "ora_input_emptystr_isnull"); carried {
+	u, err := parseKingbaseURL(dsn)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range kingbaseGUCValues(u.Query(), kingbaseOraEmptyStrParam) {
 		switch strings.ToLower(strings.TrimSpace(v)) {
 		case "on", "true", "1", "yes":
-			return nil, fmt.Errorf("金仓 DSN 显式设置 ora_input_emptystr_isnull=%s 会把空字符串当 NULL（NOT NULL 列违约、等值过滤失配），破坏 NookMux 六库统一的空串与 NULL 严格区分语义；请移除该参数，连接层会自动下发 off", strings.TrimSpace(v))
+			return nil, fmt.Errorf("金仓 DSN 显式设置 %s=%s 会把空字符串当 NULL（NOT NULL 列违约、等值过滤失配），破坏 NookMux 六库统一的空串与 NULL 严格区分语义；请移除该参数，连接层会自动下发 off", kingbaseOraEmptyStrParam, strings.TrimSpace(v))
 		}
 	}
+	normalized := normalizeKingbaseOraEmptyStr(u)
 	gormDB, err := gorm.Open(kingbase.New(kingbase.Config{
 		DriverName: kingbase.DriverName,
-		DSN:        EnsureKingbaseOraEmptyStrIsNotNull(dsn),
+		DSN:        normalized,
 	}), cfg)
 	if err != nil {
 		return nil, err
@@ -61,22 +71,57 @@ func OpenKingbaseGorm(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
 
 // EnsureKingbaseOraEmptyStrIsNotNull 为 kingbase:// URL DSN 归一
 // ora_input_emptystr_isnull 启动参数，对齐项目内
-// SQLite/MySQL/PostgreSQL/openGauss/DM 的空串与 NULL 严格区分语义：未携带
-// 或仅携带空值时补为 off（Gokb 的 URL 解析会整体丢弃空值参数，等价于未
-// 携带）；显式携带有效值时原样保留（=on 类取值由 OpenKingbaseGorm 连接
-// 前拒绝）。基于 net/url 仅读写 query 段，不受 userinfo/口令中同名子串
-// 干扰。
-func EnsureKingbaseOraEmptyStrIsNotNull(dsn string) string {
-	const param = "ora_input_emptystr_isnull"
-	if v, carried := infradb.DSNQueryParam(dsn, param); carried && v != "" {
-		return dsn
+// SQLite/MySQL/PostgreSQL/openGauss/DM 的空串与 NULL 严格区分语义。仅解析
+// query 段，不受 userinfo/口令中同名字符串干扰；URL 解析失败立即报错，不
+// 放行未归一化的 DSN（空串即 NULL 语义必须在连接期杜绝）。
+func EnsureKingbaseOraEmptyStrIsNotNull(dsn string) (string, error) {
+	u, err := parseKingbaseURL(dsn)
+	if err != nil {
+		return "", err
 	}
+	return normalizeKingbaseOraEmptyStr(u), nil
+}
+
+// parseKingbaseURL 解析 kingbase:// DSN。解析失败即报错（net/url 对 userinfo
+// 中非法 percent-escape 会在此暴露）；错误信息不回显 URL 原文，避免口令随
+// 日志泄漏。
+func parseKingbaseURL(dsn string) (*url.URL, error) {
 	u, err := url.Parse(dsn)
 	if err != nil {
-		return dsn
+		return nil, errors.New("解析 kingbase:// DSN 失败：URL 不合法（常见原因：口令未按 URL 规则 percent-encode，如 %2 应为 %2F；为避免口令泄漏不回显解析原文）")
 	}
+	return u, nil
+}
+
+// kingbaseGUCValues 返回 query 段中与 name 大小写不敏感匹配的全部取值。
+// Gokb 对同名键后值覆盖（后写生效），守卫必须逐值检查而非只看首个。
+func kingbaseGUCValues(query url.Values, name string) []string {
+	var values []string
+	for k, vs := range query {
+		if strings.EqualFold(k, name) {
+			values = append(values, vs...)
+		}
+	}
+	return values
+}
+
+// normalizeKingbaseOraEmptyStr 把 query 段中 ora_input_emptystr_isnull 的全部
+// 大小写变体收敛为单个小写键：仅在唯一键、唯一取值且非空时原样保留
+// （Gokb 会整体丢弃空值参数，等价于未携带，须补为 off）；否则（未携带、
+// 空值、重复携带或多个大小写变体）统一改写为单一 off，避免多个变体共存时
+// 由驱动按 map 顺序随机生效。=on 类取值由 OpenKingbaseGorm 在归一化前拒绝。
+func normalizeKingbaseOraEmptyStr(u *url.URL) string {
 	query := u.Query()
-	query.Set(param, "off")
+	values := kingbaseGUCValues(query, kingbaseOraEmptyStrParam)
+	if len(values) == 1 && values[0] != "" {
+		return u.String()
+	}
+	for k := range query {
+		if strings.EqualFold(k, kingbaseOraEmptyStrParam) {
+			query.Del(k)
+		}
+	}
+	query.Set(kingbaseOraEmptyStrParam, "off")
 	u.RawQuery = query.Encode()
 	return u.String()
 }

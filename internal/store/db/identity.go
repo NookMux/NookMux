@@ -17,8 +17,12 @@ type dbIdentity struct {
 
 func (id dbIdentity) String() string {
 	if id.Host == "" && id.Port == "" {
-		// openGauss 与 PostgreSQL 系（含金仓）身份由实例指纹标识，不含监听地址
+		// PostgreSQL 系（含金仓）身份由实例指纹标识，不含监听地址
 		return fmt.Sprintf("%s (instance=%s)", id.Database, id.ServerUUID)
+	}
+	if id.Host == "" {
+		// openGauss 身份 = 实例指纹 + 监听端口（不含连接路径地址）
+		return fmt.Sprintf("%s:%s (instance=%s)", id.Database, id.Port, id.ServerUUID)
 	}
 	return fmt.Sprintf("%s:%s/%s (uuid=%s)", id.Host, id.Port, id.Database, id.ServerUUID)
 }
@@ -46,17 +50,19 @@ func GetDBIdentity(db *gorm.DB, dbType string) (dbIdentity, error) {
 func getOpenGaussIdentity(db *gorm.DB) (dbIdentity, error) {
 	// openGauss 内核无 pg_control_system()/system_identifier，以
 	// pg_postmaster_start_time() 的 epoch 作为实例指纹：epoch 是绝对时间，
-	// 同一实例的任意连接恒返回同一值（不受连接地址族与会话时区影响），
-	// 不同实例的启动时刻几乎必异。身份仅由实例指纹 + 数据库名构成：
-	// inet_server_addr()/inet_server_port() 描述的是连接路径而非实例
-	// （同一实例双栈监听时 v4/v6 连接取值不同，unix socket 下为 NULL），
-	// 不参与同库判定。
+	// 同一实例的任意连接在未重启期间恒返回同一值（不受连接地址族与会话
+	// 时区影响）。指纹另附 inet_server_port() 监听端口：同批编排可能拉起
+	// 启动时刻相同的不同实例，端口可区分绝大多数此类实例；inet_server_addr()
+	// 描述的是连接路径而非实例（同一实例双栈监听时 v4/v6 取值不同，unix
+	// socket 下为 NULL），不参与同库判定。启动时刻随实例重启变化的问题由
+	// checkNotSameDB 在校验期间复检源库身份兜底。
 	var dbName, fingerprint string
-	row := db.Raw("SELECT current_database(), extract(epoch from pg_postmaster_start_time())").Row()
-	if err := row.Scan(&dbName, &fingerprint); err != nil {
+	var port sql.NullString
+	row := db.Raw("SELECT current_database(), extract(epoch from pg_postmaster_start_time()), inet_server_port()").Row()
+	if err := row.Scan(&dbName, &fingerprint, &port); err != nil {
 		return dbIdentity{}, fmt.Errorf("获取 openGauss 连接标识失败：%w", err)
 	}
-	return dbIdentity{Database: dbName, ServerUUID: fingerprint}, nil
+	return dbIdentity{Port: port.String, Database: dbName, ServerUUID: fingerprint}, nil
 }
 
 func getPostgresIdentity(db *gorm.DB) (dbIdentity, error) {

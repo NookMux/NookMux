@@ -93,18 +93,3 @@ func EnsureMySQLParseTime(dsn string) string {
 	}
 	return dsn + "?parseTime=true"
 }
-
-// DSNQueryParam 返回 URL 形式 DSN query 段中指定参数的首个值与是否显式
-// 携带。仅解析 query 段，不受 userinfo/口令/主机中同名字符串干扰；形如
-// ?key= 的空值参数视为携带、值为空。
-func DSNQueryParam(dsn string, key string) (string, bool) {
-	u, err := url.Parse(dsn)
-	if err != nil {
-		return "", false
-	}
-	values := u.Query()[key]
-	if len(values) == 0 {
-		return "", false
-	}
-	return values[0], true
-}

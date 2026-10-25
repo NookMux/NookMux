@@ -53,8 +53,8 @@ func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64, da
 
 func rankingBucketExpr(bucketSize int64, dayOffset int64) string {
 	// 整数除法是否向零截断由 infradb.IntegerDivisionTruncates 集中声明：
-	// MySQL/openGauss/DM/KingbaseES 不截断（返回小数），需 FLOOR 对齐桶边界；
-	// PostgreSQL/SQLite 截断，可直接整除。
+	// MySQL/openGauss/KingbaseES 不截断（返回小数），需 FLOOR 对齐桶边界；
+	// PostgreSQL/SQLite/DM 截断，可直接整除。
 	useFloorDivision := !infradb.IntegerDivisionTruncates()
 	if dayOffset != 0 && bucketSize%86400 == 0 {
 		// 天级及以上桶按指定偏移切分，使桶边界落在目标时区的自然日 00:00。

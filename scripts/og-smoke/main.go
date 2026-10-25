@@ -11,6 +11,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -145,7 +146,9 @@ func main() {
 	step("1b 错误口令被拒绝(负向)", func() error {
 		u, err := url.Parse(dsn)
 		if err != nil {
-			return fmt.Errorf("解析 DSN: %w", err)
+			// url.Parse 的错误原文内嵌整条 DSN（含口令），随 FAIL 行打印会
+			// 泄漏凭据，不回显原文。
+			return errors.New("解析 OG_SMOKE_DSN 失败：URL 不合法（常见原因：口令未按 URL 规则 percent-encode，如 %2 应为 %2F）")
 		}
 		if u.Scheme != "opengauss" || u.User == nil {
 			return fmt.Errorf("OG_SMOKE_DSN 须为 opengauss://user:pass@host:port/db 形式的 URL DSN")

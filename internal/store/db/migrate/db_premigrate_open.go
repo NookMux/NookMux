@@ -11,11 +11,31 @@ import (
 	"strings"
 )
 
+// migrateTargetMaxOpenConns 迁移目标库连接池上限：拷贝按表串行、按批
+// 事务写入，少量连接即可满足；收紧上限避免无界目标池叠加实例会话上限
+// （金仓默认 max_connections=100、DM 受 MAX_SESSIONS 约束）在迁移期间挤占
+// 线上会话。
+const migrateTargetMaxOpenConns = 8
+
 func openDBByType(dsn string, dbType string) (*gorm.DB, error) {
 	dsn = strings.TrimSpace(dsn)
 	if dsn == "" {
 		return nil, errors.New("DSN 不能为空")
 	}
+	g, err := openDBByTypeUncapped(dsn, dbType)
+	if err != nil {
+		return nil, err
+	}
+	sqlDB, err := g.DB()
+	if err != nil {
+		_ = closeGormDB(g)
+		return nil, err
+	}
+	sqlDB.SetMaxOpenConns(migrateTargetMaxOpenConns)
+	return g, nil
+}
+
+func openDBByTypeUncapped(dsn string, dbType string) (*gorm.DB, error) {
 	switch dbType {
 	case db.DatabaseTypePostgreSQL:
 		return gorm.Open(postgres.New(postgres.Config{

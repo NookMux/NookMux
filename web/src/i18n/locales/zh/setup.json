@@ -28,7 +28,7 @@
   "setup.tips.postgreSqlOffersStrongReliabilityGuaranteesDoubleCheckYour": "PostgreSQL 提供强大的可靠性保证。在上线之前，请仔细检查您的维护窗口和保留策略。",
   "setup.fields.openGaussDetected": "检测到 openGauss",
   "setup.fields.damengDetected": "检测到达梦 DM8",
-  "setup.tips.damengRequiresCaseInsensitiveInstanceAnd": "达梦已准备就绪。请确保实例以 CASE_SENSITIVE=N 初始化（dminit 参数），且业务账号已授予 SELECT ANY DICTIONARY 权限。",
+  "setup.tips.damengRequiresCaseInsensitiveInstanceAnd": "达梦已准备就绪。请确保实例以 CASE_SENSITIVE=N 初始化（dminit 参数）、运行于 DM 原生模式（COMPATIBLE_MODE=0，dm.ini 参数），且业务账号已授予 SELECT ANY DICTIONARY 权限。",
   "setup.fields.kingbaseDetected": "检测到金仓 KingbaseES",
   "setup.tips.kingbaseRequiresOracleCompatibleInstanceAnd": "金仓已准备就绪。请确保实例为 Oracle 兼容模式且未开启 enable_ci（大小写不敏感），DSN 使用 kingbase:// 前缀，口令按 URL 规则 percent-encode。",
   "setup.tips.openGaussRequiresTheTargetDatabaseCreatedWith": "openGauss 已准备就绪。请确保目标数据库以 DBCOMPATIBILITY='PG' 创建，并使用 openGauss 官方驱动的账号完成 sha256 认证。",

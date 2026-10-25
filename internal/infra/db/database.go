@@ -21,9 +21,10 @@ var UsingClickHouse = false
 var SQLitePath = "one-api.db?_busy_timeout=30000"
 
 // IntegerDivisionTruncates 报告当前主库的整数除法是否向零截断。
-// PostgreSQL/SQLite 截断；MySQL、openGauss、DM、金仓 KingbaseES 的整数除法
-// 返回非截断小数，依赖整除截断语义的 SQL（如用量排行时间分桶）必须改用
-// FLOOR 显式截断。接入新库时在此集中登记，消费点只读本谓词。
+// PostgreSQL/SQLite/DM 截断（DM8 原生模式实测 7/2=3、-7/2=-3，向零截断）；
+// MySQL、openGauss、金仓 KingbaseES 的整数除法返回非截断小数，依赖整除
+// 截断语义的 SQL（如用量排行时间分桶）必须改用 FLOOR 显式截断。接入新库
+// 时在此集中登记，消费点只读本谓词。
 func IntegerDivisionTruncates() bool {
-	return !UsingMySQL && !UsingOpenGauss && !UsingDM && !UsingKingbase
+	return !UsingMySQL && !UsingOpenGauss && !UsingKingbase
 }

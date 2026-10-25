@@ -20,14 +20,18 @@
     仅携带空值时补为 off，判定仅基于 DSN query 段），与
     SQLite/MySQL/PostgreSQL/openGauss/DM 的空串与 NULL 严格区分语义对齐，
     避免空串写入 NOT NULL 列失败与 `WHERE col = ''` 永远失配；DSN 显式携带
-    on 类取值时连接期直接拒绝。
+    on 类取值时连接期直接拒绝（GUC 名与 Gokb 参数解析均大小写不敏感、同名
+    参数后值覆盖，重复携带与大小写变体同样命中拒绝或收敛为单值；DSN URL
+    解析失败立即报错且不回显原文，不放行未归一化的连接）。
   - 实例要求：不得开启 `enable_ci`（实例级 initdb 选项，字符串比较大小写不敏感会使
     令牌密钥、用户名等等值比较跨大小写误匹配，连接时校验失败即拒绝启动）；未开启
     SSL 的实例 DSN 须显式 `sslmode=disable`（Gokb 默认 require 且无明文回退）。
   - 高并发部署建议：金仓默认 `max_connections=100`（实测 V9R2C016），主库与日志库
     两套连接池默认各 `SQL_MAX_OPEN_CONNS=1000`，须按实例会话上限调低，避免高峰
-    FATAL 53300 耗尽会话；Gokb 默认路径每条带参 SQL 需两次往返且无语句缓存，
-    生产部署建议开启 `SQL_PREPARE_STMT=true`。
+    FATAL 53300 耗尽会话（未显式设置时启动会对照实例会话上限输出告警）；Gokb
+    默认路径每条带参 SQL 需两次往返且无语句缓存，生产部署建议开启
+    `SQL_PREPARE_STMT=true` 并同步调大 `SQL_MAX_LIFETIME`（默认 60 秒的连接
+    轮换会周期性清空语句缓存）。
   - 方言分支适配：用量排行时间分桶纳入 FLOOR 截断分支（金仓整数除法不截断）；
     跨库预迁移支持金仓与 MySQL/PostgreSQL/openGauss/DM/SQLite 互迁，同类型迁移
     支持 KingbaseES → KingbaseES（实例身份校验复用 pg_control_system 实例指纹，
@@ -40,16 +44,19 @@
   非法字符前置校验），连接层使用 `godoes/gorm-dameng`
   v0.7.2（GORM 的 OnConflict 由其 Create 回调翻译为 MERGE INTO，自增主键经 IDENTITY
   列自动回填，显式插值后计数器自动跟随、迁移后无需重置）。
-  - 实例要求：以 CASE_SENSITIVE=N 初始化（连接时校验，不满足即启动失败），业务账号
-    授予 SELECT ANY DICTIONARY 权限（AutoMigrate 依赖 SYS 系统视图探测表结构）；
-    高并发部署建议按实例 dm.ini 的 MAX_SESSIONS 调低 SQL_MAX_OPEN_CONNS（默认
-    1000），避免高峰耗尽会话。
+  - 实例要求：以 CASE_SENSITIVE=N 初始化且运行于 COMPATIBLE_MODE=0（DM 原生
+    模式，dm.ini 服务器参数；适配与实机验证均基于原生模式完成，两项均连接时校验，
+    不满足即启动失败），业务账号授予 SELECT ANY DICTIONARY 权限（AutoMigrate
+    依赖 SYS 系统视图探测表结构）；高并发部署建议按实例 dm.ini 的 MAX_SESSIONS
+    调低 SQL_MAX_OPEN_CONNS（默认 1000，未显式设置时启动会对照实例会话上限输出
+    告警），避免高峰耗尽会话。
   - 字符串列按 VARCHAR(n CHAR) 字符口径建列，与其他数据库的长度语义对齐，避免中文
     在字节口径下意外截断。
-  - 方言分支适配：保留字列与渠道搜索/兑换码/充值单的列名引用在 DM 下走双引号；用量
-    排行时间分桶纳入 FLOOR 截断分支；跨库预迁移支持 DM 与 MySQL/PostgreSQL/openGauss/
-    SQLite 互迁，同类型迁移支持 DM → DM（含实例身份校验，基于 V$INSTANCE 实例指纹）；
-    目标库写入按批包裹事务，钉定达梦 IDENTITY_INSERT 的会话粘性并获得批级原子回滚。
+  - 方言分支适配：保留字列与渠道搜索/兑换码/充值单的列名引用在 DM 下走双引号；DM
+    整数除法向零截断（原生模式实测），用量排行时间分桶沿用整除分支；跨库预迁移支持
+    DM 与 MySQL/PostgreSQL/openGauss/SQLite 互迁，同类型迁移支持 DM → DM（含实例
+    身份校验，基于 V$INSTANCE 实例指纹）；目标库写入按批包裹事务，钉定达梦
+    IDENTITY_INSERT 的会话粘性并获得批级原子回滚。
   - 安装向导数据库类型展示新增 `dameng`（前端含 DM 检测提示与中英文文案）。
 
 - **openGauss 数据库支持**：新增 openGauss 7.0 作为原生后端数据库。DSN 以
@@ -101,6 +108,36 @@
   主机 IP 等不同地址连接会被误判为不同库，勾选覆盖目标库时可能清空正在服务的
   主库；unix socket 连接下身份探测还会因 NULL 扫描失败而阻断迁移。现身份仅由
   实例指纹（`pg_control_system().system_identifier`）+ 库名构成。
+- **同类型迁移的同库防护（openGauss）**：实例指纹取自 postmaster 启动时刻，
+  实例在校验窗口内重启/主备切换时前后指纹不一致，可能把同一库判为不同库而
+  绕过覆盖拦截；同批编排同秒拉起的不同实例也可能指纹相同被误拦。现指纹
+  附加 `inet_server_port()` 监听端口区分同秒实例，并在校验期间复检源库指纹，
+  变化即中止迁移要求重试。
+- **迁移目标库的遗留唯一约束清理**：预迁移/同类型迁移的目标库建表路径此前以
+  当前源库的全局旗标门控清理逻辑，源为 PG 系而目标为 MySQL 时会对目标库执行
+  PG 专有清理 SQL，源为 SQLite/MySQL 而目标为 PG 系时则漏清理；现按目标库
+  方言（Dialector.Name）门控。
+- **达梦 DSN 口令校验的切分规则**：校验器此前在含 query 的整串上定位 userinfo，
+  query 值携带 '@' 的合法 DSN 会被误报"口令包含 '?'"拒绝；现与驱动 parseDSN
+  对齐（先以最后一个 '?' 剥离 query，再按最后一个 '@' 切分 userinfo）。
+- **金仓 DSN 空串语义守卫**：`ora_input_emptystr_isnull=on` 硬拒绝此前只匹配
+  小写参数名的首个取值，GUC 名大小写不敏感与 Gokb 同名参数后值覆盖的语义可
+  被大写键或重复携带绕过；URL 解析失败也会被静默跳过归一化与拒绝。现按
+  大小写不敏感逐值检查全部取值，重复/大小写变体收敛为单一 off，解析失败
+  立即报错且不回显 DSN 原文。
+- **迁移链路连接资源**：迁移目标库连接此前不设连接池上限，可能叠加实例会话
+  上限（金仓默认 max_connections=100、DM 受 MAX_SESSIONS 约束）挤占线上会话，
+  现设固定上限；主库/日志库未显式设置 `SQL_MAX_OPEN_CONNS` 时，启动对照
+  金仓/DM 实例会话上限输出告警。openGauss/金仓未显式设置 `SQL_PREPARE_STMT`
+  时，启动输出语句缓存与 `SQL_MAX_LIFETIME` 的成对配置提示。
+- **存储层去重**：预迁移目标库的 AutoMigrate 模型清单直接复用 `mainDBModels`
+  单一清单（此前为逐项复制的第二份清单，漏同步会导致目标库静默少表丢数据）；
+  预迁移与同类型迁移共用的 PostgreSQL 系序列重置实现合并为单一函数。
+- **og-smoke 冒烟脚本**：DSN 解析失败的报错不再回显含口令的 URL 原文。
+- **文档与文案同步**：docker-compose.yml 补齐 DM/金仓示例 DSN 与建库前提
+  （含外部库主机名说明）；系统设置迁移能力文案（中英）补齐 DM/金仓的全部
+  方向；安装向导达梦提示补充 COMPATIBLE_MODE=0 前提；Mintlify 中英文档的
+  DM 口令规则与建库前提同步为终态口径。
 - 恢复误删的 .github 工作流（CI、Docker 镜像发布、dependabot、飞书通知）。
 
 ### Security

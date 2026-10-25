@@ -60,7 +60,7 @@ func runDBPreMigrateJobWithContext(ctx context.Context, job *DBPreMigrateJob, pa
 		}
 	}
 
-	if err := fixTargetAutoIncrement(job, targetType, targetMainDB, targetLogDB, needCloseLogDB, params.IncludeLogs); err != nil {
+	if err := resetPGFamilyTargetSequences(job, targetType, targetMainDB, targetLogDB, needCloseLogDB, params.IncludeLogs); err != nil {
 		return err
 	}
 
@@ -90,10 +90,19 @@ func prepareTargetMainDB(ctx context.Context, params DBPreMigrateStartParams, ta
 	return targetMainDB, nil
 }
 
-func fixTargetAutoIncrement(job *DBPreMigrateJob, targetType string, mainDB *gorm.DB, logDB *gorm.DB, logDBNeedClose bool, includeLogs bool) error {
-	// PostgreSQL 系内核（PG/openGauss/金仓）的序列不随显式主键插值前进，
-	// 拷贝迁移后必须 setval 重置；MySQL AUTO_INCREMENT 与 DM IDENTITY 自动
-	// 跟随显式插值，无需处理。
+// migrateJobRecorder 抽象预迁移与同类型迁移 job 的进度记录能力，使两个
+// runner 共享同一份 PostgreSQL 系序列重置实现。
+type migrateJobRecorder interface {
+	setStep(step string)
+	appendLog(line string)
+}
+
+// resetPGFamilyTargetSequences 对 PostgreSQL 系内核（PG/openGauss/金仓）
+// 目标库执行自增序列 setval 重置：其序列不随显式主键插值前进，拷贝迁移后
+// 必须修复，否则迁移完成后首次自增写入主键冲突；MySQL AUTO_INCREMENT 与
+// DM IDENTITY 自动跟随显式插值，无需处理。预迁移与同类型迁移两条链路
+// 共用本实现。
+func resetPGFamilyTargetSequences(job migrateJobRecorder, targetType string, mainDB *gorm.DB, logDB *gorm.DB, logDBNeedClose bool, includeLogs bool) error {
 	if targetType != infradb.DatabaseTypePostgreSQL && targetType != infradb.DatabaseTypeOpenGauss && targetType != infradb.DatabaseTypeKingbase {
 		return nil
 	}

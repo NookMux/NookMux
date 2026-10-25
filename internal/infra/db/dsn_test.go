@@ -148,28 +148,3 @@ func TestEnsureMySQLParseTime(t *testing.T) {
 		})
 	}
 }
-
-// TestDSNQueryParam 验证仅解析 URL DSN 的 query 段判定参数是否显式携带：
-// userinfo/口令中的同名字符串不构成携带，空值参数视为携带且值为空。
-func TestDSNQueryParam(t *testing.T) {
-	tests := []struct {
-		name    string
-		dsn     string
-		key     string
-		wantVal string
-		wantCar bool
-	}{
-		{name: "显式携带", dsn: "kingbase://system:p%40ss@127.0.0.1:54321/nookmux?sslmode=disable&ora_input_emptystr_isnull=off", key: "ora_input_emptystr_isnull", wantVal: "off", wantCar: true},
-		{name: "空值参数视为携带", dsn: "kingbase://system:pass@127.0.0.1:54321/nookmux?ora_input_emptystr_isnull=", key: "ora_input_emptystr_isnull", wantVal: "", wantCar: true},
-		{name: "口令同名子串不算携带", dsn: "kingbase://system:xxora_input_emptystr_isnull=y@127.0.0.1:54321/nookmux", key: "ora_input_emptystr_isnull", wantVal: "", wantCar: false},
-		{name: "未携带", dsn: "kingbase://system:pass@127.0.0.1:54321/nookmux", key: "sslmode", wantVal: "", wantCar: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotVal, gotCar := DSNQueryParam(tt.dsn, tt.key)
-			if gotCar != tt.wantCar || gotVal != tt.wantVal {
-				t.Fatalf("DSNQueryParam(%q, %q) = (%q, %v), 期望 (%q, %v)", tt.dsn, tt.key, gotVal, gotCar, tt.wantVal, tt.wantCar)
-			}
-		})
-	}
-}

@@ -99,6 +99,7 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 		}), newGormConfig())
 	case db.DatabaseTypeOpenGauss:
 		common.SysLog("using openGauss as database")
+		logStmtCacheHint("openGauss")
 		if !isLog {
 			// openGauss 为 PG 兼容内核，方言行为归入 PostgreSQL 家族；
 			// 需要区分具体产品处使用 UsingOpenGauss 判断。
@@ -130,6 +131,7 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 		return OpenDMGorm(dsn, newGormConfig())
 	case db.DatabaseTypeKingbase:
 		common.SysLog("using KingbaseES (金仓) as database")
+		logStmtCacheHint("KingbaseES")
 		if !isLog {
 			// 金仓 KingbaseES 为 PG 兼容内核，方言行为归入 PostgreSQL 家族；
 			// 需要区分具体产品处使用 UsingKingbase 判断。
@@ -142,6 +144,17 @@ func ChooseDB(envName string, isLog bool) (*gorm.DB, error) {
 	default:
 		return nil, fmt.Errorf("未知数据库类型: %s", dbType)
 	}
+}
+
+// logStmtCacheHint 对点查吞吐高度依赖语句缓存的方言（openGauss/金仓）输出
+// 一次性配置提示：未显式设置 SQL_PREPARE_STMT 时建议开启，并成对提醒
+// SQL_MAX_LIFETIME——默认 60 秒的连接轮换会周期性清空语句缓存（重连还
+// 携带 openGauss 私有握手），开启缓存时应同步调大生命周期。
+func logStmtCacheHint(product string) {
+	if os.Getenv("SQL_PREPARE_STMT") != "" {
+		return
+	}
+	common.SysLog(fmt.Sprintf("提示：%s 点查吞吐对语句缓存敏感（默认关闭时点查约慢 2.7 倍），生产部署建议设置 SQL_PREPARE_STMT=true；开启时建议同步调大 SQL_MAX_LIFETIME（如 1800），避免默认 60 秒连接轮换使语句缓存周期性失效", product))
 }
 
 // newGormConfig 构建统一的 GORM 配置。

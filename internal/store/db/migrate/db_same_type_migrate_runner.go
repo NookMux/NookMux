@@ -82,7 +82,7 @@ func runDBSameTypeMigrateJobWithContext(ctx context.Context, job *DBSameTypeMigr
 	}
 
 	// PostgreSQL 序列修复
-	if err := fixSameTypeTargetAutoIncrement(job, targetType, targetMainDB, targetLogDB, needCloseLogDB, params.IncludeLogs); err != nil {
+	if err := resetPGFamilyTargetSequences(job, targetType, targetMainDB, targetLogDB, needCloseLogDB, params.IncludeLogs); err != nil {
 		return err
 	}
 
@@ -97,6 +97,17 @@ func checkNotSameDB(job *DBSameTypeMigrateJob, src *gorm.DB, dst *gorm.DB, dbTyp
 	dstID, dstErr := dbstore.GetDBIdentity(dst, dbType)
 	if srcErr != nil || dstErr != nil {
 		return fmt.Errorf("无法校验目标%s与源%s是否相同：源=%v 目标=%v（身份校验失败时拒绝继续，以防止误操作）", label, label, srcErr, dstErr)
+	}
+	// 源库身份复检：openGauss 的实例指纹取自 postmaster 启动时刻，若实例
+	// 在两次探测之间重启/主备切换，前后源指纹会不一致——此时目标指纹同样
+	// 取自新周期，"不同指纹"不再能证明是两个库，继续迁移可能覆盖正在服务
+	// 的库；一律中止并要求重新发起。
+	srcID2, srcErr2 := dbstore.GetDBIdentity(src, dbType)
+	if srcErr2 != nil {
+		return fmt.Errorf("复检源%s实例标识失败：%v（身份校验失败时拒绝继续，以防止误操作）", label, srcErr2)
+	}
+	if srcID2 != srcID {
+		return fmt.Errorf("源%s实例标识在校验期间发生变化（源=%s 复检=%s，疑似实例重启或主备切换），为避免误判请重新发起迁移", label, srcID.String(), srcID2.String())
 	}
 	if srcID == dstID {
 		return fmt.Errorf("目标%s与当前源%s是同一个数据库（源=%s 目标=%s），禁止迁移以避免数据被覆盖",
@@ -239,30 +250,5 @@ func runSameTypeCopyStep(ctx context.Context, job *DBSameTypeMigrateJob, step db
 		job.setTableProgress(t.Name, t.Copied, t.Total)
 	}
 	job.appendLog(fmt.Sprintf("[%s] 迁移表 %s 完成", time.Now().Format(time.RFC3339), step.Name()))
-	return nil
-}
-
-func fixSameTypeTargetAutoIncrement(job *DBSameTypeMigrateJob, targetType string, mainDB *gorm.DB, logDB *gorm.DB, logDBNeedClose bool, includeLogs bool) error {
-	// PostgreSQL 系内核（PG/openGauss/金仓）的序列不随显式主键插值前进，
-	// 拷贝迁移后必须 setval 重置；MySQL AUTO_INCREMENT 与 DM IDENTITY 自动
-	// 跟随显式插值，无需处理。
-	if targetType != infradb.DatabaseTypePostgreSQL && targetType != infradb.DatabaseTypeOpenGauss && targetType != infradb.DatabaseTypeKingbase {
-		return nil
-	}
-
-	job.setStep("修复 PostgreSQL/openGauss/KingbaseES 自增序列")
-	updated, err := resetPostgresOwnedSequences(mainDB)
-	if err != nil {
-		return fmt.Errorf("修复 PostgreSQL 系自增序列失败：%w", err)
-	}
-	job.appendLog(fmt.Sprintf("[%s] 目标主库自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
-
-	if includeLogs && logDBNeedClose {
-		updated, err := resetPostgresOwnedSequences(logDB)
-		if err != nil {
-			return fmt.Errorf("修复 PostgreSQL 系(日志库) 自增序列失败：%w", err)
-		}
-		job.appendLog(fmt.Sprintf("[%s] 目标日志库自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
-	}
 	return nil
 }

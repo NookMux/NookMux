@@ -31,6 +31,10 @@ import (
 //     GORM 以双引号小写标识符建表，而项目内手写的 WHERE/ORDER 条件多为
 //     不带引号的标识符，CASE_SENSITIVE=Y 的库会把后者解析为大写列名导致
 //     "无效的列名"错误；
+//   - 实例必须运行于 COMPATIBLE_MODE=0（DM 原生模式，dm.ini 服务器参数），
+//     并在连接时校验：适配与实机验证均基于原生模式完成，Oracle/MySQL 等
+//     兼容模式会改变内核语法与语义（整数除法、空串、标识符解析、MERGE
+//     行为），属未验证路径；
 //   - 业务用户需要 SELECT ANY DICTIONARY 权限：gorm-dameng 的 Migrator
 //     通过 SYS.SYSOBJECTS/SYSCOLUMNS 系统视图探测表结构，无该权限时
 //     AutoMigrate 的 HasTable 会静默判否并重复建表。
@@ -62,17 +66,54 @@ func OpenDMGorm(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
 		_ = closeDB(gormDB)
 		return nil, fmt.Errorf("达梦实例为 CASE_SENSITIVE=Y（大小写敏感），NookMux 需要以 CASE_SENSITIVE=N 初始化的实例（dminit ... CASE_SENSITIVE=N），请重建实例或切换到符合要求的库")
 	}
+	var compatMode string
+	if err := gormDB.Raw("SELECT PARA_VALUE FROM V$DM_INI WHERE PARA_NAME = 'COMPATIBLE_MODE'").Row().Scan(&compatMode); err != nil {
+		_ = closeDB(gormDB)
+		return nil, fmt.Errorf("读取达梦 COMPATIBLE_MODE 配置失败: %w", err)
+	}
+	if compatMode != "0" {
+		_ = closeDB(gormDB)
+		return nil, fmt.Errorf("达梦实例 COMPATIBLE_MODE=%s（%s），NookMux 适配并验证的是 DM 原生模式（COMPATIBLE_MODE=0）：请在 dm.ini 中将 COMPATIBLE_MODE 置 0 并重启实例，或切换到符合要求的库", compatMode, dmCompatModeName(compatMode))
+	}
 	return gormDB, nil
 }
 
+// dmCompatModeName 返回 COMPATIBLE_MODE 取值对应的兼容模式名（仅用于
+// 报错提示；0 为 DM 原生，无兼容目标）。
+func dmCompatModeName(mode string) string {
+	switch mode {
+	case "1":
+		return "SQL92 兼容"
+	case "2":
+		return "Oracle 兼容"
+	case "3":
+		return "SQL Server 兼容"
+	case "4":
+		return "MySQL 兼容"
+	case "5":
+		return "DM6 兼容"
+	case "6":
+		return "Teradata 兼容"
+	case "7":
+		return "PostgreSQL 兼容"
+	case "8":
+		return "DB2 兼容"
+	default:
+		return "未知模式"
+	}
+}
+
 // validateDMDsnPassword 在建立连接前校验 dm:// DSN 用户名/口令中的非法
-// 字符，切分规则与驱动 parseDSN（dm8/n.go）一致：去掉 dm:// 前缀后，
-// userinfo 与主机按最后一个 '@' 切分，userinfo 中第一个 ':' 之后的全部
-// 内容为口令。
+// 字符，切分规则与驱动 parseDSN（dm8/n.go）一致：去掉 dm:// 前缀后，先以
+// 最后一个 '?' 剥离 query 段，再对剩余 URL 段按最后一个 '@' 切分 userinfo
+// （query 值中的 '@' 不参与切分），userinfo 中第一个 ':' 之后的全部内容
+// 为口令。
 //
-//   - userinfo 区间包含 '?' 时报错：驱动以整个 DSN 的最后一个 '?' 切分
-//     query 参数，口令携带 '?' 无法与"口令被截断"的形态区分（其后没有
-//     真正 query 参数时必然截断，导致静默认证失败或整体解析错误）；
+//   - 剥离 query 后的 URL 段中包含 '?' 时报错：口令携带 '?' 且其后存在
+//     真正 query 参数时，最后一个 '?' 作为 query 起始、口令中的 '?' 残留
+//     在 userinfo，会被当作口令字面值送认证（静默失败）；口令含 '?' 而
+//     无 query 参数时，'?' 即 query 起始，userinfo 被截断后无 '@'，由驱动
+//     以 DSN_INVALID_FORMAT 报错暴露；
 //   - ':' 与 '@' 对口令安全（第一个 ':' 之后、最后一个 '@' 之前全为
 //     口令），放行；
 //   - '%' 可能是口令字面值，也可能是用户按 URL 习惯 percent-encode 的
@@ -86,13 +127,18 @@ func validateDMDsnPassword(dsn string) error {
 		return nil
 	}
 	body := dsn[len(scheme):]
+	if qi := strings.LastIndex(body, "?"); qi >= 0 {
+		body = body[:qi]
+	}
 	ai := strings.LastIndex(body, "@")
 	if ai == -1 {
-		return nil
+		// 剥离 query 后已无 '@'：最后一个 '?' 必然落在 userinfo/主机段内，
+		// 典型形态是口令含 '?' 且 DSN 无真正 query（'?' 吞掉了主机段）。
+		return errors.New("达梦 DSN 的用户名/口令包含非法字符 '?'：驱动解析 DSN 时不做 percent-decode，以最后一个 '?' 作为 query 参数起始，口令携带该字符时会被截断或当作字面值送认证；dm:// 口令须按字面值写入（不要 percent-encode），请改用不含 '?' 的口令")
 	}
 	userInfo := body[:ai]
 	if strings.Contains(userInfo, "?") {
-		return errors.New("达梦 DSN 的用户名/口令包含非法字符 '?'：驱动解析 DSN 时不做 percent-decode，以 '?' 作为 query 参数起始，口令携带该字符会被截断导致静默认证失败；dm:// 口令须按字面值写入（不要 percent-encode），请改用不含 '?' 的口令")
+		return errors.New("达梦 DSN 的用户名/口令包含非法字符 '?'：驱动解析 DSN 时不做 percent-decode，以最后一个 '?' 作为 query 参数起始，口令携带该字符时会被截断或当作字面值送认证；dm:// 口令须按字面值写入（不要 percent-encode），请改用不含 '?' 的口令")
 	}
 	_, password, hasColon := strings.Cut(userInfo, ":")
 	if !hasColon {

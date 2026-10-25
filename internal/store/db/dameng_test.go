@@ -80,8 +80,8 @@ func TestNormalizeDMBoolDefaultLiterals(t *testing.T) {
 }
 
 // TestValidateDMDsnPassword 校验 dm:// DSN 口令的前置拦截规则，口令提取
-// 逻辑对齐驱动 parseDSN（最后一个 '?' 切 query、最后一个 '@' 切 userinfo、
-// 第一个 ':' 后全为口令）。
+// 逻辑对齐驱动 parseDSN（最后一个 '?' 剥离 query、剩余 URL 段最后一个 '@'
+// 切 userinfo、第一个 ':' 后全为口令），query 值中的 '@' 不参与切分。
 func TestValidateDMDsnPassword(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -93,10 +93,11 @@ func TestValidateDMDsnPassword(t *testing.T) {
 		{name: "口令以冒号开头", dsn: "dm://user::pass@127.0.0.1:5236"},
 		{name: "口令含@", dsn: "dm://user:p@ss@127.0.0.1:5236"},
 		{name: "口令含中文", dsn: "dm://user:中文口令@127.0.0.1:5236"},
+		{name: "query 值含 @（先剥离 query 再切 '@'，不受干扰）", dsn: "dm://nookmux:pwd@10.0.0.1:5236?schema=A@B"},
 		{name: "口令含%（可能是字面值，仅告警不拦截）", dsn: "dm://user:p%40ss@127.0.0.1:5236"},
-		{name: "口令含?且DSN无query参数（驱动会把口令截断为 query）", dsn: "dm://user:pa?ss@127.0.0.1:5236", wantErr: true},
-		// 驱动按最后一个 '?' 切 query 时该形态恰好可解析出口令，但正确性
-		// 依赖 DSN 整体形状，前置校验一律拦截。
+		{name: "口令含?且DSN无query参数（'?'吞掉主机段，直接拦截）", dsn: "dm://user:pa?ss@127.0.0.1:5236", wantErr: true},
+		// 驱动按最后一个 '?' 剥离 query 后，userinfo 中残留的 '?' 会被当作
+		// 口令字面值送认证，一律拦截。
 		{name: "口令含?且DSN带query参数", dsn: "dm://user:pa?ss@127.0.0.1:5236?schema=USER", wantErr: true},
 		{name: "未携带口令（交由服务器认证暴露）", dsn: "dm://user@127.0.0.1:5236"},
 		{name: "非dm前缀（交由驱动 parseDSN 报错）", dsn: "mysql://user:pa?ss@127.0.0.1:3306/db"},
