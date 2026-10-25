@@ -57,6 +57,14 @@
   并新增缓存命中率、低峰期用量占比、Tokens 总数、日均 Tokens 四项汇总卡片
   （含环比趋势展示）。
 
+- **依赖批量升级**：合并 dependabot 全量依赖更新。Go：`shopspring/decimal`
+  1.6.0、`aws-sdk-go-v2/credentials` 1.20.9、`gin-contrib/cors` 1.7.9、
+  `Calcium-Ion/go-epay` 0.0.5、`grafana/pyroscope-go` 1.4.3；web：`react`
+  19.3.1 与 `@types/react` 19.3.0、`ai` 7.0.148、`i18next` 26.5.4、
+  `react-day-picker` 10.0.2、`@tanstack/react-query-devtools` 5.104.5，并
+  联动升级 `@tanstack/react-query` 至 5.104.5 以满足 devtools 的 peer 版本
+  要求（TanStack 官方要求两者同版本）。
+
 ### Fixed
 
 - 恢复误删的 .github 工作流（CI、Docker 镜像发布、dependabot、飞书通知）。
