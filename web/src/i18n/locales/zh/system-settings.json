@@ -637,7 +637,7 @@
   "systemSettings.actions.switchAffinityOnSuccess": "成功后切换亲和",
   "systemSettings.actions.switchToJson": "切换到 JSON",
   "systemSettings.actions.switchToVisual": "切换到可视化",
-  "systemSettings.titles.behavior": "系统行为",
+  "systemSettings.titles.behavior": "自动重试",
   "systemSettings.titles.information": "系统信息",
   "systemSettings.titles.memory": "系统内存",
   "systemSettings.titles.memoryStats": "系统内存统计",

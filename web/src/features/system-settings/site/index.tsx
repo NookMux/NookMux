@@ -38,6 +38,7 @@ const defaultSiteSettings: SiteSettings = {
   'general_setting.token_key_prefix': 'sk-',
   HeaderNavModules: '',
   SidebarModulesAdmin: '',
+  DefaultCollapseSidebar: false,
 }
 
 export function SiteSettings() {

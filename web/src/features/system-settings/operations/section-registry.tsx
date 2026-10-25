@@ -37,7 +37,6 @@ const OPERATIONS_SECTIONS = [
           RetryTimes: settings.RetryTimes,
           AutomaticRetryEnabled: settings.AutomaticRetryEnabled,
           AutomaticRetryStatusCodes: settings.AutomaticRetryStatusCodes,
-          DefaultCollapseSidebar: settings.DefaultCollapseSidebar,
         }}
       />
     ),

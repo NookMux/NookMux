@@ -33,6 +33,7 @@ import {
   SettingsForm,
   SettingsSwitchContent,
   SettingsControlGroup,
+  SettingsSwitchField,
   SettingsSwitchItem,
 } from '../components/settings-form-layout'
 import { SettingsPageFormActions } from '../components/settings-page-context'
@@ -48,6 +49,7 @@ import {
 type SidebarModulesSectionProps = {
   config: SidebarModulesAdminConfig
   initialSerialized: string
+  defaultCollapseSidebar: boolean
 }
 
 type SidebarFormValues = SidebarModulesAdminConfig
@@ -58,6 +60,7 @@ const toTitleCase = (value: string) =>
 export function SidebarModulesSection({
   config,
   initialSerialized,
+  defaultCollapseSidebar,
 }: SidebarModulesSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
@@ -248,6 +251,19 @@ export function SidebarModulesSection({
 
   return (
     <SettingsSection title={t('systemSettings.fields.sidebarModules')}>
+      <SettingsSwitchField
+        checked={defaultCollapseSidebar}
+        onCheckedChange={(checked) =>
+          updateOption.mutate({
+            key: 'DefaultCollapseSidebar',
+            value: checked,
+          })
+        }
+        label={t('systemSettings.fields.defaultCollapseSidebar')}
+        description={t(
+          'systemSettings.tips.sidebarCollapsedByDefaultForNewUsers'
+        )}
+      />
       <Form {...form}>
         <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
           <SettingsPageFormActions

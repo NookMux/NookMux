@@ -165,6 +165,7 @@ export type SiteSettings = {
   'general_setting.token_key_prefix': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
+  DefaultCollapseSidebar: boolean
 }
 
 export type AuthSettings = {
@@ -300,7 +301,6 @@ export type BillingSettings = {
 export type OperationsSettings = {
   RetryTimes: number
   AutomaticRetryEnabled: boolean
-  DefaultCollapseSidebar: boolean
   ChannelDisableThreshold: string
   QuotaRemindThreshold: string
   AutomaticDisableChannelEnabled: boolean

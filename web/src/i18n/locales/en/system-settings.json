@@ -637,7 +637,7 @@
   "systemSettings.actions.switchAffinityOnSuccess": "Switch affinity on success",
   "systemSettings.actions.switchToJson": "Switch to JSON",
   "systemSettings.actions.switchToVisual": "Switch to Visual",
-  "systemSettings.titles.behavior": "System Behavior",
+  "systemSettings.titles.behavior": "Automatic Retry",
   "systemSettings.titles.information": "System Information",
   "systemSettings.titles.memory": "System Memory",
   "systemSettings.titles.memoryStats": "System Memory Stats",
