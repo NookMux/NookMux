@@ -51,19 +51,15 @@ func OpenDMGorm(dsn string, cfg *gorm.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 	// 校验失败分支必须关闭底层连接池再返回：预迁移是管理端 HTTP 运行时
-	// 可反复触发的动作，句柄不关闭会持续泄漏；关闭失败以主错误为准。
-	closeDB := func() {
-		if sqlDB, dbErr := gormDB.DB(); dbErr == nil {
-			_ = sqlDB.Close()
-		}
-	}
+	// 可反复触发的动作，句柄不关闭会持续泄漏；关闭失败以主错误为准
+	// （复用包级 closeDB）。
 	var caseSensitive int
 	if err := gormDB.Raw("SELECT SF_GET_CASE_SENSITIVE_FLAG()").Row().Scan(&caseSensitive); err != nil {
-		closeDB()
+		_ = closeDB(gormDB)
 		return nil, fmt.Errorf("读取达梦 CASE_SENSITIVE 标志失败: %w", err)
 	}
 	if caseSensitive != 0 {
-		closeDB()
+		_ = closeDB(gormDB)
 		return nil, fmt.Errorf("达梦实例为 CASE_SENSITIVE=Y（大小写敏感），NookMux 需要以 CASE_SENSITIVE=N 初始化的实例（dminit ... CASE_SENSITIVE=N），请重建实例或切换到符合要求的库")
 	}
 	return gormDB, nil

@@ -191,6 +191,17 @@ export function DatabaseStep({ status }: DatabaseStepProps) {
           </AlertDescription>
         </Alert>
       )}
+      {status?.database_type === 'kingbase' && (
+        <Alert className='border-sky-200 bg-sky-50 dark:border-sky-900/60 dark:bg-sky-950/40'>
+          <AlertTitle className='flex items-center gap-2'>
+            <Server className='size-4 text-sky-500' />
+            {t('setup.fields.kingbaseDetected')}
+          </AlertTitle>
+          <AlertDescription>
+            {t('setup.tips.kingbaseRequiresOracleCompatibleInstanceAnd')}
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   )
 }

@@ -16,15 +16,23 @@
   pg_catalog / information_schema 探测表结构），SQL 方言行为归入 PostgreSQL 家族
   （双引号标识符、小写折叠）。
   - Oracle 模式的空字符串即 NULL 语义（GUC `ora_input_emptystr_isnull`）在连接层
-    自动归一：连接建立时下发 `ora_input_emptystr_isnull=off` 启动参数，与
+    自动归一：连接建立时下发 `ora_input_emptystr_isnull=off` 启动参数（未携带或
+    仅携带空值时补为 off，判定仅基于 DSN query 段），与
     SQLite/MySQL/PostgreSQL/openGauss/DM 的空串与 NULL 严格区分语义对齐，
-    避免空串写入 NOT NULL 列失败与 `WHERE col = ''` 永远失配。
+    避免空串写入 NOT NULL 列失败与 `WHERE col = ''` 永远失配；DSN 显式携带
+    on 类取值时连接期直接拒绝。
   - 实例要求：不得开启 `enable_ci`（实例级 initdb 选项，字符串比较大小写不敏感会使
-    令牌密钥、用户名等等值比较跨大小写误匹配，连接时校验失败即拒绝启动）。
+    令牌密钥、用户名等等值比较跨大小写误匹配，连接时校验失败即拒绝启动）；未开启
+    SSL 的实例 DSN 须显式 `sslmode=disable`（Gokb 默认 require 且无明文回退）。
+  - 高并发部署建议：金仓默认 `max_connections=100`（实测 V9R2C016），主库与日志库
+    两套连接池默认各 `SQL_MAX_OPEN_CONNS=1000`，须按实例会话上限调低，避免高峰
+    FATAL 53300 耗尽会话；Gokb 默认路径每条带参 SQL 需两次往返且无语句缓存，
+    生产部署建议开启 `SQL_PREPARE_STMT=true`。
   - 方言分支适配：用量排行时间分桶纳入 FLOOR 截断分支（金仓整数除法不截断）；
     跨库预迁移支持金仓与 MySQL/PostgreSQL/openGauss/DM/SQLite 互迁，同类型迁移
-    支持 KingbaseES → KingbaseES（实例身份校验复用 pg_control_system 实例指纹）。
-  - 安装向导数据库类型展示新增 `kingbase`（前端含中英文文案）。
+    支持 KingbaseES → KingbaseES（实例身份校验复用 pg_control_system 实例指纹，
+    不含连接路径字段；迁移完成后自动重置目标自增序列）。
+  - 安装向导数据库类型展示新增 `kingbase`（前端含数据库步骤部署前提提示与中英文文案）。
 
 - **达梦 DM8 数据库支持**：新增达梦 DM8 作为原生后端数据库（Oracle 系内核，不依赖
   MySQL/Oracle 兼容模式）。DSN 以 `dm://` 前缀识别（达梦官方 Go 驱动原生支持的 URL
@@ -84,6 +92,11 @@
 
 ### Fixed
 
+- **同类型迁移的同库防护（PostgreSQL）**：连接标识此前把 `inet_server_addr()`/
+  `inet_server_port()` 连接路径字段计入身份比较，同一实例经 127.0.0.1/::1/
+  主机 IP 等不同地址连接会被误判为不同库，勾选覆盖目标库时可能清空正在服务的
+  主库；unix socket 连接下身份探测还会因 NULL 扫描失败而阻断迁移。现身份仅由
+  实例指纹（`pg_control_system().system_identifier`）+ 库名构成。
 - 恢复误删的 .github 工作流（CI、Docker 镜像发布、dependabot、飞书通知）。
 
 ### Security

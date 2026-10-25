@@ -29,6 +29,8 @@
   "setup.fields.openGaussDetected": "openGauss detected",
   "setup.fields.damengDetected": "Dameng DM8 detected",
   "setup.tips.damengRequiresCaseInsensitiveInstanceAnd": "Dameng is ready. Ensure the instance is initialized with CASE_SENSITIVE=N (dminit parameter) and the account is granted SELECT ANY DICTIONARY.",
+  "setup.fields.kingbaseDetected": "KingbaseES detected",
+  "setup.tips.kingbaseRequiresOracleCompatibleInstanceAnd": "KingbaseES is ready. Ensure the instance runs in Oracle compatibility mode with enable_ci disabled, connect with the kingbase:// DSN prefix, and percent-encode the password.",
   "setup.tips.openGaussRequiresTheTargetDatabaseCreatedWith": "openGauss is ready. Ensure the target database is created with DBCOMPATIBILITY='PG' and the account authenticates via the official driver's sha256 protocol.",
   "setup.fields.readyToInitialize": "Ready to initialize",
   "setup.tips.repeatTheAdministratorPassword": "Repeat the administrator password",

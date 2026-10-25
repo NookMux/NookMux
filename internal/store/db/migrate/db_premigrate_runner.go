@@ -91,23 +91,26 @@ func prepareTargetMainDB(ctx context.Context, params DBPreMigrateStartParams, ta
 }
 
 func fixTargetAutoIncrement(job *DBPreMigrateJob, targetType string, mainDB *gorm.DB, logDB *gorm.DB, logDBNeedClose bool, includeLogs bool) error {
-	if targetType != infradb.DatabaseTypePostgreSQL && targetType != infradb.DatabaseTypeOpenGauss {
+	// PostgreSQL 系内核（PG/openGauss/金仓）的序列不随显式主键插值前进，
+	// 拷贝迁移后必须 setval 重置；MySQL AUTO_INCREMENT 与 DM IDENTITY 自动
+	// 跟随显式插值，无需处理。
+	if targetType != infradb.DatabaseTypePostgreSQL && targetType != infradb.DatabaseTypeOpenGauss && targetType != infradb.DatabaseTypeKingbase {
 		return nil
 	}
 
-	job.setStep("修复 PostgreSQL/openGauss 自增序列")
+	job.setStep("修复 PostgreSQL/openGauss/KingbaseES 自增序列")
 	updated, err := resetPostgresOwnedSequences(mainDB)
 	if err != nil {
-		return fmt.Errorf("修复 PostgreSQL 自增序列失败：%w", err)
+		return fmt.Errorf("修复 PostgreSQL 系自增序列失败：%w", err)
 	}
-	job.appendLog(fmt.Sprintf("[%s] PostgreSQL 自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
+	job.appendLog(fmt.Sprintf("[%s] 目标主库自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
 
 	if includeLogs && logDBNeedClose {
 		updated, err := resetPostgresOwnedSequences(logDB)
 		if err != nil {
-			return fmt.Errorf("修复 PostgreSQL(日志库) 自增序列失败：%w", err)
+			return fmt.Errorf("修复 PostgreSQL 系(日志库) 自增序列失败：%w", err)
 		}
-		job.appendLog(fmt.Sprintf("[%s] PostgreSQL(日志库) 自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
+		job.appendLog(fmt.Sprintf("[%s] 目标日志库自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
 	}
 	return nil
 }

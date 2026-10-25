@@ -16,14 +16,31 @@ func TestGetDBIdentityUnsupportedType(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestDBIdentityString 验证身份的日志表示：带监听地址的身份（MySQL/
-// PostgreSQL）与仅含实例指纹的身份（openGauss）各自保持可读。
+// TestDBIdentityString 验证身份的日志表示：带监听地址的身份（MySQL）与
+// 仅含实例指纹的身份（openGauss/PostgreSQL 系）各自保持可读。
 func TestDBIdentityString(t *testing.T) {
 	withAddr := dbIdentity{Host: "db1", Port: "5432", Database: "nookmux", ServerUUID: "728479703360"}
 	assert.Equal(t, "db1:5432/nookmux (uuid=728479703360)", withAddr.String())
 
 	fingerprintOnly := dbIdentity{Database: "nookmux_pg", ServerUUID: "1792836225.7738"}
 	assert.Equal(t, "nookmux_pg (instance=1792836225.7738)", fingerprintOnly.String())
+}
+
+// TestPostgresIdentityConnectionPathIndependent 验证 PostgreSQL/金仓身份仅由
+// 实例指纹 + 库名构成（getPostgresIdentity 不采集 inet_server_addr()/
+// inet_server_port() 连接路径字段）：同一实例经 IPv4 与 IPv6 连接产出完全
+// 相等的 identity，不同实例或不同库产出不等。checkNotSameDB 以 == 比较
+// 身份，据此判定同库/不同库。
+func TestPostgresIdentityConnectionPathIndependent(t *testing.T) {
+	viaIPv4 := dbIdentity{Database: "nookmux", ServerUUID: "7700326314263102029"}
+	viaIPv6 := dbIdentity{Database: "nookmux", ServerUUID: "7700326314263102029"}
+	assert.Equal(t, viaIPv4, viaIPv6, "同一实例跨地址族连接必须判为同一个库")
+
+	otherInstance := dbIdentity{Database: "nookmux", ServerUUID: "7700326314263200000"}
+	assert.NotEqual(t, viaIPv4, otherInstance, "不同实例必须判为不同库")
+
+	otherDatabase := dbIdentity{Database: "nookmux_log", ServerUUID: "7700326314263102029"}
+	assert.NotEqual(t, viaIPv4, otherDatabase, "同实例的不同库必须判为不同库")
 }
 
 // TestOpenGaussIdentityConnectionPathIndependent 验证 openGauss 身份仅由

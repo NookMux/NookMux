@@ -42,6 +42,7 @@ const DATABASE_VARIANT: Record<
   postgres: 'success',
   opengauss: 'success',
   dameng: 'success',
+  kingbase: 'success',
 }
 
 export function CompleteStep({ status, values }: CompleteStepProps) {
