@@ -8,6 +8,8 @@
 # 前置条件:
 #   - 目标库需以 PG 兼容模式创建（openGauss 7.0）:
 #       CREATE DATABASE nookmux_pg DBCOMPATIBILITY 'PG';
+#   - openGauss 新库的 public schema 归初始用户所有（DB owner 亦无建表权限），
+#     须为 DSN 用户补授权: GRANT CREATE, USAGE ON SCHEMA public TO nookmux;
 #   - DSN 必须是 opengauss:// URL 形式；口令含特殊字符（@ : / ? # 等）时须 percent-encode，
 #     可用: python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=""))' '<口令>'；
 #   - 本机 openGauss 实例的安装与启动方式属环境特定（参考环境为单机安装于

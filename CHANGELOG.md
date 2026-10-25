@@ -148,6 +148,16 @@
 
 ### Security
 
+- **og-smoke 独立模块依赖安全升级**：GitHub Dependabot 在默认分支报出的 20 条
+  漏洞告警（8 critical / 5 high / 7 moderate）全部源于 scripts/og-smoke 的间接依赖
+  golang.org/x/crypto 被 openGauss connector（openGauss-connector-go-pq v1.0.9）
+  锁定在 2021-07 的 v0.0.0-20210711020723-a769d52b0f97，聚合了 2021–2026 年间
+  x/crypto 的全部已知 CVE（CVE-2024-45337 ssh 未授权访问、CVE-2023-48795
+  Terrapin、CVE-2021-43565、CVE-2022-27191 等）。显式升至与主模块一致的
+  v0.58.0（连带 x/sync v0.24.0、x/text v0.43.0），合入 main 后 20 条告警全部关闭；
+  官方 connector 的 SCRAM 认证路径与全部 17 项冒烟用例实测通过。同步补充
+  og-smoke.sh 前置条件：openGauss 新库 public schema 归初始用户所有，须为
+  连接用户执行 GRANT CREATE, USAGE ON SCHEMA public。
 - **web 依赖安全升级**：修复 CI 依赖审计（`bun audit --audit-level=high`）报出的
   3 个 high 级漏洞：
   - `zod` < 4.6.6 校验超大受限集合可耗尽内存
