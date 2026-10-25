@@ -103,6 +103,12 @@
 
 ### Fixed
 
+- **DM8 大文本列类型（跨库迁移矩阵）**：`options.value`、`channels.key/other/
+  models/other_info/settings`、`logs.content/other` 此前未声明列类型，PG 系
+  （PostgreSQL/openGauss/金仓）按方言默认建成无上限 TEXT，DM8 却按
+  VARCHAR(8188 CHAR) 建列（8188 字符上限），向 DM8 预迁移时超过 8188 字符的
+  option（如 ModelRatio 大型 JSON 配置）即报 `-6169 列长度超出定义` 失败。
+  现统一显式声明 `gorm:"type:text"`，六库均为无长度上限的大文本语义。
 - **同类型迁移的同库防护（PostgreSQL）**：连接标识此前把 `inet_server_addr()`/
   `inet_server_port()` 连接路径字段计入身份比较，同一实例经 127.0.0.1/::1/
   主机 IP 等不同地址连接会被误判为不同库，勾选覆盖目标库时可能清空正在服务的

@@ -37,6 +37,9 @@
 - 保留字列名（如 `group`、`key`）必须调用 `dbstore.CommonGroupCol` / `CommonKeyCol` / `LogGroupCol` 变量进行方言拼接，严禁手写反引号或双引号。
 - 布尔值、JSON 存取、类型转换与 ALTER 行为必须兼容各库方言差异。
 - JSON 数据统一以 `TEXT` 类型持久化，严禁引入缺乏跨库回退方案的专有类型（如 JSONB）。
+- 可超长大文本列（JSON 配置、多 Key 拼接、模型列表、日志正文等）必须显式声明
+  `gorm:"type:text"`，不得省略类型标签依赖各库方言默认值：PG 系默认建 TEXT，
+  DM8 却建 VARCHAR(8188 CHAR)（8188 字符上限），超长写入即失败。
 - SQLite 原生不支持 `ALTER COLUMN`，表结构演进必须采用追加新列或兼容转换模式。
 - openGauss 连接必须走官方 connector（`gitcode.com/opengauss/openGauss-connector-go-pq`，私有 sha256 认证与 pgx/libpq 不兼容），DSN 以 `opengauss://` 前缀识别，目标库需以 `DBCOMPATIBILITY='PG'` 创建；其序列 `pg_class.relkind` 为 `'z'`（PostgreSQL 为 `'S'`），整数除法返回 double precision 不截断（时间分桶等截断语义需 `FLOOR`）。openGauss 连接无法使用 postgres 方言的简单协议优化，点查吞吐对语句缓存更敏感，生产部署建议开启 `SQL_PREPARE_STMT=true`（实测默认关闭时点查约慢 2.7 倍）并同步调大 `SQL_MAX_LIFETIME`（默认 60 秒的连接轮换会周期性清空语句缓存，openGauss 重连还携带私有握手）。
 - 达梦 DM8 连接使用 `github.com/godoes/gorm-dameng` 方言（内置达梦官方 Go 驱动；GORM 的 OnConflict 由其 Create 回调翻译为 MERGE INTO，仅当插入列包含全部主键时生效，否则降级普通 INSERT），DSN 以 `dm://` 前缀识别（驱动不做 percent-decode，口令按字面值写入且不得含 '?'，':'、'@' 可用）。目标实例必须以 CASE_SENSITIVE=N 初始化且运行于 COMPATIBLE_MODE=0（DM 原生模式，dm.ini 服务器参数；适配与实机验证均基于原生模式，兼容模式改变内核语义属未验证路径；两项均在连接时校验，不满足即拒绝启动），业务账号需 SELECT ANY DICTIONARY 权限（Migrator 依赖 SYS 系统视图探测表结构）。字符串列按 VARCHAR(n CHAR) 字符长度建列；IDENTITY 自增列显式插值后计数器自动跟随，迁移后无需重置；整数除法向零截断（原生模式实测 7/2=3），与 PostgreSQL 同走整除分桶分支；默认连接池上限 1000 需结合实例 dm.ini 的 MAX_SESSIONS 评估，未显式设置 SQL_MAX_OPEN_CONNS 时启动会对照实例会话上限输出告警，高并发场景建议显式调低，避免高峰耗尽会话。

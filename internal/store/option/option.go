@@ -19,8 +19,11 @@ import (
 )
 
 type Option struct {
-	Key   string `json:"key" gorm:"primaryKey"`
-	Value string `json:"value"`
+	Key string `json:"key" gorm:"primaryKey"`
+	// Value 显式 text：存储 ModelRatio 等大型 JSON 配置，跨库均为无长度上限的
+	// 大文本语义；省略类型声明时 DM8 会按方言默认建成 VARCHAR(8188 CHAR)，
+	// 大型配置超过 8188 字符即写入失败。
+	Value string `json:"value" gorm:"type:text"`
 }
 
 func AllOption() ([]*Option, error) {
