@@ -15,7 +15,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.63.4
 	github.com/aws/smithy-go v1.28.5
 	github.com/bytedance/gopkg v0.1.4
-	github.com/gin-contrib/cors v1.7.8
+	github.com/gin-contrib/cors v1.7.9
 	github.com/gin-contrib/gzip v1.2.8
 	github.com/gin-contrib/sessions v1.1.0
 	github.com/gin-contrib/static v1.1.8
