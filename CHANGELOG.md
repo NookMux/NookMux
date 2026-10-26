@@ -9,6 +9,17 @@
 
 ### Added
 
+- **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
+  端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
+  cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段
+  （`ResponseField`）逐项解析；字段名、类型、必填与默认值均对照后端源码
+  （绑定结构体、控制器响应组装）核实。回调类端点（Stripe Webhook、易支付
+  notify）按实际返回纯状态码/纯文本如实记录；个别偏离「HTTP 200 + success
+  包裹」约定的端点（`/api/usage/token/`、`/api/status/test` 等）亦逐一注明。
+  同时新增 4 个此前缺失的密钥类端点页（`POST /api/token/batch/keys`、
+  `POST|PUT /api/token/{id}/key`、`GET /api/redemption/{id}/key`），删除一页
+  陈旧文档：`GET /api/user/groups` 路由已不存在于后端与前端（真实端点
+  `GET /api/user/self/groups` 已有专属页面）。
 - **Stripe Webhook 密钥守卫回归测试**：为「未配置 `StripeWebhookSecret` 时
   webhook 直接 403 拒绝验签」的安全守卫补充 HTTP 层回归测试（对应
   928b28065 修复的空密钥伪造充值漏洞），同时钉住相邻边界——已配置密钥但
