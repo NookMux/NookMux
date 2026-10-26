@@ -16,8 +16,8 @@ import (
 	topupstore "github.com/NookMux/NookMux/internal/store/topup"
 	userstore "github.com/NookMux/NookMux/internal/store/user"
 	"github.com/gin-gonic/gin"
-	"github.com/stripe/stripe-go/v86"
-	"github.com/stripe/stripe-go/v86/webhook"
+	"github.com/stripe/stripe-go/v87"
+	"github.com/stripe/stripe-go/v87/webhook"
 	"github.com/thanhpk/randstr"
 )
 
@@ -154,9 +154,9 @@ func StripeWebhook(c *gin.Context) {
 	}
 
 	signature := c.GetHeader("Stripe-Signature")
-	event, err := webhook.ConstructEventWithOptions(payload, signature, config.StripeWebhookSecret, webhook.ConstructEventOptions{
-		IgnoreAPIVersionMismatch: true,
-	})
+	// 仅接受 endive（2026-09-30）版本事件：Stripe 控制台创建 webhook 端点时必须
+	// 选择该 API 版本，版本不匹配时验签直接拒绝并返回 400，暴露端点配置漂移。
+	event, err := webhook.ConstructEvent(payload, signature, config.StripeWebhookSecret)
 
 	if err != nil {
 		log.Printf("Stripe Webhook验签失败: %v\n", err)

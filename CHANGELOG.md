@@ -98,9 +98,11 @@
 ### Changed
 
 - **Stripe 支付合规升级与实付金额核对**：Stripe SDK 由 `stripe-go v81` 升级到
-  `v86.4.2`（API 版本随之升至 `2026-08-26.dahlia`），Stripe 客户端从已弃用的
+  `v87.0.0`（API 版本随之升至 `2026-09-30.endive`），Stripe 客户端从已弃用的
   全局 `stripe.Key` 模式迁移到 `stripe.NewClient` 实例（v2 调用风格，Checkout
-  Session 创建带 `integration_identifier` 追踪标签）；Webhook 入账前新增实付
+  Session 创建带 `integration_identifier` 追踪标签）；Webhook 验签执行严格
+  API 版本校验——Stripe 控制台创建 webhook 端点时必须选择 `2026-09-30.endive`，
+  版本不匹配的事件直接拒绝（400），暴露端点配置漂移。Webhook 入账前新增实付
   金额核对——`实付金额 + 促销折扣 == 数量 × StripeUnitPrice × 币种倍率`
   （零小数币种按主单位核对），Stripe Price 单价与 `StripeUnitPrice` 配置漂移时
   订单拒绝入账并返回 5xx 触发 Stripe 重投告警，杜绝"实收≠入账"的静默资损窗口。

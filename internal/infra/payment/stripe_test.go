@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/NookMux/NookMux/pkg/jsonx"
-	"github.com/stripe/stripe-go/v86"
+	"github.com/stripe/stripe-go/v87"
 )
 
 func TestVerifySessionAmount(t *testing.T) {
@@ -113,7 +113,7 @@ func TestStripeEventAmountFieldExtraction(t *testing.T) {
 	const payload = `{
 		"id": "evt_test",
 		"object": "event",
-		"api_version": "2026-08-26.dahlia",
+		"api_version": "2026-09-30.endive",
 		"data": {
 			"object": {
 				"id": "cs_test",
@@ -153,22 +153,22 @@ func TestAmountDiscountOfHandlesMissingOrNullTotalDetails(t *testing.T) {
 	}{
 		{
 			"total_details absent",
-			`{"id":"evt_1","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_1","object":"checkout.session","amount_total":8000}}}`,
+			`{"id":"evt_1","object":"event","api_version":"2026-09-30.endive","data":{"object":{"id":"cs_1","object":"checkout.session","amount_total":8000}}}`,
 			"",
 		},
 		{
 			"total_details null",
-			`{"id":"evt_2","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_2","object":"checkout.session","total_details":null}}}`,
+			`{"id":"evt_2","object":"event","api_version":"2026-09-30.endive","data":{"object":{"id":"cs_2","object":"checkout.session","total_details":null}}}`,
 			"",
 		},
 		{
 			"amount_discount null",
-			`{"id":"evt_3","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_3","object":"checkout.session","total_details":{"amount_discount":null}}}}`,
+			`{"id":"evt_3","object":"event","api_version":"2026-09-30.endive","data":{"object":{"id":"cs_3","object":"checkout.session","total_details":{"amount_discount":null}}}}`,
 			"",
 		},
 		{
 			"amount_discount number",
-			`{"id":"evt_4","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_4","object":"checkout.session","total_details":{"amount_discount":800}}}}`,
+			`{"id":"evt_4","object":"event","api_version":"2026-09-30.endive","data":{"object":{"id":"cs_4","object":"checkout.session","total_details":{"amount_discount":800}}}}`,
 			"800",
 		},
 	}
