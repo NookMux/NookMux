@@ -9,6 +9,10 @@
 
 ### Added
 
+- **Stripe Webhook 密钥守卫回归测试**：为「未配置 `StripeWebhookSecret` 时
+  webhook 直接 403 拒绝验签」的安全守卫补充 HTTP 层回归测试（对应
+  928b28065 修复的空密钥伪造充值漏洞），同时钉住相邻边界——已配置密钥但
+  无有效签名的请求返回 400，防止守卫在后续重构中被意外移除。
 - **金仓 KingbaseES 数据库支持**：新增人大金仓 KingbaseES（Oracle 兼容模式）作为
   原生后端数据库（PG 兼容内核）。DSN 以 `kingbase://` 前缀识别（金仓官方 Gokb
   驱动原生支持的 URL scheme，口令按标准 URL 规则 percent-encode），连接层使用
