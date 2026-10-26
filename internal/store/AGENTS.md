@@ -36,7 +36,7 @@
 - 原始 SQL 必须严格参数化，禁止通过字符串拼接外部输入。
 - 保留字列名（如 `group`、`key`）必须调用 `dbstore.CommonGroupCol` / `CommonKeyCol` / `LogGroupCol` 变量进行方言拼接，严禁手写反引号或双引号。
 - 布尔值、JSON 存取、类型转换与 ALTER 行为必须兼容各库方言差异。
-- JSON 数据统一以 `TEXT` 类型持久化，严禁引入缺乏跨库回退方案的专有类型（如 JSONB）。
+- JSON 列持久化按数据形态二选一并显式声明：自由形态 JSON 文本（配置、运行时拼装键值等）统一 `gorm:"type:text"`；结构化 JSON 对象（Go 结构体或自定义类型整体序列化，如 `channels.channel_info`、`prefill_groups.items`）用 `gorm:"type:json"`——`JSON` 类型六库可用（MySQL / PostgreSQL / openGauss 原生支持，DM8 支持 JSON 列，金仓底层按 jsonb 处理，SQLite 宽松类型直接接收）。严禁 `JSONB` 等 PG 专有变体及其他缺乏跨库等价物的类型。
 - 可超长大文本列（JSON 配置、多 Key 拼接、模型列表、日志正文等）必须显式声明
   `gorm:"type:text"`，不得省略类型标签依赖各库方言默认值：PG 系默认建 TEXT，
   DM8 却建 VARCHAR(8188 CHAR)（8188 字符上限），超长写入即失败。

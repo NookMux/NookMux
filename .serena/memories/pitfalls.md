@@ -16,12 +16,12 @@
 
 ---
 
-## 后端 — 数据库三库兼容
+## 后端 — 数据库六库兼容
 
-### 只在 SQLite/MySQL 测试,忽略 PostgreSQL
-**后果**:布尔值(`true/false` vs `1/0`)、保留字列引用(`"col"` vs `` `col` ``)、JSON 存储、ALTER COLUMN 行为在三库不同,PG 上线即报错。
-**规则**:`internal/store/AGENTS.md` — 必须同时兼容 SQLite / MySQL >= 5.7.8 / PostgreSQL >= 9.6。用 `db.UsingPostgreSQL`/`UsingSQLite`/`UsingMySQL`(`internal/infra/db/database.go`)分支处理差异,优先 GORM,原始 SQL 必须参数化。
-**场景**:SQLite 不支持 `ALTER COLUMN`,迁移要走 add-column 兼容模式;JSON 存储用 TEXT 不要用 JSONB。
+### 只在部分库测试,忽略其余方言
+**后果**:布尔值(`true/false` vs `1/0`)、保留字列引用(`"col"` vs `` `col` ``)、JSON 存储、ALTER COLUMN 行为在六库不同,未覆盖库上线即报错。
+**规则**:`internal/store/AGENTS.md` — 必须同时兼容 SQLite / MySQL >= 5.7.8 / PostgreSQL >= 9.6 / openGauss 7.0 / 达梦 DM8 / 金仓 KingbaseES。用 `db.UsingPostgreSQL`/`UsingSQLite`/`UsingMySQL`/`UsingKingbase`(`internal/infra/db/database.go`)分支处理差异,优先 GORM,原始 SQL 必须参数化。
+**场景**:SQLite 不支持 `ALTER COLUMN`,迁移要走 add-column 兼容模式;自由形态 JSON 文本用 `type:text`,结构化 JSON 对象用 `type:json`,严禁 JSONB。
 
 ---
 

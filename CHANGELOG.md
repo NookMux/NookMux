@@ -82,6 +82,13 @@
 
 ### Changed
 
+- **JSON 列持久化规范按数据形态二分**：`internal/store/AGENTS.md` 的多库兼容规范
+  现规定——自由形态 JSON 文本（配置、运行时拼装键值等）统一 `gorm:"type:text"`；
+  结构化 JSON 对象（Go 结构体或自定义类型整体序列化，如 `channels.channel_info`、
+  `prefill_groups.items`）用 `gorm:"type:json"`。`JSON` 类型六库可用（MySQL /
+  PostgreSQL / openGauss 原生支持，DM8 实测支持 JSON 列建表与读写，金仓底层按
+  jsonb 处理，SQLite 宽松类型直接接收）；仍严禁 `JSONB` 等 PG 专有变体及其他
+  缺乏跨库等价物的类型。
 - **计费扣减改为同步条件 UPDATE（防并发透支）**：用户余额（`users.quota`）与
   令牌剩余额度（`tokens.remain_quota`）的扣减不再进入批量更新队列，改为
   `WHERE ... >= ?` 条件 UPDATE 原子扣减，余额不足时返回
