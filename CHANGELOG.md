@@ -82,6 +82,27 @@
 
 ### Changed
 
+- **计费扣减改为同步条件 UPDATE（防并发透支）**：用户余额（`users.quota`）与
+  令牌剩余额度（`tokens.remain_quota`）的扣减不再进入批量更新队列，改为
+  `WHERE ... >= ?` 条件 UPDATE 原子扣减，余额不足时返回
+  `ErrUserQuotaNotEnough` / `ErrTokenQuotaNotEnough` 且不落库，数据库层面杜绝
+  高并发窗口内额度扣成负数（实测修复前限额 20000 的令牌 8 秒内可被扣穿至
+  -20689）。批量更新机制（`BATCH_UPDATE_ENABLED`）此后仅承载统计型字段
+  （用户/令牌/渠道已用额度、请求计数），开启批量不再依赖 Redis 部署形态；
+  `IncreaseUserQuota` 移除已无意义的 `db` 强制同步参数，配额缓存（Redis）改为
+  在落库成功后异步调整，失败路径不污染缓存。
+- **结算失败升级为系统级告警**：计费结算（`SettleBilling`）失败意味着实际消费
+  未能足额扣减、平台承担差额损失，由请求级日志升级为 `SysError` 结构化告警
+  （含 userId/tokenId/channelId/quota），不再静默。
+
+### Added
+
+- **进程优雅停机**：HTTP Server 接管为 `http.Server` 生命周期，SIGINT/SIGTERM
+  触发 15 秒优雅停机，停止接收新流量后调用 `FlushBatchUpdates` 把批量暂存的
+  统计增量落库，消除退出时最多一个批量周期的数据丢失；启动时执行
+  `CheckNegativeQuotaBalances` 扫描，暴露历史遗留或异常写入造成的负值余额
+  存量（用户余额、令牌剩余额度、窗口/周期超用）。
+
 - **智谱套餐模型消耗查询升级**：模型用量改接 token-usage 明细接口
   （`/api/monitor/token-usage/usage-detail`，`type=1&usageType=MODEL`，海内外
   上游域名沿用套餐区域划分），按时间范围自动返回小时/天粒度。渠道套餐弹窗的

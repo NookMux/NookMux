@@ -132,7 +132,7 @@ func userCheckinWithoutTransaction(checkin *Checkin, userId int, quotaAwarded in
 
 	// 步骤2: 增加用户额度
 	// 使用 db=true 强制直接写入数据库，不使用批量更新
-	if err := userstore.IncreaseUserQuota(userId, quotaAwarded, true); err != nil {
+	if err := userstore.IncreaseUserQuota(userId, quotaAwarded); err != nil {
 		// 如果增加额度失败，需要回滚签到记录
 		dbstore.DB.Delete(checkin)
 		return nil, errors.New("签到失败：更新额度出错")

@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/app/webdist"
 	"github.com/NookMux/NookMux/internal/common"
@@ -19,7 +21,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -33,6 +37,8 @@ func Run() int {
 	}
 
 	common.SysLog("NookMux " + common.Version + " started")
+	// 暴露历史遗留或异常写入造成的负值余额存量，避免超卖问题静默存在
+	dbstore.CheckNegativeQuotaBalances()
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -158,11 +164,33 @@ func Run() int {
 	// Log startup success message
 	common.LogStartupSuccess(startTime, port)
 
-	err = server.Run(":" + port)
-	if err != nil {
+	srv := &http.Server{Addr: ":" + port, Handler: server}
+	serveErr := make(chan error, 1)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serveErr <- err
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	common.SysLog("press Ctrl+C to stop the server")
+	select {
+	case err := <-serveErr:
 		common.FatalLog("failed to start HTTP server: " + err.Error())
 		return 1
+	case <-quit:
+		common.SysLog("received exit signal, shutting down gracefully")
 	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		common.SysError("HTTP server shutdown: " + err.Error())
+	}
+	// 流量停止后把批量暂存的统计增量（已用额度、请求计数）落库，
+	// 避免退出时丢失窗口内的数据。
+	dbstore.FlushBatchUpdates()
 
 	return 0
 }

@@ -390,7 +390,12 @@ func ApplyQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, settlement *
 	}
 
 	if err := SettleBilling(ctx, relayInfo, settlement.quota); err != nil {
-		log.LogError(ctx, "error settling billing: "+err.Error())
+		// 结算失败意味着实际消费未能足额扣减（如并发窗口内余额被其他请求
+		// 扣尽），平台承担该笔差额损失，必须以系统级错误告警暴露，不允许
+		// 静默吞掉。
+		common.SysError(fmt.Sprintf(
+			"billing settle failed, platform absorbs the shortfall: userId=%d tokenId=%d channelId=%d quota=%d: %s",
+			relayInfo.UserId, relayInfo.TokenId, relayInfo.ChannelId, settlement.quota, err.Error()))
 	}
 
 	logModel := settlement.modelName

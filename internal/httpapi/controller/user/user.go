@@ -835,7 +835,7 @@ func ManageUser(c *gin.Context) {
 				httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 				return
 			}
-			if err := userstore.IncreaseUserQuota(user.Id, req.Value, true); err != nil {
+			if err := userstore.IncreaseUserQuota(user.Id, req.Value); err != nil {
 				common.SysError("failed to increase user quota: " + err.Error())
 				httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 				return

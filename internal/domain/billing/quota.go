@@ -589,7 +589,7 @@ func PostConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, quota 
 	if quota > 0 {
 		err = userstore.DecreaseUserQuota(relayInfo.UserId, quota)
 	} else {
-		err = userstore.IncreaseUserQuota(relayInfo.UserId, -quota, false)
+		err = userstore.IncreaseUserQuota(relayInfo.UserId, -quota)
 	}
 	if err != nil {
 		return err

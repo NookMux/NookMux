@@ -364,7 +364,7 @@ func (user *User) Insert(inviterId int) error {
 	}
 	if inviterId != 0 {
 		if common.QuotaForInvitee > 0 {
-			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
+			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee)
 			RecordLog(user.Id, logstore.LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", log.LogQuota(common.QuotaForInvitee)))
 		}
 		if common.QuotaForInviter > 0 {
@@ -413,7 +413,7 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	}
 	if inviterId != 0 {
 		if common.QuotaForInvitee > 0 {
-			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee, true)
+			_ = IncreaseUserQuota(user.Id, common.QuotaForInvitee)
 			RecordLog(user.Id, logstore.LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", log.LogQuota(common.QuotaForInvitee)))
 		}
 		if common.QuotaForInviter > 0 {
@@ -751,54 +751,60 @@ func GetUserSetting(id int, fromDB bool) (settingMap shared.UserSetting, err err
 	return userBase.GetSetting(), nil
 }
 
-func IncreaseUserQuota(id int, quota int, db bool) (err error) {
+// ErrUserQuotaNotEnough 用户余额不足以完成本次扣减（含用户不存在场景）。
+// 扣减走条件 UPDATE，数据库层面杜绝余额被扣成负数。
+var ErrUserQuotaNotEnough = errors.New("user quota is not enough")
+
+// IncreaseUserQuota 增加用户余额（充值、退款、奖励等），同步落库；
+// Redis 开启时在落库成功后异步累加配额缓存，失败路径不污染缓存。
+func IncreaseUserQuota(id int, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
+	if err := increaseUserQuota(id, quota); err != nil {
+		return err
+	}
 	runtime.RelayGo(func() {
-		err := CacheIncrUserQuota(id, int64(quota))
-		if err != nil {
+		if err := CacheIncrUserQuota(id, int64(quota)); err != nil {
 			common.SysLog("failed to increase user quota: " + err.Error())
 		}
 	})
-	if !db && common.BatchUpdateEnabled {
-		dbstore.AddNewRecord(dbstore.BatchUpdateTypeUserQuota, id, quota)
-		return nil
-	}
-	return increaseUserQuota(id, quota)
+	return nil
 }
 
 func increaseUserQuota(id int, quota int) (err error) {
-	err = dbstore.DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error
-	if err != nil {
-		return err
-	}
-	return err
+	return dbstore.DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota + ?", quota)).Error
 }
 
+// DecreaseUserQuota 扣减用户余额（预扣费、结算补扣）。条件 UPDATE 同步扣减：
+// 余额不足时不落库并返回 ErrUserQuotaNotEnough，防止并发窗口内透支；
+// 扣减成功后才异步递减配额缓存。
 func DecreaseUserQuota(id int, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
+	if err := decreaseUserQuota(id, quota); err != nil {
+		return err
+	}
 	runtime.RelayGo(func() {
-		err := cacheDecrUserQuota(id, int64(quota))
-		if err != nil {
+		if err := cacheDecrUserQuota(id, int64(quota)); err != nil {
 			common.SysLog("failed to decrease user quota: " + err.Error())
 		}
 	})
-	if common.BatchUpdateEnabled {
-		dbstore.AddNewRecord(dbstore.BatchUpdateTypeUserQuota, id, -quota)
-		return nil
-	}
-	return decreaseUserQuota(id, quota)
+	return nil
 }
 
 func decreaseUserQuota(id int, quota int) (err error) {
-	err = dbstore.DB.Model(&User{}).Where("id = ?", id).Update("quota", gorm.Expr("quota - ?", quota)).Error
-	if err != nil {
-		return err
+	result := dbstore.DB.Model(&User{}).
+		Where("id = ? AND quota >= ?", id, quota).
+		Update("quota", gorm.Expr("quota - ?", quota))
+	if result.Error != nil {
+		return result.Error
 	}
-	return err
+	if result.RowsAffected == 0 {
+		return ErrUserQuotaNotEnough
+	}
+	return nil
 }
 
 func DeltaUpdateUserQuota(id int, delta int) (err error) {
@@ -806,7 +812,7 @@ func DeltaUpdateUserQuota(id int, delta int) (err error) {
 		return nil
 	}
 	if delta > 0 {
-		return IncreaseUserQuota(id, delta, false)
+		return IncreaseUserQuota(id, delta)
 	} else {
 		return DecreaseUserQuota(id, -delta)
 	}
