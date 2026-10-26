@@ -57,11 +57,11 @@ func TestVerifySessionAmount(t *testing.T) {
 			amountDiscount: "50",
 		},
 		{
-			name:     "数量非法",
-			quantity: 0,
+			name:      "数量非法",
+			quantity:  0,
 			unitPrice: 8.0,
-			currency: "usd",
-			wantErr:  "数量非法",
+			currency:  "usd",
+			wantErr:   "数量非法",
 		},
 		{
 			name:        "实付金额缺失",
@@ -142,5 +142,45 @@ func TestStripeEventAmountFieldExtraction(t *testing.T) {
 	}
 	if got := event.GetObjectValue("total_details", "amount_shipping"); got != "" {
 		t.Errorf("缺失的嵌套字段应返回空字符串, got %q", got)
+	}
+}
+
+func TestAmountDiscountOfHandlesMissingOrNullTotalDetails(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload string
+		want    string
+	}{
+		{
+			"total_details absent",
+			`{"id":"evt_1","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_1","object":"checkout.session","amount_total":8000}}}`,
+			"",
+		},
+		{
+			"total_details null",
+			`{"id":"evt_2","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_2","object":"checkout.session","total_details":null}}}`,
+			"",
+		},
+		{
+			"amount_discount null",
+			`{"id":"evt_3","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_3","object":"checkout.session","total_details":{"amount_discount":null}}}}`,
+			"",
+		},
+		{
+			"amount_discount number",
+			`{"id":"evt_4","object":"event","api_version":"2026-08-26.dahlia","data":{"object":{"id":"cs_4","object":"checkout.session","total_details":{"amount_discount":800}}}}`,
+			"800",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var event stripe.Event
+			if err := jsonx.Unmarshal([]byte(tc.payload), &event); err != nil {
+				t.Fatalf("解析事件失败: %v", err)
+			}
+			if got := amountDiscountOf(event); got != tc.want {
+				t.Errorf("amountDiscountOf = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

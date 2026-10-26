@@ -153,6 +153,15 @@
 
 ### Fixed
 
+- **Stripe 无折扣事件 webhook panic 修复**：真实无折扣 Checkout 事件的
+  `total_details` 缺失或为 null，stripe-go `GetObjectValue` 双层路径首键
+  即 panic（Cannot descend into non-map non-slice object），webhook 返回
+  500 触发 Stripe 无限重投、订单永远无法入账；改为 `amountDiscountOf`
+  安全提取（缺失/null/非数字按零折扣参与金额核对，数字值正常核对）。
+  已用本地 HMAC 签名请求对运行实例完成全链路联调验证：正常入账（订单
+  pending→success、额度精确增加、stripe_customer 回写）、错误签名/篡改
+  payload/过期时间戳 400 拒绝、重放幂等（额度不重复增加）、实付金额
+  错配 500 拒绝入账、未知单号 200 终态跳过。
 - **Stripe 支付链路错误处理与弹窗拦截**：创建充值订单前获取用户失败不再吞错
   （原 `user, _ :=` 在异常时直接空指针 panic），改为返回本地化错误提示
   （新增 `topup.get_user_failed` 文案）；前端 Stripe 支付改为在异步请求前同步

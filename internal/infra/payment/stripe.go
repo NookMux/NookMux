@@ -14,6 +14,7 @@ import (
 	"github.com/NookMux/NookMux/internal/i18n"
 	topupstore "github.com/NookMux/NookMux/internal/store/topup"
 	userstore "github.com/NookMux/NookMux/internal/store/user"
+	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 	"github.com/stripe/stripe-go/v86"
@@ -94,6 +95,27 @@ func VerifySessionAmount(quantity int64, unitPrice float64, currency string, amo
 		return fmt.Errorf("stripe 实付金额与本地单价配置不一致: 实付 %d + 折扣 %d != 预期 %d（currency=%s, quantity=%d, unit_price=%.4f）", total, discount, expectedMinor, currency, quantity, unitPrice)
 	}
 	return nil
+}
+
+// amountDiscountOf 安全提取事件中的促销折扣金额（最小货币单位）。
+// stripe-go 的 GetObjectValue 对双层路径的首键缺失或为 null 时会 panic
+// （"Cannot descend into non-map non-slice object"），而真实无折扣的
+// Checkout 事件正是 total_details 缺失/null 形态，故不得直调。
+// total_details 缺失、amount_discount 为 null 或非数字时返回空串，
+// 语义为"无折扣"，由 VerifySessionAmount 按零折扣核对。
+func amountDiscountOf(event stripe.Event) string {
+	var obj map[string]any
+	if err := jsonx.Unmarshal(event.Data.Raw, &obj); err != nil {
+		return ""
+	}
+	details, ok := obj["total_details"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	if v, ok := details["amount_discount"].(float64); ok {
+		return strconv.FormatInt(int64(v), 10)
+	}
+	return ""
 }
 
 // GenStripeLink generates a Stripe Checkout session URL for payment.
@@ -243,7 +265,7 @@ func FulfillOrder(event stripe.Event, referenceId string, customerId string, cal
 		config.StripeUnitPrice,
 		event.GetObjectValue("currency"),
 		event.GetObjectValue("amount_total"),
-		event.GetObjectValue("total_details", "amount_discount"),
+		amountDiscountOf(event),
 	); err != nil {
 		log.Println("Stripe 实付金额核对失败:", referenceId, ",", err.Error())
 		return err
