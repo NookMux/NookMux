@@ -11,9 +11,11 @@ import (
 	audit "github.com/NookMux/NookMux/internal/domain/audit"
 	rankings "github.com/NookMux/NookMux/internal/domain/rankings"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	uptimekumacontroller "github.com/NookMux/NookMux/internal/httpapi/controller/uptime_kuma"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/audit"
 	"github.com/NookMux/NookMux/internal/store/option"
+	"github.com/NookMux/NookMux/internal/store/usedata"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -842,8 +844,14 @@ func UpdateOption(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
-	if option.Key == "DataExportInterval" {
+	// 刷新间隔或监控分组变更后，立即失效对应缓存（TTL 等待会延迟新配置生效）
+	switch option.Key {
+	case "dashboard_config.rankings_refresh_interval":
 		rankings.ClearRankingsCache()
+	case "dashboard_config.user_analytics_refresh_interval":
+		usedatastore.ClearUserAnalyticsCache()
+	case "dashboard_config.uptime_kuma_refresh_interval", "console_setting.uptime_kuma_groups":
+		uptimekumacontroller.ClearUptimeKumaCache()
 	}
 	// 审计系统设置变更：对敏感配置值脱敏，防止凭证泄露到审计日志。
 	// 复用 GetOptions 中的敏感 key 后缀规则。

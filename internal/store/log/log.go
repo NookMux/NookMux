@@ -245,7 +245,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
-	if common.DataExportEnabled {
+	if usedatastore.QuotaDataWriteEnabled() {
 		runtime.RelayGo(func() {
 			usedatastore.LogQuotaErrorData(userId, username, modelName, common.GetTimestamp())
 		})
@@ -315,7 +315,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		if err != nil {
 			common.SysError(fmt.Sprintf("failed to record consume log (request_id=%s): %s", requestId, err.Error()))
 		}
-		if common.DataExportEnabled {
+		if usedatastore.QuotaDataWriteEnabled() {
 			if logType == LogTypeError {
 				usedatastore.LogQuotaErrorData(userId, username, params.ModelName, createdAt)
 			} else {

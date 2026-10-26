@@ -332,7 +332,6 @@ export const STATIC_I18N_KEYS = [
   'systemSettings.titles.dashboardPanels',
   'systemSettings.actions.refreshIntervals',
   'systemSettings.fields.dataLimits',
-  'systemSettings.titles.dataDashboard',
   'systemSettings.titles.dashboardConfiguration',
   'dashboard.fields.announcements',
   'systemSettings.fields.apiAddresses',

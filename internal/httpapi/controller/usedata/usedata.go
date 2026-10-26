@@ -67,7 +67,7 @@ func GetQuotaDataGroupByUser(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgDashboardTimeRangeTooLong)
 		return
 	}
-	dates, err := usedatastore.GetQuotaDataGroupByUser(startTimestamp, endTimestamp)
+	dates, err := usedatastore.GetQuotaDataGroupByUserCached(startTimestamp, endTimestamp)
 	if err != nil {
 		common.SysError("failed to get quota data group by user: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)

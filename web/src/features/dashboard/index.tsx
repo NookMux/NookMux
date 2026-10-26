@@ -21,6 +21,7 @@ import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
 import { ROLE } from '@/lib/roles'
+import { useStatus } from '@/hooks/use-status'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SectionPageLayout } from '@/components/layout'
@@ -124,10 +125,14 @@ export function Dashboard() {
 
   const [modelData, setModelData] = useState<QuotaDataItem[]>([])
   const [dataLoading, setDataLoading] = useState(false)
+  const { status } = useStatus()
+  const serverDefaultDays = status?.data?.dashboard_default_time_range_days
   const [chartPreferences, setChartPreferences] =
-    useState<DashboardChartPreferences>(() => getSavedChartPreferences())
+    useState<DashboardChartPreferences>(() =>
+      getSavedChartPreferences(serverDefaultDays)
+    )
   const [modelFilters, setModelFilters] = useState<DashboardFilters>(() =>
-    buildDefaultDashboardFilters(getSavedChartPreferences())
+    buildDefaultDashboardFilters(getSavedChartPreferences(serverDefaultDays))
   )
 
   const handleFilterChange = useCallback((filters: DashboardFilters) => {

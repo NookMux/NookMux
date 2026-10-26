@@ -51,7 +51,6 @@ func InitOptionMap() {
 	common.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(common.AutomaticDisableChannelEnabled)
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
-	common.OptionMap["DataExportEnabled"] = strconv.FormatBool(common.DataExportEnabled)
 	common.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(common.ChannelDisableThreshold, 'f', -1, 64)
 	common.OptionMap["EmailDomainRestrictionEnabled"] = strconv.FormatBool(common.EmailDomainRestrictionEnabled)
 	common.OptionMap["EmailAliasRestrictionEnabled"] = strconv.FormatBool(common.EmailAliasRestrictionEnabled)
@@ -117,8 +116,6 @@ func InitOptionMap() {
 	common.OptionMap["QuotaPerUnit"] = strconv.FormatFloat(common.QuotaPerUnit, 'f', -1, 64)
 	common.OptionMap["RetryTimes"] = strconv.Itoa(common.RetryTimes)
 	common.OptionMap["AutomaticRetryEnabled"] = strconv.FormatBool(common.AutomaticRetryEnabled)
-	common.OptionMap["DataExportInterval"] = strconv.Itoa(common.DataExportInterval)
-	common.OptionMap["DataExportDefaultTime"] = common.DataExportDefaultTime
 	common.OptionMap["DefaultCollapseSidebar"] = strconv.FormatBool(common.DefaultCollapseSidebar)
 	common.OptionMap["CheckSensitiveEnabled"] = strconv.FormatBool(config.CheckSensitiveEnabled)
 
@@ -199,6 +196,56 @@ func loadOptionsFromDatabase() {
 		migratedOption := Option{Key: "AutomaticRetryEnabled"}
 		dbstore.DB.FirstOrCreate(&migratedOption, Option{Key: "AutomaticRetryEnabled"})
 		dbstore.DB.Model(&migratedOption).Update("value", strconv.FormatBool(derivedEnabled))
+	}
+
+	// One-time migration: the legacy 数据看板 options are absorbed by
+	// dashboard_config. DataExportEnabled=false previously shut down the whole
+	// quota-data pipeline, so it maps to all three metric switches off;
+	// DataExportInterval (minutes) maps to quota_data_refresh_interval and
+	// rankings_refresh_interval (seconds), preserving both consumers' cadence.
+	// DataExportDefaultTime has no successor — chart granularity is a per-user
+	// browser preference. After mapping, the stale rows are deleted so
+	// SyncOptions can never resurrect them.
+	legacyExport := map[string]string{}
+	existingConfig := map[string]bool{}
+	for _, option := range options {
+		switch option.Key {
+		case "DataExportEnabled", "DataExportInterval", "DataExportDefaultTime":
+			legacyExport[option.Key] = option.Value
+		}
+		if strings.HasPrefix(option.Key, "dashboard_config.") {
+			existingConfig[option.Key] = true
+		}
+	}
+	if len(legacyExport) > 0 {
+		// 已在新面板保存过的字段以 dashboard_config 为准，旧值不回写覆盖
+		writeMigrated := func(key, value string) {
+			if existingConfig[key] {
+				return
+			}
+			migratedOption := Option{Key: key}
+			dbstore.DB.FirstOrCreate(&migratedOption, Option{Key: key})
+			dbstore.DB.Model(&migratedOption).Update("value", value)
+			if err := updateOptionMap(key, value); err != nil {
+				common.SysError("failed to apply migrated option " + key + ": " + err.Error())
+			}
+		}
+		if v, ok := legacyExport["DataExportEnabled"]; ok {
+			writeMigrated("dashboard_config.quota_data_enabled", v)
+			if v == "false" {
+				writeMigrated("dashboard_config.user_analytics_enabled", "false")
+				writeMigrated("dashboard_config.rankings_enabled", "false")
+			}
+		}
+		if v, ok := legacyExport["DataExportInterval"]; ok {
+			if minutes, err := strconv.Atoi(v); err == nil {
+				seconds := min(max(minutes*60, 60), 86400)
+				writeMigrated("dashboard_config.quota_data_refresh_interval", strconv.Itoa(seconds))
+				writeMigrated("dashboard_config.rankings_refresh_interval", strconv.Itoa(seconds))
+			}
+		}
+		dbstore.DB.Where(dbstore.CommonKeyCol+" IN ?", []string{"DataExportEnabled", "DataExportInterval", "DataExportDefaultTime"}).Delete(&Option{})
+		common.SysLog("migrated legacy DataExport options to dashboard_config")
 	}
 
 }
@@ -302,7 +349,8 @@ func updateOptionMap(key string, value string) (err error) {
 		"global.third_party_multimodal_system_prompt", "global.third_party_multimodal_first_user_prompt",
 		"global.third_party_multimodal_user_agent", "global.third_party_multimodal_x_title",
 		"global.third_party_multimodal_http_referer",
-		"quota_setting.enable_free_model_pre_consume":
+		"quota_setting.enable_free_model_pre_consume",
+		"DataExportEnabled", "DataExportInterval", "DataExportDefaultTime":
 		delete(common.OptionMap, key)
 		return nil
 	}
@@ -357,8 +405,6 @@ func updateOptionMap(key string, value string) (err error) {
 			common.AutomaticEnableChannelEnabled = boolValue
 		case "LogConsumeEnabled":
 			common.LogConsumeEnabled = boolValue
-		case "DataExportEnabled":
-			common.DataExportEnabled = boolValue
 		case "DefaultCollapseSidebar":
 			common.DefaultCollapseSidebar = boolValue
 		case "CheckSensitiveEnabled":
@@ -469,10 +515,6 @@ func updateOptionMap(key string, value string) (err error) {
 		err = config.UpdateModelRequestRateLimitGroupByJSONString(value)
 	case "RetryTimes":
 		common.RetryTimes, _ = strconv.Atoi(value)
-	case "DataExportInterval":
-		common.DataExportInterval, _ = strconv.Atoi(value)
-	case "DataExportDefaultTime":
-		common.DataExportDefaultTime = value
 	case "ModelRatio":
 		err = ratio.UpdateModelRatioByJSONString(value)
 	case "GroupRatio":
@@ -575,23 +617,37 @@ func handleConfigUpdate(key, value string) (bool, error) {
 		performance.UpdateAndSync()
 	}
 	if configName == "dashboard_config" {
-		// 同步写入层聚合粒度配置到 model 包级变量，避免 model 反向依赖 dashboard_setting
-		syncDashboardTrackingConfig(cfg)
+		// 同步写入层粒度与数据管道运行配置到 usedatastore 包级变量，
+		// 避免 store 层反向依赖 config/dashboard（其迁移逻辑依赖 optionstore）
+		syncDashboardRuntimeConfig(cfg)
 	}
 
 	return true, nil // 已处理
 }
 
-// syncDashboardTrackingConfig 从已更新的 dashboard_config 配置对象读取写入层配置，同步到 model 包级变量。
+// syncDashboardRuntimeConfig 从已更新的 dashboard_config 配置对象读取写入层粒度与
+// 数据管道运行参数（写入开关、刷新间隔），同步到 usedatastore 包级变量。
 // 通过 manager.ConfigToMap 反射读取，不直接依赖 dashboard.DashboardConfig 类型，避免循环导入。
-func syncDashboardTrackingConfig(cfg interface{}) {
+func syncDashboardRuntimeConfig(cfg any) {
 	m, err := manager.ConfigToMap(cfg)
 	if err != nil {
-		common.SysError(fmt.Sprintf("syncDashboardTrackingConfig: 解析 dashboard_config 失败: %s", err))
+		common.SysError(fmt.Sprintf("syncDashboardRuntimeConfig: 解析 dashboard_config 失败: %s", err))
 		return
 	}
 	tokens, _ := strconv.ParseBool(m["quota_data_track_tokens"])
 	byModel, _ := strconv.ParseBool(m["quota_data_track_by_model"])
 	byUser, _ := strconv.ParseBool(m["quota_data_track_by_user"])
 	usedatastore.SyncQuotaDataTrackingConfig(tokens, byModel, byUser)
+
+	// quota_data / user_analytics / rankings 任一启用即需要维持 quota_data 写入管道
+	writeEnabled := false
+	for _, key := range []string{"quota_data_enabled", "user_analytics_enabled", "rankings_enabled"} {
+		if v, _ := strconv.ParseBool(m[key]); v {
+			writeEnabled = true
+			break
+		}
+	}
+	flushIntervalSec, _ := strconv.Atoi(m["quota_data_refresh_interval"])
+	analyticsIntervalSec, _ := strconv.Atoi(m["user_analytics_refresh_interval"])
+	usedatastore.SyncQuotaDataRuntimeConfig(writeEnabled, flushIntervalSec, analyticsIntervalSec)
 }

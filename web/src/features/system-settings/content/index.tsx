@@ -32,9 +32,6 @@ const defaultContentSettings: ContentSettings = {
   'console_setting.usage_log_fields': '',
   'console_setting.usage_log_fields_admin_enabled': true,
   'console_setting.usage_log_fields_user_enabled': true,
-  DataExportEnabled: false,
-  DataExportDefaultTime: 'hour',
-  DataExportInterval: 5,
 }
 
 function resolveContentSettings(

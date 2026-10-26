@@ -18,6 +18,38 @@ var (
 	quotaDataTrackByUser  = true
 )
 
+// 数据管道运行期配置。同样由 option.go 的 handleConfigUpdate 从 dashboard_config 同步：
+// store 层不得反向 import internal/config/dashboard（其迁移逻辑依赖 optionstore，会成环）。
+var (
+	quotaRuntimeMu            sync.RWMutex
+	quotaWriteEnabled         = true // quota_data / user_analytics / rankings 任一启用即需要写入
+	quotaFlushIntervalSeconds = 3600 // 对应 dashboard_config.quota_data_refresh_interval
+	userAnalyticsCacheSeconds = 3600 // 对应 dashboard_config.user_analytics_refresh_interval
+)
+
+// SyncQuotaDataRuntimeConfig 由 option 同步路径调用，同步数据管道开关与刷新间隔。
+func SyncQuotaDataRuntimeConfig(writeEnabled bool, flushIntervalSeconds, analyticsCacheSeconds int) {
+	quotaRuntimeMu.Lock()
+	quotaWriteEnabled = writeEnabled
+	quotaFlushIntervalSeconds = flushIntervalSeconds
+	userAnalyticsCacheSeconds = analyticsCacheSeconds
+	quotaRuntimeMu.Unlock()
+}
+
+// QuotaDataWriteEnabled 返回 quota_data 写入管道是否启用，供日志写入路径判断。
+func QuotaDataWriteEnabled() bool {
+	quotaRuntimeMu.RLock()
+	defer quotaRuntimeMu.RUnlock()
+	return quotaWriteEnabled
+}
+
+func quotaDataFlushInterval() time.Duration {
+	quotaRuntimeMu.RLock()
+	sec := quotaFlushIntervalSeconds
+	quotaRuntimeMu.RUnlock()
+	return time.Duration(max(sec, 60)) * time.Second
+}
+
 // QuotaData 柱状图数据
 type QuotaData struct {
 	Id        int    `json:"id"`
@@ -34,26 +66,23 @@ type QuotaData struct {
 func UpdateQuotaData() {
 	lastUpdatedAt := time.Time{}
 	for {
-		interval := time.Duration(common.DataExportInterval) * time.Minute
-		if interval < time.Minute {
-			interval = time.Minute
-		}
-		if common.DataExportEnabled && time.Since(lastUpdatedAt) >= interval {
+		interval := quotaDataFlushInterval()
+		if QuotaDataWriteEnabled() && time.Since(lastUpdatedAt) >= interval {
 			common.SysLog("正在更新数据看板数据...")
 			SaveQuotaDataCache()
 			lastUpdatedAt = time.Now()
 		}
-		// When data export is disabled there is nothing to do. Sleep in larger
-		// increments (10s) instead of waking every second just to re-check a
-		// boolean. The previous 1-second tick forced a goroutine wake-up and
-		// cache-line bounce on every core, which is pure overhead for the
-		// common deployment where data export is off.
+		// When the data pipeline is disabled there is nothing to do. Sleep in
+		// larger increments (10s) instead of waking every second just to
+		// re-check a boolean. The previous 1-second tick forced a goroutine
+		// wake-up and cache-line bounce on every core, which is pure overhead
+		// for the common deployment where data export is off.
 		sleepDuration := time.Second
-		if !common.DataExportEnabled {
+		if !QuotaDataWriteEnabled() {
 			sleepDuration = 10 * time.Second
 		} else if interval > 5*time.Minute {
 			// When the flush interval is long, check at most every minute so
-			// that enabling DataExportEnabled at runtime is picked up without
+			// that re-enabling the pipeline at runtime is picked up without
 			// waiting the full interval.
 			sleepDuration = time.Minute
 		}
@@ -215,6 +244,59 @@ func GetQuotaDataGroupByUser(startTime int64, endTime int64) (quotaData []*Quota
 		Group("username, created_at").
 		Find(&quotaDatas).Error
 	return quotaDatas, err
+}
+
+// 用户分析聚合查询的 TTL 快照缓存。TTL 来自 user_analytics_refresh_interval；
+// 键为查询时间窗口，容量上限 32 个窗口，超限整体重置防止无界膨胀。
+type userAnalyticsCacheEntry struct {
+	data     []*QuotaData
+	expireAt time.Time
+}
+
+var userAnalyticsCache = struct {
+	sync.Mutex
+	entries map[string]userAnalyticsCacheEntry
+}{entries: make(map[string]userAnalyticsCacheEntry)}
+
+func userAnalyticsCacheTTL() time.Duration {
+	quotaRuntimeMu.RLock()
+	sec := userAnalyticsCacheSeconds
+	quotaRuntimeMu.RUnlock()
+	return time.Duration(max(sec, 60)) * time.Second
+}
+
+// GetQuotaDataGroupByUserCached 带 TTL 缓存的用户分析查询，供数据看板使用。
+func GetQuotaDataGroupByUserCached(startTime int64, endTime int64) ([]*QuotaData, error) {
+	key := fmt.Sprintf("%d-%d", startTime, endTime)
+	now := time.Now()
+
+	userAnalyticsCache.Lock()
+	if entry, ok := userAnalyticsCache.entries[key]; ok && now.Before(entry.expireAt) {
+		data := entry.data
+		userAnalyticsCache.Unlock()
+		return data, nil
+	}
+	userAnalyticsCache.Unlock()
+
+	dates, err := GetQuotaDataGroupByUser(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	userAnalyticsCache.Lock()
+	if len(userAnalyticsCache.entries) >= 32 {
+		userAnalyticsCache.entries = make(map[string]userAnalyticsCacheEntry)
+	}
+	userAnalyticsCache.entries[key] = userAnalyticsCacheEntry{data: dates, expireAt: now.Add(userAnalyticsCacheTTL())}
+	userAnalyticsCache.Unlock()
+	return dates, nil
+}
+
+// ClearUserAnalyticsCache 清空用户分析缓存，供配置变更后失效调用。
+func ClearUserAnalyticsCache() {
+	userAnalyticsCache.Lock()
+	userAnalyticsCache.entries = make(map[string]userAnalyticsCacheEntry)
+	userAnalyticsCache.Unlock()
 }
 
 func GetAllQuotaDates(startTime int64, endTime int64, username string) (quotaData []*QuotaData, err error) {

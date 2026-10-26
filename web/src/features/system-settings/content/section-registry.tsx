@@ -21,38 +21,11 @@ import { createSectionRegistry } from '../utils/section-registry'
 import { AnnouncementsSection } from './announcements-section'
 import { ApiInfoSection } from './api-info-section'
 import { DashboardConfigSection } from './dashboard-config-section'
-import { DashboardSection } from './dashboard-section'
 import { FAQSection } from './faq-section'
 import { UptimeKumaSection } from './uptime-kuma-section'
 import { UsageLogFieldsSection } from './usage-log-fields-section'
 
-/**
- * Validate and coerce DataExportDefaultTime to a safe value
- */
-function validateDataExportDefaultTime(value: string): 'week' | 'hour' | 'day' {
-  if (value === 'week' || value === 'hour' || value === 'day') {
-    return value
-  }
-  // Default to 'hour' if value is unexpected
-  return 'hour'
-}
-
 const CONTENT_SECTIONS = [
-  {
-    id: 'dashboard',
-    titleKey: 'systemSettings.titles.dataDashboard',
-    build: (settings: ContentSettings) => (
-      <DashboardSection
-        defaultValues={{
-          DataExportEnabled: settings.DataExportEnabled,
-          DataExportInterval: settings.DataExportInterval,
-          DataExportDefaultTime: validateDataExportDefaultTime(
-            settings.DataExportDefaultTime
-          ),
-        }}
-      />
-    ),
-  },
   {
     id: 'dashboard-config',
     titleKey: 'systemSettings.titles.dashboardConfiguration',
@@ -110,7 +83,7 @@ const contentRegistry = createSectionRegistry<
   ContentSettings
 >({
   sections: CONTENT_SECTIONS,
-  defaultSection: 'dashboard',
+  defaultSection: 'dashboard-config',
   basePath: '/system-settings/content',
   urlStyle: 'path',
 })

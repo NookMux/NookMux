@@ -20,6 +20,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import {
+  Form,
   FormControl,
   FormField,
   FormItem,
@@ -98,146 +99,148 @@ export function DashboardLimitsSection() {
           'systemSettings.tips.configureDataLimitsAndTimeRangeRestrictionsForDashboard'
         )}
       </p>
-      <SettingsForm onSubmit={handleSubmit}>
-        <SettingsFormGrid>
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='default_time_range_days'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.defaultTimeRangeDays')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={1}
-                      max={365}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
+      <Form {...form}>
+        <SettingsForm onSubmit={handleSubmit}>
+          <SettingsFormGrid>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='default_time_range_days'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.tips.defaultTimeRangeDays')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={365}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
 
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='max_time_range_days'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.maximumTimeRangeDays')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={1}
-                      max={365}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='max_time_range_days'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.tips.maximumTimeRangeDays')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={365}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
 
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='rankings_model_limit'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.rankingsModelLimit')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={1}
-                      max={100}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='rankings_model_limit'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.fields.rankingsModelLimit')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={100}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
 
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='rankings_vendor_limit'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.rankingsVendorLimit')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={1}
-                      max={50}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='rankings_vendor_limit'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.fields.rankingsVendorLimit')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={50}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
 
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='user_analytics_top_n'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.userAnalyticsTopN')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={1}
-                      max={100}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
-        </SettingsFormGrid>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='user_analytics_top_n'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.fields.userAnalyticsTopN')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={100}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
+          </SettingsFormGrid>
 
-        <SettingsPageFormActions
-          onSave={handleSubmit}
-          onReset={handleReset}
-          isSaving={updateConfig.isPending}
-          isResetDisabled={!isDirty}
-        />
-      </SettingsForm>
+          <SettingsPageFormActions
+            onSave={handleSubmit}
+            onReset={handleReset}
+            isSaving={updateConfig.isPending}
+            isResetDisabled={!isDirty}
+          />
+        </SettingsForm>
+      </Form>
     </SettingsSection>
   )
 }

@@ -9,17 +9,6 @@
 
 ### Added
 
-- **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
-  端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
-  cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段
-  （`ResponseField`）逐项解析；字段名、类型、必填与默认值均对照后端源码
-  （绑定结构体、控制器响应组装）核实。回调类端点（Stripe Webhook、易支付
-  notify）按实际返回纯状态码/纯文本如实记录；个别偏离「HTTP 200 + success
-  包裹」约定的端点（`/api/usage/token/`、`/api/status/test` 等）亦逐一注明。
-  同时新增 4 个此前缺失的密钥类端点页（`POST /api/token/batch/keys`、
-  `POST|PUT /api/token/{id}/key`、`GET /api/redemption/{id}/key`），删除一页
-  陈旧文档：`GET /api/user/groups` 路由已不存在于后端与前端（真实端点
-  `GET /api/user/self/groups` 已有专属页面）。
 - **Stripe Webhook 密钥守卫回归测试**：为「未配置 `StripeWebhookSecret` 时
   webhook 直接 403 拒绝验签」的安全守卫补充 HTTP 层回归测试（对应
   928b28065 修复的空密钥伪造充值漏洞），同时钉住相邻边界——已配置密钥但
@@ -95,8 +84,40 @@
   - 鉴权、搜索、展示与复制全部直接使用完整密钥，前端不再拼接 `sk-` 前缀。
   - 密钥查询页的密钥格式校验放宽为自定义前缀形态。
 
+### Fixed
+
+- **react / react-dom 版本错配导致前端整体白屏修复**：dependabot 升级
+  （c8bc34c24）将 `react` 升至 19.3.1 但未联动 `react-dom`（仍 19.2.7），
+  React 19 要求两者严格同版本，运行时抛 Minified React error #527、SPA 无法
+  挂载（任意页面空白）。`react-dom` 联动升级至 19.3.1（`@types/react-dom`
+  至 19.3.0），浏览器实测登录、数据看板、系统设置全部恢复正常渲染。
+- **仪表台配置「刷新间隔 / 数据限制」分区渲染崩溃修复**：两个分区的表单控件
+  渲染在 `<Form>` Provider 之外，`FormItem` 调用 `useFormContext()` 得到 null
+  抛出 `Cannot destructure property 'getFieldState'` TypeError，点击标签即被
+  路由错误边界带入 `/500` 错误页。现按设置页标准结构补上 `<Form {...form}>`
+  包裹层，两分区恢复正常渲染与保存。
+
 ### Changed
 
+- **仪表台配置全面接管数据看板（旧「数据看板」分区移除）**：控制台内容下
+  「仪表台配置」成为数据看板行为的唯一配置入口——
+  - 4 个刷新间隔接线生效：`quota_data_refresh_interval`（秒）控制 quota_data
+    落库循环周期；`rankings_refresh_interval` 控制排行榜快照缓存 TTL；
+    `user_analytics_refresh_interval` 控制用户分析聚合查询缓存（按查询时间
+    窗口缓存，上限 32 窗口）；`uptime_kuma_refresh_interval` 控制运行状态
+    监控拉取的快照缓存。间隔或监控分组配置变更后对应缓存立即失效。
+  - 数据管道写入开关统一：quota_data / user_analytics / rankings 任一指标
+    启用即维持 quota_data 写入管道（原 `DataExportEnabled` 语义），消费日志
+    与用量统计的 quota_data 旁路写入、日志页统计捷径同步切换。
+  - `default_time_range_days` 接线：数据看板未保存本地偏好的用户，默认查询
+    窗口取服务端配置（经 `/api/status` 下发）。
+  - 旧选项 `DataExportEnabled` / `DataExportInterval` / `DataExportDefaultTime`
+    移除：启动时一次性迁移到 `dashboard_config`（已在新面板保存过的字段不被
+    覆盖；`DataExportInterval` 分钟值映射为两个刷新间隔的秒值；图表时间粒度
+    本就是浏览器本地偏好，无后继配置），迁移后删除旧行防止复活。
+  - `/api/status` 字段 `enable_data_export` / `data_export_interval` /
+    `data_export_default_time` 替换为 `dashboard_refresh_interval`（秒，
+    数据看板页自动刷新依据）与 `dashboard_default_time_range_days`。
 - **Stripe 支付合规升级与实付金额核对**：Stripe SDK 由 `stripe-go v81` 升级到
   `v87.0.0`（API 版本随之升至 `2026-09-30.endive`），Stripe 客户端从已弃用的
   全局 `stripe.Key` 模式迁移到 `stripe.NewClient` 实例（v2 调用风格，Checkout

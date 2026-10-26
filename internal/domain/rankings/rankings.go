@@ -191,11 +191,9 @@ func GetRankingsSnapshot(period string) (*RankingsResponse, error) {
 }
 
 func rankingCacheTTL() time.Duration {
-	interval := common.DataExportInterval
-	if interval < 1 {
-		interval = 1
-	}
-	return time.Duration(interval) * time.Minute
+	// 对应仪表台配置 rankings_refresh_interval（秒），下限 60s 与配置校验一致
+	sec := max(dashboard.GetDashboardConfig().RankingsRefreshInterval, 60)
+	return time.Duration(sec) * time.Second
 }
 
 // rankingConfig 返回各排行榜周期配置。周期均为启动时区（TZ 环境变量）下的

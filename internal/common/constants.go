@@ -16,10 +16,7 @@ var Footer = ""
 var Logo = ""
 var TopUpLink = ""
 
-var QuotaPerUnit = 500 * 1000.0 // $0.002 / 1K tokens
-var DataExportEnabled = true
-var DataExportInterval = 5         // unit: minute
-var DataExportDefaultTime = "hour" // unit: minute
+var QuotaPerUnit = 500 * 1000.0    // $0.002 / 1K tokens
 var DefaultCollapseSidebar = false // default value of collapse sidebar
 
 // Any options with "Secret", "Token" in its key won't be return by GetOptions

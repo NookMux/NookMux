@@ -331,7 +331,7 @@ func GetLogsStat(c *gin.Context) {
 	}
 
 	var statData logstore.Stat
-	if common.DataExportEnabled && filter.TokenName == "" && filter.Channel == 0 && filter.Group == "" && filter.ModelName == "" && !filter.HasLogOnlyFilters() && logType == 0 {
+	if usedatastore.QuotaDataWriteEnabled() && filter.TokenName == "" && filter.Channel == 0 && filter.Group == "" && filter.ModelName == "" && !filter.HasLogOnlyFilters() && logType == 0 {
 		var qStat usedatastore.QuotaStat
 		var err error
 		if filter.Username != "" {
@@ -405,7 +405,7 @@ func GetLogsSelfStat(c *gin.Context) {
 	}
 
 	var statData logstore.Stat
-	if common.DataExportEnabled && filter.TokenName == "" && filter.Channel == 0 && filter.Group == "" && filter.ModelName == "" && !filter.HasLogOnlyFilters() && logType == 0 {
+	if usedatastore.QuotaDataWriteEnabled() && filter.TokenName == "" && filter.Channel == 0 && filter.Group == "" && filter.ModelName == "" && !filter.HasLogOnlyFilters() && logType == 0 {
 		qStat, err := usedatastore.GetQuotaStatByUserId(userId, startTimestamp, endTimestamp)
 		if err != nil {
 			common.SysError("failed to get quota stat by user id: " + err.Error())

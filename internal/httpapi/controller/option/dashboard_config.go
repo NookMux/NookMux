@@ -5,10 +5,13 @@ import (
 	"github.com/NookMux/NookMux/internal/config/dashboard"
 	"github.com/NookMux/NookMux/internal/config/manager"
 	audit "github.com/NookMux/NookMux/internal/domain/audit"
+	rankings "github.com/NookMux/NookMux/internal/domain/rankings"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	uptimekumacontroller "github.com/NookMux/NookMux/internal/httpapi/controller/uptime_kuma"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/audit"
 	"github.com/NookMux/NookMux/internal/store/option"
+	"github.com/NookMux/NookMux/internal/store/usedata"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -104,6 +107,18 @@ func UpdateDashboardConfig(c *gin.Context) {
 		}
 
 		updatedFields[key] = finalValue
+	}
+
+	// 刷新间隔类配置变更后，立即失效对应缓存（TTL 等待会延迟新配置生效）
+	for key := range updates {
+		switch key {
+		case "rankings_refresh_interval":
+			rankings.ClearRankingsCache()
+		case "user_analytics_refresh_interval":
+			usedatastore.ClearUserAnalyticsCache()
+		case "uptime_kuma_refresh_interval":
+			uptimekumacontroller.ClearUptimeKumaCache()
+		}
 	}
 
 	// 获取更新后的配置（用于审计）
