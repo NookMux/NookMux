@@ -9,6 +9,28 @@
 
 ### Added
 
+- **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
+  端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
+  cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段
+  （`ResponseField`）逐项解析；字段名、类型、必填与默认值均对照后端源码
+  （绑定结构体、控制器响应组装）核实。回调类端点（Stripe Webhook、易支付
+  notify）按实际返回纯状态码/纯文本如实记录；个别偏离「HTTP 200 + success
+  包裹」约定的端点（`/api/usage/token/`、`/api/status/test` 等）亦逐一注明。
+  同时新增 4 个此前缺失的密钥类端点页（`POST /api/token/batch/keys`、
+  `POST|PUT /api/token/{id}/key`、`GET /api/redemption/{id}/key`），删除一页
+  陈旧文档：`GET /api/user/groups` 路由已不存在于后端与前端（真实端点
+  `GET /api/user/self/groups` 已有专属页面）。
+- **管理接口 API 参考文档第二批扩容**（Mintlify 中英）：把此前未进入文档的
+  15 个路由家族共 90 个端点补建为完整参考页（中英 180 份文件）——新增审计
+  日志、消费日志（含 `TokenAuthReadOnly` 令牌直查日志）、仪表盘配置、动态
+  倍率、定制音色、工单系统、媒体存储、性能运维、数据库迁移九个分组，并向
+  渠道管理（Ollama 模型管理、GLM 套餐查询、上游供应商拉取、代理连通性
+  测试）、系统设置（`json_map`/`json_array`/配置键值细粒度读写）、数据统计、
+  系统、用户管理（签到、封禁、Passkey 更新）、充值六个现有分组追加页面。
+  全部字段对照后端源码核验；工单端点的错误表按服务端实际统一映射
+  （`MsgDatabaseError`）修正，SSE（`/api/channel/ollama/pull/stream`）、
+  固定中文错误文案（`/api/log/self` 过滤拒绝）等特殊行为均如实注明。docs.json
+  中英导航同步登记。
 - **Stripe Webhook 密钥守卫回归测试**：为「未配置 `StripeWebhookSecret` 时
   webhook 直接 403 拒绝验签」的安全守卫补充 HTTP 层回归测试（对应
   928b28065 修复的空密钥伪造充值漏洞），同时钉住相邻边界——已配置密钥但
