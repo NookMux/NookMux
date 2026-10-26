@@ -431,6 +431,7 @@ topup.cancel_url_untrusted: "Payment cancel redirect URL is not in the trusted d
 topup.unsupported_channel: "Unsupported payment channel"
 topup.amount_below_min: "Top-up amount cannot be less than {{.Min}}"
 topup.get_group_failed: "Failed to get user group"
+topup.get_user_failed: "Failed to get user info"
 topup.pay_amount_too_low: "Top-up amount is too low"
 topup.payment_method_not_found: "Payment method does not exist"
 topup.payment_config_missing: "Payment information is not configured"

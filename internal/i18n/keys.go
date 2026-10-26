@@ -539,6 +539,7 @@ const (
 	MsgTopupUnsupportedChannel       = "topup.unsupported_channel"
 	MsgTopupAmountBelowMin           = "topup.amount_below_min"
 	MsgTopupGetGroupFailed           = "topup.get_group_failed"
+	MsgTopupGetUserFailed            = "topup.get_user_failed"
 	MsgTopupPayAmountTooLow          = "topup.pay_amount_too_low"
 	MsgTopupPaymentMethodNotFound    = "topup.payment_method_not_found"
 	MsgTopupPaymentConfigMissing     = "topup.payment_config_missing"

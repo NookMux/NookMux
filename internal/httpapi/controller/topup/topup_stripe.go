@@ -16,8 +16,8 @@ import (
 	topupstore "github.com/NookMux/NookMux/internal/store/topup"
 	userstore "github.com/NookMux/NookMux/internal/store/user"
 	"github.com/gin-gonic/gin"
-	"github.com/stripe/stripe-go/v81"
-	"github.com/stripe/stripe-go/v81/webhook"
+	"github.com/stripe/stripe-go/v86"
+	"github.com/stripe/stripe-go/v86/webhook"
 	"github.com/thanhpk/randstr"
 )
 
@@ -84,7 +84,11 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	}
 
 	id := c.GetInt("id")
-	user, _ := userstore.GetUserById(id, false)
+	user, err := userstore.GetUserById(id, false)
+	if err != nil {
+		respondTopupError(c, i18n.MsgTopupGetUserFailed)
+		return
+	}
 	chargedMoney := payment.GetChargedAmount(float64(req.Amount), *user)
 
 	reference := fmt.Sprintf("nookmux-ref-%d-%d-%s", user.Id, time.Now().UnixMilli(), randstr.String(4))

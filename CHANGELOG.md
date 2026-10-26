@@ -82,6 +82,13 @@
 
 ### Changed
 
+- **Stripe 支付合规升级与实付金额核对**：Stripe SDK 由 `stripe-go v81` 升级到
+  `v86.4.2`（API 版本随之升至 `2026-08-26.dahlia`），Stripe 客户端从已弃用的
+  全局 `stripe.Key` 模式迁移到 `stripe.NewClient` 实例（v2 调用风格，Checkout
+  Session 创建带 `integration_identifier` 追踪标签）；Webhook 入账前新增实付
+  金额核对——`实付金额 + 促销折扣 == 数量 × StripeUnitPrice × 币种倍率`
+  （零小数币种按主单位核对），Stripe Price 单价与 `StripeUnitPrice` 配置漂移时
+  订单拒绝入账并返回 5xx 触发 Stripe 重投告警，杜绝"实收≠入账"的静默资损窗口。
 - **JSON 列持久化规范按数据形态二分**：`internal/store/AGENTS.md` 的多库兼容规范
   现规定——自由形态 JSON 文本（配置、运行时拼装键值等）统一 `gorm:"type:text"`；
   结构化 JSON 对象（Go 结构体或自定义类型整体序列化，如 `channels.channel_info`、
@@ -131,6 +138,11 @@
 
 ### Fixed
 
+- **Stripe 支付链路错误处理与弹窗拦截**：创建充值订单前获取用户失败不再吞错
+  （原 `user, _ :=` 在异常时直接空指针 panic），改为返回本地化错误提示
+  （新增 `topup.get_user_failed` 文案）；前端 Stripe 支付改为在异步请求前同步
+  预开支付窗口，规避 Safari 等浏览器对异步 `window.open` 的弹窗拦截，弹窗被
+  拦截时降级为当前页跳转。
 - **DM8 大文本列类型（跨库迁移矩阵）**：`options.value`、`channels.key/other/
   models/other_info/settings`、`logs.content/other` 此前未声明列类型，PG 系
   （PostgreSQL/openGauss/金仓）按方言默认建成无上限 TEXT，DM8 却按

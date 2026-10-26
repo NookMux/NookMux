@@ -432,6 +432,7 @@ topup.cancel_url_untrusted: "支付取消重定向URL不在可信任域名列表
 topup.unsupported_channel: "不支持的支付渠道"
 topup.amount_below_min: "充值数量不能小于 {{.Min}}"
 topup.get_group_failed: "获取用户分组失败"
+topup.get_user_failed: "获取用户信息失败"
 topup.pay_amount_too_low: "充值金额过低"
 topup.payment_method_not_found: "支付方式不存在"
 topup.payment_config_missing: "当前管理员未配置支付信息"

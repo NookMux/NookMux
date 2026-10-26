@@ -15,8 +15,9 @@ import (
 	topupstore "github.com/NookMux/NookMux/internal/store/topup"
 	userstore "github.com/NookMux/NookMux/internal/store/user"
 	"github.com/gin-gonic/gin"
-	"github.com/stripe/stripe-go/v81"
-	"github.com/stripe/stripe-go/v81/checkout/session"
+	"github.com/shopspring/decimal"
+	"github.com/stripe/stripe-go/v86"
+	"github.com/thanhpk/randstr"
 )
 
 const (
@@ -54,6 +55,47 @@ func GetStripeMinTopup() int64 {
 	return int64(config.StripeMinTopUp)
 }
 
+// stripeZeroDecimalCurrencies 为 Stripe 以主单位直接计量的零小数币种，
+// 其余币种的金额字段均以 1/100 主单位表示。
+var stripeZeroDecimalCurrencies = map[string]struct{}{
+	"bif": {}, "clp": {}, "djf": {}, "gnf": {}, "jpy": {}, "krw": {},
+	"mga": {}, "pyg": {}, "vnd": {}, "vuv": {}, "xaf": {}, "xof": {}, "xpf": {},
+}
+
+// VerifySessionAmount 在入账前核对 webhook 事件的实付金额与本地单价配置。
+// 预期最小单位金额 = quantity × StripeUnitPrice × 币种倍率（零小数币种为 1，其余为 100），
+// 促销码折扣以 total_details.amount_discount 找平。Stripe Price 单价与
+// StripeUnitPrice 配置漂移时直接返回错误，由 webhook 返回 5xx 暴露问题，不做兜底入账。
+func VerifySessionAmount(quantity int64, unitPrice float64, currency string, amountTotal string, amountDiscount string) error {
+	if quantity <= 0 {
+		return fmt.Errorf("stripe 充值订单数量非法: %d", quantity)
+	}
+	total, err := strconv.ParseInt(amountTotal, 10, 64)
+	if err != nil {
+		return fmt.Errorf("stripe webhook 实付金额缺失或非法 amount_total=%q: %w", amountTotal, err)
+	}
+	var discount int64
+	if amountDiscount != "" {
+		discount, err = strconv.ParseInt(amountDiscount, 10, 64)
+		if err != nil {
+			return fmt.Errorf("stripe webhook 促销折扣金额非法 amount_discount=%q: %w", amountDiscount, err)
+		}
+	}
+	scale := decimal.NewFromInt(100)
+	if _, ok := stripeZeroDecimalCurrencies[strings.ToLower(currency)]; ok {
+		scale = decimal.NewFromInt(1)
+	}
+	expected := decimal.NewFromFloat(unitPrice).Mul(decimal.NewFromInt(quantity)).Mul(scale)
+	if !expected.IsInteger() {
+		return fmt.Errorf("stripe 预期实付金额非整数最小单位（unit_price=%.4f, quantity=%d, currency=%s）", unitPrice, quantity, currency)
+	}
+	expectedMinor := expected.IntPart()
+	if total+discount != expectedMinor {
+		return fmt.Errorf("stripe 实付金额与本地单价配置不一致: 实付 %d + 折扣 %d != 预期 %d（currency=%s, quantity=%d, unit_price=%.4f）", total, discount, expectedMinor, currency, quantity, unitPrice)
+	}
+	return nil
+}
+
 // GenStripeLink generates a Stripe Checkout session URL for payment.
 // It creates a new checkout session with the specified parameters and returns the payment URL.
 //
@@ -72,7 +114,7 @@ func GenStripeLink(c *gin.Context, referenceId string, customerId string, email 
 		return "", fmt.Errorf("%s", i18n.T(c, i18n.MsgTopupStripeInvalidAPIKey))
 	}
 
-	stripe.Key = config.StripeApiSecret
+	sc := stripe.NewClient(config.StripeApiSecret)
 
 	// Use custom URLs if provided, otherwise use defaults
 	if successURL == "" {
@@ -82,18 +124,19 @@ func GenStripeLink(c *gin.Context, referenceId string, customerId string, email 
 		cancelURL = system.ServerAddress + "/console/topup"
 	}
 
-	params := &stripe.CheckoutSessionParams{
+	params := &stripe.CheckoutSessionCreateParams{
 		ClientReferenceID: stripe.String(referenceId),
 		SuccessURL:        stripe.String(successURL),
 		CancelURL:         stripe.String(cancelURL),
-		LineItems: []*stripe.CheckoutSessionLineItemParams{
+		LineItems: []*stripe.CheckoutSessionCreateLineItemParams{
 			{
 				Price:    stripe.String(config.StripePriceId),
 				Quantity: stripe.Int64(amount),
 			},
 		},
-		Mode:                stripe.String(string(stripe.CheckoutSessionModePayment)),
-		AllowPromotionCodes: stripe.Bool(config.StripePromotionCodesEnabled),
+		Mode:                  stripe.String(string(stripe.CheckoutSessionModePayment)),
+		AllowPromotionCodes:   stripe.Bool(config.StripePromotionCodesEnabled),
+		IntegrationIdentifier: stripe.String("nookmux-topup-" + randstr.String(8)),
 	}
 
 	if "" == customerId {
@@ -106,7 +149,7 @@ func GenStripeLink(c *gin.Context, referenceId string, customerId string, email 
 		params.Customer = stripe.String(customerId)
 	}
 
-	result, err := session.New(params)
+	result, err := sc.V1CheckoutSessions.Create(c.Request.Context(), params)
 	if err != nil {
 		return "", err
 	}
@@ -181,7 +224,32 @@ func FulfillOrder(event stripe.Event, referenceId string, customerId string, cal
 	LockOrder(referenceId)
 	defer UnlockOrder(referenceId)
 
-	err := topupstore.Recharge(referenceId, customerId, callerIp)
+	topUp, err := topupstore.GetTopUpByTradeNo(referenceId)
+	if err != nil {
+		log.Println("查询充值订单出错:", referenceId, ",", err.Error())
+		return err
+	}
+	if topUp == nil {
+		// 订单本地不存在是终态：重投也无法入账，返回 nil 让 webhook 回 2xx，
+		// 避免 Stripe 无限重投。
+		log.Println("充值订单不存在，视为终态跳过入账:", referenceId)
+		return nil
+	}
+
+	// 入账前核对实付金额：Stripe Price 单价与 StripeUnitPrice 配置漂移时
+	// 拒绝入账并返回错误，由 webhook 返回 5xx 触发重投与告警。
+	if err := VerifySessionAmount(
+		topUp.Amount,
+		config.StripeUnitPrice,
+		event.GetObjectValue("currency"),
+		event.GetObjectValue("amount_total"),
+		event.GetObjectValue("total_details", "amount_discount"),
+	); err != nil {
+		log.Println("Stripe 实付金额核对失败:", referenceId, ",", err.Error())
+		return err
+	}
+
+	err = topupstore.Recharge(referenceId, customerId, callerIp)
 	if err != nil {
 		if errors.Is(err, topupstore.ErrTopUpStatusInvalid) {
 			log.Println("充值订单已处理，跳过重复入账:", referenceId)
