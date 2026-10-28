@@ -38,28 +38,28 @@ func AllPlatformIDs() []string {
 // 尾部分隔符）。命中后要求前缀之后紧跟 '/'、'-'、' '、'(' 或串尾，构成 token
 // 边界，防止 pinecone/1.0 之类误命中 pi。
 var uaProductPrefixes = map[string]string{
-	"claude-cli":               PlatformClaudeCode,
-	"claude-code":              PlatformClaudeCode,
-	"codex_cli_rs":             PlatformCodex,
-	"codex-cli-rs":             PlatformCodex,
-	"codex_cli":                PlatformCodex,
-	"codex-cli":                PlatformCodex,
-	"codex_tui":                PlatformCodex,
-	"codex-tui":                PlatformCodex,
-	"codex_vscode":             PlatformCodex,
-	"codex-vscode":             PlatformCodex,
-	"codex_exec":               PlatformCodex,
-	"codex-exec":               PlatformCodex,
-	"codex_atlas":              PlatformCodex,
-	"codex-atlas":              PlatformCodex,
-	"codex_chatgpt_desktop":    PlatformCodex,
-	"codex-chatgpt-desktop":    PlatformCodex,
-	"codex desktop":            PlatformCodex,
-	"opencode":                 PlatformOpenCode,
-	"hermesagent":              PlatformHermesAgent,
-	"deepseek-harness":         PlatformDeepSeekHarness,
-	"openclaw":                 PlatformOpenClaw,
-	"pi":                       PlatformPi,
+	"claude-cli":            PlatformClaudeCode,
+	"claude-code":           PlatformClaudeCode,
+	"codex_cli_rs":          PlatformCodex,
+	"codex-cli-rs":          PlatformCodex,
+	"codex_cli":             PlatformCodex,
+	"codex-cli":             PlatformCodex,
+	"codex_tui":             PlatformCodex,
+	"codex-tui":             PlatformCodex,
+	"codex_vscode":          PlatformCodex,
+	"codex-vscode":          PlatformCodex,
+	"codex_exec":            PlatformCodex,
+	"codex-exec":            PlatformCodex,
+	"codex_atlas":           PlatformCodex,
+	"codex-atlas":           PlatformCodex,
+	"codex_chatgpt_desktop": PlatformCodex,
+	"codex-chatgpt-desktop": PlatformCodex,
+	"codex desktop":         PlatformCodex,
+	"opencode":              PlatformOpenCode,
+	"hermesagent":           PlatformHermesAgent,
+	"deepseek-harness":      PlatformDeepSeekHarness,
+	"openclaw":              PlatformOpenClaw,
+	"pi":                    PlatformPi,
 	// new-api 网关自报 UA 为弱信号：其转发模型流量时默认不带 UA，
 	// 仅显式配置或非模型出站请求可能携带。
 	"new-api": PlatformNewAPI,
@@ -67,10 +67,10 @@ var uaProductPrefixes = map[string]string{
 
 // refererHostPlatforms 定义 HTTP-Referer 的 host 精确匹配表（host 已小写、去端口）。
 var refererHostPlatforms = map[string]string{
-	"cherry-ai.com":                    PlatformCherryStudio,
-	"hermes-agent.nousresearch.com":    PlatformHermesAgent,
-	"openclaw.ai":                      PlatformOpenClaw,
-	"pi.dev":                           PlatformPi,
+	"cherry-ai.com":                 PlatformCherryStudio,
+	"hermes-agent.nousresearch.com": PlatformHermesAgent,
+	"openclaw.ai":                   PlatformOpenClaw,
+	"pi.dev":                        PlatformPi,
 }
 
 // DetectPlatform 基于客户端请求头（User-Agent、X-Title、HTTP-Referer）识别客户端
