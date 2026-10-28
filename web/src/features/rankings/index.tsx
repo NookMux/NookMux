@@ -24,6 +24,7 @@ import { PageTransition } from '@/components/page-transition'
 import {
   MarketShareSection,
   ModelsSection,
+  PlatformsSection,
   PulseSection,
   RankingsHero,
 } from './components'
@@ -91,6 +92,12 @@ export function Rankings() {
               <ModelsSection
                 history={snapshot.models_history}
                 rows={snapshot.models}
+                period={period}
+              />
+
+              <PlatformsSection
+                history={snapshot.platforms_history}
+                rows={snapshot.platforms}
                 period={period}
               />
 

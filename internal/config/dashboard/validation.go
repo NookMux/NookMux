@@ -37,6 +37,9 @@ func ValidateDashboardConfig(lang string, config *DashboardConfig) error {
 	if config.RankingsVendorLimit < 1 || config.RankingsVendorLimit > 50 {
 		return errors.New(i18n.Translate(lang, i18n.MsgDashboardRankingsVendorLimitRange))
 	}
+	if config.RankingsPlatformLimit < 1 || config.RankingsPlatformLimit > 50 {
+		return errors.New(i18n.Translate(lang, i18n.MsgDashboardRankingsPlatformLimitRange))
+	}
 	if config.UserAnalyticsTopN < 1 || config.UserAnalyticsTopN > 100 {
 		return errors.New(i18n.Translate(lang, i18n.MsgDashboardUserAnalyticsTopNRange))
 	}
@@ -99,6 +102,12 @@ func ValidateDashboardConfigField(lang string, field string, value interface{}) 
 		if v, ok := value.(int); ok {
 			if v < 1 || v > 50 {
 				return errors.New(i18n.Translate(lang, i18n.MsgDashboardRankingsVendorLimitRange))
+			}
+		}
+	case "rankings_platform_limit":
+		if v, ok := value.(int); ok {
+			if v < 1 || v > 50 {
+				return errors.New(i18n.Translate(lang, i18n.MsgDashboardRankingsPlatformLimitRange))
 			}
 		}
 	case "user_analytics_top_n":

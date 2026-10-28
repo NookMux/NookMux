@@ -48,6 +48,7 @@ const limitsSchema = z
     max_time_range_days: z.number().min(1).max(365),
     rankings_model_limit: z.number().min(1).max(100),
     rankings_vendor_limit: z.number().min(1).max(50),
+    rankings_platform_limit: z.number().min(1).max(50),
     user_analytics_top_n: z.number().min(1).max(100),
   })
   .refine((data) => data.default_time_range_days <= data.max_time_range_days, {
@@ -71,6 +72,7 @@ export function DashboardLimitsSection() {
             max_time_range_days: config.max_time_range_days,
             rankings_model_limit: config.rankings_model_limit,
             rankings_vendor_limit: config.rankings_vendor_limit,
+            rankings_platform_limit: config.rankings_platform_limit,
             user_analytics_top_n: config.user_analytics_top_n,
           }
         : undefined,
@@ -188,6 +190,32 @@ export function DashboardLimitsSection() {
                   <FormItem>
                     <FormLabel>
                       {t('systemSettings.fields.rankingsVendorLimit')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={50}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
+
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='rankings_platform_limit'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.fields.rankingsPlatformLimit')}
                     </FormLabel>
                     <FormControl>
                       <Input

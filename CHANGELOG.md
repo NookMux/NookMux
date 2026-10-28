@@ -9,6 +9,29 @@
 
 ### Added
 
+- **使用平台识别（Agent 客户端归因）**：通过 `User-Agent`、`HTTP-Referer`、
+  `X-Title` 三个客户端请求头识别发起请求的 Agent 平台，首批支持
+  Claude Code、Codex、OpenCode、Hermes Agent、DeepSeek Harness、OpenClaw、
+  pi、New API（网关自报 UA 弱信号）与 Cherry Studio 九个平台，规则均经
+  源码级核实并带防误报边界（如 `pi` 精确匹配不受 `pinecone/1.0` 干扰）。
+  识别结果落库为 `logs.platform` 受控短枚举列，历史日志由一次性迁移
+  （`data_migration.log_platform.v1.done` marker，id 游标分批）基于已回填的
+  三头列自动识别回填。使用日志新增「平台」列（logo+文本、居中、溢出省略，
+  列宽对齐渠道列）；`quota_data` 聚合维度加入平台（内存缓存、定时落盘与
+  `POST /api/data/recalculate` 重算链路同步），排行榜页在市场份额上方新增
+  「热门 Agent」卡片（平台堆叠柱状图 + 双列排行榜），`/api/rankings` 响应
+  新增 `platforms` 与 `platforms_history` 字段；仪表台配置新增
+  `rankings_platform_limit`（默认 10，范围 1-50）。已部署实例升级后，可对
+  历史时间范围执行一次 `POST /api/data/recalculate` 让热门 Agent 图表覆盖
+  存量流量。平台显示名与图标由前端统一映射（`@lobehub/icons`），后端仅
+  下发平台 ID。
+- **使用平台识别接口文档同步**（Mintlify 中英）：`GET /api/log` 与
+  `GET /api/log/self` 响应示例与字段表新增 `platform`；`GET /api/rankings`
+  响应新增 `platforms` 榜单与 `platforms_history` 时序结构的完整解析
+  （含 `Others` 归并、环比省略语义）；`GET/PUT /api/dashboard/config` 与
+  `POST /api/dashboard/config/reset` 补 `rankings_platform_limit`（默认 10、
+  范围 1-50）；`POST /api/data/recalculate` 的聚合粒度说明补平台维度。
+  全部字段对照后端源码核实。
 - **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
   端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
   cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段

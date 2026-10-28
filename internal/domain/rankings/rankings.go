@@ -17,18 +17,21 @@ const (
 	rankingLeaderboardLimit = 20
 	rankingHistoryLimit     = 10
 	rankingVendorLimit      = 5
+	rankingPlatformLimit    = 10
 	rankingMoverLimit       = 6
 	rankingOthersLabel      = "Others"
 	rankingUnknownVendor    = "Unknown"
 )
 
 type RankingsResponse struct {
-	Models             []RankedModel      `json:"models"`
-	Vendors            []RankedVendor     `json:"vendors"`
-	TopMovers          []RankingMover     `json:"top_movers"`
-	TopDroppers        []RankingMover     `json:"top_droppers"`
-	ModelsHistory      ModelHistorySeries `json:"models_history"`
-	VendorShareHistory VendorShareSeries  `json:"vendor_share_history"`
+	Models             []RankedModel         `json:"models"`
+	Vendors            []RankedVendor        `json:"vendors"`
+	Platforms          []RankedPlatform      `json:"platforms"`
+	TopMovers          []RankingMover        `json:"top_movers"`
+	TopDroppers        []RankingMover        `json:"top_droppers"`
+	ModelsHistory      ModelHistorySeries    `json:"models_history"`
+	VendorShareHistory VendorShareSeries     `json:"vendor_share_history"`
+	PlatformsHistory   PlatformHistorySeries `json:"platforms_history"`
 }
 
 type RankedModel struct {
@@ -53,6 +56,17 @@ type RankedVendor struct {
 	GrowthPct   float64 `json:"growth_pct"`
 	ModelsCount int     `json:"models_count"`
 	TopModel    string  `json:"top_model"`
+}
+
+// RankedPlatform 是客户端平台（Agent）排行榜行。平台显示名与图标由前端
+// 根据 platform ID 映射（后端只下发受控 ID）。
+type RankedPlatform struct {
+	Rank         int     `json:"rank"`
+	PreviousRank *int    `json:"previous_rank,omitempty"`
+	Platform     string  `json:"platform"`
+	TotalTokens  int64   `json:"total_tokens"`
+	Share        float64 `json:"share"`
+	GrowthPct    float64 `json:"growth_pct"`
 }
 
 type RankingMover struct {
@@ -103,6 +117,24 @@ type VendorShareSeries struct {
 	Points  []VendorSharePoint  `json:"points"`
 	Vendors []VendorShareVendor `json:"vendors"`
 	Buckets int                 `json:"buckets"`
+}
+
+type PlatformHistoryPoint struct {
+	Ts       string `json:"ts"`
+	Label    string `json:"label"`
+	Platform string `json:"platform"`
+	Tokens   int64  `json:"tokens"`
+}
+
+type PlatformHistoryModel struct {
+	Name  string `json:"name"`
+	Total int64  `json:"total"`
+}
+
+type PlatformHistorySeries struct {
+	Points    []PlatformHistoryPoint `json:"points"`
+	Platforms []PlatformHistoryModel `json:"platforms"`
+	Buckets   int                    `json:"buckets"`
 }
 
 type rankingPeriodConfig struct {
@@ -159,11 +191,15 @@ func GetRankingsSnapshot(period string) (*RankingsResponse, error) {
 	if vendorLimit <= 0 {
 		vendorLimit = rankingVendorLimit
 	}
+	platformLimit := cfg.RankingsPlatformLimit
+	if platformLimit <= 0 {
+		platformLimit = rankingPlatformLimit
+	}
 	userTopN := cfg.UserAnalyticsTopN
 	if userTopN <= 0 {
 		userTopN = rankingLeaderboardLimit
 	}
-	cacheKey := fmt.Sprintf("%s-m%d-v%d-u%d", config.id, modelLimit, vendorLimit, userTopN)
+	cacheKey := fmt.Sprintf("%s-m%d-v%d-p%d-u%d", config.id, modelLimit, vendorLimit, platformLimit, userTopN)
 
 	// 周期边界统一按后端启动时区（TZ 环境变量）计算，不使用请求方时区。
 	now := common.NowInStartupTimezone()
@@ -269,6 +305,10 @@ func buildRankingsSnapshot(config rankingPeriodConfig, now time.Time) (*Rankings
 	if vendorLimit <= 0 {
 		vendorLimit = rankingVendorLimit
 	}
+	platformLimit := cfg.RankingsPlatformLimit
+	if platformLimit <= 0 {
+		platformLimit = rankingPlatformLimit
+	}
 
 	startTime, endTime := rankingTimeRange(config, now)
 	currentTotals, err := usedatastore.GetRankingQuotaTotals(startTime, endTime)
@@ -279,11 +319,24 @@ func buildRankingsSnapshot(config rankingPeriodConfig, now time.Time) (*Rankings
 	if err != nil {
 		return nil, err
 	}
+	currentPlatformTotals, err := usedatastore.GetRankingPlatformTotals(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	currentPlatformBuckets, err := usedatastore.GetRankingPlatformBuckets(startTime, endTime, config.bucketSize, rankingDayOffset())
+	if err != nil {
+		return nil, err
+	}
 
 	var previousTotals []usedatastore.RankingQuotaTotal
+	var previousPlatformTotals []usedatastore.RankingPlatformTotal
 	if config.hasPrevious {
 		previousStart, previousEnd := previousRankingTimeRange(config, startTime, now.Location())
 		previousTotals, err = usedatastore.GetRankingQuotaTotals(previousStart, previousEnd)
+		if err != nil {
+			return nil, err
+		}
+		previousPlatformTotals, err = usedatastore.GetRankingPlatformTotals(previousStart, previousEnd)
 		if err != nil {
 			return nil, err
 		}
@@ -299,17 +352,21 @@ func buildRankingsSnapshot(config rankingPeriodConfig, now time.Time) (*Rankings
 
 	rankedModels := buildRankedModels(currentTotals, totalTokens, previousRankByModel, previousTokensByModel, meta, config.hasPrevious)
 	vendors := buildRankedVendors(currentTotals, previousTotals, totalTokens, meta, config.hasPrevious)
+	platforms := buildRankedPlatforms(currentPlatformTotals, previousPlatformTotals, config.hasPrevious)
 	modelHistory := buildModelHistory(currentBuckets, currentTotals, meta, config, modelLimit)
 	vendorHistory := buildVendorShareHistory(currentBuckets, vendors, totalTokens, meta, config, vendorLimit)
+	platformHistory := buildPlatformHistory(currentPlatformBuckets, currentPlatformTotals, config, platformLimit)
 	movers, droppers := buildRankingMovers(rankedModels)
 
 	return &RankingsResponse{
 		Models:             limitRankedModels(rankedModels, modelLimit),
 		Vendors:            limitRankedVendors(vendors, vendorLimit),
+		Platforms:          limitRankedPlatforms(platforms, platformLimit),
 		TopMovers:          movers,
 		TopDroppers:        droppers,
 		ModelsHistory:      modelHistory,
 		VendorShareHistory: vendorHistory,
+		PlatformsHistory:   platformHistory,
 	}, nil
 }
 
@@ -488,6 +545,100 @@ func ensureVendorAggregate(aggregates map[string]*vendorAggregate, meta rankingM
 		agg.icon = meta.vendorIcon
 	}
 	return agg
+}
+
+// buildRankedPlatforms 组装客户端平台（Agent）排行榜。totals 由存储层按
+// token 总量降序返回；share 以平台 token 总和为分母（不含未识别流量）。
+func buildRankedPlatforms(totals []usedatastore.RankingPlatformTotal, previousTotals []usedatastore.RankingPlatformTotal, showGrowth bool) []RankedPlatform {
+	totalTokens := int64(0)
+	for _, item := range totals {
+		totalTokens += item.TotalTokens
+	}
+	previousRanks := make(map[string]int, len(previousTotals))
+	for idx, item := range previousTotals {
+		previousRanks[item.Platform] = idx + 1
+	}
+	previousTokens := make(map[string]int64, len(previousTotals))
+	for _, item := range previousTotals {
+		previousTokens[item.Platform] = item.TotalTokens
+	}
+
+	rows := make([]RankedPlatform, 0, len(totals))
+	for idx, item := range totals {
+		var previousRank *int
+		if rank, ok := previousRanks[item.Platform]; ok {
+			rankCopy := rank
+			previousRank = &rankCopy
+		}
+		growth := 0.0
+		if showGrowth {
+			growth = rankingGrowthPct(item.TotalTokens, previousTokens[item.Platform])
+		}
+		rows = append(rows, RankedPlatform{
+			Rank:         idx + 1,
+			PreviousRank: previousRank,
+			Platform:     item.Platform,
+			TotalTokens:  item.TotalTokens,
+			Share:        rankingShare(item.TotalTokens, totalTokens),
+			GrowthPct:    growth,
+		})
+	}
+	return rows
+}
+
+// buildPlatformHistory 组装热门 Agent 的堆叠柱状图时序：Top N 平台 + Others 归并。
+func buildPlatformHistory(buckets []usedatastore.RankingPlatformBucket, totals []usedatastore.RankingPlatformTotal, config rankingPeriodConfig, platformLimit int) PlatformHistorySeries {
+	topPlatforms := make(map[string]struct{})
+	platformRows := make([]PlatformHistoryModel, 0, minInt(len(totals), platformLimit)+1)
+	otherTotal := int64(0)
+	for idx, item := range totals {
+		if idx < platformLimit {
+			topPlatforms[item.Platform] = struct{}{}
+			platformRows = append(platformRows, PlatformHistoryModel{Name: item.Platform, Total: item.TotalTokens})
+			continue
+		}
+		otherTotal += item.TotalTokens
+	}
+	if otherTotal > 0 {
+		platformRows = append(platformRows, PlatformHistoryModel{Name: rankingOthersLabel, Total: otherTotal})
+	}
+
+	bucketSet := make(map[int64]struct{})
+	tokensByBucketAndPlatform := make(map[int64]map[string]int64)
+	for _, item := range buckets {
+		platform := item.Platform
+		if _, ok := topPlatforms[platform]; !ok {
+			platform = rankingOthersLabel
+		}
+		bucketSet[item.Bucket] = struct{}{}
+		if _, ok := tokensByBucketAndPlatform[item.Bucket]; !ok {
+			tokensByBucketAndPlatform[item.Bucket] = make(map[string]int64)
+		}
+		tokensByBucketAndPlatform[item.Bucket][platform] += item.Tokens
+	}
+
+	sortedBuckets := sortedRankingBuckets(bucketSet)
+	points := make([]PlatformHistoryPoint, 0, len(sortedBuckets)*len(platformRows))
+	for _, bucket := range sortedBuckets {
+		for _, platformRow := range platformRows {
+			tokens := tokensByBucketAndPlatform[bucket][platformRow.Name]
+			if tokens <= 0 {
+				continue
+			}
+			points = append(points, PlatformHistoryPoint{
+				Ts:       rankingBucketTs(bucket),
+				Label:    rankingBucketLabel(bucket, config),
+				Platform: platformRow.Name,
+				Tokens:   tokens,
+			})
+		}
+	}
+
+	return PlatformHistorySeries{
+		Points:    points,
+		Platforms: platformRows,
+		Buckets:   len(sortedBuckets),
+	}
 }
 
 func buildModelHistory(buckets []usedatastore.RankingQuotaBucket, totals []usedatastore.RankingQuotaTotal, meta map[string]rankingModelMeta, config rankingPeriodConfig, modelLimit int) ModelHistorySeries {
@@ -724,6 +875,13 @@ func limitRankedModels(rows []RankedModel, limit int) []RankedModel {
 }
 
 func limitRankedVendors(rows []RankedVendor, limit int) []RankedVendor {
+	if limit <= 0 || len(rows) <= limit {
+		return rows
+	}
+	return rows[:limit]
+}
+
+func limitRankedPlatforms(rows []RankedPlatform, limit int) []RankedPlatform {
 	if limit <= 0 || len(rows) <= limit {
 		return rows
 	}

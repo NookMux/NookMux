@@ -77,6 +77,7 @@ func InitLogDB() (err error) {
 		// 日志与主库同库：Log 表已由 migrateDB 的 AutoMigrate 处理，这里仅做数据回填。
 		if common.IsMasterNode {
 			backfillLogClientHeaderColumns()
+			backfillLogPlatforms()
 		}
 		return
 	}
@@ -109,8 +110,10 @@ func InitLogDB() (err error) {
 		if err != nil {
 			return err
 		}
-		// 独立日志库：AutoMigrate 完成后回填历史日志的客户端请求头列。
+		// 独立日志库：AutoMigrate 完成后回填历史日志的客户端请求头列，
+		// 再基于回填结果识别历史日志的客户端平台。
 		backfillLogClientHeaderColumns()
+		backfillLogPlatforms()
 		return err
 	} else {
 		common.FatalLog(err)

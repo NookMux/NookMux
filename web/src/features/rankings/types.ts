@@ -68,6 +68,18 @@ export type VendorRanking = {
   top_model: string
 }
 
+/** Client platform (agent) leaderboard row; display name and icon are mapped
+ *  on the frontend from the platform id (see src/lib/platform-meta.ts). */
+export type PlatformRanking = {
+  rank: number
+  previous_rank?: number
+  platform: string
+  total_tokens: number
+  /** Share of identified-platform tokens (0..1). */
+  share: number
+  growth_pct: number
+}
+
 export type RankingMover = {
   model_name: string
   vendor: string
@@ -125,10 +137,32 @@ export type VendorShareSeries = {
   buckets: number
 }
 
+/**
+ * One sample of a client platform's token usage at a given timestamp.
+ * Flat shape ready to feed VChart's stacked-bar spec.
+ */
+type PlatformHistoryPoint = {
+  ts: string
+  label: string
+  /** Platform id (or "Others"); display name is mapped on the frontend. */
+  platform: string
+  tokens: number
+}
+
+export type PlatformHistorySeries = {
+  /** Flat points ready for VChart, ordered oldest → newest. */
+  points: PlatformHistoryPoint[]
+  /** Platforms that appear in the series, sorted by total tokens desc. */
+  platforms: Array<{ name: string; total: number }>
+  buckets: number
+}
+
 export type RankingsSnapshot = {
   // Overall (all categories) ------------------------------------------------
   models: ModelRanking[]
   vendors: VendorRanking[]
+  /** Client platform (agent) leaderboard for the period. */
+  platforms: PlatformRanking[]
   /** Largest rank gainers in this period. */
   top_movers: RankingMover[]
   /** Largest rank losers in this period. */
@@ -137,4 +171,6 @@ export type RankingsSnapshot = {
   models_history: ModelHistorySeries
   /** 100%-stacked area history of token share by vendor over the period. */
   vendor_share_history: VendorShareSeries
+  /** Stacked-bar history of token usage by client platform over the period. */
+  platforms_history: PlatformHistorySeries
 }

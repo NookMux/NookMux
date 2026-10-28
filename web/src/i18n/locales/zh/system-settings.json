@@ -826,6 +826,7 @@
   "systemSettings.tips.maximumTimeRangeDays": "最大时间范围（天）",
   "systemSettings.fields.rankingsModelLimit": "排行榜模型数量限制",
   "systemSettings.fields.rankingsVendorLimit": "排行榜供应商数量限制",
+  "systemSettings.fields.rankingsPlatformLimit": "排行榜 Agent 数量限制",
   "systemSettings.fields.userAnalyticsTopN": "用户分析 Top N",
   "systemSettings.tips.controlWhichDataMetricsAreCalculatedAndDisplayedInThe": "控制仪表盘计算和展示哪些数据指标",
   "systemSettings.fields.quotaData": "额度数据",

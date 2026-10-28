@@ -43,6 +43,94 @@ func TestLimitRankedVendorsRespectsLimit(t *testing.T) {
 	}
 }
 
+// TestBuildRankedPlatforms 验证平台排行榜的排名、环比与份额组装。
+func TestBuildRankedPlatforms(t *testing.T) {
+	current := []usedatastore.RankingPlatformTotal{
+		{Platform: "claude-code", TotalTokens: 600},
+		{Platform: "codex", TotalTokens: 300},
+		{Platform: "opencode", TotalTokens: 100},
+	}
+	previous := []usedatastore.RankingPlatformTotal{
+		{Platform: "codex", TotalTokens: 150},
+		{Platform: "claude-code", TotalTokens: 200},
+	}
+
+	rows := buildRankedPlatforms(current, previous, true)
+	if len(rows) != 3 {
+		t.Fatalf("expected 3 rows, got %d", len(rows))
+	}
+	if rows[0].Rank != 1 || rows[0].Platform != "claude-code" || rows[0].Share != 0.6 {
+		t.Fatalf("row0 = %+v, want rank 1 claude-code share 0.6", rows[0])
+	}
+	if rows[0].PreviousRank == nil || *rows[0].PreviousRank != 2 {
+		t.Fatalf("claude-code previous rank = %v, want 2", rows[0].PreviousRank)
+	}
+	if rows[0].GrowthPct != 200 {
+		t.Fatalf("claude-code growth = %v, want 200", rows[0].GrowthPct)
+	}
+	if rows[2].PreviousRank != nil {
+		t.Fatalf("opencode previous rank = %v, want nil (new entrant)", rows[2].PreviousRank)
+	}
+
+	// 关闭环比时 growth 恒为 0。
+	rows = buildRankedPlatforms(current, previous, false)
+	if rows[0].GrowthPct != 0 {
+		t.Fatalf("growth with showGrowth=false = %v, want 0", rows[0].GrowthPct)
+	}
+}
+
+// TestLimitRankedPlatformsRespectsLimit 验证 limitRankedPlatforms 在数据量超过 limit 时正确截断。
+func TestLimitRankedPlatformsRespectsLimit(t *testing.T) {
+	rows := make([]RankedPlatform, 12)
+	for i := range rows {
+		rows[i] = RankedPlatform{Rank: i + 1, Platform: "platform-" + string(rune('a'+i))}
+	}
+
+	got := limitRankedPlatforms(rows, 10)
+	if len(got) != 10 {
+		t.Fatalf("expected 10 rows, got %d", len(got))
+	}
+}
+
+// TestBuildPlatformHistoryRespectsConfigLimit 验证 buildPlatformHistory 使用传入的
+// platformLimit 且超限平台归并入 Others。
+func TestBuildPlatformHistoryRespectsConfigLimit(t *testing.T) {
+	totals := make([]usedatastore.RankingPlatformTotal, 6)
+	for i := range totals {
+		totals[i] = usedatastore.RankingPlatformTotal{
+			Platform:    "platform-" + string(rune('a'+i)),
+			TotalTokens: int64(100 - i),
+		}
+	}
+	buckets := []usedatastore.RankingPlatformBucket{
+		{Platform: "platform-a", Bucket: 1000, Tokens: 100},
+		{Platform: "platform-f", Bucket: 1000, Tokens: 1},
+	}
+	config := rankingPeriodConfig{id: "week", labelLayout: "Jan 2"}
+
+	history := buildPlatformHistory(buckets, totals, config, 3)
+
+	topCount := 0
+	for _, p := range history.Platforms {
+		if p.Name != rankingOthersLabel {
+			topCount++
+		}
+	}
+	if topCount != 3 {
+		t.Fatalf("expected 3 top platforms in history, got %d (%+v)", topCount, history.Platforms)
+	}
+	// platform-f 超出 limit，其桶数据应归并入 Others 点。
+	hasOthersPoint := false
+	for _, point := range history.Points {
+		if point.Platform == rankingOthersLabel && point.Tokens == 1 {
+			hasOthersPoint = true
+		}
+	}
+	if !hasOthersPoint {
+		t.Fatalf("expected an Others point carrying platform-f tokens, got %+v", history.Points)
+	}
+}
+
 // TestBuildModelHistoryRespectsConfigLimit 验证 buildModelHistory 使用传入的 modelLimit
 // 而非硬编码常量（修复 issue #111 的核心断言）。
 func TestBuildModelHistoryRespectsConfigLimit(t *testing.T) {

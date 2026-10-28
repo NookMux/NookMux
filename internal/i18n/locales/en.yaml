@@ -555,6 +555,7 @@ dashboard.max_time_range_range: "Max time range must be between 1 and 365 days"
 dashboard.default_time_range_range: "Default time range must be between 1 and {{.Max}} days"
 dashboard.rankings_model_limit_range: "Rankings model limit must be between 1 and 100"
 dashboard.rankings_vendor_limit_range: "Rankings vendor limit must be between 1 and 50"
+dashboard.rankings_platform_limit_range: "Rankings agent platform limit must be between 1 and 50"
 dashboard.user_analytics_top_n_range: "User analytics top N must be between 1 and 100"
 dashboard.default_time_range_exceeds_max: "Default time range cannot exceed the max time range ({{.Max}} days)"
 

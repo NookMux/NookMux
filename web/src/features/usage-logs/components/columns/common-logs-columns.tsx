@@ -26,6 +26,8 @@ import {
   formatLogQuota,
   formatTimestampToDate,
 } from '@/lib/format'
+import { getLobeIcon } from '@/lib/lobe-icon'
+import { getPlatformMeta } from '@/lib/platform-meta'
 import { type ColumnDef } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -582,6 +584,43 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         )
       },
       meta: { label: t('common.fields.model'), mobileTitle: true },
+    },
+
+    {
+      id: 'platform',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('usageLogs.fields.platform')}
+        />
+      ),
+      cell: function PlatformCell({ row }) {
+        const log = row.original
+        if (!isDisplayableLogType(log.type)) return null
+        if (!log.platform) return null
+
+        const platform = getPlatformMeta(log.platform)
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <div className='flex h-full max-w-[160px] items-center justify-center gap-1.5' />
+                }
+              >
+                <span className='flex size-3.5 shrink-0 items-center justify-center'>
+                  {getLobeIcon(platform.icon, 14)}
+                </span>
+                <span className='truncate text-xs'>{platform.name}</span>
+              </TooltipTrigger>
+              {platform.name !== log.platform && (
+                <TooltipContent side='top'>{platform.name}</TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+      meta: { label: t('usageLogs.fields.platform'), mobileHidden: true },
     },
 
     {

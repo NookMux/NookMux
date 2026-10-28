@@ -634,6 +634,7 @@ const (
 	MsgDashboardDefaultTimeRangeRange       = "dashboard.default_time_range_range"
 	MsgDashboardRankingsModelLimitRange     = "dashboard.rankings_model_limit_range"
 	MsgDashboardRankingsVendorLimitRange    = "dashboard.rankings_vendor_limit_range"
+	MsgDashboardRankingsPlatformLimitRange  = "dashboard.rankings_platform_limit_range"
 	MsgDashboardUserAnalyticsTopNRange      = "dashboard.user_analytics_top_n_range"
 	MsgDashboardDefaultTimeRangeExceedsMax  = "dashboard.default_time_range_exceeds_max"
 )

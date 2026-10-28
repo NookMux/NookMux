@@ -21,6 +21,7 @@
   "usageLogs.fields.callbackPaymentMethod": "回调支付方式",
   "usageLogs.fields.chain": "链路",
   "usageLogs.fields.channelId": "渠道 ID",
+  "usageLogs.fields.platform": "平台",
   "usageLogs.fields.clickToPreviewAudio": "点击预览音乐",
   "usageLogs.fields.clickToPreviewVideo": "点击预览视频",
   "usageLogs.titles.clickToViewFullDetails": "点击查看详细信息",

@@ -169,6 +169,7 @@ func ResetDashboardConfig(c *gin.Context) {
 		MaxTimeRangeDays:             31,
 		RankingsModelLimit:           20,
 		RankingsVendorLimit:          5,
+		RankingsPlatformLimit:        10,
 		UserAnalyticsTopN:            20,
 	}
 

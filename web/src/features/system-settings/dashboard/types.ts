@@ -51,6 +51,7 @@ export interface DashboardConfig {
   // 数据上限配置
   rankings_model_limit: number
   rankings_vendor_limit: number
+  rankings_platform_limit: number
   user_analytics_top_n: number
 }
 

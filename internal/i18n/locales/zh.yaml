@@ -556,6 +556,7 @@ dashboard.max_time_range_range: "最大时间范围必须在 1-365 天之间"
 dashboard.default_time_range_range: "默认时间范围必须在 1 到 {{.Max}} 天之间"
 dashboard.rankings_model_limit_range: "排行榜模型数量必须在 1-100 之间"
 dashboard.rankings_vendor_limit_range: "排行榜供应商数量必须在 1-50 之间"
+dashboard.rankings_platform_limit_range: "排行榜客户端平台数量必须在 1-50 之间"
 dashboard.user_analytics_top_n_range: "用户排行榜数量必须在 1-100 之间"
 dashboard.default_time_range_exceeds_max: "默认时间范围不能大于最大时间范围（{{.Max}} 天）"
 

@@ -56,6 +56,8 @@ type QuotaData struct {
 	UserID    int    `json:"user_id" gorm:"index"`
 	Username  string `json:"username" gorm:"index:idx_qdt_model_user_name,priority:2;size:64;default:''"`
 	ModelName string `json:"model_name" gorm:"index:idx_qdt_model_user_name,priority:1;size:64;default:''"`
+	// Platform 为客户端平台识别结果，空串表示未识别或识别功能上线前的历史数据。
+	Platform  string `json:"platform" gorm:"column:platform;size:32;default:''"`
 	CreatedAt int64  `json:"created_at" gorm:"bigint;index:idx_qdt_created_at,priority:2"`
 	TokenUsed int    `json:"token_used" gorm:"default:0"`
 	Count     int    `json:"count" gorm:"default:0"`
@@ -93,8 +95,8 @@ func UpdateQuotaData() {
 var CacheQuotaData = make(map[string]*QuotaData)
 var CacheQuotaDataLock = sync.Mutex{}
 
-func logQuotaDataCache(userId int, username string, modelName string, quota int, createdAt int64, tokenUsed int) {
-	key := fmt.Sprintf("%d-%s-%s-%d", userId, username, modelName, createdAt)
+func logQuotaDataCache(userId int, username string, modelName string, platform string, quota int, createdAt int64, tokenUsed int) {
+	key := fmt.Sprintf("%d-%s-%s-%s-%d", userId, username, modelName, platform, createdAt)
 	quotaData, ok := CacheQuotaData[key]
 	if ok {
 		quotaData.Count += 1
@@ -105,6 +107,7 @@ func logQuotaDataCache(userId int, username string, modelName string, quota int,
 			UserID:    userId,
 			Username:  username,
 			ModelName: modelName,
+			Platform:  platform,
 			CreatedAt: createdAt,
 			Count:     1,
 			Quota:     quota,
@@ -144,23 +147,23 @@ func GetQuotaDataTrackingConfig() (trackTokens, byModel, byUser bool) {
 }
 
 // LogQuotaData 记录成功请求数据到内存缓存
-func LogQuotaData(userId int, username string, modelName string, quota int, createdAt int64, tokenUsed int) {
+func LogQuotaData(userId int, username string, modelName string, platform string, quota int, createdAt int64, tokenUsed int) {
 	createdAt = createdAt - (createdAt % 3600)
 	userId, username, modelName, tokenUsed = applyTrackingConfig(userId, username, modelName, tokenUsed)
 
 	CacheQuotaDataLock.Lock()
 	defer CacheQuotaDataLock.Unlock()
-	logQuotaDataCache(userId, username, modelName, quota, createdAt, tokenUsed)
+	logQuotaDataCache(userId, username, modelName, platform, quota, createdAt, tokenUsed)
 }
 
 // LogQuotaErrorData 记录失败请求数据到内存缓存
-func LogQuotaErrorData(userId int, username string, modelName string, createdAt int64) {
+func LogQuotaErrorData(userId int, username string, modelName string, platform string, createdAt int64) {
 	createdAt = createdAt - (createdAt % 3600)
 	userId, username, modelName, _ = applyTrackingConfig(userId, username, modelName, 0)
 
 	CacheQuotaDataLock.Lock()
 	defer CacheQuotaDataLock.Unlock()
-	key := fmt.Sprintf("%d-%s-%s-%d", userId, username, modelName, createdAt)
+	key := fmt.Sprintf("%d-%s-%s-%s-%d", userId, username, modelName, platform, createdAt)
 	quotaData, ok := CacheQuotaData[key]
 	if ok {
 		quotaData.FailCount += 1
@@ -169,6 +172,7 @@ func LogQuotaErrorData(userId int, username string, modelName string, createdAt 
 			UserID:    userId,
 			Username:  username,
 			ModelName: modelName,
+			Platform:  platform,
 			CreatedAt: createdAt,
 			Count:     0,
 			Quota:     0,
@@ -189,10 +193,10 @@ func SaveQuotaDataCache() {
 	// 3. 如果没有数据，就插入数据
 	for _, quotaData := range CacheQuotaData {
 		quotaDataDB := &QuotaData{}
-		dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and created_at = ?",
-			quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.CreatedAt).First(quotaDataDB)
+		dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and platform = ? and created_at = ?",
+			quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.Platform, quotaData.CreatedAt).First(quotaDataDB)
 		if quotaDataDB.Id > 0 {
-			increaseQuotaData(quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.Count, quotaData.Quota, quotaData.CreatedAt, quotaData.TokenUsed, quotaData.FailCount)
+			increaseQuotaData(quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.Platform, quotaData.Count, quotaData.Quota, quotaData.CreatedAt, quotaData.TokenUsed, quotaData.FailCount)
 		} else {
 			dbstore.DB.Table("quota_data").Create(quotaData)
 		}
@@ -201,9 +205,9 @@ func SaveQuotaDataCache() {
 	common.SysLog(fmt.Sprintf("保存数据看板数据成功，共保存%d条数据", size))
 }
 
-func increaseQuotaData(userId int, username string, modelName string, count int, quota int, createdAt int64, tokenUsed int, failCount int) {
-	err := dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and created_at = ?",
-		userId, username, modelName, createdAt).Updates(map[string]interface{}{
+func increaseQuotaData(userId int, username string, modelName string, platform string, count int, quota int, createdAt int64, tokenUsed int, failCount int) {
+	err := dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and platform = ? and created_at = ?",
+		userId, username, modelName, platform, createdAt).Updates(map[string]interface{}{
 		"count":      gorm.Expr("count + ?", count),
 		"quota":      gorm.Expr("quota + ?", quota),
 		"token_used": gorm.Expr("token_used + ?", tokenUsed),
@@ -357,6 +361,7 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 		UserId           int
 		Username         string
 		ModelName        string
+		Platform         string
 		CreatedAt        int64
 		PromptTokens     int
 		CompletionTokens int
@@ -366,7 +371,7 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 	// 成功请求（type = 2）
 	var successLogs []logRow
 	err := dbstore.LOG_DB.Table("logs").
-		Select("user_id, username, model_name, created_at, prompt_tokens, completion_tokens, quota").
+		Select("user_id, username, model_name, platform, created_at, prompt_tokens, completion_tokens, quota").
 		Where("type = 2 and created_at >= ? and created_at <= ?", startTime, endTime).
 		Find(&successLogs).Error
 	if err != nil {
@@ -378,22 +383,24 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 		UserId    int
 		Username  string
 		ModelName string
+		Platform  string
 		CreatedAt int64
 	}
 	var failLogs []failRow
 	err = dbstore.LOG_DB.Table("logs").
-		Select("user_id, username, model_name, created_at").
+		Select("user_id, username, model_name, platform, created_at").
 		Where("type = 5 and created_at >= ? and created_at <= ?", startTime, endTime).
 		Find(&failLogs).Error
 	if err != nil {
 		return fmt.Errorf("查询失败日志失败: %w", err)
 	}
 
-	// 按 (userId, username, modelName, hourStart) 聚合
+	// 按 (userId, username, modelName, platform, hourStart) 聚合
 	type aggKey struct {
 		UserId    int
 		Username  string
 		ModelName string
+		Platform  string
 		HourStart int64
 	}
 	type aggVal struct {
@@ -409,7 +416,7 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 		hourStart := r.CreatedAt - (r.CreatedAt % 3600)
 		// 根据写入层聚合粒度配置调整 key 维度和 token 记录
 		userId, username, modelName, tokenUsed := applyTrackingConfig(r.UserId, r.Username, r.ModelName, r.PromptTokens+r.CompletionTokens)
-		key := aggKey{UserId: userId, Username: username, ModelName: modelName, HourStart: hourStart}
+		key := aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: hourStart}
 		v, ok := merged[key]
 		if !ok {
 			v = &aggVal{}
@@ -425,7 +432,7 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 		hourStart := r.CreatedAt - (r.CreatedAt % 3600)
 		// 失败日志按同一配置聚合 key 维度（不记录 token）
 		userId, username, modelName, _ := applyTrackingConfig(r.UserId, r.Username, r.ModelName, 0)
-		key := aggKey{UserId: userId, Username: username, ModelName: modelName, HourStart: hourStart}
+		key := aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: hourStart}
 		v, ok := merged[key]
 		if !ok {
 			v = &aggVal{}
@@ -441,6 +448,7 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 			UserID:    k.UserId,
 			Username:  k.Username,
 			ModelName: k.ModelName,
+			Platform:  k.Platform,
 			CreatedAt: k.HourStart,
 			Count:     v.Count,
 			FailCount: v.FailCount,

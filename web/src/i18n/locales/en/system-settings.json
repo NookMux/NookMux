@@ -826,6 +826,7 @@
   "systemSettings.tips.maximumTimeRangeDays": "Maximum Time Range (days)",
   "systemSettings.fields.rankingsModelLimit": "Rankings Model Limit",
   "systemSettings.fields.rankingsVendorLimit": "Rankings Vendor Limit",
+  "systemSettings.fields.rankingsPlatformLimit": "Rankings Agent Limit",
   "systemSettings.fields.userAnalyticsTopN": "User Analytics Top N",
   "systemSettings.tips.controlWhichDataMetricsAreCalculatedAndDisplayedInThe": "Control which data metrics are calculated and displayed in the dashboard",
   "systemSettings.fields.quotaData": "Quota Data",
