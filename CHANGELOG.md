@@ -146,6 +146,13 @@
   已选择的计费类型随之回退为「未配置」；现改为写入 0（语义等价未配置价格），
   计费类型不再随输入清空丢失。定价输入框中 0 统一显示为空白（由占位提示
   建议值），价格摘要等只读展示仍显示 `$0 / request`。
+- **前端高危传递依赖漏洞治理**：`overrides` 将 `query-string` 钉至 9.5.1
+  （依赖方 `@lobehub/ui` 约束 `^9.3.1` 内的修复版），其依赖
+  `decode-uri-component` 随之解析至修复版 0.5.1，消除百分号编码二次复杂度
+  替换 DoS 漏洞（GHSA-qr28-fpjm-wq7f）；`follow-redirects` 钉至 1.16.2，
+  消除跨域敏感头丢弃与凭据跟随重定向漏洞（GHSA-mrwp-f3q8-3g9p）。
+  `bun audit --audit-level=high` 高危告警清零，CI 与本地 pre-push 门禁
+  恢复全绿。
 
 ### Changed
 
