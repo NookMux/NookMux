@@ -156,6 +156,17 @@
 
 ### Changed
 
+- **使用平台识别数据管道性能优化**：历史日志平台回填迁移由逐行 UPDATE 改为
+  同批按平台分组批量更新（每组一条 `UPDATE ... WHERE id IN (...)`，单条
+  上限 500 个 id，兼容 SQLite 绑定参数与 Oracle 系 IN 列表限制），百万级
+  存量回填的数据库往返从每行一次降为每组一次；`quota_data` 新增
+  `(user_id, model_name, platform, created_at)` 复合索引（`idx_qdt_dim_time`），
+  把定时落盘 upsert 的全表扫描降为索引点查，落盘改为锁内换出快照、锁外
+  执行数据库 I/O，不再长时间阻塞请求路径的缓存写入；
+  `POST /api/data/recalculate` 重算的聚合以 SQL `GROUP BY` 下推日志库
+  （小时分桶表达式按日志库方言自动选择 FLOOR/整除截断，日志库可与主库
+  方言不同），内存占用从时间范围内的日志原始行数降为聚合结果行数，
+  消除大时间范围重算的内存峰值风险。
 - **仪表台配置全面接管数据看板（旧「数据看板」分区移除）**：控制台内容下
   「仪表台配置」成为数据看板行为的唯一配置入口——
   - 4 个刷新间隔接线生效：`quota_data_refresh_interval`（秒）控制 quota_data

@@ -351,3 +351,54 @@ func TestRecalculateQuotaDataRespectsTrackingConfig(t *testing.T) {
 		t.Fatalf("Quota = %d, want 300", r.Quota)
 	}
 }
+
+// TestRecalculateQuotaDataSeparatesPlatformsAndHours 验证重算的 SQL 聚合按
+// platform 维度与小时桶正确分组，失败次数计入同维度桶。
+func TestRecalculateQuotaDataSeparatesPlatformsAndHours(t *testing.T) {
+	setupQuotaDataTestDB(t)
+	setTrackingConfig(t, true, true, true)
+
+	hourStart := int64(1793160000)
+	logs := []*logstore.Log{
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", Platform: "claude-code", CreatedAt: hourStart + 100, PromptTokens: 10, CompletionTokens: 5, Quota: 100, Type: logstore.LogTypeConsume},
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", Platform: "claude-code", CreatedAt: hourStart + 200, PromptTokens: 20, CompletionTokens: 10, Quota: 50, Type: logstore.LogTypeConsume},
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", Platform: "codex", CreatedAt: hourStart + 300, PromptTokens: 8, CompletionTokens: 2, Quota: 30, Type: logstore.LogTypeConsume},
+		// 下一小时的桶独立成行
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", Platform: "claude-code", CreatedAt: hourStart + 3600 + 100, PromptTokens: 1, CompletionTokens: 1, Quota: 10, Type: logstore.LogTypeConsume},
+		// 失败日志计入同维度桶的 FailCount
+		{UserId: 1, Username: "alice", ModelName: "gpt-4", Platform: "claude-code", CreatedAt: hourStart + 400, Type: logstore.LogTypeError},
+	}
+	if err := dbstore.LOG_DB.Create(&logs).Error; err != nil {
+		t.Fatalf("create logs: %v", err)
+	}
+
+	if err := usedatastore.RecalculateQuotaData(hourStart, hourStart+7200); err != nil {
+		t.Fatalf("RecalculateQuotaData error: %v", err)
+	}
+
+	var rows []*usedatastore.QuotaData
+	if err := dbstore.DB.Table("quota_data").Order("platform asc, created_at asc").Find(&rows).Error; err != nil {
+		t.Fatalf("query quota_data: %v", err)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("quota_data rows = %d, want 3 (claude-code hour1, claude-code hour2, codex hour1)", len(rows))
+	}
+	want := []struct {
+		platform  string
+		hour      int64
+		count     int
+		failCount int
+		quota     int
+		tokens    int
+	}{
+		{"claude-code", hourStart, 2, 1, 150, 45},
+		{"claude-code", hourStart + 3600, 1, 0, 10, 2},
+		{"codex", hourStart, 1, 0, 30, 10},
+	}
+	for i, w := range want {
+		r := rows[i]
+		if r.Platform != w.platform || r.CreatedAt != w.hour || r.Count != w.count || r.FailCount != w.failCount || r.Quota != w.quota || r.TokenUsed != w.tokens {
+			t.Fatalf("row %d = %+v, want %+v", i, r, w)
+		}
+	}
+}

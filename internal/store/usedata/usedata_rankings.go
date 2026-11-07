@@ -62,10 +62,24 @@ func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64, da
 	return rows, err
 }
 
-func rankingBucketExpr(bucketSize int64, dayOffset int64) string { // 整数除法是否向零截断由 infradb.IntegerDivisionTruncates 集中声明：
-	// MySQL/openGauss/KingbaseES 不截断（返回小数），需 FLOOR 对齐桶边界；
-	// PostgreSQL/SQLite/DM 截断，可直接整除。
-	useFloorDivision := !infradb.IntegerDivisionTruncates()
+func rankingBucketExpr(bucketSize int64, dayOffset int64) string {
+	return timeBucketExpr(bucketSize, dayOffset, infradb.IntegerDivisionTruncates())
+}
+
+// logTimeBucketExpr 返回日志库（LOG_DB）侧的时间分桶表达式；截断语义按
+// 日志库自身方言判定，日志库可与主库方言不同。
+func logTimeBucketExpr(bucketSize int64) string {
+	return timeBucketExpr(bucketSize, 0, infradb.LogDBIntegerDivisionTruncates())
+}
+
+// timeBucketExpr 生成 created_at 的时间分桶 SQL 表达式。bucketSize 为桶大小
+// （秒）；dayOffset 为天级桶在 Unix 纪元上的偏移（秒），用于把 86400 桶边界
+// 从 UTC 对齐到指定时区的自然日（如 +8 时区传 8*3600）。
+// 整数除法是否向零截断由调用方按目标库方言传入：
+// MySQL/openGauss/KingbaseES 不截断（返回小数），需 FLOOR 对齐桶边界；
+// PostgreSQL/SQLite/DM 截断，可直接整除。
+func timeBucketExpr(bucketSize int64, dayOffset int64, truncates bool) string {
+	useFloorDivision := !truncates
 	if dayOffset != 0 && bucketSize%86400 == 0 {
 		// 天级及以上桶按指定偏移切分，使桶边界落在目标时区的自然日 00:00。
 		offsetExpr := fmt.Sprintf("(%d)", dayOffset)

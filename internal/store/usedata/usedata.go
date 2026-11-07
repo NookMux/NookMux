@@ -53,12 +53,15 @@ func quotaDataFlushInterval() time.Duration {
 // QuotaData 柱状图数据
 type QuotaData struct {
 	Id        int    `json:"id"`
-	UserID    int    `json:"user_id" gorm:"index"`
+	UserID    int    `json:"user_id" gorm:"index;index:idx_qdt_dim_time,priority:1"`
 	Username  string `json:"username" gorm:"index:idx_qdt_model_user_name,priority:2;size:64;default:''"`
-	ModelName string `json:"model_name" gorm:"index:idx_qdt_model_user_name,priority:1;size:64;default:''"`
+	ModelName string `json:"model_name" gorm:"index:idx_qdt_model_user_name,priority:1;size:64;default:'';index:idx_qdt_dim_time,priority:2"`
 	// Platform 为客户端平台识别结果，空串表示未识别或识别功能上线前的历史数据。
-	Platform  string `json:"platform" gorm:"column:platform;size:32;default:''"`
-	CreatedAt int64  `json:"created_at" gorm:"bigint;index:idx_qdt_created_at,priority:2"`
+	// idx_qdt_dim_time 覆盖落盘路径按 (user_id, model_name, platform, created_at)
+	// 的等值 upsert 点查（SaveQuotaDataCache / increaseQuotaData）；username 与
+	// user_id 在本管道内一一对应，由 WHERE 残余过滤，不进索引。
+	Platform  string `json:"platform" gorm:"column:platform;size:32;default:'';index:idx_qdt_dim_time,priority:3"`
+	CreatedAt int64  `json:"created_at" gorm:"bigint;index:idx_qdt_created_at,priority:2;index:idx_qdt_dim_time,priority:4"`
 	TokenUsed int    `json:"token_used" gorm:"default:0"`
 	Count     int    `json:"count" gorm:"default:0"`
 	FailCount int    `json:"fail_count" gorm:"default:0"`
@@ -184,14 +187,18 @@ func LogQuotaErrorData(userId int, username string, modelName string, platform s
 }
 
 func SaveQuotaDataCache() {
+	// 先在锁内换出待落盘快照，数据库 I/O 在锁外执行，避免长时间持锁
+	// 阻塞请求路径的 LogQuotaData / LogQuotaErrorData 写缓存。
 	CacheQuotaDataLock.Lock()
-	defer CacheQuotaDataLock.Unlock()
-	size := len(CacheQuotaData)
+	pending := CacheQuotaData
+	CacheQuotaData = make(map[string]*QuotaData)
+	CacheQuotaDataLock.Unlock()
+
 	// 如果缓存中有数据，就保存到数据库中
 	// 1. 先查询数据库中是否有数据
 	// 2. 如果有数据，就更新数据
 	// 3. 如果没有数据，就插入数据
-	for _, quotaData := range CacheQuotaData {
+	for _, quotaData := range pending {
 		quotaDataDB := &QuotaData{}
 		dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and platform = ? and created_at = ?",
 			quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.Platform, quotaData.CreatedAt).First(quotaDataDB)
@@ -201,8 +208,7 @@ func SaveQuotaDataCache() {
 			dbstore.DB.Table("quota_data").Create(quotaData)
 		}
 	}
-	CacheQuotaData = make(map[string]*QuotaData)
-	common.SysLog(fmt.Sprintf("保存数据看板数据成功，共保存%d条数据", size))
+	common.SysLog(fmt.Sprintf("保存数据看板数据成功，共保存%d条数据", len(pending)))
 }
 
 func increaseQuotaData(userId int, username string, modelName string, platform string, count int, quota int, createdAt int64, tokenUsed int, failCount int) {
@@ -350,47 +356,49 @@ func GetAllQuotaStat(startTime int64, endTime int64) (QuotaStat, error) {
 	return stat, err
 }
 
-// RecalculateQuotaData 从 logs 表重新聚合指定时间范围的 quota_data（先删后插）
+// RecalculateQuotaData 从 logs 表重新聚合指定时间范围的 quota_data（先删后插）。
+// 聚合以 SQL GROUP BY 在日志库内完成，内存占用与聚合结果行数成正比，而非
+// 时间范围内的日志原始行数。
 func RecalculateQuotaData(startTime int64, endTime int64) error {
 	// 对齐到小时桶边界，避免部分小时数据不一致
 	startTime = startTime - (startTime % 3600)
 	endTime = endTime - (endTime % 3600) + 3599
 
-	// 先从日志聚合数据（可失败的操作放在事务外）
-	type logRow struct {
-		UserId           int
-		Username         string
-		ModelName        string
-		Platform         string
-		CreatedAt        int64
-		PromptTokens     int
-		CompletionTokens int
-		Quota            int
-	}
+	// 日志类型常量属 logstore 包，而 logstore 反向依赖本包，此处沿用既有
+	// 字面量：2 = 消费（成功），5 = 错误（失败）。
+	bucketExpr := logTimeBucketExpr(3600)
 
-	// 成功请求（type = 2）
-	var successLogs []logRow
-	err := dbstore.LOG_DB.Table("logs").
-		Select("user_id, username, model_name, platform, created_at, prompt_tokens, completion_tokens, quota").
-		Where("type = 2 and created_at >= ? and created_at <= ?", startTime, endTime).
-		Find(&successLogs).Error
-	if err != nil {
-		return fmt.Errorf("查询成功日志失败: %w", err)
-	}
-
-	// 失败请求（type = 5）
-	type failRow struct {
+	// 聚合结果行（小时桶对齐后的 created_at 已是桶起点）
+	type quotaAggRow struct {
 		UserId    int
 		Username  string
 		ModelName string
 		Platform  string
 		CreatedAt int64
+		Count     int
+		Quota     int
+		TokenUsed int
 	}
-	var failLogs []failRow
+	groupDims := fmt.Sprintf("user_id, username, model_name, platform, %s", bucketExpr)
+
+	// 成功请求（type = 2）：按维度与小时桶聚合次数、额度与 token。
+	var successRows []quotaAggRow
+	err := dbstore.LOG_DB.Table("logs").
+		Select(fmt.Sprintf("user_id, username, model_name, platform, %s as created_at, count(*) as count, sum(quota) as quota, sum(prompt_tokens + completion_tokens) as token_used", bucketExpr)).
+		Where("type = 2 and created_at >= ? and created_at <= ?", startTime, endTime).
+		Group(groupDims).
+		Find(&successRows).Error
+	if err != nil {
+		return fmt.Errorf("查询成功日志失败: %w", err)
+	}
+
+	// 失败请求（type = 5）：仅聚合次数。
+	var failRows []quotaAggRow
 	err = dbstore.LOG_DB.Table("logs").
-		Select("user_id, username, model_name, platform, created_at").
+		Select(fmt.Sprintf("user_id, username, model_name, platform, %s as created_at, count(*) as count", bucketExpr)).
 		Where("type = 5 and created_at >= ? and created_at <= ?", startTime, endTime).
-		Find(&failLogs).Error
+		Group(groupDims).
+		Find(&failRows).Error
 	if err != nil {
 		return fmt.Errorf("查询失败日志失败: %w", err)
 	}
@@ -410,35 +418,27 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 		TokenUsed int
 	}
 	merged := make(map[aggKey]*aggVal)
-
-	// 聚合成功日志
-	for _, r := range successLogs {
-		hourStart := r.CreatedAt - (r.CreatedAt % 3600)
-		// 根据写入层聚合粒度配置调整 key 维度和 token 记录
-		userId, username, modelName, tokenUsed := applyTrackingConfig(r.UserId, r.Username, r.ModelName, r.PromptTokens+r.CompletionTokens)
-		key := aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: hourStart}
+	ensureVal := func(key aggKey) *aggVal {
 		v, ok := merged[key]
 		if !ok {
 			v = &aggVal{}
 			merged[key] = v
 		}
-		v.Count++
+		return v
+	}
+
+	for _, r := range successRows {
+		// 根据写入层聚合粒度配置调整 key 维度和 token 记录
+		userId, username, modelName, tokenUsed := applyTrackingConfig(r.UserId, r.Username, r.ModelName, r.TokenUsed)
+		v := ensureVal(aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: r.CreatedAt})
+		v.Count += r.Count
 		v.Quota += r.Quota
 		v.TokenUsed += tokenUsed
 	}
-
-	// 聚合失败日志
-	for _, r := range failLogs {
-		hourStart := r.CreatedAt - (r.CreatedAt % 3600)
+	for _, r := range failRows {
 		// 失败日志按同一配置聚合 key 维度（不记录 token）
 		userId, username, modelName, _ := applyTrackingConfig(r.UserId, r.Username, r.ModelName, 0)
-		key := aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: hourStart}
-		v, ok := merged[key]
-		if !ok {
-			v = &aggVal{}
-			merged[key] = v
-		}
-		v.FailCount++
+		ensureVal(aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: r.CreatedAt}).FailCount += r.Count
 	}
 
 	// 构建批量插入数据

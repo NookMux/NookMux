@@ -21,9 +21,11 @@ const logPlatformBackfillMarker = "data_migration.log_platform.v1.done"
 // marker 落地后不再补跑。
 //
 // 幂等性：通过 options 表的 data-migration marker 保证只完整执行一次。
-// 迁移按 id 游标分批推进、单条更新。任意批次查询失败，或任意单行更新失败时，
-// 均不写 marker，下次启动会重试未完成的行（迁移本身幂等）。marker 存于
-// 主库 DB，日志数据在 LOG_DB，二者可分离（marker 仅作全局开关）。
+// 迁移按 id 游标分批推进，同批识别结果按平台分组后整组批量更新（每组一条
+// `UPDATE ... WHERE id IN (...)`），避免逐行更新的往返与提交开销。任意批次
+// 查询失败，或任意分组更新失败时，均不写 marker，下次启动会重试未完成的行
+// （迁移本身幂等）。marker 存于主库 DB，日志数据在 LOG_DB，二者可分离
+// （marker 仅作全局开关）。
 func backfillLogPlatforms() {
 	if dbstore.LOG_DB == nil {
 		return
@@ -33,6 +35,9 @@ func backfillLogPlatforms() {
 	}
 
 	const batchSize = 1000
+	// updateChunkSize 限制单条 UPDATE 的 id 列表规模：兼容 SQLite 999 个
+	// 绑定参数与 Oracle 系（DM8）1000 元素 IN 列表的上限。
+	const updateChunkSize = 500
 	updated := 0
 	failed := 0
 	maxId := 0
@@ -59,19 +64,28 @@ func backfillLogPlatforms() {
 			break
 		}
 
+		idsByPlatform := make(map[string][]int)
 		for _, row := range rows {
 			platform := logstore.DetectPlatform(row.Ua, row.XTitle, row.HttpReferer)
 			if platform == "" {
 				continue
 			}
-			if uerr := dbstore.LOG_DB.Model(&logstore.Log{}).Where("id = ?", row.Id).
-				Updates(map[string]interface{}{"platform": platform}).Error; uerr != nil {
-				// 单行更新失败：计数并继续，但最终不写 marker，保证下次启动可重试。
-				failed++
-				common.SysError(fmt.Sprintf("backfillLogPlatforms: update id=%d failed: %v", row.Id, uerr))
-				continue
+			idsByPlatform[platform] = append(idsByPlatform[platform], row.Id)
+		}
+		for platform, ids := range idsByPlatform {
+			for start := 0; start < len(ids); start += updateChunkSize {
+				end := min(start+updateChunkSize, len(ids))
+				result := dbstore.LOG_DB.Model(&logstore.Log{}).
+					Where("id IN ?", ids[start:end]).
+					Updates(map[string]interface{}{"platform": platform})
+				if result.Error != nil {
+					// 分组更新失败：计数并继续，但最终不写 marker，保证下次启动可重试。
+					failed += end - start
+					common.SysError(fmt.Sprintf("backfillLogPlatforms: update platform=%s ids[%d:%d) failed: %v", platform, start, end, result.Error))
+					continue
+				}
+				updated += int(result.RowsAffected)
 			}
-			updated++
 		}
 
 		maxId = rows[len(rows)-1].Id

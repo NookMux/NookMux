@@ -1,5 +1,7 @@
 package db
 
+import "os"
+
 const (
 	DatabaseTypeMySQL      = "mysql"
 	DatabaseTypeSQLite     = "sqlite"
@@ -27,4 +29,19 @@ var SQLitePath = "one-api.db?_busy_timeout=30000"
 // 时在此集中登记，消费点只读本谓词。
 func IntegerDivisionTruncates() bool {
 	return !UsingMySQL && !UsingOpenGauss && !UsingKingbase
+}
+
+// LogDBIntegerDivisionTruncates 报告日志库（LOG_DB）的整数除法是否向零截断。
+// LOG_SQL_DSN 为空时日志库与主库同库，语义随主库；否则按 LogSqlType 判定，
+// 口径与 IntegerDivisionTruncates 一致（MySQL/openGauss/金仓不截断）。
+// 接入新库时与 IntegerDivisionTruncates 在此集中登记，消费点只读本谓词。
+func LogDBIntegerDivisionTruncates() bool {
+	if os.Getenv("LOG_SQL_DSN") == "" {
+		return IntegerDivisionTruncates()
+	}
+	switch LogSqlType {
+	case DatabaseTypeMySQL, DatabaseTypeOpenGauss, DatabaseTypeKingbase:
+		return false
+	}
+	return true
 }
