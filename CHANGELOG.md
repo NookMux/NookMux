@@ -131,6 +131,10 @@
 
 ### Fixed
 
+- **使用日志「Token」列标签显示为裸 i18n 键修复**：`prompt_tokens` 列的
+  `meta.label` 未包 `t()`，而移动端卡片视图与列显隐菜单直接渲染该字符串，
+  界面显示 `rankings.fields.tokens` 而非「Token」/「Tokens」；现按列定义
+  约定传入 `t()` 翻译值，与同文件其余列一致。
 - **react / react-dom 版本错配导致前端整体白屏修复**：dependabot 升级
   （c8bc34c24）将 `react` 升至 19.3.1 但未联动 `react-dom`（仍 19.2.7），
   React 19 要求两者严格同版本，运行时抛 Minified React error #527、SPA 无法
