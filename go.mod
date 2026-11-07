@@ -16,7 +16,7 @@ require (
 	github.com/aws/smithy-go v1.28.7
 	github.com/bytedance/gopkg v0.1.4
 	github.com/gin-contrib/cors v1.7.9
-	github.com/gin-contrib/gzip v1.2.8
+	github.com/gin-contrib/gzip v1.2.9
 	github.com/gin-contrib/sessions v1.1.0
 	github.com/gin-contrib/static v1.1.8
 	github.com/gin-gonic/gin v1.12.0
