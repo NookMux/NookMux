@@ -23,7 +23,7 @@ type Log struct {
 	UserId           int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1"`
 	CreatedAt        int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:2;index:idx_created_at_type"`
 	Type             int    `json:"type" gorm:"index:idx_created_at_type"`
-	Content          string `json:"content"`
+	Content          string `json:"content" gorm:"type:text"`
 	Username         string `json:"username" gorm:"index;index:index_username_model_name,priority:2;default:''"`
 	TokenName        string `json:"token_name" gorm:"index;default:''"`
 	ModelName        string `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
@@ -40,13 +40,17 @@ type Log struct {
 	// 客户端请求头，原存于 Other JSON，现独立为列以便检索与裁剪。
 	// 使用显式 text 类型而非依赖 string+default:''，避免 MySQL 下因带默认值
 	// 被生成为 varchar(191)，导致长 UA/Referer 在严格模式下写入失败或被截断。
-	Ua                string `json:"ua" gorm:"column:ua;type:text"`
-	XTitle            string `json:"x_title" gorm:"column:x_title;type:text"`
-	HttpReferer       string `json:"http_referer" gorm:"column:http_referer;type:text"`
+	Ua          string `json:"ua" gorm:"column:ua;type:text"`
+	XTitle      string `json:"x_title" gorm:"column:x_title;type:text"`
+	HttpReferer string `json:"http_referer" gorm:"column:http_referer;type:text"`
+	// Platform 为客户端平台识别结果（由 DetectPlatform 从 ua/x_title/http_referer 派生），
+	// 空串表示未识别。受控短枚举，varchar(32) 足够且便于等值比较。
+	Platform          string `json:"platform" gorm:"column:platform;type:varchar(32);default:''"`
 	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
-	Other             string `json:"other"`
-	ModelIcon         string `json:"model_icon,omitempty" gorm:"-"`
+	// Other 存用量统计等 JSON 详情，可超长，显式 text 与其余大文本列语义一致。
+	Other     string `json:"other" gorm:"type:text"`
+	ModelIcon string `json:"model_icon,omitempty" gorm:"-"`
 }
 
 // don't use iota, avoid change log type value
@@ -214,6 +218,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
 	headers := extractClientHeaders(c)
+	platform := DetectPlatform(headers.ua, headers.xTitle, headers.httpReferer)
 	otherStr := serializeLogOther(other)
 	// 记录请求与错误日志的 IP（强制开启，用于滥用追踪）
 	log := &Log{
@@ -236,6 +241,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		Ua:                headers.ua,
 		XTitle:            headers.xTitle,
 		HttpReferer:       headers.httpReferer,
+		Platform:          platform,
 		RequestId:         requestId,
 		UpstreamRequestId: upstreamRequestId,
 		Other:             otherStr,
@@ -244,9 +250,9 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
-	if common.DataExportEnabled {
+	if usedatastore.QuotaDataWriteEnabled() {
 		runtime.RelayGo(func() {
-			usedatastore.LogQuotaErrorData(userId, username, modelName, common.GetTimestamp())
+			usedatastore.LogQuotaErrorData(userId, username, modelName, platform, common.GetTimestamp())
 		})
 	}
 }
@@ -278,6 +284,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	createdAt := common.GetTimestamp()
 	clientIP := c.ClientIP()
 	headers := extractClientHeaders(c)
+	platform := DetectPlatform(headers.ua, headers.xTitle, headers.httpReferer)
 	otherStr := serializeLogOther(params.Other)
 	logType := params.LogType
 	if logType == 0 {
@@ -304,21 +311,23 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		Ua:                headers.ua,
 		XTitle:            headers.xTitle,
 		HttpReferer:       headers.httpReferer,
+		Platform:          platform,
 		RequestId:         requestId,
 		UpstreamRequestId: upstreamRequestId,
 		Other:             otherStr,
 	}
 	// 消费日志不影响主流程，异步写入以避免高并发下在请求尾部阻塞数据库。
+	// gin.Context 只能在提交异步任务前读取，platform 已在上方同步计算完毕。
 	runtime.RelayGo(func() {
 		err := dbstore.LOG_DB.Create(log).Error
 		if err != nil {
 			common.SysError(fmt.Sprintf("failed to record consume log (request_id=%s): %s", requestId, err.Error()))
 		}
-		if common.DataExportEnabled {
+		if usedatastore.QuotaDataWriteEnabled() {
 			if logType == LogTypeError {
-				usedatastore.LogQuotaErrorData(userId, username, params.ModelName, createdAt)
+				usedatastore.LogQuotaErrorData(userId, username, params.ModelName, platform, createdAt)
 			} else {
-				usedatastore.LogQuotaData(userId, username, params.ModelName, params.Quota, createdAt, params.PromptTokens+params.CompletionTokens)
+				usedatastore.LogQuotaData(userId, username, params.ModelName, platform, params.Quota, createdAt, params.PromptTokens+params.CompletionTokens)
 			}
 		}
 	})

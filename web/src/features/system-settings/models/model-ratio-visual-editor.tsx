@@ -162,6 +162,13 @@ function toInputValue(value: number | undefined) {
   return formatPricingNumber(value)
 }
 
+// 定价输入框的展示值：0 与未填写同义（免费/待填写），统一显示为空白，
+// 由 placeholder 提示建议值；价格摘要等只读场景仍使用 toInputValue。
+function toPricingInputValue(value: number | undefined) {
+  if (value === 0) return ''
+  return toInputValue(value)
+}
+
 function normalizeNumber(value: number) {
   return Number(formatPricingNumber(value))
 }
@@ -600,16 +607,16 @@ export function ModelRatioVisualEditor({
   const setFixedPrice = (name: string, value: string) => {
     const parsed = parseNumber(value)
     const next = { ...maps.price }
-    if (parsed === null) delete next[name]
-    else next[name] = parsed
+    // 清空输入写入 0：按次条目保留，已选计费类型不随输入清空而丢失
+    next[name] = parsed ?? 0
     writeMap('ModelPrice', next)
   }
 
   const setInputPrice = (name: string, value: string) => {
     const parsed = parseNumber(value)
     const next = { ...maps.ratio }
-    if (parsed === null) delete next[name]
-    else next[name] = normalizeNumber(parsed / 2)
+    // 清空输入写入 0：按量条目保留，已选计费类型不随输入清空而丢失
+    next[name] = parsed === null ? 0 : normalizeNumber(parsed / 2)
     writeMap('ModelRatio', next)
   }
 
@@ -1023,7 +1030,7 @@ export function ModelRatioVisualEditor({
                 {selectedRow.mode === 'per-request' && (
                   <PriceInput
                     label={t('systemSettings.fields.fixedPricePerRequest')}
-                    value={toInputValue(selectedRow.fixedPrice)}
+                    value={toPricingInputValue(selectedRow.fixedPrice)}
                     placeholder='0.01'
                     onChange={(value) => setFixedPrice(selectedRow.name, value)}
                   />
@@ -1034,7 +1041,7 @@ export function ModelRatioVisualEditor({
                     <div className='grid gap-3 sm:grid-cols-2'>
                       <PriceInput
                         label={t('systemSettings.fields.inputPricePer1MTokens')}
-                        value={toInputValue(selectedRow.inputPrice)}
+                        value={toPricingInputValue(selectedRow.inputPrice)}
                         placeholder='2'
                         onChange={(value) =>
                           setInputPrice(selectedRow.name, value)
@@ -1044,7 +1051,7 @@ export function ModelRatioVisualEditor({
                         label={t(
                           'systemSettings.fields.completionPricePer1MTokens'
                         )}
-                        value={toInputValue(selectedRow.completionPrice)}
+                        value={toPricingInputValue(selectedRow.completionPrice)}
                         placeholder='4'
                         disabled={!selectedRow.inputPrice}
                         onChange={(value) =>
@@ -1063,7 +1070,7 @@ export function ModelRatioVisualEditor({
                         label={t(
                           'systemSettings.fields.cacheReadPricePer1MTokens'
                         )}
-                        value={toInputValue(selectedRow.cachePrice)}
+                        value={toPricingInputValue(selectedRow.cachePrice)}
                         placeholder='0.2'
                         disabled={!selectedRow.inputPrice}
                         onChange={(value) =>
@@ -1080,7 +1087,9 @@ export function ModelRatioVisualEditor({
                         label={t(
                           'systemSettings.fields.cacheWritePricePer1MTokens'
                         )}
-                        value={toInputValue(selectedRow.createCachePrice)}
+                        value={toPricingInputValue(
+                          selectedRow.createCachePrice
+                        )}
                         placeholder='1'
                         disabled={!selectedRow.inputPrice}
                         onChange={(value) =>
@@ -1099,7 +1108,7 @@ export function ModelRatioVisualEditor({
                         label={t(
                           'systemSettings.fields.audioInputPricePer1MTokens'
                         )}
-                        value={toInputValue(selectedRow.audioInputPrice)}
+                        value={toPricingInputValue(selectedRow.audioInputPrice)}
                         placeholder='8'
                         disabled={!selectedRow.inputPrice}
                         onChange={(value) =>
@@ -1116,7 +1125,9 @@ export function ModelRatioVisualEditor({
                         label={t(
                           'systemSettings.tips.audioOutputPricePer1MTokens'
                         )}
-                        value={toInputValue(selectedRow.audioOutputPrice)}
+                        value={toPricingInputValue(
+                          selectedRow.audioOutputPrice
+                        )}
                         placeholder='16'
                         disabled={!selectedRow.audioInputPrice}
                         onChange={(value) =>

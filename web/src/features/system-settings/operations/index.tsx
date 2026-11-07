@@ -27,7 +27,6 @@ import {
 const defaultOperationsSettings: OperationsSettings = {
   RetryTimes: 0,
   AutomaticRetryEnabled: false,
-  DefaultCollapseSidebar: false,
   ChannelDisableThreshold: '',
   QuotaRemindThreshold: '',
   AutomaticDisableChannelEnabled: false,

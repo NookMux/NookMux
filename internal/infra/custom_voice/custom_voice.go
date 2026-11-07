@@ -482,7 +482,7 @@ func refundQuota(userId, quota int) {
 	if quota <= 0 {
 		return
 	}
-	if err := userstore.IncreaseUserQuota(userId, quota, false); err != nil {
+	if err := userstore.IncreaseUserQuota(userId, quota); err != nil {
 		common.SysError(fmt.Sprintf("custom voice refund increase quota failed: userId=%d quota=%d err=%s", userId, quota, err.Error()))
 	}
 }

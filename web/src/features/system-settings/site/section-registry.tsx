@@ -87,6 +87,7 @@ const SITE_SECTIONS = [
         <SidebarModulesSection
           config={sidebarConfig}
           initialSerialized={sidebarSerialized}
+          defaultCollapseSidebar={settings.DefaultCollapseSidebar}
         />
       )
     },

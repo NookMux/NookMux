@@ -16,22 +16,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-const DEFAULT_DATA_DASHBOARD_REFRESH_MINUTES = 60
+const DEFAULT_DATA_DASHBOARD_REFRESH_SECONDS = 3600
 
-function readRefreshIntervalMinutes(status: unknown): number {
+function readRefreshIntervalSeconds(status: unknown): number {
   if (!status || typeof status !== 'object') {
-    return DEFAULT_DATA_DASHBOARD_REFRESH_MINUTES
+    return DEFAULT_DATA_DASHBOARD_REFRESH_SECONDS
   }
 
-  const raw = (status as Record<string, unknown>).data_export_interval
+  const raw = (status as Record<string, unknown>).dashboard_refresh_interval
   const value = typeof raw === 'number' ? raw : Number(raw)
-  if (!Number.isFinite(value) || value < 1) {
-    return DEFAULT_DATA_DASHBOARD_REFRESH_MINUTES
+  if (!Number.isFinite(value) || value < 60) {
+    return DEFAULT_DATA_DASHBOARD_REFRESH_SECONDS
   }
 
-  return Math.min(value, 1440)
+  return Math.min(value, 86400)
 }
 
 export function getDataDashboardRefreshIntervalMs(status: unknown): number {
-  return readRefreshIntervalMinutes(status) * 60 * 1000
+  return readRefreshIntervalSeconds(status) * 1000
 }

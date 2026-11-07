@@ -38,12 +38,12 @@ func (w *WalletFunding) Settle(delta int) error {
 	if delta > 0 {
 		return userstore.DecreaseUserQuota(w.userId, delta)
 	}
-	return userstore.IncreaseUserQuota(w.userId, -delta, false)
+	return userstore.IncreaseUserQuota(w.userId, -delta)
 }
 
 func (w *WalletFunding) Refund() error {
 	if w.consumed <= 0 {
 		return nil
 	}
-	return userstore.IncreaseUserQuota(w.userId, w.consumed, false)
+	return userstore.IncreaseUserQuota(w.userId, w.consumed)
 }

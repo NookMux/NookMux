@@ -91,11 +91,18 @@ export function saveGranularity(granularity: TimeGranularity): void {
   localStorage.setItem(TIME_GRANULARITY_STORAGE_KEY, granularity)
 }
 
-export function getSavedChartPreferences(): DashboardChartPreferences {
+export function getSavedChartPreferences(
+  serverDefaultDays?: number
+): DashboardChartPreferences {
   if (typeof window === 'undefined') return DEFAULT_DASHBOARD_CHART_PREFERENCES
 
   const fallbackPreferences = {
     ...DEFAULT_DASHBOARD_CHART_PREFERENCES,
+    // 未保存过本地偏好的用户，默认时间窗口取服务端仪表台配置
+    defaultTimeRangeDays:
+      typeof serverDefaultDays === 'number' && serverDefaultDays >= 1
+        ? serverDefaultDays
+        : DEFAULT_DASHBOARD_CHART_PREFERENCES.defaultTimeRangeDays,
     defaultTimeGranularity: getLegacySavedGranularity(),
   }
 
@@ -135,8 +142,12 @@ export function saveChartPreferences(
   )
 }
 
-export function getDefaultDays(granularity?: TimeGranularity): number {
-  if (!granularity) return getSavedChartPreferences().defaultTimeRangeDays
+export function getDefaultDays(
+  granularity?: TimeGranularity,
+  serverDefaultDays?: number
+): number {
+  if (!granularity)
+    return getSavedChartPreferences(serverDefaultDays).defaultTimeRangeDays
   return TIME_RANGE_BY_GRANULARITY[getSavedGranularity(granularity)]
 }
 

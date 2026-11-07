@@ -51,7 +51,6 @@ const behaviorSchema = z
     RetryTimes: z.coerce.number().int().min(0).max(99),
     AutomaticRetryEnabled: z.boolean(),
     AutomaticRetryStatusCodes: z.string(),
-    DefaultCollapseSidebar: z.boolean(),
   })
   .superRefine((values, ctx) => {
     if (values.AutomaticRetryEnabled && values.RetryTimes <= 0) {
@@ -83,13 +82,11 @@ type OptionKey =
   | 'RetryTimes'
   | 'AutomaticRetryEnabled'
   | 'AutomaticRetryStatusCodes'
-  | 'DefaultCollapseSidebar'
 
 type NormalizedBehaviorValues = {
   RetryTimes: number
   AutomaticRetryEnabled: boolean
   AutomaticRetryStatusCodes: string
-  DefaultCollapseSidebar: boolean
 }
 
 const normalizeDefaults = (
@@ -100,7 +97,6 @@ const normalizeDefaults = (
   AutomaticRetryStatusCodes: parseHttpStatusCodeRules(
     defaults.AutomaticRetryStatusCodes ?? ''
   ).normalized,
-  DefaultCollapseSidebar: defaults.DefaultCollapseSidebar,
 })
 
 export function SystemBehaviorSection({
@@ -135,7 +131,6 @@ export function SystemBehaviorSection({
       AutomaticRetryStatusCodes: parseHttpStatusCodeRules(
         data.AutomaticRetryStatusCodes
       ).normalized,
-      DefaultCollapseSidebar: data.DefaultCollapseSidebar,
     }
 
     const changed = (Object.keys(normalized) as OptionKey[]).filter(
@@ -159,7 +154,6 @@ export function SystemBehaviorSection({
     baseline.RetryTimes = normalized.RetryTimes
     baseline.AutomaticRetryEnabled = normalized.AutomaticRetryEnabled
     baseline.AutomaticRetryStatusCodes = normalized.AutomaticRetryStatusCodes
-    baseline.DefaultCollapseSidebar = normalized.DefaultCollapseSidebar
   }
 
   return (
@@ -273,31 +267,6 @@ export function SystemBehaviorSection({
               />
             </SettingsControlChildren>
           </SettingsControlGroup>
-
-          <FormField
-            control={form.control}
-            name='DefaultCollapseSidebar'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.defaultCollapseSidebar')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.sidebarCollapsedByDefaultForNewUsers'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
         </SettingsForm>
       </Form>
     </SettingsSection>

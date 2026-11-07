@@ -1,0 +1,21 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+[mcp_servers.serena]
+url = "http://127.0.0.1:9121/mcp"
+enabled = true
+required = true
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+
+[mcp_servers.codegraph]
+command = "/usr/local/bin/codegraph"
+args = [
+    "serve",
+    "--mcp",
+    "--path",
+    "."
+]
+enabled = true
+required = true
+startup_timeout_sec = 30
+tool_timeout_sec = 120

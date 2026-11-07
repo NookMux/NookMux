@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { getRollingDateRange } from '@/lib/time'
 import { cn } from '@/lib/utils'
+import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -49,9 +50,12 @@ type DashboardRecalculateDialogProps = {
 }
 
 function buildInitialTimeRange(
-  initialTimeRange?: DashboardRecalculateDialogProps['initialTimeRange']
+  initialTimeRange?: DashboardRecalculateDialogProps['initialTimeRange'],
+  serverDefaultDays?: number
 ): DashboardFilters {
-  const filters = buildDefaultDashboardFilters(getSavedChartPreferences())
+  const filters = buildDefaultDashboardFilters(
+    getSavedChartPreferences(serverDefaultDays)
+  )
   if (initialTimeRange?.start_timestamp && initialTimeRange?.end_timestamp) {
     return {
       ...filters,
@@ -67,16 +71,18 @@ export function DashboardRecalculateDialog(
 ) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { status } = useStatus()
+  const serverDefaultDays = status?.data?.dashboard_default_time_range_days
   const [open, setOpen] = useState(false)
   const [recalculating, setRecalculating] = useState(false)
   const [selectedRange, setSelectedRange] = useState<number | null>(() =>
     props.initialTimeRange?.start_timestamp &&
     props.initialTimeRange?.end_timestamp
       ? null
-      : getSavedChartPreferences().defaultTimeRangeDays
+      : getSavedChartPreferences(serverDefaultDays).defaultTimeRangeDays
   )
   const [timeRange, setTimeRange] = useState(() =>
-    buildInitialTimeRange(props.initialTimeRange)
+    buildInitialTimeRange(props.initialTimeRange, serverDefaultDays)
   )
 
   const resetTimeRange = () => {
@@ -89,7 +95,7 @@ export function DashboardRecalculateDialog(
       return
     }
 
-    const preferences = getSavedChartPreferences()
+    const preferences = getSavedChartPreferences(serverDefaultDays)
     setSelectedRange(preferences.defaultTimeRangeDays)
     setTimeRange(buildDefaultDashboardFilters(preferences))
   }

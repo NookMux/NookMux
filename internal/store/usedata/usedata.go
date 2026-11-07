@@ -18,13 +18,50 @@ var (
 	quotaDataTrackByUser  = true
 )
 
+// 数据管道运行期配置。同样由 option.go 的 handleConfigUpdate 从 dashboard_config 同步：
+// store 层不得反向 import internal/config/dashboard（其迁移逻辑依赖 optionstore，会成环）。
+var (
+	quotaRuntimeMu            sync.RWMutex
+	quotaWriteEnabled         = true // quota_data / user_analytics / rankings 任一启用即需要写入
+	quotaFlushIntervalSeconds = 3600 // 对应 dashboard_config.quota_data_refresh_interval
+	userAnalyticsCacheSeconds = 3600 // 对应 dashboard_config.user_analytics_refresh_interval
+)
+
+// SyncQuotaDataRuntimeConfig 由 option 同步路径调用，同步数据管道开关与刷新间隔。
+func SyncQuotaDataRuntimeConfig(writeEnabled bool, flushIntervalSeconds, analyticsCacheSeconds int) {
+	quotaRuntimeMu.Lock()
+	quotaWriteEnabled = writeEnabled
+	quotaFlushIntervalSeconds = flushIntervalSeconds
+	userAnalyticsCacheSeconds = analyticsCacheSeconds
+	quotaRuntimeMu.Unlock()
+}
+
+// QuotaDataWriteEnabled 返回 quota_data 写入管道是否启用，供日志写入路径判断。
+func QuotaDataWriteEnabled() bool {
+	quotaRuntimeMu.RLock()
+	defer quotaRuntimeMu.RUnlock()
+	return quotaWriteEnabled
+}
+
+func quotaDataFlushInterval() time.Duration {
+	quotaRuntimeMu.RLock()
+	sec := quotaFlushIntervalSeconds
+	quotaRuntimeMu.RUnlock()
+	return time.Duration(max(sec, 60)) * time.Second
+}
+
 // QuotaData 柱状图数据
 type QuotaData struct {
 	Id        int    `json:"id"`
-	UserID    int    `json:"user_id" gorm:"index"`
+	UserID    int    `json:"user_id" gorm:"index;index:idx_qdt_dim_time,priority:1"`
 	Username  string `json:"username" gorm:"index:idx_qdt_model_user_name,priority:2;size:64;default:''"`
-	ModelName string `json:"model_name" gorm:"index:idx_qdt_model_user_name,priority:1;size:64;default:''"`
-	CreatedAt int64  `json:"created_at" gorm:"bigint;index:idx_qdt_created_at,priority:2"`
+	ModelName string `json:"model_name" gorm:"index:idx_qdt_model_user_name,priority:1;size:64;default:'';index:idx_qdt_dim_time,priority:2"`
+	// Platform 为客户端平台识别结果，空串表示未识别或识别功能上线前的历史数据。
+	// idx_qdt_dim_time 覆盖落盘路径按 (user_id, model_name, platform, created_at)
+	// 的等值 upsert 点查（SaveQuotaDataCache / increaseQuotaData）；username 与
+	// user_id 在本管道内一一对应，由 WHERE 残余过滤，不进索引。
+	Platform  string `json:"platform" gorm:"column:platform;size:32;default:'';index:idx_qdt_dim_time,priority:3"`
+	CreatedAt int64  `json:"created_at" gorm:"bigint;index:idx_qdt_created_at,priority:2;index:idx_qdt_dim_time,priority:4"`
 	TokenUsed int    `json:"token_used" gorm:"default:0"`
 	Count     int    `json:"count" gorm:"default:0"`
 	FailCount int    `json:"fail_count" gorm:"default:0"`
@@ -34,26 +71,23 @@ type QuotaData struct {
 func UpdateQuotaData() {
 	lastUpdatedAt := time.Time{}
 	for {
-		interval := time.Duration(common.DataExportInterval) * time.Minute
-		if interval < time.Minute {
-			interval = time.Minute
-		}
-		if common.DataExportEnabled && time.Since(lastUpdatedAt) >= interval {
+		interval := quotaDataFlushInterval()
+		if QuotaDataWriteEnabled() && time.Since(lastUpdatedAt) >= interval {
 			common.SysLog("正在更新数据看板数据...")
 			SaveQuotaDataCache()
 			lastUpdatedAt = time.Now()
 		}
-		// When data export is disabled there is nothing to do. Sleep in larger
-		// increments (10s) instead of waking every second just to re-check a
-		// boolean. The previous 1-second tick forced a goroutine wake-up and
-		// cache-line bounce on every core, which is pure overhead for the
-		// common deployment where data export is off.
+		// When the data pipeline is disabled there is nothing to do. Sleep in
+		// larger increments (10s) instead of waking every second just to
+		// re-check a boolean. The previous 1-second tick forced a goroutine
+		// wake-up and cache-line bounce on every core, which is pure overhead
+		// for the common deployment where data export is off.
 		sleepDuration := time.Second
-		if !common.DataExportEnabled {
+		if !QuotaDataWriteEnabled() {
 			sleepDuration = 10 * time.Second
 		} else if interval > 5*time.Minute {
 			// When the flush interval is long, check at most every minute so
-			// that enabling DataExportEnabled at runtime is picked up without
+			// that re-enabling the pipeline at runtime is picked up without
 			// waiting the full interval.
 			sleepDuration = time.Minute
 		}
@@ -64,8 +98,8 @@ func UpdateQuotaData() {
 var CacheQuotaData = make(map[string]*QuotaData)
 var CacheQuotaDataLock = sync.Mutex{}
 
-func logQuotaDataCache(userId int, username string, modelName string, quota int, createdAt int64, tokenUsed int) {
-	key := fmt.Sprintf("%d-%s-%s-%d", userId, username, modelName, createdAt)
+func logQuotaDataCache(userId int, username string, modelName string, platform string, quota int, createdAt int64, tokenUsed int) {
+	key := fmt.Sprintf("%d-%s-%s-%s-%d", userId, username, modelName, platform, createdAt)
 	quotaData, ok := CacheQuotaData[key]
 	if ok {
 		quotaData.Count += 1
@@ -76,6 +110,7 @@ func logQuotaDataCache(userId int, username string, modelName string, quota int,
 			UserID:    userId,
 			Username:  username,
 			ModelName: modelName,
+			Platform:  platform,
 			CreatedAt: createdAt,
 			Count:     1,
 			Quota:     quota,
@@ -115,23 +150,23 @@ func GetQuotaDataTrackingConfig() (trackTokens, byModel, byUser bool) {
 }
 
 // LogQuotaData 记录成功请求数据到内存缓存
-func LogQuotaData(userId int, username string, modelName string, quota int, createdAt int64, tokenUsed int) {
+func LogQuotaData(userId int, username string, modelName string, platform string, quota int, createdAt int64, tokenUsed int) {
 	createdAt = createdAt - (createdAt % 3600)
 	userId, username, modelName, tokenUsed = applyTrackingConfig(userId, username, modelName, tokenUsed)
 
 	CacheQuotaDataLock.Lock()
 	defer CacheQuotaDataLock.Unlock()
-	logQuotaDataCache(userId, username, modelName, quota, createdAt, tokenUsed)
+	logQuotaDataCache(userId, username, modelName, platform, quota, createdAt, tokenUsed)
 }
 
 // LogQuotaErrorData 记录失败请求数据到内存缓存
-func LogQuotaErrorData(userId int, username string, modelName string, createdAt int64) {
+func LogQuotaErrorData(userId int, username string, modelName string, platform string, createdAt int64) {
 	createdAt = createdAt - (createdAt % 3600)
 	userId, username, modelName, _ = applyTrackingConfig(userId, username, modelName, 0)
 
 	CacheQuotaDataLock.Lock()
 	defer CacheQuotaDataLock.Unlock()
-	key := fmt.Sprintf("%d-%s-%s-%d", userId, username, modelName, createdAt)
+	key := fmt.Sprintf("%d-%s-%s-%s-%d", userId, username, modelName, platform, createdAt)
 	quotaData, ok := CacheQuotaData[key]
 	if ok {
 		quotaData.FailCount += 1
@@ -140,6 +175,7 @@ func LogQuotaErrorData(userId int, username string, modelName string, createdAt 
 			UserID:    userId,
 			Username:  username,
 			ModelName: modelName,
+			Platform:  platform,
 			CreatedAt: createdAt,
 			Count:     0,
 			Quota:     0,
@@ -151,30 +187,33 @@ func LogQuotaErrorData(userId int, username string, modelName string, createdAt 
 }
 
 func SaveQuotaDataCache() {
+	// 先在锁内换出待落盘快照，数据库 I/O 在锁外执行，避免长时间持锁
+	// 阻塞请求路径的 LogQuotaData / LogQuotaErrorData 写缓存。
 	CacheQuotaDataLock.Lock()
-	defer CacheQuotaDataLock.Unlock()
-	size := len(CacheQuotaData)
+	pending := CacheQuotaData
+	CacheQuotaData = make(map[string]*QuotaData)
+	CacheQuotaDataLock.Unlock()
+
 	// 如果缓存中有数据，就保存到数据库中
 	// 1. 先查询数据库中是否有数据
 	// 2. 如果有数据，就更新数据
 	// 3. 如果没有数据，就插入数据
-	for _, quotaData := range CacheQuotaData {
+	for _, quotaData := range pending {
 		quotaDataDB := &QuotaData{}
-		dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and created_at = ?",
-			quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.CreatedAt).First(quotaDataDB)
+		dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and platform = ? and created_at = ?",
+			quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.Platform, quotaData.CreatedAt).First(quotaDataDB)
 		if quotaDataDB.Id > 0 {
-			increaseQuotaData(quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.Count, quotaData.Quota, quotaData.CreatedAt, quotaData.TokenUsed, quotaData.FailCount)
+			increaseQuotaData(quotaData.UserID, quotaData.Username, quotaData.ModelName, quotaData.Platform, quotaData.Count, quotaData.Quota, quotaData.CreatedAt, quotaData.TokenUsed, quotaData.FailCount)
 		} else {
 			dbstore.DB.Table("quota_data").Create(quotaData)
 		}
 	}
-	CacheQuotaData = make(map[string]*QuotaData)
-	common.SysLog(fmt.Sprintf("保存数据看板数据成功，共保存%d条数据", size))
+	common.SysLog(fmt.Sprintf("保存数据看板数据成功，共保存%d条数据", len(pending)))
 }
 
-func increaseQuotaData(userId int, username string, modelName string, count int, quota int, createdAt int64, tokenUsed int, failCount int) {
-	err := dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and created_at = ?",
-		userId, username, modelName, createdAt).Updates(map[string]interface{}{
+func increaseQuotaData(userId int, username string, modelName string, platform string, count int, quota int, createdAt int64, tokenUsed int, failCount int) {
+	err := dbstore.DB.Table("quota_data").Where("user_id = ? and username = ? and model_name = ? and platform = ? and created_at = ?",
+		userId, username, modelName, platform, createdAt).Updates(map[string]interface{}{
 		"count":      gorm.Expr("count + ?", count),
 		"quota":      gorm.Expr("quota + ?", quota),
 		"token_used": gorm.Expr("token_used + ?", tokenUsed),
@@ -215,6 +254,59 @@ func GetQuotaDataGroupByUser(startTime int64, endTime int64) (quotaData []*Quota
 		Group("username, created_at").
 		Find(&quotaDatas).Error
 	return quotaDatas, err
+}
+
+// 用户分析聚合查询的 TTL 快照缓存。TTL 来自 user_analytics_refresh_interval；
+// 键为查询时间窗口，容量上限 32 个窗口，超限整体重置防止无界膨胀。
+type userAnalyticsCacheEntry struct {
+	data     []*QuotaData
+	expireAt time.Time
+}
+
+var userAnalyticsCache = struct {
+	sync.Mutex
+	entries map[string]userAnalyticsCacheEntry
+}{entries: make(map[string]userAnalyticsCacheEntry)}
+
+func userAnalyticsCacheTTL() time.Duration {
+	quotaRuntimeMu.RLock()
+	sec := userAnalyticsCacheSeconds
+	quotaRuntimeMu.RUnlock()
+	return time.Duration(max(sec, 60)) * time.Second
+}
+
+// GetQuotaDataGroupByUserCached 带 TTL 缓存的用户分析查询，供数据看板使用。
+func GetQuotaDataGroupByUserCached(startTime int64, endTime int64) ([]*QuotaData, error) {
+	key := fmt.Sprintf("%d-%d", startTime, endTime)
+	now := time.Now()
+
+	userAnalyticsCache.Lock()
+	if entry, ok := userAnalyticsCache.entries[key]; ok && now.Before(entry.expireAt) {
+		data := entry.data
+		userAnalyticsCache.Unlock()
+		return data, nil
+	}
+	userAnalyticsCache.Unlock()
+
+	dates, err := GetQuotaDataGroupByUser(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	userAnalyticsCache.Lock()
+	if len(userAnalyticsCache.entries) >= 32 {
+		userAnalyticsCache.entries = make(map[string]userAnalyticsCacheEntry)
+	}
+	userAnalyticsCache.entries[key] = userAnalyticsCacheEntry{data: dates, expireAt: now.Add(userAnalyticsCacheTTL())}
+	userAnalyticsCache.Unlock()
+	return dates, nil
+}
+
+// ClearUserAnalyticsCache 清空用户分析缓存，供配置变更后失效调用。
+func ClearUserAnalyticsCache() {
+	userAnalyticsCache.Lock()
+	userAnalyticsCache.entries = make(map[string]userAnalyticsCacheEntry)
+	userAnalyticsCache.Unlock()
 }
 
 func GetAllQuotaDates(startTime int64, endTime int64, username string) (quotaData []*QuotaData, err error) {
@@ -264,54 +356,59 @@ func GetAllQuotaStat(startTime int64, endTime int64) (QuotaStat, error) {
 	return stat, err
 }
 
-// RecalculateQuotaData 从 logs 表重新聚合指定时间范围的 quota_data（先删后插）
+// RecalculateQuotaData 从 logs 表重新聚合指定时间范围的 quota_data（先删后插）。
+// 聚合以 SQL GROUP BY 在日志库内完成，内存占用与聚合结果行数成正比，而非
+// 时间范围内的日志原始行数。
 func RecalculateQuotaData(startTime int64, endTime int64) error {
 	// 对齐到小时桶边界，避免部分小时数据不一致
 	startTime = startTime - (startTime % 3600)
 	endTime = endTime - (endTime % 3600) + 3599
 
-	// 先从日志聚合数据（可失败的操作放在事务外）
-	type logRow struct {
-		UserId           int
-		Username         string
-		ModelName        string
-		CreatedAt        int64
-		PromptTokens     int
-		CompletionTokens int
-		Quota            int
-	}
+	// 日志类型常量属 logstore 包，而 logstore 反向依赖本包，此处沿用既有
+	// 字面量：2 = 消费（成功），5 = 错误（失败）。
+	bucketExpr := logTimeBucketExpr(3600)
 
-	// 成功请求（type = 2）
-	var successLogs []logRow
+	// 聚合结果行（小时桶对齐后的 created_at 已是桶起点）
+	type quotaAggRow struct {
+		UserId    int
+		Username  string
+		ModelName string
+		Platform  string
+		CreatedAt int64
+		Count     int
+		Quota     int
+		TokenUsed int
+	}
+	groupDims := fmt.Sprintf("user_id, username, model_name, platform, %s", bucketExpr)
+
+	// 成功请求（type = 2）：按维度与小时桶聚合次数、额度与 token。
+	var successRows []quotaAggRow
 	err := dbstore.LOG_DB.Table("logs").
-		Select("user_id, username, model_name, created_at, prompt_tokens, completion_tokens, quota").
+		Select(fmt.Sprintf("user_id, username, model_name, platform, %s as created_at, count(*) as count, sum(quota) as quota, sum(prompt_tokens + completion_tokens) as token_used", bucketExpr)).
 		Where("type = 2 and created_at >= ? and created_at <= ?", startTime, endTime).
-		Find(&successLogs).Error
+		Group(groupDims).
+		Find(&successRows).Error
 	if err != nil {
 		return fmt.Errorf("查询成功日志失败: %w", err)
 	}
 
-	// 失败请求（type = 5）
-	type failRow struct {
-		UserId    int
-		Username  string
-		ModelName string
-		CreatedAt int64
-	}
-	var failLogs []failRow
+	// 失败请求（type = 5）：仅聚合次数。
+	var failRows []quotaAggRow
 	err = dbstore.LOG_DB.Table("logs").
-		Select("user_id, username, model_name, created_at").
+		Select(fmt.Sprintf("user_id, username, model_name, platform, %s as created_at, count(*) as count", bucketExpr)).
 		Where("type = 5 and created_at >= ? and created_at <= ?", startTime, endTime).
-		Find(&failLogs).Error
+		Group(groupDims).
+		Find(&failRows).Error
 	if err != nil {
 		return fmt.Errorf("查询失败日志失败: %w", err)
 	}
 
-	// 按 (userId, username, modelName, hourStart) 聚合
+	// 按 (userId, username, modelName, platform, hourStart) 聚合
 	type aggKey struct {
 		UserId    int
 		Username  string
 		ModelName string
+		Platform  string
 		HourStart int64
 	}
 	type aggVal struct {
@@ -321,35 +418,27 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 		TokenUsed int
 	}
 	merged := make(map[aggKey]*aggVal)
-
-	// 聚合成功日志
-	for _, r := range successLogs {
-		hourStart := r.CreatedAt - (r.CreatedAt % 3600)
-		// 根据写入层聚合粒度配置调整 key 维度和 token 记录
-		userId, username, modelName, tokenUsed := applyTrackingConfig(r.UserId, r.Username, r.ModelName, r.PromptTokens+r.CompletionTokens)
-		key := aggKey{UserId: userId, Username: username, ModelName: modelName, HourStart: hourStart}
+	ensureVal := func(key aggKey) *aggVal {
 		v, ok := merged[key]
 		if !ok {
 			v = &aggVal{}
 			merged[key] = v
 		}
-		v.Count++
+		return v
+	}
+
+	for _, r := range successRows {
+		// 根据写入层聚合粒度配置调整 key 维度和 token 记录
+		userId, username, modelName, tokenUsed := applyTrackingConfig(r.UserId, r.Username, r.ModelName, r.TokenUsed)
+		v := ensureVal(aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: r.CreatedAt})
+		v.Count += r.Count
 		v.Quota += r.Quota
 		v.TokenUsed += tokenUsed
 	}
-
-	// 聚合失败日志
-	for _, r := range failLogs {
-		hourStart := r.CreatedAt - (r.CreatedAt % 3600)
+	for _, r := range failRows {
 		// 失败日志按同一配置聚合 key 维度（不记录 token）
 		userId, username, modelName, _ := applyTrackingConfig(r.UserId, r.Username, r.ModelName, 0)
-		key := aggKey{UserId: userId, Username: username, ModelName: modelName, HourStart: hourStart}
-		v, ok := merged[key]
-		if !ok {
-			v = &aggVal{}
-			merged[key] = v
-		}
-		v.FailCount++
+		ensureVal(aggKey{UserId: userId, Username: username, ModelName: modelName, Platform: r.Platform, HourStart: r.CreatedAt}).FailCount += r.Count
 	}
 
 	// 构建批量插入数据
@@ -359,6 +448,7 @@ func RecalculateQuotaData(startTime int64, endTime int64) error {
 			UserID:    k.UserId,
 			Username:  k.Username,
 			ModelName: k.ModelName,
+			Platform:  k.Platform,
 			CreatedAt: k.HourStart,
 			Count:     v.Count,
 			FailCount: v.FailCount,

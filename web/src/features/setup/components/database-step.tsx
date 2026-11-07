@@ -60,6 +60,11 @@ const DATABASE_META: Record<
     descriptionKey: 'common.tips.damengIsAnOracleLineageDomesticDatabaseFor',
     variant: 'success',
   },
+  kingbase: {
+    label: '人大金仓 KingbaseES',
+    descriptionKey: 'common.tips.kingbaseIsAnOracleCompatibleDomestic',
+    variant: 'success',
+  },
 }
 
 function resolveDatabaseMeta(type?: string) {
@@ -183,6 +188,17 @@ export function DatabaseStep({ status }: DatabaseStepProps) {
           </AlertTitle>
           <AlertDescription>
             {t('setup.tips.damengRequiresCaseInsensitiveInstanceAnd')}
+          </AlertDescription>
+        </Alert>
+      )}
+      {status?.database_type === 'kingbase' && (
+        <Alert className='border-sky-200 bg-sky-50 dark:border-sky-900/60 dark:bg-sky-950/40'>
+          <AlertTitle className='flex items-center gap-2'>
+            <Server className='size-4 text-sky-500' />
+            {t('setup.fields.kingbaseDetected')}
+          </AlertTitle>
+          <AlertDescription>
+            {t('setup.tips.kingbaseRequiresOracleCompatibleInstanceAnd')}
           </AlertDescription>
         </Alert>
       )}

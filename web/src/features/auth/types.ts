@@ -114,6 +114,8 @@ export interface SystemStatus {
     password_login_enabled?: boolean
     password_register_enabled?: boolean
     custom_oauth_providers?: CustomOAuthProviderInfo[]
+    dashboard_refresh_interval?: number
+    dashboard_default_time_range_days?: number
     [key: string]: unknown
   }
   // Allow direct access to common properties

@@ -34,9 +34,10 @@ type DashboardConfig struct {
 	MaxTimeRangeDays     int `json:"max_time_range_days"`     // 最大查询天数，默认31
 
 	// === 数据上限配置 ===
-	RankingsModelLimit  int `json:"rankings_model_limit"`  // 排行榜模型数量，默认20
-	RankingsVendorLimit int `json:"rankings_vendor_limit"` // 排行榜供应商数量，默认5
-	UserAnalyticsTopN   int `json:"user_analytics_top_n"`  // 用户排行榜TOP N，默认20
+	RankingsModelLimit    int `json:"rankings_model_limit"`    // 排行榜模型数量，默认20
+	RankingsVendorLimit   int `json:"rankings_vendor_limit"`   // 排行榜供应商数量，默认5
+	RankingsPlatformLimit int `json:"rankings_platform_limit"` // 排行榜客户端平台（Agent）数量，默认10
+	UserAnalyticsTopN     int `json:"user_analytics_top_n"`    // 用户排行榜TOP N，默认20
 }
 
 // 默认配置
@@ -69,9 +70,10 @@ var defaultDashboardConfig = DashboardConfig{
 	MaxTimeRangeDays:     31,
 
 	// 数据上限
-	RankingsModelLimit:  20,
-	RankingsVendorLimit: 5,
-	UserAnalyticsTopN:   20,
+	RankingsModelLimit:    20,
+	RankingsVendorLimit:   5,
+	RankingsPlatformLimit: 10,
+	UserAnalyticsTopN:     20,
 }
 
 // 全局实例

@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/NookMux/NookMux/internal/config/console"
+	"github.com/NookMux/NookMux/internal/config/dashboard"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 
 	"github.com/gin-gonic/gin"
@@ -128,9 +130,40 @@ func fetchGroupData(ctx context.Context, client *http.Client, groupConfig map[st
 	return result
 }
 
+// 运行状态快照缓存。TTL 来自仪表台配置 uptime_kuma_refresh_interval（秒），
+// 下限 30s 与配置校验一致；监控分组变更时由 option 更新路径显式失效。
+var uptimeCache = struct {
+	sync.Mutex
+	data      []UptimeGroupResult
+	expiresAt time.Time
+}{}
+
+func uptimeCacheTTL() time.Duration {
+	sec := max(dashboard.GetDashboardConfig().UptimeKumaRefreshInterval, 30)
+	return time.Duration(sec) * time.Second
+}
+
+// ClearUptimeKumaCache 清空运行状态缓存，供监控分组或刷新间隔配置变更后失效调用。
+func ClearUptimeKumaCache() {
+	uptimeCache.Lock()
+	uptimeCache.data = nil
+	uptimeCache.expiresAt = time.Time{}
+	uptimeCache.Unlock()
+}
+
 func GetUptimeKumaStatus(c *gin.Context) {
+	uptimeCache.Lock()
+	if uptimeCache.data != nil && time.Now().Before(uptimeCache.expiresAt) {
+		data := uptimeCache.data
+		uptimeCache.Unlock()
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": data})
+		return
+	}
+	uptimeCache.Unlock()
+
 	groups := console.GetUptimeKumaGroups()
 	if len(groups) == 0 {
+		ClearUptimeKumaCache()
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": []UptimeGroupResult{}})
 		return
 	}
@@ -143,7 +176,6 @@ func GetUptimeKumaStatus(c *gin.Context) {
 
 	g, gCtx := errgroup.WithContext(ctx)
 	for i, group := range groups {
-		i, group := i, group
 		g.Go(func() error {
 			results[i] = fetchGroupData(gCtx, client, group)
 			return nil
@@ -156,5 +188,11 @@ func GetUptimeKumaStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
 		return
 	}
+
+	uptimeCache.Lock()
+	uptimeCache.data = results
+	uptimeCache.expiresAt = time.Now().Add(uptimeCacheTTL())
+	uptimeCache.Unlock()
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": results})
 }

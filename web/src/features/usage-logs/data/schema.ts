@@ -45,6 +45,7 @@ const _usageLogSchema = z.object({
   ua: z.string().default(''),
   x_title: z.string().default(''),
   http_referer: z.string().default(''),
+  platform: z.string().default(''),
   other: z.union([z.string(), z.record(z.string(), z.unknown())]).default(''),
   request_id: z.string().default(''),
   upstream_request_id: z.string().default(''),

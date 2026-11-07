@@ -20,6 +20,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import {
+  Form,
   FormControl,
   FormField,
   FormItem,
@@ -92,120 +93,122 @@ export function DashboardRefreshSection() {
           'systemSettings.tips.configureHowOftenDashboardDataIsRefreshedLowerIntervals'
         )}
       </p>
-      <SettingsForm onSubmit={handleSubmit}>
-        <SettingsFormGrid>
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='quota_data_refresh_interval'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.quotaDataIntervalSeconds')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={60}
-                      max={86400}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
+      <Form {...form}>
+        <SettingsForm onSubmit={handleSubmit}>
+          <SettingsFormGrid>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='quota_data_refresh_interval'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.tips.quotaDataIntervalSeconds')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={60}
+                        max={86400}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
 
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='user_analytics_refresh_interval'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.userAnalyticsIntervalSeconds')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={60}
-                      max={86400}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='user_analytics_refresh_interval'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.tips.userAnalyticsIntervalSeconds')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={60}
+                        max={86400}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
 
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='rankings_refresh_interval'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.rankingsIntervalSeconds')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={60}
-                      max={86400}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='rankings_refresh_interval'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.tips.rankingsIntervalSeconds')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={60}
+                        max={86400}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
 
-          <SettingsFormGridItem>
-            <FormField
-              control={form.control}
-              name='uptime_kuma_refresh_interval'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.uptimeMonitoringIntervalSeconds')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={30}
-                      max={3600}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(Number.parseInt(e.target.value))
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </SettingsFormGridItem>
-        </SettingsFormGrid>
+            <SettingsFormGridItem>
+              <FormField
+                control={form.control}
+                name='uptime_kuma_refresh_interval'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('systemSettings.tips.uptimeMonitoringIntervalSeconds')}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={30}
+                        max={3600}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseInt(e.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </SettingsFormGridItem>
+          </SettingsFormGrid>
 
-        <SettingsPageFormActions
-          onSave={handleSubmit}
-          onReset={handleReset}
-          isSaving={updateConfig.isPending}
-          isResetDisabled={!isDirty}
-        />
-      </SettingsForm>
+          <SettingsPageFormActions
+            onSave={handleSubmit}
+            onReset={handleReset}
+            isSaving={updateConfig.isPending}
+            isResetDisabled={!isDirty}
+          />
+        </SettingsForm>
+      </Form>
     </SettingsSection>
   )
 }

@@ -18,6 +18,17 @@ type RankingQuotaBucket struct {
 	Tokens    int64  `json:"tokens"`
 }
 
+type RankingPlatformTotal struct {
+	Platform    string `json:"platform"`
+	TotalTokens int64  `json:"total_tokens"`
+}
+
+type RankingPlatformBucket struct {
+	Platform string `json:"platform"`
+	Bucket   int64  `json:"bucket"`
+	Tokens   int64  `json:"tokens"`
+}
+
 func GetRankingQuotaTotals(startTime int64, endTime int64) ([]RankingQuotaTotal, error) {
 	var rows []RankingQuotaTotal
 	query := dbstore.DB.Table("quota_data").
@@ -52,9 +63,23 @@ func GetRankingQuotaBuckets(startTime int64, endTime int64, bucketSize int64, da
 }
 
 func rankingBucketExpr(bucketSize int64, dayOffset int64) string {
-	// openGauss/DM 的整数除法返回非截断小数（double precision/小数），与 MySQL 一致需要 FLOOR 对齐桶边界；
-	// PostgreSQL/SQLite 的整数除法截断，可直接整除。
-	useFloorDivision := infradb.UsingMySQL || infradb.UsingOpenGauss || infradb.UsingDM
+	return timeBucketExpr(bucketSize, dayOffset, infradb.IntegerDivisionTruncates())
+}
+
+// logTimeBucketExpr 返回日志库（LOG_DB）侧的时间分桶表达式；截断语义按
+// 日志库自身方言判定，日志库可与主库方言不同。
+func logTimeBucketExpr(bucketSize int64) string {
+	return timeBucketExpr(bucketSize, 0, infradb.LogDBIntegerDivisionTruncates())
+}
+
+// timeBucketExpr 生成 created_at 的时间分桶 SQL 表达式。bucketSize 为桶大小
+// （秒）；dayOffset 为天级桶在 Unix 纪元上的偏移（秒），用于把 86400 桶边界
+// 从 UTC 对齐到指定时区的自然日（如 +8 时区传 8*3600）。
+// 整数除法是否向零截断由调用方按目标库方言传入：
+// MySQL/openGauss/KingbaseES 不截断（返回小数），需 FLOOR 对齐桶边界；
+// PostgreSQL/SQLite/DM 截断，可直接整除。
+func timeBucketExpr(bucketSize int64, dayOffset int64, truncates bool) string {
+	useFloorDivision := !truncates
 	if dayOffset != 0 && bucketSize%86400 == 0 {
 		// 天级及以上桶按指定偏移切分，使桶边界落在目标时区的自然日 00:00。
 		offsetExpr := fmt.Sprintf("(%d)", dayOffset)
@@ -80,4 +105,38 @@ func applyRankingQuotaTimeRange(query *gorm.DB, startTime int64, endTime int64) 
 		query = query.Where("created_at <= ?", endTime)
 	}
 	return query
+}
+
+// GetRankingPlatformTotals 按客户端平台聚合 token 用量，供热门 Agent 排行使用。
+// 空串 platform 为未识别流量，不参与排行。
+func GetRankingPlatformTotals(startTime int64, endTime int64) ([]RankingPlatformTotal, error) {
+	var rows []RankingPlatformTotal
+	query := dbstore.DB.Table("quota_data").
+		Select("platform, sum(token_used) as total_tokens").
+		Where("platform <> ''").
+		Group("platform").
+		Having("sum(token_used) > 0").
+		Order("total_tokens DESC")
+	query = applyRankingQuotaTimeRange(query, startTime, endTime)
+	err := query.Find(&rows).Error
+	return rows, err
+}
+
+// GetRankingPlatformBuckets 按客户端平台和时间段聚合 token 用量，
+// bucketSize 与 dayOffset 语义同 GetRankingQuotaBuckets。
+func GetRankingPlatformBuckets(startTime int64, endTime int64, bucketSize int64, dayOffset int64) ([]RankingPlatformBucket, error) {
+	if bucketSize <= 0 {
+		bucketSize = 3600
+	}
+	bucketExpr := rankingBucketExpr(bucketSize, dayOffset)
+	var rows []RankingPlatformBucket
+	query := dbstore.DB.Table("quota_data").
+		Select(fmt.Sprintf("platform, %s as bucket, sum(token_used) as tokens", bucketExpr)).
+		Where("platform <> ''").
+		Group(fmt.Sprintf("platform, %s", bucketExpr)).
+		Having("sum(token_used) > 0").
+		Order("bucket ASC")
+	query = applyRankingQuotaTimeRange(query, startTime, endTime)
+	err := query.Find(&rows).Error
+	return rows, err
 }

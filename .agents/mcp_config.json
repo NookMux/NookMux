@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "serena": {
+      "serverUrl": "http://127.0.0.1:9121/mcp"
+    },
+    "codegraph": {
+      "command": "/usr/local/bin/codegraph",
+      "args": [
+        "serve",
+        "--mcp",
+        "--path",
+        "."
+      ]
+    }
+  }
+}

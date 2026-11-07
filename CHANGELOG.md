@@ -9,22 +9,103 @@
 
 ### Added
 
+- **使用平台识别（Agent 客户端归因）**：通过 `User-Agent`、`HTTP-Referer`、
+  `X-Title` 三个客户端请求头识别发起请求的 Agent 平台，首批支持
+  Claude Code、Codex、OpenCode、Hermes Agent、DeepSeek Harness、OpenClaw、
+  pi、New API（网关自报 UA 弱信号）与 Cherry Studio 九个平台，规则均经
+  源码级核实并带防误报边界（如 `pi` 精确匹配不受 `pinecone/1.0` 干扰）。
+  识别结果落库为 `logs.platform` 受控短枚举列，历史日志由一次性迁移
+  （`data_migration.log_platform.v1.done` marker，id 游标分批）基于已回填的
+  三头列自动识别回填。使用日志新增「平台」列（logo+文本、居中、溢出省略，
+  列宽对齐渠道列）；`quota_data` 聚合维度加入平台（内存缓存、定时落盘与
+  `POST /api/data/recalculate` 重算链路同步），排行榜页在市场份额上方新增
+  「热门 Agent」卡片（平台堆叠柱状图 + 双列排行榜），`/api/rankings` 响应
+  新增 `platforms` 与 `platforms_history` 字段；仪表台配置新增
+  `rankings_platform_limit`（默认 10，范围 1-50）。已部署实例升级后，可对
+  历史时间范围执行一次 `POST /api/data/recalculate` 让热门 Agent 图表覆盖
+  存量流量。平台显示名与图标由前端统一映射（`@lobehub/icons`），后端仅
+  下发平台 ID。
+- **使用平台识别接口文档同步**（Mintlify 中英）：`GET /api/log` 与
+  `GET /api/log/self` 响应示例与字段表新增 `platform`；`GET /api/rankings`
+  响应新增 `platforms` 榜单与 `platforms_history` 时序结构的完整解析
+  （含 `Others` 归并、环比省略语义）；`GET/PUT /api/dashboard/config` 与
+  `POST /api/dashboard/config/reset` 补 `rankings_platform_limit`（默认 10、
+  范围 1-50）；`POST /api/data/recalculate` 的聚合粒度说明补平台维度。
+  全部字段对照后端源码核实。
+- **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
+  端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
+  cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段
+  （`ResponseField`）逐项解析；字段名、类型、必填与默认值均对照后端源码
+  （绑定结构体、控制器响应组装）核实。回调类端点（Stripe Webhook、易支付
+  notify）按实际返回纯状态码/纯文本如实记录；个别偏离「HTTP 200 + success
+  包裹」约定的端点（`/api/usage/token/`、`/api/status/test` 等）亦逐一注明。
+  同时新增 4 个此前缺失的密钥类端点页（`POST /api/token/batch/keys`、
+  `POST|PUT /api/token/{id}/key`、`GET /api/redemption/{id}/key`），删除一页
+  陈旧文档：`GET /api/user/groups` 路由已不存在于后端与前端（真实端点
+  `GET /api/user/self/groups` 已有专属页面）。
+- **管理接口 API 参考文档第二批扩容**（Mintlify 中英）：把此前未进入文档的
+  15 个路由家族共 90 个端点补建为完整参考页（中英 180 份文件）——新增审计
+  日志、消费日志（含 `TokenAuthReadOnly` 令牌直查日志）、仪表盘配置、动态
+  倍率、定制音色、工单系统、媒体存储、性能运维、数据库迁移九个分组，并向
+  渠道管理（Ollama 模型管理、GLM 套餐查询、上游供应商拉取、代理连通性
+  测试）、系统设置（`json_map`/`json_array`/配置键值细粒度读写）、数据统计、
+  系统、用户管理（签到、封禁、Passkey 更新）、充值六个现有分组追加页面。
+  全部字段对照后端源码核验；工单端点的错误表按服务端实际统一映射
+  （`MsgDatabaseError`）修正，SSE（`/api/channel/ollama/pull/stream`）、
+  固定中文错误文案（`/api/log/self` 过滤拒绝）等特殊行为均如实注明。docs.json
+  中英导航同步登记。
+- **Stripe Webhook 密钥守卫回归测试**：为「未配置 `StripeWebhookSecret` 时
+  webhook 直接 403 拒绝验签」的安全守卫补充 HTTP 层回归测试（对应
+  928b28065 修复的空密钥伪造充值漏洞），同时钉住相邻边界——已配置密钥但
+  无有效签名的请求返回 400，防止守卫在后续重构中被意外移除。
+- **金仓 KingbaseES 数据库支持**：新增人大金仓 KingbaseES（Oracle 兼容模式）作为
+  原生后端数据库（PG 兼容内核）。DSN 以 `kingbase://` 前缀识别（金仓官方 Gokb
+  驱动原生支持的 URL scheme，口令按标准 URL 规则 percent-encode），连接层使用
+  `godoes/gorm-kingbase` v1.11.0（内置金仓官方 Gokb 驱动，Migrator 基于
+  pg_catalog / information_schema 探测表结构），SQL 方言行为归入 PostgreSQL 家族
+  （双引号标识符、小写折叠）。
+  - Oracle 模式的空字符串即 NULL 语义（GUC `ora_input_emptystr_isnull`）在连接层
+    自动归一：连接建立时下发 `ora_input_emptystr_isnull=off` 启动参数（未携带或
+    仅携带空值时补为 off，判定仅基于 DSN query 段），与
+    SQLite/MySQL/PostgreSQL/openGauss/DM 的空串与 NULL 严格区分语义对齐，
+    避免空串写入 NOT NULL 列失败与 `WHERE col = ''` 永远失配；DSN 显式携带
+    on 类取值时连接期直接拒绝（GUC 名与 Gokb 参数解析均大小写不敏感、同名
+    参数后值覆盖，重复携带与大小写变体同样命中拒绝或收敛为单值；DSN URL
+    解析失败立即报错且不回显原文，不放行未归一化的连接）。
+  - 实例要求：不得开启 `enable_ci`（实例级 initdb 选项，字符串比较大小写不敏感会使
+    令牌密钥、用户名等等值比较跨大小写误匹配，连接时校验失败即拒绝启动）；未开启
+    SSL 的实例 DSN 须显式 `sslmode=disable`（Gokb 默认 require 且无明文回退）。
+  - 高并发部署建议：金仓默认 `max_connections=100`（实测 V9R2C016），主库与日志库
+    两套连接池默认各 `SQL_MAX_OPEN_CONNS=1000`，须按实例会话上限调低，避免高峰
+    FATAL 53300 耗尽会话（未显式设置时启动会对照实例会话上限输出告警）；Gokb
+    默认路径每条带参 SQL 需两次往返且无语句缓存，生产部署建议开启
+    `SQL_PREPARE_STMT=true` 并同步调大 `SQL_MAX_LIFETIME`（默认 60 秒的连接
+    轮换会周期性清空语句缓存）。
+  - 方言分支适配：用量排行时间分桶纳入 FLOOR 截断分支（金仓整数除法不截断）；
+    跨库预迁移支持金仓与 MySQL/PostgreSQL/openGauss/DM/SQLite 互迁，同类型迁移
+    支持 KingbaseES → KingbaseES（实例身份校验复用 pg_control_system 实例指纹，
+    不含连接路径字段；迁移完成后自动重置目标自增序列）。
+  - 安装向导数据库类型展示新增 `kingbase`（前端含数据库步骤部署前提提示与中英文文案）。
+
 - **达梦 DM8 数据库支持**：新增达梦 DM8 作为原生后端数据库（Oracle 系内核，不依赖
   MySQL/Oracle 兼容模式）。DSN 以 `dm://` 前缀识别（达梦官方 Go 驱动原生支持的 URL
   scheme，口令按字面值写入且不得含 '?'，':'、'@' 可用，连接前对 DSN 口令做
   非法字符前置校验），连接层使用 `godoes/gorm-dameng`
   v0.7.2（GORM 的 OnConflict 由其 Create 回调翻译为 MERGE INTO，自增主键经 IDENTITY
   列自动回填，显式插值后计数器自动跟随、迁移后无需重置）。
-  - 实例要求：以 CASE_SENSITIVE=N 初始化（连接时校验，不满足即启动失败），业务账号
-    授予 SELECT ANY DICTIONARY 权限（AutoMigrate 依赖 SYS 系统视图探测表结构）；
-    高并发部署建议按实例 dm.ini 的 MAX_SESSIONS 调低 SQL_MAX_OPEN_CONNS（默认
-    1000），避免高峰耗尽会话。
+  - 实例要求：以 CASE_SENSITIVE=N 初始化且运行于 COMPATIBLE_MODE=0（DM 原生
+    模式，dm.ini 服务器参数；适配与实机验证均基于原生模式完成，两项均连接时校验，
+    不满足即启动失败），业务账号授予 SELECT ANY DICTIONARY 权限（AutoMigrate
+    依赖 SYS 系统视图探测表结构）；高并发部署建议按实例 dm.ini 的 MAX_SESSIONS
+    调低 SQL_MAX_OPEN_CONNS（默认 1000，未显式设置时启动会对照实例会话上限输出
+    告警），避免高峰耗尽会话。
   - 字符串列按 VARCHAR(n CHAR) 字符口径建列，与其他数据库的长度语义对齐，避免中文
     在字节口径下意外截断。
-  - 方言分支适配：保留字列与渠道搜索/兑换码/充值单的列名引用在 DM 下走双引号；用量
-    排行时间分桶纳入 FLOOR 截断分支；跨库预迁移支持 DM 与 MySQL/PostgreSQL/openGauss/
-    SQLite 互迁，同类型迁移支持 DM → DM（含实例身份校验，基于 V$INSTANCE 实例指纹）；
-    目标库写入按批包裹事务，钉定达梦 IDENTITY_INSERT 的会话粘性并获得批级原子回滚。
+  - 方言分支适配：保留字列与渠道搜索/兑换码/充值单的列名引用在 DM 下走双引号；DM
+    整数除法向零截断（原生模式实测），用量排行时间分桶沿用整除分支；跨库预迁移支持
+    DM 与 MySQL/PostgreSQL/openGauss/SQLite 互迁，同类型迁移支持 DM → DM（含实例
+    身份校验，基于 V$INSTANCE 实例指纹）；目标库写入按批包裹事务，钉定达梦
+    IDENTITY_INSERT 的会话粘性并获得批级原子回滚。
   - 安装向导数据库类型展示新增 `dameng`（前端含 DM 检测提示与中英文文案）。
 
 - **openGauss 数据库支持**：新增 openGauss 7.0 作为原生后端数据库。DSN 以
@@ -48,7 +129,99 @@
   - 鉴权、搜索、展示与复制全部直接使用完整密钥，前端不再拼接 `sk-` 前缀。
   - 密钥查询页的密钥格式校验放宽为自定义前缀形态。
 
+### Fixed
+
+- **react / react-dom 版本错配导致前端整体白屏修复**：dependabot 升级
+  （c8bc34c24）将 `react` 升至 19.3.1 但未联动 `react-dom`（仍 19.2.7），
+  React 19 要求两者严格同版本，运行时抛 Minified React error #527、SPA 无法
+  挂载（任意页面空白）。`react-dom` 联动升级至 19.3.1（`@types/react-dom`
+  至 19.3.0），浏览器实测登录、数据看板、系统设置全部恢复正常渲染。
+- **仪表台配置「刷新间隔 / 数据限制」分区渲染崩溃修复**：两个分区的表单控件
+  渲染在 `<Form>` Provider 之外，`FormItem` 调用 `useFormContext()` 得到 null
+  抛出 `Cannot destructure property 'getFieldState'` TypeError，点击标签即被
+  路由错误边界带入 `/500` 错误页。现按设置页标准结构补上 `<Form {...form}>`
+  包裹层，两分区恢复正常渲染与保存。
+- **模型定价编辑器清空价格不再丢失计费类型**：可视化编辑器中清空「按次
+  收费」或「按量计费」的价格输入框时，此前会从 JSON 配置中删除该模型条目，
+  已选择的计费类型随之回退为「未配置」；现改为写入 0（语义等价未配置价格），
+  计费类型不再随输入清空丢失。定价输入框中 0 统一显示为空白（由占位提示
+  建议值），价格摘要等只读展示仍显示 `$0 / request`。
+- **前端高危传递依赖漏洞治理**：`overrides` 将 `query-string` 钉至 9.5.1
+  （依赖方 `@lobehub/ui` 约束 `^9.3.1` 内的修复版），其依赖
+  `decode-uri-component` 随之解析至修复版 0.5.1，消除百分号编码二次复杂度
+  替换 DoS 漏洞（GHSA-qr28-fpjm-wq7f）；`follow-redirects` 钉至 1.16.2，
+  消除跨域敏感头丢弃与凭据跟随重定向漏洞（GHSA-mrwp-f3q8-3g9p）。
+  `bun audit --audit-level=high` 高危告警清零，CI 与本地 pre-push 门禁
+  恢复全绿。
+
 ### Changed
+
+- **使用平台识别数据管道性能优化**：历史日志平台回填迁移由逐行 UPDATE 改为
+  同批按平台分组批量更新（每组一条 `UPDATE ... WHERE id IN (...)`，单条
+  上限 500 个 id，兼容 SQLite 绑定参数与 Oracle 系 IN 列表限制），百万级
+  存量回填的数据库往返从每行一次降为每组一次；`quota_data` 新增
+  `(user_id, model_name, platform, created_at)` 复合索引（`idx_qdt_dim_time`），
+  把定时落盘 upsert 的全表扫描降为索引点查，落盘改为锁内换出快照、锁外
+  执行数据库 I/O，不再长时间阻塞请求路径的缓存写入；
+  `POST /api/data/recalculate` 重算的聚合以 SQL `GROUP BY` 下推日志库
+  （小时分桶表达式按日志库方言自动选择 FLOOR/整除截断，日志库可与主库
+  方言不同），内存占用从时间范围内的日志原始行数降为聚合结果行数，
+  消除大时间范围重算的内存峰值风险。
+- **仪表台配置全面接管数据看板（旧「数据看板」分区移除）**：控制台内容下
+  「仪表台配置」成为数据看板行为的唯一配置入口——
+  - 4 个刷新间隔接线生效：`quota_data_refresh_interval`（秒）控制 quota_data
+    落库循环周期；`rankings_refresh_interval` 控制排行榜快照缓存 TTL；
+    `user_analytics_refresh_interval` 控制用户分析聚合查询缓存（按查询时间
+    窗口缓存，上限 32 窗口）；`uptime_kuma_refresh_interval` 控制运行状态
+    监控拉取的快照缓存。间隔或监控分组配置变更后对应缓存立即失效。
+  - 数据管道写入开关统一：quota_data / user_analytics / rankings 任一指标
+    启用即维持 quota_data 写入管道（原 `DataExportEnabled` 语义），消费日志
+    与用量统计的 quota_data 旁路写入、日志页统计捷径同步切换。
+  - `default_time_range_days` 接线：数据看板未保存本地偏好的用户，默认查询
+    窗口取服务端配置（经 `/api/status` 下发）。
+  - 旧选项 `DataExportEnabled` / `DataExportInterval` / `DataExportDefaultTime`
+    移除：启动时一次性迁移到 `dashboard_config`（已在新面板保存过的字段不被
+    覆盖；`DataExportInterval` 分钟值映射为两个刷新间隔的秒值；图表时间粒度
+    本就是浏览器本地偏好，无后继配置），迁移后删除旧行防止复活。
+  - `/api/status` 字段 `enable_data_export` / `data_export_interval` /
+    `data_export_default_time` 替换为 `dashboard_refresh_interval`（秒，
+    数据看板页自动刷新依据）与 `dashboard_default_time_range_days`。
+- **Stripe 支付合规升级与实付金额核对**：Stripe SDK 由 `stripe-go v81` 升级到
+  `v87.0.0`（API 版本随之升至 `2026-09-30.endive`），Stripe 客户端从已弃用的
+  全局 `stripe.Key` 模式迁移到 `stripe.NewClient` 实例（v2 调用风格，Checkout
+  Session 创建带 `integration_identifier` 追踪标签）；Webhook 验签执行严格
+  API 版本校验——Stripe 控制台创建 webhook 端点时必须选择 `2026-09-30.endive`，
+  版本不匹配的事件直接拒绝（400），暴露端点配置漂移。Webhook 入账前新增实付
+  金额核对——`实付金额 + 促销折扣 == 数量 × StripeUnitPrice × 币种倍率`
+  （零小数币种按主单位核对），Stripe Price 单价与 `StripeUnitPrice` 配置漂移时
+  订单拒绝入账并返回 5xx 触发 Stripe 重投告警，杜绝"实收≠入账"的静默资损窗口。
+- **JSON 列持久化规范按数据形态二分**：`internal/store/AGENTS.md` 的多库兼容规范
+  现规定——自由形态 JSON 文本（配置、运行时拼装键值等）统一 `gorm:"type:text"`；
+  结构化 JSON 对象（Go 结构体或自定义类型整体序列化，如 `channels.channel_info`、
+  `prefill_groups.items`）用 `gorm:"type:json"`。`JSON` 类型六库可用（MySQL /
+  PostgreSQL / openGauss 原生支持，DM8 实测支持 JSON 列建表与读写，金仓底层按
+  jsonb 处理，SQLite 宽松类型直接接收）；仍严禁 `JSONB` 等 PG 专有变体及其他
+  缺乏跨库等价物的类型。
+- **计费扣减改为同步条件 UPDATE（防并发透支）**：用户余额（`users.quota`）与
+  令牌剩余额度（`tokens.remain_quota`）的扣减不再进入批量更新队列，改为
+  `WHERE ... >= ?` 条件 UPDATE 原子扣减，余额不足时返回
+  `ErrUserQuotaNotEnough` / `ErrTokenQuotaNotEnough` 且不落库，数据库层面杜绝
+  高并发窗口内额度扣成负数（实测修复前限额 20000 的令牌 8 秒内可被扣穿至
+  -20689）。批量更新机制（`BATCH_UPDATE_ENABLED`）此后仅承载统计型字段
+  （用户/令牌/渠道已用额度、请求计数），开启批量不再依赖 Redis 部署形态；
+  `IncreaseUserQuota` 移除已无意义的 `db` 强制同步参数，配额缓存（Redis）改为
+  在落库成功后异步调整，失败路径不污染缓存。
+- **结算失败升级为系统级告警**：计费结算（`SettleBilling`）失败意味着实际消费
+  未能足额扣减、平台承担差额损失，由请求级日志升级为 `SysError` 结构化告警
+  （含 userId/tokenId/channelId/quota），不再静默。
+
+### Added
+
+- **进程优雅停机**：HTTP Server 接管为 `http.Server` 生命周期，SIGINT/SIGTERM
+  触发 15 秒优雅停机，停止接收新流量后调用 `FlushBatchUpdates` 把批量暂存的
+  统计增量落库，消除退出时最多一个批量周期的数据丢失；启动时执行
+  `CheckNegativeQuotaBalances` 扫描，暴露历史遗留或异常写入造成的负值余额
+  存量（用户余额、令牌剩余额度、窗口/周期超用）。
 
 - **智谱套餐模型消耗查询升级**：模型用量改接 token-usage 明细接口
   （`/api/monitor/token-usage/usage-detail`，`type=1&usageType=MODEL`，海内外
@@ -65,12 +238,81 @@
   联动升级 `@tanstack/react-query` 至 5.104.5 以满足 devtools 的 peer 版本
   要求（TanStack 官方要求两者同版本）。
 
+- **系统设置分区调整**：「默认折叠侧边栏」由 运维 → 系统行为 迁移至
+  站点与品牌 → 侧边栏模块 顶部，作为切换即时保存的独立开关；运维下的
+  「系统行为」分区更名为「自动重试」。
+
 ### Fixed
 
+- **Stripe 无折扣事件 webhook panic 修复**：真实无折扣 Checkout 事件的
+  `total_details` 缺失或为 null，stripe-go `GetObjectValue` 双层路径首键
+  即 panic（Cannot descend into non-map non-slice object），webhook 返回
+  500 触发 Stripe 无限重投、订单永远无法入账；改为 `amountDiscountOf`
+  安全提取（缺失/null/非数字按零折扣参与金额核对，数字值正常核对）。
+  已用本地 HMAC 签名请求对运行实例完成全链路联调验证：正常入账（订单
+  pending→success、额度精确增加、stripe_customer 回写）、错误签名/篡改
+  payload/过期时间戳 400 拒绝、重放幂等（额度不重复增加）、实付金额
+  错配 500 拒绝入账、未知单号 200 终态跳过。
+- **Stripe 支付链路错误处理与弹窗拦截**：创建充值订单前获取用户失败不再吞错
+  （原 `user, _ :=` 在异常时直接空指针 panic），改为返回本地化错误提示
+  （新增 `topup.get_user_failed` 文案）；前端 Stripe 支付改为在异步请求前同步
+  预开支付窗口，规避 Safari 等浏览器对异步 `window.open` 的弹窗拦截，弹窗被
+  拦截时降级为当前页跳转。
+- **DM8 大文本列类型（跨库迁移矩阵）**：`options.value`、`channels.key/other/
+  models/other_info/settings`、`logs.content/other` 此前未声明列类型，PG 系
+  （PostgreSQL/openGauss/金仓）按方言默认建成无上限 TEXT，DM8 却按
+  VARCHAR(8188 CHAR) 建列（8188 字符上限），向 DM8 预迁移时超过 8188 字符的
+  option（如 ModelRatio 大型 JSON 配置）即报 `-6169 列长度超出定义` 失败。
+  现统一显式声明 `gorm:"type:text"`，六库均为无长度上限的大文本语义。
+- **同类型迁移的同库防护（PostgreSQL）**：连接标识此前把 `inet_server_addr()`/
+  `inet_server_port()` 连接路径字段计入身份比较，同一实例经 127.0.0.1/::1/
+  主机 IP 等不同地址连接会被误判为不同库，勾选覆盖目标库时可能清空正在服务的
+  主库；unix socket 连接下身份探测还会因 NULL 扫描失败而阻断迁移。现身份仅由
+  实例指纹（`pg_control_system().system_identifier`）+ 库名构成。
+- **同类型迁移的同库防护（openGauss）**：实例指纹取自 postmaster 启动时刻，
+  实例在校验窗口内重启/主备切换时前后指纹不一致，可能把同一库判为不同库而
+  绕过覆盖拦截；同批编排同秒拉起的不同实例也可能指纹相同被误拦。现指纹
+  附加 `inet_server_port()` 监听端口区分同秒实例，并在校验期间复检源库指纹，
+  变化即中止迁移要求重试。
+- **迁移目标库的遗留唯一约束清理**：预迁移/同类型迁移的目标库建表路径此前以
+  当前源库的全局旗标门控清理逻辑，源为 PG 系而目标为 MySQL 时会对目标库执行
+  PG 专有清理 SQL，源为 SQLite/MySQL 而目标为 PG 系时则漏清理；现按目标库
+  方言（Dialector.Name）门控。
+- **达梦 DSN 口令校验的切分规则**：校验器此前在含 query 的整串上定位 userinfo，
+  query 值携带 '@' 的合法 DSN 会被误报"口令包含 '?'"拒绝；现与驱动 parseDSN
+  对齐（先以最后一个 '?' 剥离 query，再按最后一个 '@' 切分 userinfo）。
+- **金仓 DSN 空串语义守卫**：`ora_input_emptystr_isnull=on` 硬拒绝此前只匹配
+  小写参数名的首个取值，GUC 名大小写不敏感与 Gokb 同名参数后值覆盖的语义可
+  被大写键或重复携带绕过；URL 解析失败也会被静默跳过归一化与拒绝。现按
+  大小写不敏感逐值检查全部取值，重复/大小写变体收敛为单一 off，解析失败
+  立即报错且不回显 DSN 原文。
+- **迁移链路连接资源**：迁移目标库连接此前不设连接池上限，可能叠加实例会话
+  上限（金仓默认 max_connections=100、DM 受 MAX_SESSIONS 约束）挤占线上会话，
+  现设固定上限；主库/日志库未显式设置 `SQL_MAX_OPEN_CONNS` 时，启动对照
+  金仓/DM 实例会话上限输出告警。openGauss/金仓未显式设置 `SQL_PREPARE_STMT`
+  时，启动输出语句缓存与 `SQL_MAX_LIFETIME` 的成对配置提示。
+- **存储层去重**：预迁移目标库的 AutoMigrate 模型清单直接复用 `mainDBModels`
+  单一清单（此前为逐项复制的第二份清单，漏同步会导致目标库静默少表丢数据）；
+  预迁移与同类型迁移共用的 PostgreSQL 系序列重置实现合并为单一函数。
+- **og-smoke 冒烟脚本**：DSN 解析失败的报错不再回显含口令的 URL 原文。
+- **文档与文案同步**：docker-compose.yml 补齐 DM/金仓示例 DSN 与建库前提
+  （含外部库主机名说明）；系统设置迁移能力文案（中英）补齐 DM/金仓的全部
+  方向；安装向导达梦提示补充 COMPATIBLE_MODE=0 前提；Mintlify 中英文档的
+  DM 口令规则与建库前提同步为终态口径。
 - 恢复误删的 .github 工作流（CI、Docker 镜像发布、dependabot、飞书通知）。
 
 ### Security
 
+- **og-smoke 独立模块依赖安全升级**：GitHub Dependabot 在默认分支报出的 20 条
+  漏洞告警（8 critical / 5 high / 7 moderate）全部源于 scripts/og-smoke 的间接依赖
+  golang.org/x/crypto 被 openGauss connector（openGauss-connector-go-pq v1.0.9）
+  锁定在 2021-07 的 v0.0.0-20210711020723-a769d52b0f97，聚合了 2021–2026 年间
+  x/crypto 的全部已知 CVE（CVE-2024-45337 ssh 未授权访问、CVE-2023-48795
+  Terrapin、CVE-2021-43565、CVE-2022-27191 等）。显式升至与主模块一致的
+  v0.58.0（连带 x/sync v0.24.0、x/text v0.43.0），合入 main 后 20 条告警全部关闭；
+  官方 connector 的 SCRAM 认证路径与全部 17 项冒烟用例实测通过。同步补充
+  og-smoke.sh 前置条件：openGauss 新库 public schema 归初始用户所有，须为
+  连接用户执行 GRANT CREATE, USAGE ON SCHEMA public。
 - **web 依赖安全升级**：修复 CI 依赖审计（`bun audit --audit-level=high`）报出的
   3 个 high 级漏洞：
   - `zod` < 4.6.6 校验超大受限集合可耗尽内存

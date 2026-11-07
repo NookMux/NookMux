@@ -165,6 +165,7 @@ export type SiteSettings = {
   'general_setting.token_key_prefix': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
+  DefaultCollapseSidebar: boolean
 }
 
 export type AuthSettings = {
@@ -203,9 +204,6 @@ export type ContentSettings = {
   'console_setting.usage_log_fields': string
   'console_setting.usage_log_fields_admin_enabled': boolean
   'console_setting.usage_log_fields_user_enabled': boolean
-  DataExportEnabled: boolean
-  DataExportDefaultTime: string
-  DataExportInterval: number
 }
 
 export type ModelSettings = {
@@ -300,7 +298,6 @@ export type BillingSettings = {
 export type OperationsSettings = {
   RetryTimes: number
   AutomaticRetryEnabled: boolean
-  DefaultCollapseSidebar: boolean
   ChannelDisableThreshold: string
   QuotaRemindThreshold: string
   AutomaticDisableChannelEnabled: boolean

@@ -78,11 +78,18 @@ export function usePayment() {
   // Process payment
   const processPayment = useCallback(
     async (topupAmount: number, paymentType: string) => {
+      let popup: Window | null = null
       try {
         setProcessing(true)
 
         const isStripe = isStripePayment(paymentType)
         const amount = Math.floor(topupAmount)
+
+        // 在 await 之前同步预开支付窗口：异步回调中的 window.open 会被
+        // Safari 等浏览器的弹窗拦截器拦截
+        if (isStripe) {
+          popup = window.open('about:blank', '_blank')
+        }
 
         const response = isStripe
           ? await requestStripePayment({
@@ -95,6 +102,7 @@ export function usePayment() {
             })
 
         if (!isApiSuccess(response)) {
+          popup?.close()
           toast.error(
             response.message ||
               i18next.t('subscriptions.status.paymentRequestFailed')
@@ -104,7 +112,13 @@ export function usePayment() {
 
         // Handle Stripe payment
         if (isStripe && response.data?.pay_link) {
-          window.open(response.data.pay_link as string, '_blank')
+          const payLink = response.data.pay_link as string
+          if (popup && !popup.closed) {
+            popup.location.href = payLink
+          } else {
+            // 弹窗被拦截时降级为当前页跳转，保证支付流程可达
+            window.location.href = payLink
+          }
           toast.success(
             i18next.t('subscriptions.status.redirectingToPaymentPage')
           )
@@ -125,6 +139,7 @@ export function usePayment() {
 
         return false
       } catch (_error) {
+        popup?.close()
         toast.error(i18next.t('subscriptions.status.paymentRequestFailed'))
         return false
       } finally {

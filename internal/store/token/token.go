@@ -557,9 +557,18 @@ func DeleteTokenById(id int, userId int) (err error) {
 	return token.Delete()
 }
 
+// ErrTokenQuotaNotEnough 令牌剩余额度不足以完成本次扣减（含令牌不存在场景）。
+// 扣减走条件 UPDATE，数据库层面杜绝令牌额度被扣成负数。
+var ErrTokenQuotaNotEnough = errors.New("token quota is not enough")
+
+// IncreaseTokenQuota 返还令牌额度，同步落库；Redis 开启时在落库成功后
+// 异步调整配额缓存。
 func IncreaseTokenQuota(id int, key string, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
+	}
+	if err := increaseTokenQuota(id, quota); err != nil {
+		return err
 	}
 	if redis.RedisEnabled {
 		runtime.RelayGo(func() {
@@ -571,27 +580,28 @@ func IncreaseTokenQuota(id int, key string, quota int) (err error) {
 			}
 		})
 	}
-	if common.BatchUpdateEnabled {
-		dbstore.AddNewRecord(dbstore.BatchUpdateTypeTokenQuota, id, quota)
-		return nil
-	}
-	return increaseTokenQuota(id, quota)
+	return nil
 }
 
 func increaseTokenQuota(id int, quota int) (err error) {
-	err = dbstore.DB.Model(&Token{}).Where("id = ?", id).Updates(
+	return dbstore.DB.Model(&Token{}).Where("id = ?", id).Updates(
 		map[string]interface{}{
 			"remain_quota":  gorm.Expr("remain_quota + ?", quota),
 			"used_quota":    gorm.Expr("used_quota - ?", quota),
 			"accessed_time": common.GetTimestamp(),
 		},
 	).Error
-	return err
 }
 
+// DecreaseTokenQuota 扣减令牌剩余额度。条件 UPDATE 同步扣减：额度不足时
+// 不落库并返回 ErrTokenQuotaNotEnough，防止并发窗口内透支；扣减成功后才
+// 异步调整配额缓存。
 func DecreaseTokenQuota(id int, key string, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
+	}
+	if err := decreaseTokenQuota(id, quota); err != nil {
+		return err
 	}
 	if redis.RedisEnabled {
 		runtime.RelayGo(func() {
@@ -603,22 +613,26 @@ func DecreaseTokenQuota(id int, key string, quota int) (err error) {
 			}
 		})
 	}
-	if common.BatchUpdateEnabled {
-		dbstore.AddNewRecord(dbstore.BatchUpdateTypeTokenQuota, id, -quota)
-		return nil
-	}
-	return decreaseTokenQuota(id, quota)
+	return nil
 }
 
 func decreaseTokenQuota(id int, quota int) (err error) {
-	err = dbstore.DB.Model(&Token{}).Where("id = ?", id).Updates(
-		map[string]interface{}{
-			"remain_quota":  gorm.Expr("remain_quota - ?", quota),
-			"used_quota":    gorm.Expr("used_quota + ?", quota),
-			"accessed_time": common.GetTimestamp(),
-		},
-	).Error
-	return err
+	result := dbstore.DB.Model(&Token{}).
+		Where("id = ? AND remain_quota >= ?", id, quota).
+		Updates(
+			map[string]interface{}{
+				"remain_quota":  gorm.Expr("remain_quota - ?", quota),
+				"used_quota":    gorm.Expr("used_quota + ?", quota),
+				"accessed_time": common.GetTimestamp(),
+			},
+		)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrTokenQuotaNotEnough
+	}
+	return nil
 }
 
 func UpdateTokenUsedQuota(id int, key string, delta int) error {
@@ -916,13 +930,10 @@ func InvalidateUserTokensCache(userId int) error {
 }
 
 // init 把 token 域的批量落库函数注册到 dbstore 的批量更新器。
-// BatchUpdateTypeTokenQuota / TokenUsedQuota 等类型的批量条目只会由本包写入，
-// 因此注册与写入天然同生命周期，不存在 flusher 缺失。
+// 批量更新仅承载统计型字段（已用额度）；令牌剩余额度等准入型扣减始终走
+// 同步条件 UPDATE，不进入批量队列，因此这里只注册 TokenUsedQuota。
 func init() {
 	dbstore.RegisterBatchFlushers(dbstore.BatchFlushers{
-		TokenQuota:     increaseTokenQuota,
-		WindowQuota:    increaseWindowQuota,
-		CycleQuota:     increaseCycleQuota,
 		TokenUsedQuota: updateTokenUsedQuota,
 	})
 }

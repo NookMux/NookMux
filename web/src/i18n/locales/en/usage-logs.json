@@ -21,6 +21,7 @@
   "usageLogs.fields.callbackPaymentMethod": "Callback Payment Method",
   "usageLogs.fields.chain": "Chain",
   "usageLogs.fields.channelId": "Channel ID",
+  "usageLogs.fields.platform": "Platform",
   "usageLogs.fields.clickToPreviewAudio": "Click to preview audio",
   "usageLogs.fields.clickToPreviewVideo": "Click to preview video",
   "usageLogs.titles.clickToViewFullDetails": "Click to view full details",

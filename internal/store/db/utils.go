@@ -10,14 +10,12 @@ import (
 	"time"
 )
 
+// 批量更新仅承载统计型字段（已用额度、请求计数）；用户余额与令牌剩余额度
+// 等准入型扣减始终走同步条件 UPDATE，不进入批量队列。
 const (
-	BatchUpdateTypeUserQuota = iota
-	BatchUpdateTypeTokenQuota
-	BatchUpdateTypeUsedQuota
+	BatchUpdateTypeUsedQuota = iota
 	BatchUpdateTypeChannelUsedQuota
 	BatchUpdateTypeRequestCount
-	BatchUpdateTypeWindowQuota
-	BatchUpdateTypeCycleQuota
 	BatchUpdateTypeTokenUsedQuota
 	BatchUpdateTypeCount // if you add a new type, you need to add a new map and a new lock
 )
@@ -39,16 +37,13 @@ func init() {
 // 由资源包在自己的 init() 中把落库函数注册进来。
 //
 // 不变式：某类型的批量条目只会由注册该类型 flusher 的同一个资源包写入
-// （例如 BatchUpdateTypeTokenQuota 仅在 token 包内 AddNewRecord），因此
+// （例如 BatchUpdateTypeTokenUsedQuota 仅在 token 包内 AddNewRecord），因此
 // 只要包被链接，flusher 一定已注册；flusher 为 nil 且 store 非空只可能
 // 是编码错误，届时按类型记录错误并丢弃该批数据，绝不静默吞掉。
 type BatchFlushers struct {
-	TokenQuota       func(id int, value int) error
-	WindowQuota      func(id int, value int) error
-	CycleQuota       func(id int, value int) error
 	TokenUsedQuota   func(id int, value int) error
 	ChannelUsedQuota func(id int, value int)
-	// User 处理 UserQuota/UsedQuota/RequestCount 三个 store 的合并落库。
+	// User 处理 UsedQuota/RequestCount 两个 store 的合并落库。
 	User func(id int, quota int, usedQuota int, requestCount int)
 }
 
@@ -60,15 +55,6 @@ var batchFlushersMutex sync.Mutex
 func RegisterBatchFlushers(f BatchFlushers) {
 	batchFlushersMutex.Lock()
 	defer batchFlushersMutex.Unlock()
-	if f.TokenQuota != nil {
-		batchFlushers.TokenQuota = f.TokenQuota
-	}
-	if f.WindowQuota != nil {
-		batchFlushers.WindowQuota = f.WindowQuota
-	}
-	if f.CycleQuota != nil {
-		batchFlushers.CycleQuota = f.CycleQuota
-	}
 	if f.TokenUsedQuota != nil {
 		batchFlushers.TokenUsedQuota = f.TokenUsedQuota
 	}
@@ -87,6 +73,13 @@ func InitBatchUpdater() {
 			BatchUpdate()
 		}
 	})
+}
+
+// FlushBatchUpdates 在进程停机路径上把批量暂存的统计增量落库，避免退出时
+// 丢失窗口内的已用额度与请求计数。与定时 ticker 并发安全（换 map 在锁内
+// 原子完成），重复调用幂等。
+func FlushBatchUpdates() {
+	BatchUpdate()
 }
 
 func AddNewRecord(type_ int, id int, value int) {
@@ -134,72 +127,33 @@ func BatchUpdate() {
 		batchUpdateLocks[i].Unlock()
 	}
 
-	for i, store := range stores {
-		if i == BatchUpdateTypeUserQuota || i == BatchUpdateTypeUsedQuota || i == BatchUpdateTypeRequestCount {
+	for key, value := range stores[BatchUpdateTypeChannelUsedQuota] {
+		if batchFlushers.ChannelUsedQuota == nil {
+			common.SysError("batch flusher for BatchUpdateTypeChannelUsedQuota not registered; dropping batch data")
 			continue
 		}
-		for key, value := range store {
-			switch i {
-			case BatchUpdateTypeTokenQuota:
-				if batchFlushers.TokenQuota == nil {
-					common.SysError("batch flusher for BatchUpdateTypeTokenQuota not registered; dropping batch data")
-					continue
-				}
-				err := batchFlushers.TokenQuota(key, value)
-				if err != nil {
-					common.SysLog("failed to batch update token quota: " + err.Error())
-				}
-			case BatchUpdateTypeChannelUsedQuota:
-				if batchFlushers.ChannelUsedQuota == nil {
-					common.SysError("batch flusher for BatchUpdateTypeChannelUsedQuota not registered; dropping batch data")
-					continue
-				}
-				batchFlushers.ChannelUsedQuota(key, value)
-			case BatchUpdateTypeWindowQuota:
-				if batchFlushers.WindowQuota == nil {
-					common.SysError("batch flusher for BatchUpdateTypeWindowQuota not registered; dropping batch data")
-					continue
-				}
-				err := batchFlushers.WindowQuota(key, value)
-				if err != nil {
-					common.SysLog("failed to batch update window quota: " + err.Error())
-				}
-			case BatchUpdateTypeCycleQuota:
-				if batchFlushers.CycleQuota == nil {
-					common.SysError("batch flusher for BatchUpdateTypeCycleQuota not registered; dropping batch data")
-					continue
-				}
-				err := batchFlushers.CycleQuota(key, value)
-				if err != nil {
-					common.SysLog("failed to batch update cycle quota: " + err.Error())
-				}
-			case BatchUpdateTypeTokenUsedQuota:
-				if batchFlushers.TokenUsedQuota == nil {
-					common.SysError("batch flusher for BatchUpdateTypeTokenUsedQuota not registered; dropping batch data")
-					continue
-				}
-				err := batchFlushers.TokenUsedQuota(key, value)
-				if err != nil {
-					common.SysLog("failed to batch update token used quota: " + err.Error())
-				}
-			}
+		batchFlushers.ChannelUsedQuota(key, value)
+	}
+	for key, value := range stores[BatchUpdateTypeTokenUsedQuota] {
+		if batchFlushers.TokenUsedQuota == nil {
+			common.SysError("batch flusher for BatchUpdateTypeTokenUsedQuota not registered; dropping batch data")
+			continue
+		}
+		if err := batchFlushers.TokenUsedQuota(key, value); err != nil {
+			common.SysLog("failed to batch update token used quota: " + err.Error())
 		}
 	}
 
-	userQuotaStore := stores[BatchUpdateTypeUserQuota]
 	usedQuotaStore := stores[BatchUpdateTypeUsedQuota]
 	requestCountStore := stores[BatchUpdateTypeRequestCount]
 
-	if batchFlushers.User == nil && (len(userQuotaStore) > 0 || len(usedQuotaStore) > 0 || len(requestCountStore) > 0) {
+	if batchFlushers.User == nil && (len(usedQuotaStore) > 0 || len(requestCountStore) > 0) {
 		common.SysError("batch flusher for user quota metrics not registered; dropping batch data")
 		common.SysLog("batch update finished")
 		return
 	}
 
-	userIDs := make(map[int]struct{}, len(userQuotaStore)+len(usedQuotaStore)+len(requestCountStore))
-	for key := range userQuotaStore {
-		userIDs[key] = struct{}{}
-	}
+	userIDs := make(map[int]struct{}, len(usedQuotaStore)+len(requestCountStore))
 	for key := range usedQuotaStore {
 		userIDs[key] = struct{}{}
 	}
@@ -207,7 +161,7 @@ func BatchUpdate() {
 		userIDs[key] = struct{}{}
 	}
 	for key := range userIDs {
-		batchFlushers.User(key, userQuotaStore[key], usedQuotaStore[key], requestCountStore[key])
+		batchFlushers.User(key, 0, usedQuotaStore[key], requestCountStore[key])
 	}
 	common.SysLog("batch update finished")
 }

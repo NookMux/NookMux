@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Git pre-push hook
+# 推送前执行与 .github/workflows/ci.yml 对齐的全量门禁
+# （Go fmt / tidy / vet / lint / test -race / build + Web 全套）。
+# commit 时的秒级增量检查由 .githooks/pre-commit 负责，这里兜住全量。
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+CHECK_SCRIPT="$ROOT_DIR/scripts/ci-check.sh"
+
+if [ -f "$CHECK_SCRIPT" ]; then
+  exec "$CHECK_SCRIPT"
+else
+  echo "⚠️ 警告: 未找到 $CHECK_SCRIPT，跳过推送前检查。"
+  exit 0
+fi
