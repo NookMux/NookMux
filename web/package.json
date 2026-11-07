@@ -69,7 +69,7 @@
     "use-stick-to-bottom": "^1.1.6",
     "vaul": "^1.1.2",
     "zod": "^4.6.7",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
