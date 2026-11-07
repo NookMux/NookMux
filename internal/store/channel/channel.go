@@ -325,11 +325,20 @@ func (channel *Channel) Save() error {
 	return dbstore.DB.Save(channel).Error
 }
 
-func (channel *Channel) SaveWithoutKey() error {
+// saveStatusState 仅持久化状态流转拥有的列（status/other_info，多 Key 渠道
+// 另含 channel_info），避免整行写回覆盖并发编辑的凭据、配置或轮询游标。
+func (channel *Channel) saveStatusState() error {
 	if channel.Id == 0 {
 		return errors.New("channel ID is 0")
 	}
-	return dbstore.DB.Omit("key").Save(channel).Error
+	updates := map[string]interface{}{
+		"status":     channel.Status,
+		"other_info": channel.OtherInfo,
+	}
+	if channel.ChannelInfo.IsMultiKey {
+		updates["channel_info"] = channel.ChannelInfo
+	}
+	return dbstore.DB.Model(&Channel{}).Where("id = ?", channel.Id).Updates(updates).Error
 }
 
 func GetAllChannels(startIdx int, num int, selectAll bool, idSort bool) ([]*Channel, error) {
@@ -837,34 +846,35 @@ func UpdateChannelStatus(channelId int, usingKey string, status int, reason stri
 	channel, err := GetChannelById(channelId, true)
 	if err != nil {
 		return false
-	} else {
-		if channel.Status == status {
-			return false
-		}
+	}
+	if channel.Status == status {
+		return false
+	}
 
-		if channel.ChannelInfo.IsMultiKey {
-			beforeStatus := channel.Status
-			// Protect map writes with the same per-channel lock used by readers
-			pollingLock := GetChannelPollingLock(channelId)
-			pollingLock.Lock()
-			handlerMultiKeyUpdate(channel, usingKey, status, reason)
-			pollingLock.Unlock()
-			if beforeStatus != channel.Status {
-				shouldUpdateAbilities = true
-			}
-		} else {
-			info := channel.GetOtherInfo()
-			info["status_reason"] = reason
-			info["status_time"] = common.GetTimestamp()
-			channel.SetOtherInfo(info)
-			channel.Status = status
+	if channel.ChannelInfo.IsMultiKey {
+		beforeStatus := channel.Status
+		// 多 Key 的键状态与轮询游标（channel_info）共享同一份 JSON，
+		// 变更与持久化全程持有与读侧相同的按渠道锁，两个写者不可能互相覆盖。
+		pollingLock := GetChannelPollingLock(channelId)
+		pollingLock.Lock()
+		handlerMultiKeyUpdate(channel, usingKey, status, reason)
+		if beforeStatus != channel.Status {
 			shouldUpdateAbilities = true
 		}
-		err = channel.SaveWithoutKey()
-		if err != nil {
-			common.SysLog(fmt.Sprintf("failed to update channel status: channel_id=%d, status=%d, error=%v", channel.Id, status, err))
-			return false
-		}
+		err = channel.saveStatusState()
+		pollingLock.Unlock()
+	} else {
+		info := channel.GetOtherInfo()
+		info["status_reason"] = reason
+		info["status_time"] = common.GetTimestamp()
+		channel.SetOtherInfo(info)
+		channel.Status = status
+		shouldUpdateAbilities = true
+		err = channel.saveStatusState()
+	}
+	if err != nil {
+		common.SysLog(fmt.Sprintf("failed to update channel status: channel_id=%d, status=%d, error=%v", channel.Id, status, err))
+		return false
 	}
 	return true
 }

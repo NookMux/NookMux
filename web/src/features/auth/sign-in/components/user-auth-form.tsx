@@ -87,6 +87,10 @@ export function UserAuthForm({
     (status?.password_login_enabled ??
       status?.data?.password_login_enabled ??
       true) !== false
+  const passwordLoginEncryptionEnabled =
+    (status?.password_login_encryption_enabled ??
+      status?.data?.password_login_encryption_enabled ??
+      false) === true
   const {
     isTurnstileEnabled,
     turnstileSiteKey,
@@ -165,6 +169,7 @@ export function UserAuthForm({
         username: data.username,
         password: data.password,
         turnstile: turnstileToken,
+        passwordEncryptionEnabled: passwordLoginEncryptionEnabled,
       })
 
       if (res.success) {
@@ -176,8 +181,11 @@ export function UserAuthForm({
         await handleLoginSuccess(res.data as { id?: number } | null, redirectTo)
         toast.success(t('auth.tips.welcomeBack'))
       }
-    } catch (_error) {
-      // Errors are handled by global interceptor
+    } catch (error: unknown) {
+      // 非 axios 错误（如密码加密阶段抛出）不经全局拦截器，需显式提示。
+      if (!(error as { isAxiosError?: boolean })?.isAxiosError) {
+        toast.error(t('auth.status.loginFailed'))
+      }
     } finally {
       setIsLoading(false)
     }

@@ -211,3 +211,28 @@ func TestRecordErrorLogStoresObjectForNilOther(t *testing.T) {
 		t.Fatalf("stored Other for nil input = %q, want {}", stored.Other)
 	}
 }
+
+// TestFormatUserLogsStripsChannelTopologyMetadata 验证错误日志写入 other 的
+// 渠道拓扑元数据（channel_id/channel_name/channel_type）在用户/令牌可见的
+// 日志投影中被剥离，仅管理员视图保留。
+func TestFormatUserLogsStripsChannelTopologyMetadata(t *testing.T) {
+	logs := []*logstore.Log{
+		{
+			Other:       `{"channel_id":7,"channel_name":"专线-A","channel_type":8,"model_name":"gpt-test"}`,
+			ChannelName: "专线-A",
+		},
+	}
+	logstore.FormatUserLogs(logs, 0)
+	other := logs[0].Other
+	for _, leaked := range []string{"channel_id", "channel_name", "channel_type", "专线-A"} {
+		if strings.Contains(other, leaked) {
+			t.Fatalf("formatted user log leaked channel metadata %q: %s", leaked, other)
+		}
+	}
+	if !strings.Contains(other, "gpt-test") {
+		t.Fatalf("formatted user log lost public metadata: %s", other)
+	}
+	if logs[0].ChannelName != "" {
+		t.Fatalf("formatted user log kept ChannelName column: %q", logs[0].ChannelName)
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/NookMux/NookMux/internal/infra/security"
 	"github.com/NookMux/NookMux/internal/store/audit"
 	"github.com/NookMux/NookMux/internal/store/log"
+	"github.com/NookMux/NookMux/internal/store/passkey"
 	"github.com/NookMux/NookMux/internal/store/twofa"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"github.com/gin-contrib/sessions"
@@ -19,6 +20,36 @@ import (
 	"strconv"
 	"time"
 )
+
+// gateSetup2FAVerification 在 2FA 设置入口按账户已有因子施加单次验证门槛：
+// 会话持有者不等于因子持有者，认证数据变更必须证明因子 possession。
+func gateSetup2FAVerification(c *gin.Context, userId int) bool {
+	existing, err := twofastore.GetTwoFAByUserId(userId)
+	if err != nil {
+		common.SysError("get twofa by user id failed: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return false
+	}
+	if existing != nil && existing.IsEnabled {
+		return secureverificationcontroller.RequireScopeVerification(
+			c, secureverificationcontroller.Scope2FASetup, secureverificationcontroller.SecureVerificationMethod2FA)
+	}
+	if _, err := passkeystore.GetPasskeyByUserID(userId); err == nil {
+		return secureverificationcontroller.RequireScopeVerification(
+			c, secureverificationcontroller.Scope2FASetup, secureverificationcontroller.SecureVerificationMethodPasskey)
+	}
+	user, err := userstore.GetUserById(userId, true)
+	if err != nil {
+		common.SysError("get user by id failed: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return false
+	}
+	if user.Password != "" {
+		return secureverificationcontroller.RequireScopeVerification(
+			c, secureverificationcontroller.Scope2FASetup, secureverificationcontroller.SecureVerificationMethodPassword)
+	}
+	return true
+}
 
 // Setup2FARequest 设置2FA请求结构
 type Setup2FARequest struct {
@@ -50,6 +81,12 @@ func Setup2FA(c *gin.Context) {
 	}
 	if existing != nil && existing.IsEnabled {
 		httpapi.ApiErrorI18n(c, i18n.MsgTwoFAAlreadyEnabledReset)
+		return
+	}
+
+	// 认证数据变更前置单次验证：已有 2FA 用 2FA 方式、仅有 passkey 用
+	// passkey 方式、仅有密码用原密码再认证；无任何可用因子的账户保持现状。
+	if !gateSetup2FAVerification(c, userId) {
 		return
 	}
 
@@ -236,6 +273,10 @@ func Disable2FA(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
+	// 凭证变更：失效该用户全部既有会话（全端强制下线）。
+	if err := userstore.BumpAuthVersion(userId); err != nil {
+		common.SysError("failed to bump auth version after disabling 2fa: " + err.Error())
+	}
 
 	// 记录操作日志
 	userstore.RecordLog(userId, logstore.LogTypeSystem, "禁用两步验证")
@@ -332,6 +373,10 @@ func RegenerateBackupCodes(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgTwoFABackupSaveFailed)
 		common.SysLog("保存备用码失败: " + err.Error())
 		return
+	}
+	// 备用码属登录凭证：轮换后失效既有会话。
+	if err := userstore.BumpAuthVersion(userId); err != nil {
+		common.SysError("failed to bump auth version after regenerating backup codes: " + err.Error())
 	}
 
 	// 记录操作日志
@@ -488,6 +533,10 @@ func AdminDisable2FA(c *gin.Context) {
 		common.SysError("disable twofa failed: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
+	}
+	// 凭证变更：失效目标用户全部既有会话。
+	if err := userstore.BumpAuthVersion(userId); err != nil {
+		common.SysError("failed to bump auth version after admin disabling 2fa: " + err.Error())
 	}
 
 	// 记录操作日志：管理员身份放入 admin_info，避免目标用户可见内容泄露操作者。

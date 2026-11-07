@@ -36,6 +36,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import { deleteUserAccount } from '../../api'
 
 // ============================================================================
@@ -58,6 +62,16 @@ export function DeleteAccountDialog({
   const { reset } = useAuthStore((state) => state.auth)
   const [loading, setLoading] = useState(false)
   const [confirmation, setConfirmation] = useState('')
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'account_delete' })
 
   const handleDelete = async () => {
     if (confirmation !== username) {
@@ -67,27 +81,34 @@ export function DeleteAccountDialog({
 
     try {
       setLoading(true)
-      const response = await deleteUserAccount()
+      const response = await withVerification(async () => {
+        const result = await deleteUserAccount()
 
-      if (response.success) {
-        toast.success(t('profile.status.accountDeletedSuccessfully'))
+        if (result.success) {
+          toast.success(t('profile.status.accountDeletedSuccessfully'))
 
-        // Logout and redirect
-        try {
-          await api.get('/api/user/logout')
-        } catch {
-          // Ignore logout errors
+          // Logout and redirect
+          try {
+            await api.get('/api/user/logout')
+          } catch {
+            // Ignore logout errors
+          }
+
+          reset()
+          localStorage.removeItem('user')
+          // 侧栏模块配置是登录用户/管理员受限数据，注销账号时一并清理
+          clearSidebarModulesCaches()
+          navigate({ to: '/sign-in' })
+        } else {
+          toast.error(
+            result.message || t('profile.errors.failedToDeleteAccount')
+          )
         }
-
-        reset()
-        localStorage.removeItem('user')
-        // 侧栏模块配置是登录用户/管理员受限数据，注销账号时一并清理
-        clearSidebarModulesCaches()
-        navigate({ to: '/sign-in' })
-      } else {
-        toast.error(
-          response.message || t('profile.errors.failedToDeleteAccount')
-        )
+        return result
+      })
+      if (!response) {
+        // 已触发安全验证，验证通过后将自动重试。
+        return
       }
     } catch (_error) {
       toast.error(t('profile.errors.failedToDeleteAccount'))
@@ -106,67 +127,86 @@ export function DeleteAccountDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='sm:max-w-md'>
-        <DialogHeader>
-          <DialogTitle className='text-destructive flex items-center gap-2'>
-            <AlertTriangle className='h-5 w-5' />
-            {t('profile.actions.deleteAccount')}
-          </DialogTitle>
-          <DialogDescription>
-            {t(
-              'profile.errors.actionCannotBeUndoneThisWillPermanentlyDeleteYour'
-            )}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle className='text-destructive flex items-center gap-2'>
+              <AlertTriangle className='h-5 w-5' />
+              {t('profile.actions.deleteAccount')}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                'profile.errors.actionCannotBeUndoneThisWillPermanentlyDeleteYour'
+              )}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className='my-6 space-y-4'>
-          <Alert variant='destructive'>
-            <AlertTriangle className='h-4 w-4' />
-            <AlertDescription>
-              {t('profile.tips.warningThisActionIsPermanentAndIrreversible')}
-            </AlertDescription>
-          </Alert>
+          <div className='my-6 space-y-4'>
+            <Alert variant='destructive'>
+              <AlertTriangle className='h-4 w-4' />
+              <AlertDescription>
+                {t('profile.tips.warningThisActionIsPermanentAndIrreversible')}
+              </AlertDescription>
+            </Alert>
 
-          <div className='space-y-2'>
-            <Label htmlFor='confirmation'>
-              {t('channels.fields.type')} <strong>{username}</strong>{' '}
-              {t('profile.fields.confirm')}
-            </Label>
-            <Input
-              id='confirmation'
-              type='text'
-              value={confirmation}
-              onChange={(e) => setConfirmation(e.target.value)}
-              disabled={loading}
-              placeholder={username}
-              autoComplete='off'
-            />
+            <div className='space-y-2'>
+              <Label htmlFor='confirmation'>
+                {t('channels.fields.type')} <strong>{username}</strong>{' '}
+                {t('profile.fields.confirm')}
+              </Label>
+              <Input
+                id='confirmation'
+                type='text'
+                value={confirmation}
+                onChange={(e) => setConfirmation(e.target.value)}
+                disabled={loading}
+                placeholder={username}
+                autoComplete='off'
+              />
+            </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => handleOpenChange(false)}
-            disabled={loading}
-          >
-            {t('common.actions.cancel')}
-          </Button>
-          <Button
-            type='button'
-            variant='destructive'
-            onClick={handleDelete}
-            disabled={loading || confirmation !== username}
-          >
-            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {loading
-              ? t('keys.tips.deleting')
-              : t('profile.actions.deleteAccount')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => handleOpenChange(false)}
+              disabled={loading}
+            >
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              type='button'
+              variant='destructive'
+              onClick={handleDelete}
+              disabled={loading || confirmation !== username}
+            >
+              {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {loading
+                ? t('keys.tips.deleting')
+                : t('profile.actions.deleteAccount')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
+    </>
   )
 }

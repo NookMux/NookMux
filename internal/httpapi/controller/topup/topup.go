@@ -3,6 +3,12 @@ package topupcontroller
 import (
 	"errors"
 	"fmt"
+	"log"
+	"math"
+	"net/url"
+	"strconv"
+	"time"
+
 	"github.com/Calcium-Ion/go-epay/epay"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config"
@@ -16,10 +22,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"log"
-	"net/url"
-	"strconv"
-	"time"
 )
 
 func GetTopUpInfo(c *gin.Context) {
@@ -112,6 +114,35 @@ func getMinTopup() int64 {
 	return int64(operation.MinTopUp)
 }
 
+// getMaxTopupAmount 推导单笔充值上限：换算额度不超过平台 int 表示范围的
+// 最大 amount（(MaxInt-1)/QuotaPerUnit 向下取整）。
+func getMaxTopupAmount() int64 {
+	return decimal.NewFromInt(math.MaxInt).Sub(decimal.NewFromInt(1)).
+		Div(decimal.NewFromFloat(common.QuotaPerUnit)).Floor().IntPart()
+}
+
+// validateCreditedQuota 在下单/询价边界执行与结算侧完全一致的换算谓词：
+// 换算额度不可表示（超出平台 int 范围）即拒绝。支付网关的不可逆性要求
+// "入账可行性"必须在收单前判定，保证能创建的订单必然能入账。
+func validateCreditedQuota(amount int64) bool {
+	_, err := common.DecimalToInt(decimal.NewFromInt(amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)))
+	return err == nil
+}
+
+// rejectUncreditableTopup 拒绝换算后无法入账的充值数量（超上限或不可表示）。
+// 返回 true 表示已写响应并终止。
+func rejectUncreditableTopup(c *gin.Context, amount int64) bool {
+	if amount > getMaxTopupAmount() {
+		respondTopupError(c, i18n.MsgTopupAmountExceedMax, map[string]any{"Max": getMaxTopupAmount()})
+		return true
+	}
+	if !validateCreditedQuota(amount) {
+		respondTopupError(c, i18n.MsgTopupQuotaInvalid)
+		return true
+	}
+	return false
+}
+
 func respondTopupError(c *gin.Context, key string, args ...map[string]any) {
 	c.JSON(200, gin.H{"success": false, "message": i18n.T(c, key, args...), "data": nil})
 }
@@ -133,6 +164,9 @@ func RequestEpay(c *gin.Context) {
 	}
 	if req.Amount < getMinTopup() {
 		respondTopupError(c, i18n.MsgTopupAmountBelowMin, map[string]any{"Min": getMinTopup()})
+		return
+	}
+	if rejectUncreditableTopup(c, req.Amount) {
 		return
 	}
 
@@ -288,6 +322,9 @@ func RequestAmount(c *gin.Context) {
 
 	if req.Amount < getMinTopup() {
 		respondTopupError(c, i18n.MsgTopupAmountBelowMin, map[string]any{"Min": getMinTopup()})
+		return
+	}
+	if rejectUncreditableTopup(c, req.Amount) {
 		return
 	}
 	id := c.GetInt("id")

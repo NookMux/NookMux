@@ -56,13 +56,26 @@ func GetTwoFAByUserId(userId int) (*TwoFA, error) {
 	return &twoFA, nil
 }
 
-// IsTwoFAEnabled 检查用户是否启用了2FA
-func IsTwoFAEnabled(userId int) bool {
+// IsTwoFAEnabled 检查用户是否启用了2FA。查询失败时返回错误，由调用方按
+// 失败关闭处理：2FA 状态不可用时宁拒登不放行。
+func IsTwoFAEnabled(userId int) (bool, error) {
 	twoFA, err := GetTwoFAByUserId(userId)
-	if err != nil || twoFA == nil {
-		return false
+	if err != nil {
+		return false, err
 	}
-	return twoFA.IsEnabled
+	if twoFA == nil {
+		return false, nil
+	}
+	return twoFA.IsEnabled, nil
+}
+
+// DeleteTwoFAByUserIdTx 在事务内硬删除用户的全部 2FA 数据（设置与备用码），
+// 供用户硬删除流程编排调用。
+func DeleteTwoFAByUserIdTx(tx *gorm.DB, userId int) error {
+	if err := tx.Unscoped().Where("user_id = ?", userId).Delete(&TwoFABackupCode{}).Error; err != nil {
+		return err
+	}
+	return tx.Unscoped().Where("user_id = ?", userId).Delete(&TwoFA{}).Error
 }
 
 // CreateTwoFA 创建2FA设置
@@ -121,17 +134,42 @@ func (t *TwoFA) ResetFailedAttempts() error {
 	return t.Update()
 }
 
-// IncrementFailedAttempts 增加失败尝试次数
+// IncrementFailedAttempts 增加失败尝试次数。采用带条件守卫的原子更新：
+// 读-改-写全量保存会在并发失败尝试间互相覆盖计数，绕过 MaxFailAttempts
+// 锁定；RowsAffected 为 0 说明记录已被并发修改，重读重试。
 func (t *TwoFA) IncrementFailedAttempts() error {
-	t.FailedAttempts++
-
-	// 检查是否需要锁定
-	if t.FailedAttempts >= security.MaxFailAttempts {
-		lockUntil := time.Now().Add(time.Duration(security.LockoutDuration) * time.Second)
-		t.LockedUntil = &lockUntil
+	for retry := 0; retry < 5; retry++ {
+		lockUntil := time.Time{}
+		updates := map[string]interface{}{
+			"failed_attempts": t.FailedAttempts + 1,
+		}
+		if t.FailedAttempts+1 >= security.MaxFailAttempts {
+			lockUntil = time.Now().Add(time.Duration(security.LockoutDuration) * time.Second)
+			updates["locked_until"] = &lockUntil
+		}
+		result := dbstore.DB.Model(&TwoFA{}).
+			Where("id = ? AND failed_attempts = ? AND (locked_until IS NULL OR locked_until <= ?)", t.Id, t.FailedAttempts, time.Now()).
+			Updates(updates)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 1 {
+			t.FailedAttempts++
+			if !lockUntil.IsZero() {
+				lu := lockUntil
+				t.LockedUntil = &lu
+			}
+			return nil
+		}
+		// 并发变更：重读后按最新计数重试。
+		fresh, err := GetTwoFAByUserId(t.UserId)
+		if err != nil || fresh == nil {
+			return err
+		}
+		t.FailedAttempts = fresh.FailedAttempts
+		t.LockedUntil = fresh.LockedUntil
 	}
-
-	return t.Update()
+	return errors.New("更新2FA失败次数冲突重试耗尽")
 }
 
 // IsLocked 检查账户是否被锁定
@@ -172,7 +210,8 @@ func CreateBackupCodes(userId int, codes []string) error {
 	})
 }
 
-// ValidateBackupCode 验证并使用备用码
+// ValidateBackupCode 验证并使用备用码。核销采用条件原子更新
+// （WHERE id = ? AND is_used = false），同一备用码并发提交只有一方成功。
 func ValidateBackupCode(userId int, code string) (bool, error) {
 	if !security.ValidateBackupCode(code) {
 		return false, errors.New("验证码或备用码不正确")
@@ -189,15 +228,21 @@ func ValidateBackupCode(userId int, code string) (bool, error) {
 	// 验证备用码
 	for _, bc := range backupCodes {
 		if security.ValidatePasswordAndHash(normalizedCode, bc.CodeHash) {
-			// 标记为已使用
+			// 标记为已使用：条件更新保证并发重复核销只有一方成功
 			now := time.Now()
-			bc.IsUsed = true
-			bc.UsedAt = &now
-
-			if err := dbstore.DB.Save(&bc).Error; err != nil {
-				return false, err
+			result := dbstore.DB.Model(&TwoFABackupCode{}).
+				Where("id = ? AND is_used = ?", bc.Id, false).
+				Updates(map[string]interface{}{
+					"is_used": true,
+					"used_at": &now,
+				})
+			if result.Error != nil {
+				return false, result.Error
 			}
-
+			if result.RowsAffected != 1 {
+				// 该码已被并发请求核销
+				return false, nil
+			}
 			return true, nil
 		}
 	}

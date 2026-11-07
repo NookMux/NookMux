@@ -179,6 +179,11 @@ func (p *LinuxDOProvider) SetProviderUserID(user *userstore.User, providerUserID
 	user.LinuxDOId = providerUserID
 }
 
+// BindColumn returns the users table column storing the LinuxDO binding.
+func (p *LinuxDOProvider) BindColumn() string {
+	return "linux_do_id"
+}
+
 // TrustLevelError indicates the user's trust level is too low
 type TrustLevelError struct {
 	Required int

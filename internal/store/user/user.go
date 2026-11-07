@@ -55,20 +55,24 @@ type User struct {
 	StripeCustomer      string `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
 	ImageConvertedCount int    `json:"image_converted_count" gorm:"type:int;default:0;column:image_converted_count"`
 	VideoConvertedCount int    `json:"video_converted_count" gorm:"type:int;default:0;column:video_converted_count"`
-	CreatedAt           int64  `json:"created_at" gorm:"bigint;index"`
-	LastLoginAt         int64  `json:"last_login_at" gorm:"bigint"`
+	// AuthVersion 凭证版本号：改密、关闭 2FA 等凭证变更时原子自增，会话
+	// 侧每请求比对，不一致即失效，等价于分布式强制下线。
+	AuthVersion int   `json:"-" gorm:"type:int;not null;default:1;column:auth_version"`
+	CreatedAt   int64 `json:"created_at" gorm:"bigint;index"`
+	LastLoginAt int64 `json:"last_login_at" gorm:"bigint"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
 	cache := &UserBase{
-		Id:       user.Id,
-		Group:    user.Group,
-		Quota:    user.Quota,
-		Status:   user.Status,
-		Role:     user.Role,
-		Username: user.Username,
-		Setting:  user.Setting,
-		Email:    user.Email,
+		Id:          user.Id,
+		Group:       user.Group,
+		Quota:       user.Quota,
+		Status:      user.Status,
+		Role:        user.Role,
+		Username:    user.Username,
+		Setting:     user.Setting,
+		Email:       user.Email,
+		AuthVersion: user.AuthVersion,
 	}
 	return cache
 }
@@ -273,28 +277,32 @@ func DeleteUserById(id int) (err error) {
 	return user.Delete()
 }
 
-func HardDeleteUserById(id int) error {
+// HardDeleteUserByIdTx 在事务内硬删除用户行。认证数据（API 令牌、2FA、
+// passkey）的同步清除由调用方在同一事务内编排，保证用户行与全部凭据
+// 原子消失，消除 SQLite 复用 rowid 部署下孤儿凭据被新用户继承的风险。
+func HardDeleteUserByIdTx(tx *gorm.DB, id int) error {
 	if id == 0 {
 		return errors.New("id 为空！")
 	}
-	if err := dbstore.DB.Unscoped().Delete(&User{}, "id = ?", id).Error; err != nil {
-		return err
-	}
-	if err := InvalidateUserCache(id); err != nil {
-		return err
-	}
-	return tokenstore.InvalidateUserTokensCache(id)
+	return tx.Unscoped().Delete(&User{}, "id = ?", id).Error
 }
 
 func inviteUser(inviterId int) (err error) {
-	user, err := GetUserById(inviterId, true)
-	if err != nil {
-		return err
+	// 服务端原子自增结算邀请奖励：读-改-写整行保存会在并发注册下丢失
+	// 更新，并把陈旧快照的其余列一并写回。
+	updates := map[string]interface{}{
+		"aff_count":   gorm.Expr("aff_count + 1"),
+		"aff_quota":   gorm.Expr("aff_quota + ?", common.QuotaForInviter),
+		"aff_history": gorm.Expr("aff_history + ?", common.QuotaForInviter),
 	}
-	user.AffCount++
-	user.AffQuota += common.QuotaForInviter
-	user.AffHistoryQuota += common.QuotaForInviter
-	return dbstore.DB.Save(user).Error
+	result := dbstore.DB.Model(&User{}).Where("id = ?", inviterId).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("邀请人不存在！")
+	}
+	return nil
 }
 
 func (user *User) TransferAffQuotaToQuota(quota int) error {
@@ -438,6 +446,79 @@ func (user *User) InsertBannedPlaceholder() error {
 	return dbstore.DB.Create(user).Error
 }
 
+// UpdateUserAccessToken 定向更新访问令牌列。令牌轮换只写令牌列，不携带
+// 用户快照，避免并发变动的配额/状态等敏感列被陈旧值覆盖。
+func UpdateUserAccessToken(id int, token string) error {
+	result := dbstore.DB.Model(&User{}).Where("id = ?", id).Update("access_token", token)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// UpdateUserAffCode 定向更新邀请码列。
+func UpdateUserAffCode(id int, affCode string) error {
+	result := dbstore.DB.Model(&User{}).Where("id = ?", id).Update("aff_code", affCode)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// UpdateUserBindColumn 按白名单定向更新第三方绑定列。绑定操作只拥有绑定
+// 列的写权限，并发落地的封禁/降权/配额变更不可能被旧快照回滚。
+func UpdateUserBindColumn(userId int, column string, value string) error {
+	allowed := map[string]bool{"github_id": true, "linux_do_id": true}
+	if !allowed[column] {
+		return errors.New("非法绑定列：" + column)
+	}
+	result := dbstore.DB.Model(&User{}).Where("id = ?", userId).Update(column, value)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// UpdateUserSetting 定向更新用户设置列并刷新缓存。设置更新只写设置列，
+// 不携带用户快照，避免整对象写回把并发变动的配额等敏感字段覆盖回旧值。
+func UpdateUserSetting(userId int, setting shared.UserSetting) error {
+	settingBytes, err := jsonx.Marshal(setting)
+	if err != nil {
+		return err
+	}
+	settingValue := string(settingBytes)
+	result := dbstore.DB.Model(&User{}).Where("id = ?", userId).Update("setting", settingValue)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	// 单字段局部写会破坏整哈希完整性签名，改为失效后由读取路径冷初始化。
+	return invalidateUserCache(userId)
+}
+
+// BumpAuthVersion 原子自增凭证版本号并失效缓存：改密、关闭 2FA、管理员
+// 封禁/重置密码等凭证变更点调用后，所有携带旧版本的既有会话在下一请求
+// 即被拒绝（authHelper 每请求比对），实现全端强制下线。
+func BumpAuthVersion(userId int) error {
+	result := dbstore.DB.Model(&User{}).Where("id = ?", userId).
+		Update("auth_version", gorm.Expr("auth_version + 1"))
+	if result.Error != nil {
+		return result.Error
+	}
+	return InvalidateUserCache(userId)
+}
+
 func (user *User) Update(updatePassword bool) error {
 	var err error
 	if updatePassword {
@@ -448,7 +529,12 @@ func (user *User) Update(updatePassword bool) error {
 	}
 	newUser := *user
 	dbstore.DB.First(&user, user.Id)
-	if err = dbstore.DB.Model(user).Updates(newUser).Error; err != nil {
+	if err = dbstore.DB.Model(user).
+		// 配额、访问令牌、邀请统计与凭证版本只允许各自的定向/原子更新路
+		// 径写入，防止调用方快照携带敏感列整对象覆盖（auth_version 陈旧
+		// 回写会撤销并发凭证变更触发的强制下线）。
+		Omit("quota", "used_quota", "request_count", "access_token", "aff_count", "aff_quota", "aff_history", "auth_version").
+		Updates(newUser).Error; err != nil {
 		return err
 	}
 
@@ -581,32 +667,81 @@ func (user *User) FillUserByGitHubId() error {
 	return nil
 }
 
-// UpdateGitHubId updates the user's GitHub ID (used for migration from login to numeric ID)
-func (user *User) UpdateGitHubId(newGitHubId string) error {
-	if user.Id == 0 {
-		return errors.New("user id is empty")
-	}
-	return dbstore.DB.Model(user).Update("github_id", newGitHubId).Error
-}
-
 func IsEmailAlreadyTaken(email string) bool {
 	return dbstore.DB.Unscoped().Where("email = ?", email).Find(&User{}).RowsAffected == 1
 }
 
-func IsGitHubIdAlreadyTaken(githubId string) bool {
-	return dbstore.DB.Unscoped().Where("github_id = ?", githubId).Find(&User{}).RowsAffected == 1
+// NormalizeEmail 统一邮箱规范形式（去首尾空白 + 小写）：六库默认大小写
+// 敏感，未规范化的 "User@x.com" 与 "user@x.com" 会破坏一邮箱一账号不变量。
+// 全部读写入口（注册、验证码、绑定、找回、OAuth 合并/建号）统一经此归一。
+func NormalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+var (
+	// ErrEmailNotFound 规范化邮箱未匹配到任何账户。
+	ErrEmailNotFound = errors.New("邮箱未注册")
+	// ErrEmailAmbiguous 规范化邮箱匹配到多个账户，存在歧义。
+	ErrEmailAmbiguous = errors.New("邮箱对应多个账户")
+)
+
+// GetUniqueUserByEmail 按规范化邮箱解析唯一账户：0 行返回 ErrEmailNotFound，
+// ≥2 行返回 ErrEmailAmbiguous。密码重置等凭据操作必须以唯一匹配为前提，
+// 歧义或不存在一律拒绝，防止一次重置波及多个账户。
+func GetUniqueUserByEmail(email string) (*User, error) {
+	normalized := NormalizeEmail(email)
+	if normalized == "" {
+		return nil, ErrEmailNotFound
+	}
+	var users []User
+	if err := dbstore.DB.Unscoped().Where("email = ?", normalized).Limit(2).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	switch len(users) {
+	case 0:
+		return nil, ErrEmailNotFound
+	case 1:
+		return &users[0], nil
+	default:
+		return nil, ErrEmailAmbiguous
+	}
+}
+
+// UpdateUserEmailColumn 定向更新邮箱列，绑定操作不携带用户快照。
+func UpdateUserEmailColumn(userId int, email string) error {
+	result := dbstore.DB.Model(&User{}).Where("id = ?", userId).Update("email", email)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func ResetUserPasswordByEmail(email string, password string) error {
 	if email == "" || password == "" {
 		return errors.New("邮箱地址或密码为空！")
 	}
+	// 仅解析到唯一匹配账户才允许重置：歧义或不存在一律拒绝，
+	// 防止同邮箱多行（历史脏数据）被一次重置批量接管。
+	user, err := GetUniqueUserByEmail(email)
+	if err != nil {
+		return err
+	}
 	hashedPassword, err := security.Password2Hash(password)
 	if err != nil {
 		return err
 	}
-	err = dbstore.DB.Model(&User{}).Where("email = ?", email).Update("password", hashedPassword).Error
-	return err
+	if err := dbstore.DB.Model(&User{}).Where("id = ?", user.Id).Update("password", hashedPassword).Error; err != nil {
+		return err
+	}
+	// 凭证变更：失效该用户全部既有会话。
+	return BumpAuthVersion(user.Id)
+}
+
+func IsGitHubIdAlreadyTaken(githubId string) bool {
+	return dbstore.DB.Unscoped().Where("github_id = ?", githubId).Find(&User{}).RowsAffected == 1
 }
 
 func IsAdmin(userId int) bool {
@@ -698,8 +833,8 @@ func GetUserGroup(id int, fromDB bool) (group string, err error) {
 		// Update Redis cache asynchronously on successful DB read
 		if dbstore.ShouldUpdateRedis(fromDB, err) {
 			runtime.RelayGo(func() {
-				if err := updateUserGroupCache(id, group); err != nil {
-					common.SysLog("failed to update user group cache: " + err.Error())
+				if err := invalidateUserCache(id); err != nil {
+					common.SysLog("failed to invalidate user cache: " + err.Error())
 				}
 			})
 		}
@@ -727,8 +862,8 @@ func GetUserSetting(id int, fromDB bool) (settingMap shared.UserSetting, err err
 		// Update Redis cache asynchronously on successful DB read
 		if dbstore.ShouldUpdateRedis(fromDB, err) {
 			runtime.RelayGo(func() {
-				if err := updateUserSettingCache(id, setting); err != nil {
-					common.SysLog("failed to update user setting cache: " + err.Error())
+				if err := invalidateUserCache(id); err != nil {
+					common.SysLog("failed to invalidate user cache: " + err.Error())
 				}
 			})
 		}
@@ -896,8 +1031,8 @@ func GetUsernameById(id int, fromDB bool) (username string, err error) {
 		// Update Redis cache asynchronously on successful DB read
 		if dbstore.ShouldUpdateRedis(fromDB, err) {
 			runtime.RelayGo(func() {
-				if err := updateUserNameCache(id, username); err != nil {
-					common.SysLog("failed to update user name cache: " + err.Error())
+				if err := invalidateUserCache(id); err != nil {
+					common.SysLog("failed to invalidate user cache: " + err.Error())
 				}
 			})
 		}

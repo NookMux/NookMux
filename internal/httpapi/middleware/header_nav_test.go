@@ -98,6 +98,8 @@ func performHeaderNavRequest(t *testing.T, handler gin.HandlerFunc, authenticate
 		session.Set("id", 1)
 		session.Set("status", common.UserStatusEnabled)
 		session.Set("group", "default")
+		// 与 SetupLogin 保持一致：登录时快照凭证版本（建表默认值为 1）。
+		session.Set("auth_version", 1)
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false})
 			return

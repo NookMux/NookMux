@@ -341,7 +341,7 @@ func CalculateUsage(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, rawUsage
 		extraContent: extraContent,
 	}
 
-	quota := int(quotaCalculateDecimal.Round(0).IntPart())
+	quota := common.QuotaFromDecimal(quotaCalculateDecimal)
 	totalTokens := promptTokens + completionTokens
 
 	// record all the consume log even if quota is 0

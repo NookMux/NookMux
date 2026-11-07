@@ -64,11 +64,16 @@ func createCacheInvalidationUserWithToken(t *testing.T, username string) User {
 	return user
 }
 
-func TestHardDeleteUserByIdInvalidatesTokenCacheWithoutRedis(t *testing.T) {
+func TestHardDeleteUserByIdTxDeletesUserRow(t *testing.T) {
 	setupUserCacheInvalidationTestDB(t)
 	user := createCacheInvalidationUserWithToken(t, "cache-hard-delete-user")
-	if err := HardDeleteUserById(user.Id); err != nil {
-		t.Fatalf("HardDeleteUserById: %v", err)
+	if err := dbstore.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tokenstore.DeleteTokensByUserIdTx(tx, user.Id); err != nil {
+			return err
+		}
+		return HardDeleteUserByIdTx(tx, user.Id)
+	}); err != nil {
+		t.Fatalf("hard delete user tx: %v", err)
 	}
 
 	var count int64
@@ -77,6 +82,12 @@ func TestHardDeleteUserByIdInvalidatesTokenCacheWithoutRedis(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("deleted user count = %d, want 0", count)
+	}
+	if err := dbstore.DB.Unscoped().Model(&tokenstore.Token{}).Where("user_id = ?", user.Id).Count(&count).Error; err != nil {
+		t.Fatalf("count tokens: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("deleted user token count = %d, want 0 (auth data must be purged with the user)", count)
 	}
 }
 

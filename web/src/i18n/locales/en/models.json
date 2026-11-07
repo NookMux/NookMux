@@ -14,6 +14,7 @@
   "models.tips.applying": "Applying...",
   "models.tips.approx": "Approx.",
   "models.errors.sureYouWantToDeleteCountModelSThis": "Are you sure you want to delete {{count}} model(s)? This action cannot be undone.",
+  "models.errors.sureYouWantToDeleteModelNameThisAction": "Are you sure you want to delete model \"{{name}}\"? This action cannot be undone.",
   "models.fields.argsSpaceSeparated": "Args (space separated)",
   "models.fields.autoRefresh": "Auto refresh",
   "models.titles.basicConfiguration": "Basic Configuration",

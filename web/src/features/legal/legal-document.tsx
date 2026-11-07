@@ -16,9 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileWarning } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { sanitizeHtml } from '@/lib/sanitize-html'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Markdown } from '@/components/ui/markdown'
@@ -64,6 +66,7 @@ export function LegalDocument({
   const isUrl = hasContent && isValidUrl(rawContent)
   const isHtml = hasContent && !isUrl && isLikelyHtml(rawContent)
   const success = data?.success ?? false
+  const sanitizedHtml = useMemo(() => sanitizeHtml(rawContent), [rawContent])
 
   if (isLoading) {
     return (
@@ -142,7 +145,7 @@ export function LegalDocument({
         {isHtml ? (
           <div
             className='prose prose-neutral dark:prose-invert max-w-none'
-            dangerouslySetInnerHTML={{ __html: rawContent }}
+            dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
           />
         ) : (
           <Markdown className='prose-neutral dark:prose-invert max-w-none'>

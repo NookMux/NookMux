@@ -31,6 +31,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CopyButton } from '@/components/copy-button'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import { useAccessToken } from '../../hooks'
 
 // ============================================================================
@@ -48,76 +52,109 @@ export function AccessTokenDialog({
 }: AccessTokenDialogProps) {
   const { t } = useTranslation()
   const { token, generating, generate } = useAccessToken()
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'access_token' })
 
   // Auto-generate token when dialog opens if no token exists
   useEffect(() => {
     if (open && !token) {
-      generate()
+      void withVerification(generate)
     }
-  }, [open, token, generate])
+  }, [open, token, generate, withVerification])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-md'>
-        <DialogHeader>
-          <DialogTitle>{t('profile.fields.accessToken')}</DialogTitle>
-          <DialogDescription>
-            {t('common.tips.systemAccessTokenForApiAuthenticationKeepItSecure')}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>{t('profile.fields.accessToken')}</DialogTitle>
+            <DialogDescription>
+              {t(
+                'common.tips.systemAccessTokenForApiAuthenticationKeepItSecure'
+              )}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className='my-6 space-y-4'>
-          <div className='space-y-2'>
-            <Label htmlFor='token'>{t('pricing.fields.token')}</Label>
-            <div className='flex gap-2'>
-              <Input
-                id='token'
-                type='text'
-                value={token}
-                readOnly
-                className='font-mono text-xs'
-                placeholder={t('common.tips.clickGenerateToCreateAToken')}
-              />
-              <CopyButton
-                value={token}
-                variant='outline'
-                className='size-9'
-                iconClassName='size-4'
-                tooltip={t('profile.actions.copyToken')}
-                aria-label={t('profile.actions.copyToken')}
-              />
+          <div className='my-6 space-y-4'>
+            <div className='space-y-2'>
+              <Label htmlFor='token'>{t('pricing.fields.token')}</Label>
+              <div className='flex gap-2'>
+                <Input
+                  id='token'
+                  type='text'
+                  value={token}
+                  readOnly
+                  className='font-mono text-xs'
+                  placeholder={t('common.tips.clickGenerateToCreateAToken')}
+                />
+                <CopyButton
+                  value={token}
+                  variant='outline'
+                  className='size-9'
+                  iconClassName='size-4'
+                  tooltip={t('profile.actions.copyToken')}
+                  aria-label={t('profile.actions.copyToken')}
+                />
+              </div>
+              <p className='text-muted-foreground text-xs'>
+                {t('profile.actions.useThisTokenForApiAuthentication')}
+              </p>
             </div>
-            <p className='text-muted-foreground text-xs'>
-              {t('profile.actions.useThisTokenForApiAuthentication')}
-            </p>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => onOpenChange(false)}
-          >
-            {t('common.actions.close')}
-          </Button>
-          <Button
-            type='button'
-            onClick={generate}
-            disabled={generating}
-            className='gap-2'
-          >
-            {generating ? (
-              <Loader2 className='h-4 w-4 animate-spin' />
-            ) : (
-              <RefreshCw className='h-4 w-4' />
-            )}
-            {generating
-              ? t('channels.tips.generating')
-              : t('profile.fields.regenerate')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => onOpenChange(false)}
+            >
+              {t('common.actions.close')}
+            </Button>
+            <Button
+              type='button'
+              onClick={() => {
+                void withVerification(generate)
+              }}
+              disabled={generating}
+              className='gap-2'
+            >
+              {generating ? (
+                <Loader2 className='h-4 w-4 animate-spin' />
+              ) : (
+                <RefreshCw className='h-4 w-4' />
+              )}
+              {generating
+                ? t('channels.tips.generating')
+                : t('profile.fields.regenerate')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
+    </>
   )
 }

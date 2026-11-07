@@ -3,6 +3,8 @@ package common
 import (
 	"math"
 	"testing"
+
+	"github.com/shopspring/decimal"
 )
 
 func TestQuotaUpperLimitPositiveOnAllPlatforms(t *testing.T) {
@@ -32,5 +34,50 @@ func TestQuotaUpperLimitClampsToMaxInt(t *testing.T) {
 	QuotaPerUnit = boundary / 2
 	if got := QuotaUpperLimit(2); got != math.MaxInt {
 		t.Fatalf("QuotaUpperLimit = %d, want MaxInt(%d)", got, math.MaxInt)
+	}
+}
+
+func TestQuotaFromFloat(t *testing.T) {
+	cases := []struct {
+		name  string
+		value float64
+		want  int
+	}{
+		{"normal value", 123456.789, 123456},
+		{"negative value", -500.0, -500},
+		{"zero", 0, 0},
+		{"NaN maps to zero", math.NaN(), 0},
+		{"positive infinity saturates", math.Inf(1), math.MaxInt32},
+		{"negative infinity saturates", math.Inf(-1), math.MinInt32},
+		{"above int32 saturates", 9e18, math.MaxInt32},
+		{"below int32 saturates", -9e18, math.MinInt32},
+		{"int32 boundary keeps", 2147483646.0, 2147483646},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := QuotaFromFloat(tc.value); got != tc.want {
+				t.Fatalf("QuotaFromFloat(%v) = %d, want %d", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestQuotaFromDecimal(t *testing.T) {
+	cases := []struct {
+		name  string
+		value decimal.Decimal
+		want  int
+	}{
+		{"rounds half up", decimal.NewFromFloat(1234.5), 1235},
+		{"huge value saturates instead of wrapping", decimal.NewFromInt(9).Mul(decimal.NewFromInt(10).Pow(decimal.NewFromInt(18))), math.MaxInt32},
+		{"huge negative saturates", decimal.NewFromInt(-9).Mul(decimal.NewFromInt(10).Pow(decimal.NewFromInt(18))), math.MinInt32},
+		{"normal value", decimal.NewFromInt(4242), 4242},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := QuotaFromDecimal(tc.value); got != tc.want {
+				t.Fatalf("QuotaFromDecimal(%s) = %d, want %d", tc.value.String(), got, tc.want)
+			}
+		})
 	}
 }

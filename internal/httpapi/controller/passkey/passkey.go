@@ -348,7 +348,12 @@ func PasskeyLoginBegin(c *gin.Context) {
 		return
 	}
 
-	assertion, sessionData, err := wa.BeginDiscoverableLogin()
+	// 登录仪式强制用户在场验证（UV）：passkey 作为已注册因子替代 TOTP 的
+	// 前提是凭据使用经过本人生物特征/PIN 确认，否则凭据文件泄漏即等于
+	// 账户泄漏。注册仪式保持系统设置的可配置值不变。
+	assertion, sessionData, err := wa.BeginDiscoverableLogin(
+		webauthnlib.WithUserVerification(protocol.VerificationRequired),
+	)
 	if err != nil {
 		common.SysError("begin passkey discoverable login failed: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
@@ -515,6 +520,10 @@ func AdminResetPasskey(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
+	// 凭证变更：失效目标用户全部既有会话。
+	if err := userstore.BumpAuthVersion(user.Id); err != nil {
+		common.SysError("failed to bump auth version after admin resetting passkey: " + err.Error())
+	}
 
 	audit.RecordAudit(c, auditstore.AuditModuleUser, auditstore.AuditActionDelete, "重置用户 Passkey: "+user.Username, nil, map[string]interface{}{"user_id": user.Id})
 	httpapi.ApiSuccessI18n(c, i18n.MsgPasskeyResetOK, nil)
@@ -677,10 +686,15 @@ func requirePasskeyRegistrationVerification(c *gin.Context, userID int) bool {
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return false
 	}
-	if twoFA == nil || !twoFA.IsEnabled {
-		return true
+	if twoFA != nil && twoFA.IsEnabled {
+		return requireSecureVerificationMethod(c, userID, secureverificationcontroller.SecureVerificationMethod2FA)
 	}
-	return requireSecureVerificationMethod(c, userID, secureverificationcontroller.SecureVerificationMethod2FA)
+	// 仅-passkey 账户（未启用 2FA）：注册第二把凭据同样要求 passkey 方式
+	// 验证，会话劫持者无法静默植入自己的凭据获得跨会话持久访问。
+	if _, err := passkeystore.GetPasskeyByUserID(userID); err == nil {
+		return requireSecureVerificationMethod(c, userID, secureverificationcontroller.SecureVerificationMethodPasskey)
+	}
+	return true
 }
 
 func requirePasskeyDeleteVerification(c *gin.Context, userID int) bool {

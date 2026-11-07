@@ -50,13 +50,21 @@ const initialState: InternalState = {
   code: '',
   title: undefined,
   description: undefined,
+  scope: undefined,
   apiCall: null,
 }
 
 export function useSecureVerification(
   options: UseSecureVerificationOptions = {}
 ) {
-  const { onSuccess, onError, successMessage, autoReset = true } = options
+  const {
+    onSuccess,
+    onError,
+    successMessage,
+    autoReset = true,
+    scope: hookScope,
+    methodPolicy: hookMethodPolicy,
+  } = options
 
   const [methods, setMethods] = useState<VerificationMethods>(defaultMethods)
   const [state, setState] = useState<InternalState>(initialState)
@@ -82,29 +90,34 @@ export function useSecureVerification(
       apiCall: () => Promise<unknown>,
       config: StartVerificationOptions = {}
     ) => {
-      const { preferredMethod, title, description } = config
+      const { preferredMethod, title, description, scope, methodPolicy } =
+        config
+      const effectiveScope = scope ?? hookScope
+      const effectivePolicy = methodPolicy ?? hookMethodPolicy
       const availableMethods = await fetchVerificationMethods()
-
-      if (!availableMethods.has2FA && !availableMethods.hasPasskey) {
-        toast.error(
-          i18next.t(
-            'auth.errors.pleaseEnableTwoFactorAuthenticationOrPasskeyBeforeProceeding'
-          )
-        )
-        onError?.(
-          new Error(
-            'No verification methods available. Enable 2FA or Passkey to continue.'
-          )
-        )
-        return false
-      }
 
       let defaultMethod: VerificationMethod | null = preferredMethod ?? null
       if (!defaultMethod) {
-        if (availableMethods.hasPasskey && availableMethods.passkeySupported) {
+        if (effectivePolicy === 'strongest') {
+          // 按服务端 gate 规则取最强因子：已有 2FA 只接受 2FA；仅有
+          // passkey 只接受 passkey；皆无退回原密码。
+          if (availableMethods.has2FA) {
+            defaultMethod = '2fa'
+          } else if (availableMethods.hasPasskey) {
+            defaultMethod = 'passkey'
+          } else {
+            defaultMethod = 'password'
+          }
+        } else if (
+          availableMethods.hasPasskey &&
+          availableMethods.passkeySupported
+        ) {
           defaultMethod = 'passkey'
         } else if (availableMethods.has2FA) {
           defaultMethod = '2fa'
+        } else {
+          // 无二因子时退路为原密码再认证（未设密码的账户由服务端明确报错）。
+          defaultMethod = 'password'
         }
       }
 
@@ -114,11 +127,13 @@ export function useSecureVerification(
         method: defaultMethod,
         title,
         description,
+        scope: effectiveScope,
+        methodPolicy: effectivePolicy,
       }))
       setOpen(true)
       return true
     },
-    [fetchVerificationMethods, onError]
+    [fetchVerificationMethods, hookScope, hookMethodPolicy]
   )
 
   const executeVerification = useCallback(
@@ -139,7 +154,7 @@ export function useSecureVerification(
       setState((prev) => ({ ...prev, loading: true }))
 
       try {
-        await verify(actualMethod, code ?? state.code)
+        await verify(actualMethod, code ?? state.code, state.scope)
         const result = await state.apiCall()
 
         if (successMessage) {
@@ -206,6 +221,8 @@ export function useSecureVerification(
       if (method === 'passkey') {
         return methods.hasPasskey && methods.passkeySupported
       }
+      // 原密码再认证：始终可用作退路（未设密码由服务端拒绝）。
+      if (method === 'password') return true
       return false
     },
     [methods]

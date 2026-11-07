@@ -65,16 +65,20 @@ export async function checkVerificationMethods(): Promise<VerificationMethods> {
 
 /**
  * Execute a verification flow based on the method type.
+ * scope 绑定本次验证的用途，服务端消费时逐字比对，防止跨操作重放。
  */
 export async function verify(
   method: VerificationMethod,
-  code?: string
+  code?: string,
+  scope?: string
 ): Promise<void> {
   switch (method) {
     case '2fa':
-      return verifyTwoFA(code)
+      return verifyTwoFA(code, scope)
     case 'passkey':
-      return verifyPasskey()
+      return verifyPasskey(scope)
+    case 'password':
+      return verifyPassword(code, scope)
     default:
       throw new Error(`Unsupported verification method: ${method}`)
   }
@@ -83,7 +87,10 @@ export async function verify(
 /**
  * Perform 2FA verification flow.
  */
-async function verifyTwoFA(code?: string | null): Promise<void> {
+async function verifyTwoFA(
+  code?: string | null,
+  scope?: string
+): Promise<void> {
   const trimmed = code?.trim()
   if (!trimmed) {
     throw new Error('Please enter the verification code or backup code')
@@ -92,6 +99,31 @@ async function verifyTwoFA(code?: string | null): Promise<void> {
   const res = await api.post('/api/verify', {
     method: '2fa',
     code: trimmed,
+    scope,
+  })
+
+  if (!res.data?.success) {
+    throw new Error(res.data?.message || 'Verification failed')
+  }
+}
+
+/**
+ * Perform original-password re-authentication (fallback for accounts
+ * without any second factor).
+ */
+async function verifyPassword(
+  password?: string | null,
+  scope?: string
+): Promise<void> {
+  const trimmed = password?.trim()
+  if (!trimmed) {
+    throw new Error('Please enter your current password')
+  }
+
+  const res = await api.post('/api/verify', {
+    method: 'password',
+    password: trimmed,
+    scope,
   })
 
   if (!res.data?.success) {
@@ -102,7 +134,7 @@ async function verifyTwoFA(code?: string | null): Promise<void> {
 /**
  * Perform Passkey verification flow.
  */
-async function verifyPasskey(): Promise<void> {
+async function verifyPasskey(scope?: string): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.credentials) {
     throw new Error('Passkey verification is not supported in this environment')
   }
@@ -137,6 +169,7 @@ async function verifyPasskey(): Promise<void> {
 
     const verifyResponse = await api.post('/api/verify', {
       method: 'passkey',
+      scope,
     })
 
     if (!verifyResponse.data?.success) {

@@ -109,6 +109,15 @@ func CriticalRateLimit() func(c *gin.Context) {
 	return defNext
 }
 
+// UserCriticalRateLimit 用户级关键限流：按已认证用户 ID 计数，防代理
+// 轮换绕过 IP 级限流；必须挂在 UserAuth 之后。
+func UserCriticalRateLimit(scope string) func(c *gin.Context) {
+	if common.CriticalRateLimitEnable {
+		return userRateLimitFactory(common.CriticalRateLimitNum, common.CriticalRateLimitDuration, "UC:"+scope)
+	}
+	return defNext
+}
+
 func DownloadRateLimit() func(c *gin.Context) {
 	return rateLimitFactory(common.DownloadRateLimitNum, common.DownloadRateLimitDuration, "DW")
 }

@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
 	"sort"
@@ -17,6 +18,10 @@ var (
 	maskURLPattern    = regexp.MustCompile(`(http|https)://[^\s/$.?#].[^\s]*`)
 	maskDomainPattern = regexp.MustCompile(`\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b`)
 	maskIPPattern     = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
+	// maskBracketedIPv6Pattern 匹配 Go 网络错误中 IPv6 的方括号形式（如
+	// "dial tcp [2001:db8::1]:443"，可带 %zone），内容需再经 net.ParseIP
+	// 确认后才遮蔽，避免误伤 items[0] 一类下标写法。
+	maskBracketedIPv6Pattern = regexp.MustCompile(`\[([0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*)(%[^\]\s]*)?\]`)
 	// maskApiKeyPattern matches patterns like 'api_key:xxx' or "api_key:xxx" to mask the API key value
 	maskApiKeyPattern = regexp.MustCompile(`(['"]?)api_key:([^\s'"]+)(['"]?)`)
 	// maskMinimaxBrandPattern masks upstream provider brand names (case-insensitive) leaked in error messages
@@ -197,6 +202,20 @@ func MaskSensitiveInfo(str string) string {
 
 		// Mask host with unified logic
 		maskedHost := maskHostForURL(host)
+		// IP 字面量主机整体遮蔽并保留端口：网络错误中的 IP 是解析出的
+		// 上游或网关自身地址，与主机是否自定义无关，必须无条件遮蔽。
+		if hostname := u.Hostname(); hostname != "" {
+			if ip := net.ParseIP(hostname); ip != nil {
+				if ip.To4() != nil {
+					maskedHost = "***.***.***.***"
+				} else {
+					maskedHost = "***"
+				}
+				if port := u.Port(); port != "" {
+					maskedHost += ":" + port
+				}
+			}
+		}
 
 		result := u.Scheme + "://" + maskedHost
 
@@ -234,6 +253,14 @@ func MaskSensitiveInfo(str string) string {
 		}
 
 		return result
+	})
+
+	// Mask bracketed IPv6 addresses (Go network errors write them as "[addr]:port")
+	str = maskBracketedIPv6Pattern.ReplaceAllStringFunc(str, func(match string) string {
+		if net.ParseIP(maskBracketedIPv6Pattern.FindStringSubmatch(match)[1]) == nil {
+			return match
+		}
+		return "[***]"
 	})
 
 	// Mask domain names without protocol (like openai.com, www.openai.com)

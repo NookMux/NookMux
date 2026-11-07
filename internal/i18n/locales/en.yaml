@@ -290,6 +290,7 @@ audit.fetch_failed: "Failed to fetch audit logs"
 playground.access_token_unsupported: "Access token is not supported yet"
 topup.stripe_invalid_api_key: "Invalid Stripe API key"
 user.original_password_error: "Original password is incorrect"
+user.password_unset: "No password is set for this account; reset it via email first"
 
 # Check-in messages
 checkin.disabled: "Check-in is disabled"
@@ -384,6 +385,10 @@ secure_verification.unsupported_method: "Unsupported verification method: {{.Met
 secure_verification.failed: "Verification failed, please check the code"
 secure_verification.success: "Verification successful"
 secure_verification.invalid_passkey_state: "Invalid Passkey verification state"
+secure_verification.required: "Secure verification required"
+secure_verification.invalid: "Verification state is invalid, please verify again"
+secure_verification.expired: "Verification expired, please verify again"
+secure_verification.password_not_set: "This account has no password set; password verification is unavailable"
 
 # Two-factor authentication messages
 twofa.already_enabled_reset: "2FA is already enabled. Disable it before setting it up again"
@@ -425,7 +430,8 @@ performance.gc_executed: "GC has been executed"
 rankings.disabled: "Rankings feature is disabled"
 
 # Top-up messages
-topup.amount_exceed_max: "Top-up amount cannot exceed 10000"
+topup.amount_exceed_max: "Top-up amount cannot exceed {{.Max}}"
+topup.quota_invalid: "The converted quota of this top-up amount is invalid and cannot be credited"
 topup.success_url_untrusted: "Payment success redirect URL is not in the trusted domain list"
 topup.cancel_url_untrusted: "Payment cancel redirect URL is not in the trusted domain list"
 topup.unsupported_channel: "Unsupported payment channel"

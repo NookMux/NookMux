@@ -59,11 +59,24 @@ export function SecureVerificationDialog({
 }: SecureVerificationDialogProps) {
   const { t } = useTranslation()
   const availableTabs: VerificationMethod[] = useMemo(() => {
+    const policy = state.methodPolicy ?? 'any'
+    const has2FA = methods.has2FA
+    const hasPasskey = methods.hasPasskey && methods.passkeySupported
+    if (policy === 'strongest') {
+      // 按服务端 gate 规则只接受最强因子：已有 2FA 仅 2FA；仅有 passkey
+      // 仅 passkey（浏览器不支持时进入不可用态，不诱导走必拒的原密码）；
+      // 皆无退回原密码。
+      if (has2FA) return ['2fa']
+      if (methods.hasPasskey) return hasPasskey ? ['passkey'] : []
+      return ['password']
+    }
     const tabs: VerificationMethod[] = []
-    if (methods.has2FA) tabs.push('2fa')
-    if (methods.hasPasskey && methods.passkeySupported) tabs.push('passkey')
+    if (has2FA) tabs.push('2fa')
+    if (hasPasskey) tabs.push('passkey')
+    // 无任何二因子时退路为原密码再认证（未设密码的账户由服务端明确报错）。
+    if (tabs.length === 0) tabs.push('password')
     return tabs
-  }, [methods])
+  }, [methods, state.methodPolicy])
 
   const activeMethod =
     state.method ?? (availableTabs.length > 0 ? availableTabs[0] : null)
@@ -82,13 +95,18 @@ export function SecureVerificationDialog({
 
   const handleVerify = () => {
     if (!activeMethod) return
-    const payload = activeMethod === '2fa' ? state.code : undefined
+    const payload =
+      activeMethod === '2fa' || activeMethod === 'password'
+        ? state.code
+        : undefined
     onVerify(activeMethod, payload)
   }
 
   const verifyDisabled =
     state.loading ||
-    (activeMethod === '2fa' && (!state.code.trim() || state.code.length < 6))
+    ((activeMethod === '2fa' || activeMethod === 'password') &&
+      !state.code.trim()) ||
+    (activeMethod === '2fa' && state.code.length < 6)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -138,6 +156,11 @@ export function SecureVerificationDialog({
                       {t('auth.fields.passkey')}
                     </TabsTrigger>
                   )}
+                  {availableTabs.includes('password') && (
+                    <TabsTrigger value='password'>
+                      {t('auth.fields.currentPassword')}
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <TabsContent value='2fa' className='space-y-3'>
@@ -154,6 +177,26 @@ export function SecureVerificationDialog({
                     placeholder={t('auth.placeholders.enterVerificationCode')}
                     disabled={state.loading}
                     autoFocus={activeMethod === '2fa'}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !verifyDisabled) {
+                        event.preventDefault()
+                        handleVerify()
+                      }
+                    }}
+                  />
+                </TabsContent>
+
+                <TabsContent value='password' className='space-y-3'>
+                  <p className='text-muted-foreground text-sm'>
+                    {t('auth.tips.enterCurrentPasswordToConfirmIdentity')}
+                  </p>
+                  <Input
+                    type='password'
+                    value={state.code}
+                    onChange={(event) => onCodeChange(event.target.value)}
+                    placeholder={t('auth.placeholders.enterCurrentPassword')}
+                    disabled={state.loading}
+                    autoFocus={activeMethod === 'password'}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !verifyDisabled) {
                         event.preventDefault()

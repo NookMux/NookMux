@@ -164,7 +164,7 @@ func newRelayTransport(proxyFunc func(*http.Request) (*url.URL, error)) *http.Tr
 		DialContext: dialContextWithSSRFRecheck(baseDialer.DialContext, proxyFunc),
 	}
 	if common.TLSInsecureSkipVerify {
-		transport.TLSClientConfig = common.InsecureTLSConfig
+		transport.TLSClientConfig = common.NewInsecureTLSConfig()
 	}
 	return transport
 }

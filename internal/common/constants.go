@@ -31,6 +31,10 @@ var ItemsPerPage = 10
 var MaxRecentItems = 1000
 
 var PasswordLoginEnabled = true
+
+// PasswordLoginEncryptionEnabled 登录密码请求体 RSA-OAEP 加密开关（默认关
+// 闭；开启后登录强制密文提交，公钥经 /api/user/login/encryption-key 下发）。
+var PasswordLoginEncryptionEnabled = false
 var PasswordRegisterEnabled = false
 var EmailVerificationEnabled = false
 var GitHubOAuthEnabled = false
@@ -64,7 +68,14 @@ var MemoryCacheEnabled bool
 var LogConsumeEnabled = true
 
 var TLSInsecureSkipVerify bool
-var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
+
+// NewInsecureTLSConfig 返回独立的不校验证书 TLS 配置。各 transport 必须持有
+// 各自的副本：Go 的 HTTP/2 初始化会在 transport 首次使用时原地修改
+// tls.Config（追加 NextProtos），共享同一实例会造成跨 transport 的数据竞争
+// 与配置污染。
+func NewInsecureTLSConfig() *tls.Config {
+	return &tls.Config{InsecureSkipVerify: true}
+}
 
 var SMTPServer = ""
 var SMTPPort = 587

@@ -187,6 +187,11 @@ function OAuthCallback() {
             }
             return
           }
+          // 已启用 2FA 的账户：OAuth 登录被挂起，跳转 OTP 页完成第二因子。
+          if (res.data?.data?.require_2fa === true) {
+            safeNavigate('/otp')
+            return
+          }
           // Otherwise it's a login, use payload user if available
           if (loginUser) {
             useAuthStore.getState().auth.setUser(loginUser)

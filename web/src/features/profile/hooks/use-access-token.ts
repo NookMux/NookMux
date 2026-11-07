@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useCallback } from 'react'
 import i18next from 'i18next'
 import { toast } from 'sonner'
+import { isVerificationRequiredError } from '@/lib/secure-verification'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { generateAccessToken } from '../api'
 
@@ -51,6 +52,10 @@ export function useAccessToken() {
       )
       return false
     } catch (error) {
+      // 敏感操作门控的验证要求需上抛给安全验证流程接管，不在此吞掉。
+      if (isVerificationRequiredError(error)) {
+        throw error
+      }
       // eslint-disable-next-line no-console
       console.error('Failed to generate token:', error)
       toast.error(i18next.t('profile.errors.failedToGenerateToken'))

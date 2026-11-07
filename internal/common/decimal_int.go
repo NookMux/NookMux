@@ -20,3 +20,9 @@ func DecimalToInt(d decimal.Decimal) (int, error) {
 	}
 	return int(d.IntPart()), nil
 }
+
+// QuotaFromDecimal 将 decimal 额度终值饱和换算为 int：Round 到整数后按
+// QuotaFromFloat 语义钳制到 32 位配额范围，超界值饱和到边界而非回绕。
+func QuotaFromDecimal(d decimal.Decimal) int {
+	return QuotaFromFloat(d.Round(0).InexactFloat64())
+}

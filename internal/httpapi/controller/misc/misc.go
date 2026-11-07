@@ -2,6 +2,7 @@ package misccontroller
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config"
@@ -101,6 +102,9 @@ func GetStatus(c *gin.Context) {
 		"checkin_enabled":           operation.GetCheckinSetting().Enabled,
 		"_qn":                       "nookmux",
 	}
+
+	// 登录密码传输加密为纵深防御开关，前端据此决定是否先取公钥加密提交。
+	data["password_login_encryption_enabled"] = common.PasswordLoginEncryptionEnabled
 
 	// 根据启用状态注入可选内容（开关读 dashboard_config，内容数据读 console_setting）
 	if dc.ApiInfoEnabled {
@@ -266,7 +270,7 @@ func GetHomePageContent(c *gin.Context) {
 }
 
 func SendEmailVerification(c *gin.Context) {
-	email := c.Query("email")
+	email := userstore.NormalizeEmail(c.Query("email"))
 	if err := security.Validate.Var(email, "required,email"); err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -325,7 +329,7 @@ func SendEmailVerification(c *gin.Context) {
 }
 
 func SendPasswordResetEmail(c *gin.Context) {
-	email := c.Query("email")
+	email := userstore.NormalizeEmail(c.Query("email"))
 	if err := security.Validate.Var(email, "required,email"); err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -362,6 +366,7 @@ type PasswordResetRequest struct {
 func ResetPassword(c *gin.Context) {
 	var req PasswordResetRequest
 	err := jsonx.DecodeJson(c.Request.Body, &req)
+	req.Email = userstore.NormalizeEmail(req.Email)
 	if err != nil || req.Email == "" || req.Token == "" || req.NewPassword == "" {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -376,6 +381,13 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 	if err := userstore.ResetUserPasswordByEmail(req.Email, req.NewPassword); err != nil {
+		// 唯一匹配失败（不存在/歧义）与验证凭据失败同样拒绝，
+		// 不向外部区分具体原因。
+		if errors.Is(err, userstore.ErrEmailNotFound) || errors.Is(err, userstore.ErrEmailAmbiguous) {
+			common.SysLog(fmt.Sprintf("reset password rejected for ambiguous or unknown email: %v", err))
+			httpapi.ApiErrorI18n(c, i18n.MsgMiscPasswordResetLinkInvalid)
+			return
+		}
 		common.SysError("reset user password by email failed: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return

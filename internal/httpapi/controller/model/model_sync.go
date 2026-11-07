@@ -107,7 +107,7 @@ func newHTTPClient() *http.Client {
 		ResponseHeaderTimeout: time.Duration(timeoutSec) * time.Second,
 	}
 	if common.TLSInsecureSkipVerify {
-		transport.TLSClientConfig = common.InsecureTLSConfig
+		transport.TLSClientConfig = common.NewInsecureTLSConfig()
 	}
 	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		host, _, err := net.SplitHostPort(addr)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
+	secureverificationcontroller "github.com/NookMux/NookMux/internal/httpapi/controller/secure_verification"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/testsupport"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/oauth"
@@ -16,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 type oauthBindTestProvider struct{}
@@ -46,6 +48,8 @@ func (p *oauthBindTestProvider) SetProviderUserID(user *userstore.User, provider
 	user.GitHubId = providerUserID
 }
 
+func (p *oauthBindTestProvider) BindColumn() string { return "github_id" }
+
 func TestHandleOAuthBindReturnsStructuredBindAction(t *testing.T) {
 	testsupport.SetupSecureVerificationTestDB(t)
 	gin.SetMode(gin.TestMode)
@@ -61,6 +65,10 @@ func TestHandleOAuthBindReturnsStructuredBindAction(t *testing.T) {
 		session.Set("id", user.Id)
 		session.Set("username", user.Username)
 		session.Set("oauth_state", "state-123")
+		// 绑定要求单次安全验证：预置绑定作用域的验证态。
+		session.Set(secureverificationcontroller.SecureVerificationSessionKey, time.Now().Unix())
+		session.Set(secureverificationcontroller.SecureVerificationUserIDSessionKey, user.Id)
+		session.Set(secureverificationcontroller.SecureVerificationScopeSessionKey, secureverificationcontroller.ScopeOAuthBind)
 		_ = session.Save()
 		c.Next()
 	})
@@ -132,6 +140,8 @@ func (p *oauthLoginTestProvider) FillUserByProviderID(user *userstore.User, prov
 func (p *oauthLoginTestProvider) SetProviderUserID(user *userstore.User, providerUserID string) {
 	user.GitHubId = providerUserID
 }
+
+func (p *oauthLoginTestProvider) BindColumn() string { return "github_id" }
 
 type oauthLoginResponse struct {
 	Success bool   `json:"success"`
@@ -209,7 +219,6 @@ func TestHandleOAuthNonNumericLegacyIDDoesNotAuthenticateLegacyAccount(t *testin
 	provider := &oauthLoginTestProvider{userInfo: &oauth.OAuthUser{
 		ProviderUserID: "987654321",
 		Username:       "github_login",
-		Extra:          map[string]any{"legacy_id": "github_login"},
 	}}
 	oauth.Register("oauth-login-non-numeric", provider)
 
@@ -241,7 +250,12 @@ func TestHandleOAuthNonNumericLegacyIDDoesNotAuthenticateLegacyAccount(t *testin
 	}
 }
 
-func TestHandleOAuthNumericLegacyIDMigratesLegacyAccount(t *testing.T) {
+// TestHandleOAuthNumericLoginNameDoesNotMigrateLegacyAccount 验证纯数字的
+// provider 侧登录名不再作为迁移键认证本地存量账号：GitHub 登录名可被改名/
+// 重新注册，数字字符串又无法与数字 ID 区分，合法用户本就走数字 ID 精确
+// 匹配的主路径，该分支唯一能触达的"新访问者"就是登录名撞上存量数字串
+// 的攻击者。
+func TestHandleOAuthNumericLoginNameDoesNotMigrateLegacyAccount(t *testing.T) {
 	if err := i18n.Init(); err != nil {
 		t.Fatalf("init i18n: %v", err)
 	}
@@ -251,23 +265,34 @@ func TestHandleOAuthNumericLegacyIDMigratesLegacyAccount(t *testing.T) {
 	provider := &oauthLoginTestProvider{userInfo: &oauth.OAuthUser{
 		ProviderUserID: "123456789",
 		Username:       "legacy-user",
-		Extra:          map[string]any{"legacy_id": "583231"},
 	}}
 	oauth.Register("oauth-login-numeric", provider)
 
 	legacyUser := createOAuthTestUser(t, 31, "583231")
+
+	oldRegisterEnabled := common.RegisterEnabled
+	common.RegisterEnabled = true
+	t.Cleanup(func() { common.RegisterEnabled = oldRegisterEnabled })
 
 	recorder, body := performOAuthLogin(t, newOAuthLoginRouter(), "oauth-login-numeric")
 
 	if recorder.Code != http.StatusOK || !body.Success {
 		t.Fatalf("response = %s, want success", recorder.Body.String())
 	}
-	if body.Data.Id != legacyUser.Id {
-		t.Fatalf("authenticated user id = %d, want legacy user %d", body.Data.Id, legacyUser.Id)
+	if body.Data.Id == legacyUser.Id {
+		t.Fatalf("authenticated user id = %d, must not be the legacy account %d (numeric login names never authenticate)", body.Data.Id, legacyUser.Id)
 	}
 
-	if got := getOAuthTestUser(t, legacyUser.Id).GitHubId; got != "123456789" {
-		t.Fatalf("github_id = %q, want migrated %q", got, "123456789")
+	newcomer := userstore.User{}
+	if err := dbstore.DB.Where("github_id = ?", "123456789").First(&newcomer).Error; err != nil {
+		t.Fatalf("find newly created user bound to numeric provider id: %v", err)
+	}
+	if newcomer.Id != body.Data.Id {
+		t.Fatalf("session user id = %d, want newly created user %d", body.Data.Id, newcomer.Id)
+	}
+
+	if got := getOAuthTestUser(t, legacyUser.Id).GitHubId; got != "583231" {
+		t.Fatalf("legacy github_id = %q, want unchanged %q", got, "583231")
 	}
 }
 
@@ -281,7 +306,6 @@ func TestHandleOAuthBoundProviderUserIDLogsInWithoutMigration(t *testing.T) {
 	provider := &oauthLoginTestProvider{userInfo: &oauth.OAuthUser{
 		ProviderUserID: "583231",
 		Username:       "bound-user",
-		Extra:          map[string]any{"legacy_id": "some-login"},
 	}}
 	oauth.Register("oauth-login-bound", provider)
 

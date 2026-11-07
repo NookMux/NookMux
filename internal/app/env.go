@@ -93,13 +93,14 @@ func InitEnv() {
 	common.DebugEnabled = os.Getenv("DEBUG") == "true"
 	common.MemoryCacheEnabled = os.Getenv("MEMORY_CACHE_ENABLED") == "true"
 	common.IsMasterNode = os.Getenv("NODE_TYPE") != "slave"
+	common.PasswordLoginEncryptionEnabled = common.GetEnvOrDefaultBool("PASSWORD_LOGIN_ENCRYPTION_ENABLED", false)
 	common.TLSInsecureSkipVerify = common.GetEnvOrDefaultBool("TLS_INSECURE_SKIP_VERIFY", false)
 	if common.TLSInsecureSkipVerify {
 		if tr, ok := http.DefaultTransport.(*http.Transport); ok && tr != nil {
 			if tr.TLSClientConfig != nil {
 				tr.TLSClientConfig.InsecureSkipVerify = true
 			} else {
-				tr.TLSClientConfig = common.InsecureTLSConfig
+				tr.TLSClientConfig = common.NewInsecureTLSConfig()
 			}
 		}
 	}

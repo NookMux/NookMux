@@ -81,6 +81,10 @@ type Token struct {
 	CycleUsedQuota  int   `json:"cycle_used_quota" gorm:"default:0"`  // 当前周期已用额度
 	CycleStartTime  int64 `json:"cycle_start_time" gorm:"default:0"`  // 当前周期开始时间（unix timestamp）
 
+	// 缓存完整性元数据：签名与时效界仅存在于 Redis 哈希，不落库。
+	CacheExpiresAt int64  `json:"-" gorm:"-"`
+	CacheMAC       string `json:"-" gorm:"-"`
+
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
@@ -392,9 +396,10 @@ func GetTokenById(id int) (*Token, error) {
 	token := Token{Id: id}
 	err := dbstore.DB.First(&token, "id = ?", id).Error
 	if dbstore.ShouldUpdateRedis(true, err) {
+		t := token
 		runtime.RelayGo(func() {
-			if err := cacheSetToken(token); err != nil {
-				common.SysLog("failed to update user status cache: " + err.Error())
+			if err := initOrRepairTokenCache(t); err != nil {
+				common.SysLog("failed to init token cache: " + err.Error())
 			}
 		})
 	}
@@ -403,11 +408,14 @@ func GetTokenById(id int) (*Token, error) {
 
 func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {
 	defer func() {
-		// Update Redis cache asynchronously on successful DB read
+		// 冷缓存初始化与损坏修复：哈希缺失时以 DB 快照建哈希；已存在但签
+		// 名校验不过（篡改/旧格式/字段损坏）时保留仍为整数的配额计数并整
+		// 组重写元数据，原子增量维护的配额不被快照回滚。
 		if dbstore.ShouldUpdateRedis(fromDB, err) && token != nil {
+			t := *token
 			runtime.RelayGo(func() {
-				if err := cacheSetToken(*token); err != nil {
-					common.SysLog("failed to update user status cache: " + err.Error())
+				if err := initOrRepairTokenCache(t); err != nil {
+					common.SysLog("failed to init token cache: " + err.Error())
 				}
 			})
 		}
@@ -445,10 +453,11 @@ func (token *Token) Insert() error {
 func (token *Token) Update() (err error) {
 	defer func() {
 		if dbstore.ShouldUpdateRedis(true, err) {
-			// 同步刷新缓存，确保后续请求立即读到最新的配额模式，
-			// 避免异步刷新窗口期内从无限/永久切到时段/周期后仍按旧模式校验。
-			if cacheErr := cacheSetToken(*token); cacheErr != nil {
-				common.SysLog("failed to update token cache: " + cacheErr.Error())
+			// 失效而非覆写：DB 更新成功后删除缓存，下次读取从 DB 冷初始化，
+			// 消除"写库后用调用方快照覆写缓存"与原子增量的交错窗口；配额
+			// 模式切换同样在下一次读取立即生效。
+			if cacheErr := cacheDeleteToken(token.Key); cacheErr != nil {
+				common.SysLog("failed to invalidate token cache: " + cacheErr.Error())
 			}
 		}
 	}()
@@ -488,6 +497,12 @@ func (token *Token) Delete() (err error) {
 	}()
 	err = dbstore.DB.Delete(token).Error
 	return err
+}
+
+// DeleteTokensByUserIdTx 在事务内硬删除用户全部 API 令牌，供用户硬删除
+// 流程编排调用。
+func DeleteTokensByUserIdTx(tx *gorm.DB, userId int) error {
+	return tx.Unscoped().Where("user_id = ?", userId).Delete(&Token{}).Error
 }
 
 func (token *Token) IsModelLimitsEnabled() bool {

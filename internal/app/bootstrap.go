@@ -13,6 +13,7 @@ import (
 	"github.com/NookMux/NookMux/internal/infra/runtime"
 	tokenizer "github.com/NookMux/NookMux/internal/infra/tokenizer"
 	"github.com/NookMux/NookMux/internal/store/db/migrate"
+	"github.com/NookMux/NookMux/internal/store/loginkey"
 	"github.com/NookMux/NookMux/internal/store/option"
 	"github.com/NookMux/NookMux/internal/store/pricing"
 	"github.com/joho/godotenv"
@@ -52,6 +53,15 @@ func Bootstrap() error {
 
 	// Initialize options, should after dbmigrate.InitDB()
 	optionstore.InitOptionMap()
+
+	// 登录密码传输加密（opt-in）：开启时加载/生成服务端 RSA 密钥，失败快
+	// 速失败，不做静默降级。
+	if common.PasswordLoginEncryptionEnabled {
+		if err := loginkeystore.InitPasswordEncryptionKey(); err != nil {
+			common.FatalLog("failed to initialize password encryption: " + err.Error())
+			return err
+		}
+	}
 
 	// 迁移 console_setting 面板开关到 dashboard_config（一次性，幂等）
 	// 失败仅记日志不阻断启动，console_setting 仍可作为 fallback 直到双源统一

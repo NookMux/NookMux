@@ -33,6 +33,30 @@ func TestMaskSensitiveInfo_IP(t *testing.T) {
 	}
 }
 
+func TestMaskSensitiveInfo_IPv6(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"bracketed ipv6 in net error", "dial tcp [2001:db8::1]:443: connect: connection refused", "dial tcp [***]:443: connect: connection refused"},
+		{"loopback resolver", "lookup api.example.com on [::1]:53", "lookup ***.***.com on [***]:53"},
+		{"zoned link-local", "dial tcp [fe80::1%eth0]:443", "dial tcp [***]:443"},
+		{"ipv4-mapped ipv6", "dial tcp [::ffff:10.0.0.1]:443", "dial tcp [***]:443"},
+		{"non-ip brackets stay", "items[0] and [1:2] stay", "items[0] and [1:2] stay"},
+		{"ipv6 url host masked with port", "http://[2001:db8::1]:8080/v1/x", "http://***:8080/***/***"},
+		{"ipv4 url host masked with port", "http://10.0.0.1:9000/a", "http://***.***.***.***:9000/***"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := MaskSensitiveInfo(tc.input)
+			if got != tc.want {
+				t.Errorf("MaskSensitiveInfo(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestMaskSensitiveInfo_MinimaxBrand(t *testing.T) {
 	cases := []struct {
 		input string

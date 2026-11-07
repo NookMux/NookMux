@@ -291,6 +291,7 @@ audit.fetch_failed: "获取审计日志失败"
 playground.access_token_unsupported: "暂不支持使用 access token"
 topup.stripe_invalid_api_key: "无效的Stripe API密钥"
 user.original_password_error: "原密码错误"
+user.password_unset: "账户未设置密码，请先通过邮箱重置密码"
 
 # Check-in messages
 checkin.disabled: "签到功能未启用"
@@ -385,6 +386,10 @@ secure_verification.unsupported_method: "不支持的验证方式: {{.Method}}"
 secure_verification.failed: "验证失败，请检查验证码"
 secure_verification.success: "验证成功"
 secure_verification.invalid_passkey_state: "无效的 Passkey 验证状态"
+secure_verification.required: "需要安全验证"
+secure_verification.invalid: "验证状态异常，请重新验证"
+secure_verification.expired: "验证已过期，请重新验证"
+secure_verification.password_not_set: "账户未设置密码，无法通过密码验证"
 
 # Two-factor authentication messages
 twofa.already_enabled_reset: "用户已启用2FA，请先禁用后重新设置"
@@ -426,7 +431,8 @@ performance.gc_executed: "GC 已执行"
 rankings.disabled: "排行榜功能已禁用"
 
 # Top-up messages
-topup.amount_exceed_max: "充值数量不能大于 10000"
+topup.amount_exceed_max: "充值数量不能大于 {{.Max}}"
+topup.quota_invalid: "充值数量换算后额度无效，无法入账"
 topup.success_url_untrusted: "支付成功重定向URL不在可信任域名列表中"
 topup.cancel_url_untrusted: "支付取消重定向URL不在可信任域名列表中"
 topup.unsupported_channel: "不支持的支付渠道"

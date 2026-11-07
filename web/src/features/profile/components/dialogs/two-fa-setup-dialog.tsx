@@ -35,6 +35,10 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CopyButton } from '@/components/copy-button'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import type { TwoFASetupData } from '../../types'
 
 // ============================================================================
@@ -58,6 +62,18 @@ export function TwoFASetupDialog({
   const [step, setStep] = useState(0)
   const [setupData, setSetupData] = useState<TwoFASetupData | null>(null)
   const [code, setCode] = useState('')
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: '2fa_setup', methodPolicy: 'strongest' })
+  // 请求闩锁：403 触发验证对话框后阻止自动初始化 effect 反复重发。
+  const [setupAttempted, setSetupAttempted] = useState(false)
   const stepLabels = [
     t('profile.fields.scanQrCode'),
     t('profile.actions.saveBackupCodes'),
@@ -67,14 +83,20 @@ export function TwoFASetupDialog({
   const handleSetup = useCallback(async () => {
     try {
       setInitializing(true)
-      const response = await setup2FA()
-
-      if (response.success && response.data) {
-        setSetupData(response.data)
-        setStep(0)
-      } else {
-        toast.error(response.message || t('profile.errors.failedToSetup2Fa'))
-        onOpenChange(false)
+      const response = await withVerification(async () => {
+        const result = await setup2FA()
+        if (result.success && result.data) {
+          setSetupData(result.data)
+          setStep(0)
+        } else {
+          toast.error(result.message || t('profile.errors.failedToSetup2Fa'))
+          onOpenChange(false)
+        }
+        return result
+      })
+      if (!response) {
+        // 已触发安全验证，验证通过后将自动重试。
+        return
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -84,7 +106,7 @@ export function TwoFASetupDialog({
     } finally {
       setInitializing(false)
     }
-  }, [onOpenChange, t])
+  }, [onOpenChange, t, withVerification])
 
   const handleEnable = async () => {
     if (!code) {
@@ -118,179 +140,202 @@ export function TwoFASetupDialog({
 
   const handleOpenChange = (open: boolean) => {
     if (!loading && !initializing) {
-      if (open && !setupData) {
+      if (open && !setupData && !setupAttempted) {
+        setSetupAttempted(true)
         handleSetup()
       }
       if (!open) {
         setStep(0)
         setCode('')
         setSetupData(null)
+        setSetupAttempted(false)
       }
       onOpenChange(open)
     }
   }
 
-  // Initialize when dialog opens
+  // Initialize when dialog opens；闩锁防止 403 触发验证后 effect 反复重发
+  // （验证通过后由挂起闭包自动完成初始化）。
   useEffect(() => {
-    if (open && !setupData && !initializing) {
+    if (open && !setupData && !initializing && !setupAttempted) {
+      setSetupAttempted(true)
       handleSetup()
     }
-  }, [open, setupData, initializing, handleSetup])
+  }, [open, setupData, initializing, setupAttempted, handleSetup])
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='sm:max-w-lg'>
-        <DialogHeader>
-          <DialogTitle>
-            {t('profile.titles.setupTwoFactorAuthentication')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('profile.fields.step')} {step + 1} {t('profile.fields.value3')}{' '}
-            {stepLabels[step]}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className='sm:max-w-lg'>
+          <DialogHeader>
+            <DialogTitle>
+              {t('profile.titles.setupTwoFactorAuthentication')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('profile.fields.step')} {step + 1} {t('profile.fields.value3')}{' '}
+              {stepLabels[step]}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className='space-y-4 py-4'>
-          {initializing ? (
-            <div className='flex flex-col items-center justify-center gap-3 py-8'>
-              <div className='border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent' />
-              <div className='text-muted-foreground text-sm'>
-                {t('profile.tips.settingUp2Fa')}
-              </div>
-            </div>
-          ) : !setupData ? (
-            <div className='flex justify-center py-8'>
-              <div className='text-muted-foreground'>
-                {t('profile.errors.failedToLoadSetupData')}
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Step 0: QR Code */}
-              {step === 0 && (
-                <div className='space-y-4'>
-                  <p className='text-muted-foreground text-sm'>
-                    {t(
-                      'profile.tips.scanThisQrCodeWithYourAuthenticatorAppGoogle'
-                    )}
-                  </p>
-                  <div className='flex justify-center rounded-lg bg-white p-4'>
-                    <QRCodeSVG value={setupData.qr_code_data} size={200} />
-                  </div>
-                  <div className='bg-muted rounded-lg p-3'>
-                    <div className='flex items-center justify-between'>
-                      <div>
-                        <p className='text-muted-foreground text-xs'>
-                          {t('profile.fields.enterThisKeyManually')}
-                        </p>
-                        <code className='font-mono text-sm'>
-                          {setupData.secret}
-                        </code>
-                      </div>
-                      <CopyButton
-                        value={setupData.secret}
-                        variant='ghost'
-                        tooltip={t('profile.actions.copySecretKey')}
-                        aria-label={t('profile.actions.copySecretKey')}
-                      />
-                    </div>
-                  </div>
+          <div className='space-y-4 py-4'>
+            {initializing ? (
+              <div className='flex flex-col items-center justify-center gap-3 py-8'>
+                <div className='border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent' />
+                <div className='text-muted-foreground text-sm'>
+                  {t('profile.tips.settingUp2Fa')}
                 </div>
-              )}
-
-              {/* Step 1: Backup Codes */}
-              {step === 1 && (
-                <div className='space-y-4'>
-                  <Alert>
-                    <AlertDescription>
-                      {t(
-                        'profile.actions.saveTheseBackupCodesInASafePlaceEach'
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                  <div className='rounded-lg border p-4'>
-                    <div className='grid grid-cols-2 gap-2'>
-                      {setupData.backup_codes.map((code, index) => (
-                        <div
-                          key={index}
-                          className='bg-muted rounded-md p-2 text-center font-mono text-sm'
-                        >
-                          {code}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <CopyButton
-                    value={setupData.backup_codes.join('\n')}
-                    variant='outline'
-                    size='default'
-                    className='w-full'
-                    iconClassName='mr-2 size-4'
-                    tooltip={t('profile.actions.copyAllBackupCodes')}
-                    aria-label={t('profile.actions.copyAllBackupCodes')}
-                  >
-                    {t('profile.actions.copyAllCodes')}
-                  </CopyButton>
+              </div>
+            ) : !setupData ? (
+              <div className='flex justify-center py-8'>
+                <div className='text-muted-foreground'>
+                  {t('profile.errors.failedToLoadSetupData')}
                 </div>
-              )}
-
-              {/* Step 2: Verify */}
-              {step === 2 && (
-                <div className='space-y-4'>
-                  <div className='space-y-2'>
-                    <Label htmlFor='code'>
-                      {t('auth.fields.verificationCode')}
-                    </Label>
-                    <Input
-                      id='code'
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      placeholder={t('profile.placeholders.enter6DigitCode')}
-                      maxLength={6}
-                      disabled={loading}
-                    />
-                    <p className='text-muted-foreground text-xs'>
+              </div>
+            ) : (
+              <>
+                {/* Step 0: QR Code */}
+                {step === 0 && (
+                  <div className='space-y-4'>
+                    <p className='text-muted-foreground text-sm'>
                       {t(
-                        'profile.placeholders.enterThe6DigitCodeFromYourAuthenticatorApp'
+                        'profile.tips.scanThisQrCodeWithYourAuthenticatorAppGoogle'
                       )}
                     </p>
+                    <div className='flex justify-center rounded-lg bg-white p-4'>
+                      <QRCodeSVG value={setupData.qr_code_data} size={200} />
+                    </div>
+                    <div className='bg-muted rounded-lg p-3'>
+                      <div className='flex items-center justify-between'>
+                        <div>
+                          <p className='text-muted-foreground text-xs'>
+                            {t('profile.fields.enterThisKeyManually')}
+                          </p>
+                          <code className='font-mono text-sm'>
+                            {setupData.secret}
+                          </code>
+                        </div>
+                        <CopyButton
+                          value={setupData.secret}
+                          variant='ghost'
+                          tooltip={t('profile.actions.copySecretKey')}
+                          aria-label={t('profile.actions.copySecretKey')}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                )}
 
-        <DialogFooter>
-          {step > 0 && (
-            <Button
-              variant='outline'
-              onClick={() => setStep(step - 1)}
-              disabled={initializing || loading}
-            >
-              {t('common.fields.goBack')}
-            </Button>
-          )}
-          {step < 2 ? (
-            <Button
-              onClick={() => setStep(step + 1)}
-              disabled={initializing || !setupData}
-            >
-              {t('common.fields.next')}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleEnable}
-              disabled={initializing || loading || !code}
-            >
-              {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-              {loading
-                ? t('profile.tips.enabling')
-                : t('profile.actions.enable2Fa')}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+                {/* Step 1: Backup Codes */}
+                {step === 1 && (
+                  <div className='space-y-4'>
+                    <Alert>
+                      <AlertDescription>
+                        {t(
+                          'profile.actions.saveTheseBackupCodesInASafePlaceEach'
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                    <div className='rounded-lg border p-4'>
+                      <div className='grid grid-cols-2 gap-2'>
+                        {setupData.backup_codes.map((code, index) => (
+                          <div
+                            key={index}
+                            className='bg-muted rounded-md p-2 text-center font-mono text-sm'
+                          >
+                            {code}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <CopyButton
+                      value={setupData.backup_codes.join('\n')}
+                      variant='outline'
+                      size='default'
+                      className='w-full'
+                      iconClassName='mr-2 size-4'
+                      tooltip={t('profile.actions.copyAllBackupCodes')}
+                      aria-label={t('profile.actions.copyAllBackupCodes')}
+                    >
+                      {t('profile.actions.copyAllCodes')}
+                    </CopyButton>
+                  </div>
+                )}
+
+                {/* Step 2: Verify */}
+                {step === 2 && (
+                  <div className='space-y-4'>
+                    <div className='space-y-2'>
+                      <Label htmlFor='code'>
+                        {t('auth.fields.verificationCode')}
+                      </Label>
+                      <Input
+                        id='code'
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder={t('profile.placeholders.enter6DigitCode')}
+                        maxLength={6}
+                        disabled={loading}
+                      />
+                      <p className='text-muted-foreground text-xs'>
+                        {t(
+                          'profile.placeholders.enterThe6DigitCodeFromYourAuthenticatorApp'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            {step > 0 && (
+              <Button
+                variant='outline'
+                onClick={() => setStep(step - 1)}
+                disabled={initializing || loading}
+              >
+                {t('common.fields.goBack')}
+              </Button>
+            )}
+            {step < 2 ? (
+              <Button
+                onClick={() => setStep(step + 1)}
+                disabled={initializing || !setupData}
+              >
+                {t('common.fields.next')}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleEnable}
+                disabled={initializing || loading || !code}
+              >
+                {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+                {loading
+                  ? t('profile.tips.enabling')
+                  : t('profile.actions.enable2Fa')}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
+    </>
   )
 }

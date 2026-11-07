@@ -62,6 +62,10 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import { createUser, updateUser, getUser, getGroups } from '../api'
 import { BINDING_FIELDS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import {
@@ -121,6 +125,17 @@ export function UsersMutateDrawer({
     }
   }, [open, isUpdate, currentRow, form])
 
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'admin_user_manage' })
+
   const { meta: currencyMeta } = getCurrencyDisplay()
   const currencyLabel = getCurrencyLabel()
   const tokensOnly = currencyMeta.kind === 'tokens'
@@ -142,25 +157,32 @@ export function UsersMutateDrawer({
     setIsSubmitting(true)
     try {
       const payload = transformFormDataToPayload(data, currentRow?.id)
-      const result = isUpdate
-        ? await updateUser(payload as typeof payload & { id: number })
-        : await createUser(payload)
+      const result = await withVerification(async () => {
+        const response = isUpdate
+          ? await updateUser(payload as typeof payload & { id: number })
+          : await createUser(payload)
 
-      if (result.success) {
-        toast.success(
-          isUpdate
-            ? t(SUCCESS_MESSAGES.USER_UPDATED)
-            : t(SUCCESS_MESSAGES.USER_CREATED)
-        )
-        onOpenChange(false)
-        triggerRefresh()
-      } else {
-        toast.error(
-          result.message ||
-            (isUpdate
-              ? t(ERROR_MESSAGES.UPDATE_FAILED)
-              : t(ERROR_MESSAGES.CREATE_FAILED))
-        )
+        if (response.success) {
+          toast.success(
+            isUpdate
+              ? t(SUCCESS_MESSAGES.USER_UPDATED)
+              : t(SUCCESS_MESSAGES.USER_CREATED)
+          )
+          onOpenChange(false)
+          triggerRefresh()
+        } else {
+          toast.error(
+            response.message ||
+              (isUpdate
+                ? t(ERROR_MESSAGES.UPDATE_FAILED)
+                : t(ERROR_MESSAGES.CREATE_FAILED))
+          )
+        }
+        return response
+      })
+      if (!result) {
+        // 已触发安全验证，验证通过后将自动重试。
+        return
       }
     } catch (_error) {
       toast.error(t(ERROR_MESSAGES.UNEXPECTED))
@@ -491,6 +513,23 @@ export function UsersMutateDrawer({
           onSuccess={refreshUserData}
         />
       )}
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
     </>
   )
 }

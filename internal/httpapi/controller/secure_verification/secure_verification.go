@@ -26,6 +26,10 @@ const (
 	SecureVerificationMethodSessionKey = "secure_verified_method"
 	SecureVerificationMethod2FA        = "2fa"
 	SecureVerificationMethodPasskey    = "passkey"
+	SecureVerificationMethodPassword   = "password"
+	// SecureVerificationScopeSessionKey 绑定验证用途：单次证明的作用域，
+	// 消费时逐字匹配，防止一次验证跨操作重放。
+	SecureVerificationScopeSessionKey = "secure_verified_scope"
 	// PasskeyReadySessionKey means WebAuthn finished and /api/verify can finalize step-up verification.
 	PasskeyReadySessionKey = "secure_passkey_ready_at"
 	// SecureVerificationTimeout 验证有效期（秒）
@@ -34,9 +38,23 @@ const (
 	PasskeyReadyTimeout = 60
 )
 
+// 敏感操作的安全验证作用域：验证请求携带、消费时逐字比对。
+const (
+	ScopeAccessToken     = "access_token"
+	ScopeEmailBind       = "email_bind"
+	ScopeAccountDelete   = "account_delete"
+	ScopeAdminUserManage = "admin_user_manage"
+	Scope2FASetup        = "2fa_setup"
+	ScopeOAuthBind       = "oauth_bind"
+)
+
 type UniversalVerifyRequest struct {
-	Method string `json:"method"` // "2fa" 或 "passkey"
+	Method string `json:"method"` // "2fa"、"passkey" 或 "password"
 	Code   string `json:"code,omitempty"`
+	// Password 用于 method=password 的原密码再认证（无二因子账户的退路）。
+	Password string `json:"password,omitempty"`
+	// Scope 可选的验证用途作用域：敏感操作要求证明绑定具体动作。
+	Scope string `json:"scope,omitempty"`
 }
 
 type VerificationStatusResponse struct {
@@ -81,11 +99,6 @@ func UniversalVerify(c *gin.Context) {
 	passkey, passkeyErr := passkeystore.GetPasskeyByUserID(userId)
 	hasPasskey := passkeyErr == nil && passkey != nil
 
-	if !has2FA && !hasPasskey {
-		httpapi.ApiErrorI18n(c, i18n.MsgSecureVerifyNoMethod)
-		return
-	}
-
 	// 根据验证方式进行验证
 	var verified bool
 	var verifyMethod string
@@ -120,6 +133,19 @@ func UniversalVerify(c *gin.Context) {
 		}
 		verifyMethod = "Passkey"
 
+	case "password":
+		// 原密码再认证：无二因子账户完成敏感操作验证的退路。
+		if user.Password == "" {
+			httpapi.ApiErrorI18n(c, i18n.MsgSecureVerifyPasswordNotSet)
+			return
+		}
+		if req.Password == "" {
+			httpapi.ApiErrorI18n(c, i18n.MsgSecureVerifyCodeRequired)
+			return
+		}
+		verified = security.ValidatePasswordAndHash(req.Password, user.Password)
+		verifyMethod = "Password"
+
 	default:
 		httpapi.ApiErrorI18n(c, i18n.MsgSecureVerifyUnsupportedMethod, map[string]any{"Method": req.Method})
 		return
@@ -130,8 +156,8 @@ func UniversalVerify(c *gin.Context) {
 		return
 	}
 
-	// 验证成功，在 session 中记录时间戳并绑定当前用户
-	now, err := setSecureVerificationSession(c, userId, req.Method)
+	// 验证成功，在 session 中记录时间戳、绑定当前用户与验证用途作用域
+	now, err := setSecureVerificationSession(c, userId, req.Method, req.Scope)
 	if err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgPasskeySaveVerifyFailed)
 		return
@@ -161,14 +187,95 @@ func PasskeyVerifyAndMarkReadySession(c *gin.Context, userId int) (int64, error)
 	return now, session.Save()
 }
 
-func setSecureVerificationSession(c *gin.Context, userId int, method string) (int64, error) {
+func setSecureVerificationSession(c *gin.Context, userId int, method string, scope string) (int64, error) {
 	session := sessions.Default(c)
 	now := time.Now().Unix()
 	session.Delete(PasskeyReadySessionKey)
 	session.Set(SecureVerificationSessionKey, now)
 	session.Set(SecureVerificationUserIDSessionKey, userId)
 	session.Set(SecureVerificationMethodSessionKey, method)
+	session.Set(SecureVerificationScopeSessionKey, scope)
 	return now, session.Save()
+}
+
+// RequireScopeVerification 校验绑定指定作用域的安全验证：验证必须绑定当
+// 前用户、未过期、作用域逐字匹配（可选 method 白名单进一步收紧验证方
+// 式）。cookie 会话由客户端持有、服务端无法强制单次消费，证明在窗口期内
+// 对本作用域有效（与上游语义一致）；失败时写入 403 响应并返回 false。
+func RequireScopeVerification(c *gin.Context, scope string, allowedMethods ...string) bool {
+	// 优先取中间件注入的用户 ID；OAuth 回调等未挂 UserAuth 的路径回退读会话。
+	userId := c.GetInt("id")
+	session := sessions.Default(c)
+	if userId == 0 {
+		if sid, ok := sessionInt(session.Get("id")); ok {
+			userId = sid
+		}
+	}
+	if userId == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": i18n.T(c, i18n.MsgNotLoggedIn),
+		})
+		return false
+	}
+	verifiedAtRaw := session.Get(SecureVerificationSessionKey)
+	verifiedAt, ok := verifiedAtRaw.(int64)
+	if verifiedAtRaw == nil || !ok {
+		respondScopeVerificationError(c, i18n.MsgSecureVerifyRequired)
+		return false
+	}
+	verifiedUserId, ok := sessionInt(session.Get(SecureVerificationUserIDSessionKey))
+	if !ok || verifiedUserId != userId {
+		ClearSecureVerification(c)
+		respondScopeVerificationError(c, i18n.MsgSecureVerifyInvalid)
+		return false
+	}
+	if time.Now().Unix()-verifiedAt >= SecureVerificationTimeout {
+		ClearSecureVerification(c)
+		respondScopeVerificationError(c, i18n.MsgSecureVerifyExpired)
+		return false
+	}
+	if gotScope, _ := session.Get(SecureVerificationScopeSessionKey).(string); gotScope != scope {
+		respondScopeVerificationError(c, i18n.MsgSecureVerifyRequired)
+		return false
+	}
+	if len(allowedMethods) > 0 {
+		method, _ := session.Get(SecureVerificationMethodSessionKey).(string)
+		allowed := false
+		for _, m := range allowedMethods {
+			if method == m {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			ClearSecureVerification(c)
+			respondScopeVerificationError(c, i18n.MsgSecureVerifyInvalid)
+			return false
+		}
+	}
+	// 验证在作用域内窗口期有效，不逐次消费。
+	return true
+}
+
+func respondScopeVerificationError(c *gin.Context, msgKey string) {
+	c.JSON(http.StatusForbidden, gin.H{
+		"success": false,
+		"message": i18n.T(c, msgKey),
+		"code":    "VERIFICATION_REQUIRED",
+	})
+	c.Abort()
+}
+
+// ClearSecureVerification 清除安全验证态（含作用域），用于登出或验证失效。
+func ClearSecureVerification(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Delete(SecureVerificationSessionKey)
+	session.Delete(SecureVerificationUserIDSessionKey)
+	session.Delete(SecureVerificationMethodSessionKey)
+	session.Delete(SecureVerificationScopeSessionKey)
+	session.Delete(PasskeyReadySessionKey)
+	_ = session.Save()
 }
 
 func sessionInt(raw interface{}) (int, bool) {

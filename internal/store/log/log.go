@@ -70,9 +70,13 @@ func FormatUserLogs(logs []*Log, startIdx int) {
 		var otherMap map[string]interface{}
 		otherMap, _ = common.StrToMap(logs[i].Other)
 		if otherMap != nil {
-			// Remove admin-only debug fields.
+			// Remove fields beyond user visibility: admin-only debug info,
+			// rejection reason, and gateway channel topology metadata.
 			delete(otherMap, "admin_info")
 			delete(otherMap, "reject_reason")
+			delete(otherMap, "channel_id")
+			delete(otherMap, "channel_name")
+			delete(otherMap, "channel_type")
 		}
 		logs[i].Other = common.MapToJsonStr(otherMap)
 		logs[i].Id = startIdx + i + 1

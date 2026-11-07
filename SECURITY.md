@@ -41,10 +41,12 @@
 
 - **SSRF 防护**: 渠道外网请求（中继、测试、模型拉取、余额查询等）经过 URL 校验与 SSRF 复查，支持通过渠道配置的代理出网（`internal/infra/security`、`internal/infra/httpclient`）。
 - **可信代理**: 支持 `TRUSTED_PROXIES` 环境变量配置可信代理，正确解析客户端真实 IP。
-- **认证与会话**: 访问令牌、会话失效重校验等中间件（`internal/httpapi/middleware`）。
+- **认证与会话**: 访问令牌、会话失效重校验等中间件；`users.auth_version` 凭证版本使改密、关闭 2FA、封禁等变更即时失效全部旧会话（等价强制下线）；长期访问令牌不授予管理面 API（`internal/httpapi/middleware`）。
+- **敏感操作二次验证**: 访问令牌生成、邮箱绑定、注销账号、开启 2FA、OAuth 绑定与管理员用户管理等敏感操作要求 scope 化安全验证（2FA / Passkey / 原密码，`POST /api/verify`），证明绑定会话与操作范围，作用域内 5 分钟窗口有效。
 - **2FA**: TOTP 两步验证与备份码（哈希存储）。
 - **密码存储**: 单向哈希加盐存储，不明文保存密码。
-- **限速**: 全局与模型级限速、邮箱验证频控等中间件。
+- **传输与完整性加固**: 登录密码可选 RSA-OAEP 传输加密（`PASSWORD_LOGIN_ENCRYPTION_ENABLED`，纵深防御，不能替代 HTTPS）；Redis 鉴权缓存带 HMAC-SHA256 完整性签名；富文本渲染经 DOMPurify / rehype-sanitize 消毒。
+- **限速**: 全局与模型级限速、邮箱验证频控、敏感操作关键级限流等中间件。
 - **跳转校验**: 对重定向 URL 进行合法性校验，防开放重定向。
 
 ## 安全最佳实践

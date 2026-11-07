@@ -7,6 +7,7 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	audit "github.com/NookMux/NookMux/internal/domain/audit"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	secureverificationcontroller "github.com/NookMux/NookMux/internal/httpapi/controller/secure_verification"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/oauth"
 	"github.com/NookMux/NookMux/internal/store/audit"
@@ -111,6 +112,12 @@ func BanUserByIdentifier(c *gin.Context) {
 	}
 	if !validateBanIdentifier(&req) {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserBanInvalidIdentifier)
+		return
+	}
+
+	// 拉黑与禁用同级敏感：与 ManageUser 一致要求 admin_user_manage 作用域
+	// 安全验证（窗口期内有效），不得经本端点绕过二次验证门。
+	if !secureverificationcontroller.RequireScopeVerification(c, secureverificationcontroller.ScopeAdminUserManage) {
 		return
 	}
 

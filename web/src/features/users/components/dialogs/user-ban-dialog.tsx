@@ -49,6 +49,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { StatusBadge } from '@/components/status-badge'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import { banUserByIdentifier, manageUser } from '../../api'
 import { USER_STATUS } from '../../constants'
 import {
@@ -100,6 +104,17 @@ export function UserBanDialog() {
     user?: BanCandidateUser
   } | null>(null)
 
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'admin_user_manage' })
+
   const form = useForm<BanUserFormValues>({
     resolver: zodResolver(banUserSchema),
     defaultValues: BAN_USER_FORM_DEFAULT_VALUES,
@@ -141,30 +156,37 @@ export function UserBanDialog() {
       return
     }
     try {
-      const result = await banUserByIdentifier({
-        type: values.type,
-        value,
-        remark: remark || undefined,
+      const result = await withVerification(async () => {
+        const response = await banUserByIdentifier({
+          type: values.type,
+          value,
+          remark: remark || undefined,
+        })
+        if (!response.success || !response.data) {
+          toast.error(response.message || t('users.ban.errors.failedToBan'))
+          return response
+        }
+        const data = response.data
+        if (data.result === 'ambiguous') {
+          setBanRemark(remark)
+          setCandidates(data.candidates ?? [])
+          setView('candidates')
+          return response
+        }
+        if (
+          data.result === 'banned_existing' ||
+          data.result === 'created_placeholder'
+        ) {
+          setHasBanned(true)
+        }
+        setDoneResult({ result: data.result, user: data.user })
+        setView('done')
+        return response
       })
-      if (!result.success || !result.data) {
-        toast.error(result.message || t('users.ban.errors.failedToBan'))
+      if (!result) {
+        // 已触发安全验证，验证通过后将自动重试。
         return
       }
-      const data = result.data
-      if (data.result === 'ambiguous') {
-        setBanRemark(remark)
-        setCandidates(data.candidates ?? [])
-        setView('candidates')
-        return
-      }
-      if (
-        data.result === 'banned_existing' ||
-        data.result === 'created_placeholder'
-      ) {
-        setHasBanned(true)
-      }
-      setDoneResult({ result: data.result, user: data.user })
-      setView('done')
     } catch (e: unknown) {
       toast.error(
         e instanceof Error ? e.message : t('users.ban.errors.failedToBan')
@@ -181,17 +203,25 @@ export function UserBanDialog() {
     candidate: BanCandidateUser
   ): Promise<boolean> => {
     try {
-      const result = await manageUser(
-        candidate.id,
-        'disable',
-        banRemark || undefined
-      )
-      if (result.success) {
-        setBannedIds((prev) => new Set(prev).add(candidate.id))
-        setHasBanned(true)
-        return true
+      const result = await withVerification(async () => {
+        const response = await manageUser(
+          candidate.id,
+          'disable',
+          banRemark || undefined
+        )
+        if (response.success) {
+          setBannedIds((prev) => new Set(prev).add(candidate.id))
+          setHasBanned(true)
+        } else {
+          toast.error(response.message || t('users.ban.errors.failedToBan'))
+        }
+        return response
+      })
+      if (!result) {
+        // 已触发安全验证，验证通过后将自动重试。
+        return false
       }
-      toast.error(result.message || t('users.ban.errors.failedToBan'))
+      return true
     } catch (e: unknown) {
       toast.error(
         e instanceof Error ? e.message : t('users.ban.errors.failedToBan')
@@ -212,10 +242,32 @@ export function UserBanDialog() {
 
   const handleBanAll = async () => {
     setBanningAll(true)
-    for (const candidate of pendingCandidates) {
-      await banCandidate(candidate)
+    try {
+      // 整批包进同一次安全验证：首个 403 弹一次验证对话框，通过后窗口期
+      // 内整批依次执行，不再逐个弹窗、也不丢候选。
+      await withVerification(async () => {
+        for (const candidate of pendingCandidates) {
+          const result = await manageUser(
+            candidate.id,
+            'disable',
+            banRemark || undefined
+          )
+          if (result.success) {
+            setBannedIds((prev) => new Set(prev).add(candidate.id))
+            setHasBanned(true)
+          } else {
+            toast.error(result.message || t('users.ban.errors.failedToBan'))
+          }
+        }
+        return null
+      })
+    } catch (e: unknown) {
+      toast.error(
+        e instanceof Error ? e.message : t('users.ban.errors.failedToBan')
+      )
+    } finally {
+      setBanningAll(false)
     }
-    setBanningAll(false)
   }
 
   const getBindingText = (candidate: BanCandidateUser) => {
@@ -304,149 +356,168 @@ export function UserBanDialog() {
   }
 
   return (
-    <Dialog open={open === 'ban'} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('users.titles.banUser')}</DialogTitle>
-          <DialogDescription>
-            {view === 'form' && t('users.ban.description')}
-            {view === 'candidates' && t('users.ban.result.ambiguous')}
-            {view === 'done' &&
-              doneResult &&
-              t(resultMessageKeys[doneResult.result])}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open === 'ban'} onOpenChange={handleOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('users.titles.banUser')}</DialogTitle>
+            <DialogDescription>
+              {view === 'form' && t('users.ban.description')}
+              {view === 'candidates' && t('users.ban.result.ambiguous')}
+              {view === 'done' &&
+                doneResult &&
+                t(resultMessageKeys[doneResult.result])}
+            </DialogDescription>
+          </DialogHeader>
 
-        {view === 'form' && (
-          <form
-            className='space-y-4'
-            onSubmit={(e) => {
-              e.preventDefault()
-              void submitHandler(e)
-            }}
-          >
-            <div className='space-y-2'>
-              <Label>{t('users.ban.fields.identifierType')}</Label>
-              <Select
-                value={selectedType}
-                onValueChange={(value) =>
-                  form.setValue('type', value as BanUserFormValues['type'])
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue>
-                    {t(
-                      identifierTypeOptions.find(
-                        (option) => option.value === selectedType
-                      )?.labelKey ?? ''
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectGroup>
-                    {identifierTypeOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {t(option.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className='space-y-2'>
-              <Label>{t('users.ban.fields.identifierValue')}</Label>
-              <Input
-                placeholder={t(identifierPlaceholderKeys[selectedType])}
-                {...form.register('value')}
-              />
-              {form.formState.errors.value && (
-                <p className='text-destructive text-sm'>
-                  {form.formState.errors.value.message}
-                </p>
-              )}
-            </div>
-            <div className='space-y-2'>
-              <Label>{t('users.ban.fields.remark')}</Label>
-              <Input
-                placeholder={t('users.placeholders.banRemark')}
-                maxLength={255}
-                {...form.register('remark')}
-              />
-              {form.formState.errors.remark && (
-                <p className='text-destructive text-sm'>
-                  {form.formState.errors.remark.message}
-                </p>
-              )}
-            </div>
-            <p className='text-muted-foreground text-xs'>
-              {t('users.ban.tips.emailLimitation')}
-            </p>
-          </form>
-        )}
-
-        {view === 'candidates' && (
-          <div className='max-h-[50vh] divide-y overflow-y-auto pr-1'>
-            {candidates.map(renderCandidateRow)}
-          </div>
-        )}
-
-        {view === 'done' && doneResult && (
-          <div className='space-y-2'>
-            {doneResult.user && (
-              <div className='flex items-center gap-2'>
-                <span className='text-sm font-medium'>
-                  {doneResult.user.username}
-                </span>
-                <StatusBadge
-                  label={t(resultMessageKeys[doneResult.result])}
-                  variant={
-                    doneResult.result === 'already_banned' ||
-                    doneResult.result === 'already_deleted'
-                      ? 'neutral'
-                      : 'danger'
-                  }
-                  copyable={false}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant='outline' onClick={() => handleOpenChange(false)}>
-            {t('common.actions.cancel')}
-          </Button>
           {view === 'form' && (
-            <Button
-              variant='destructive'
-              disabled={submitting}
-              onClick={() => {
-                void submitHandler()
+            <form
+              className='space-y-4'
+              onSubmit={(e) => {
+                e.preventDefault()
+                void submitHandler(e)
               }}
             >
-              {submitting && <Loader2 className='h-4 w-4 animate-spin' />}
-              {t('users.ban.actions.ban')}
-            </Button>
+              <div className='space-y-2'>
+                <Label>{t('users.ban.fields.identifierType')}</Label>
+                <Select
+                  value={selectedType}
+                  onValueChange={(value) =>
+                    form.setValue('type', value as BanUserFormValues['type'])
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue>
+                      {t(
+                        identifierTypeOptions.find(
+                          (option) => option.value === selectedType
+                        )?.labelKey ?? ''
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      {identifierTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {t(option.labelKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className='space-y-2'>
+                <Label>{t('users.ban.fields.identifierValue')}</Label>
+                <Input
+                  placeholder={t(identifierPlaceholderKeys[selectedType])}
+                  {...form.register('value')}
+                />
+                {form.formState.errors.value && (
+                  <p className='text-destructive text-sm'>
+                    {form.formState.errors.value.message}
+                  </p>
+                )}
+              </div>
+              <div className='space-y-2'>
+                <Label>{t('users.ban.fields.remark')}</Label>
+                <Input
+                  placeholder={t('users.placeholders.banRemark')}
+                  maxLength={255}
+                  {...form.register('remark')}
+                />
+                {form.formState.errors.remark && (
+                  <p className='text-destructive text-sm'>
+                    {form.formState.errors.remark.message}
+                  </p>
+                )}
+              </div>
+              <p className='text-muted-foreground text-xs'>
+                {t('users.ban.tips.emailLimitation')}
+              </p>
+            </form>
           )}
+
           {view === 'candidates' && (
-            <Button
-              variant='destructive'
-              disabled={banningAll || pendingCandidates.length === 0}
-              onClick={() => {
-                void handleBanAll()
-              }}
-            >
-              {banningAll && <Loader2 className='h-4 w-4 animate-spin' />}
-              {t('users.ban.actions.banAll')}
-            </Button>
+            <div className='max-h-[50vh] divide-y overflow-y-auto pr-1'>
+              {candidates.map(renderCandidateRow)}
+            </div>
           )}
-          {view !== 'form' && (
-            <Button onClick={() => handleOpenChange(false)}>
-              {t('users.ban.actions.done')}
-            </Button>
+
+          {view === 'done' && doneResult && (
+            <div className='space-y-2'>
+              {doneResult.user && (
+                <div className='flex items-center gap-2'>
+                  <span className='text-sm font-medium'>
+                    {doneResult.user.username}
+                  </span>
+                  <StatusBadge
+                    label={t(resultMessageKeys[doneResult.result])}
+                    variant={
+                      doneResult.result === 'already_banned' ||
+                      doneResult.result === 'already_deleted'
+                        ? 'neutral'
+                        : 'danger'
+                    }
+                    copyable={false}
+                  />
+                </div>
+              )}
+            </div>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+          <DialogFooter>
+            <Button variant='outline' onClick={() => handleOpenChange(false)}>
+              {t('common.actions.cancel')}
+            </Button>
+            {view === 'form' && (
+              <Button
+                variant='destructive'
+                disabled={submitting}
+                onClick={() => {
+                  void submitHandler()
+                }}
+              >
+                {submitting && <Loader2 className='h-4 w-4 animate-spin' />}
+                {t('users.ban.actions.ban')}
+              </Button>
+            )}
+            {view === 'candidates' && (
+              <Button
+                variant='destructive'
+                disabled={banningAll || pendingCandidates.length === 0}
+                onClick={() => {
+                  void handleBanAll()
+                }}
+              >
+                {banningAll && <Loader2 className='h-4 w-4 animate-spin' />}
+                {t('users.ban.actions.banAll')}
+              </Button>
+            )}
+            {view !== 'form' && (
+              <Button onClick={() => handleOpenChange(false)}>
+                {t('users.ban.actions.done')}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
+    </>
   )
 }

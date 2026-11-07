@@ -368,6 +368,7 @@ const (
 	MsgPlaygroundAccessTokenUnsupported = "playground.access_token_unsupported"
 	MsgTopupStripeInvalidAPIKey         = "topup.stripe_invalid_api_key"
 	MsgUserOriginalPasswordError        = "user.original_password_error"
+	MsgUserPasswordUnset                = "user.password_unset"
 )
 
 // Check-in related messages
@@ -488,6 +489,10 @@ const (
 	MsgSecureVerifyFailed              = "secure_verification.failed"
 	MsgSecureVerifySuccess             = "secure_verification.success"
 	MsgSecureVerifyInvalidPasskeyState = "secure_verification.invalid_passkey_state"
+	MsgSecureVerifyRequired            = "secure_verification.required"
+	MsgSecureVerifyInvalid             = "secure_verification.invalid"
+	MsgSecureVerifyExpired             = "secure_verification.expired"
+	MsgSecureVerifyPasswordNotSet      = "secure_verification.password_not_set"
 )
 
 // Two-factor authentication related messages
@@ -534,6 +539,7 @@ const (
 // Top-up related messages
 const (
 	MsgTopupAmountExceedMax          = "topup.amount_exceed_max"
+	MsgTopupQuotaInvalid             = "topup.quota_invalid"
 	MsgTopupSuccessUrlUntrusted      = "topup.success_url_untrusted"
 	MsgTopupCancelUrlUntrusted       = "topup.cancel_url_untrusted"
 	MsgTopupUnsupportedChannel       = "topup.unsupported_channel"

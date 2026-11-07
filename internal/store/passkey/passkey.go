@@ -286,3 +286,13 @@ func DeletePasskeyByUserID(userID int) error {
 	}
 	return nil
 }
+
+// DeletePasskeyByUserIDTx 在事务内硬删除用户全部 passkey 凭据，
+// 供用户硬删除流程编排调用。
+func DeletePasskeyByUserIDTx(tx *gorm.DB, userID int) error {
+	if err := tx.Unscoped().Where("user_id = ?", userID).Delete(&PasskeyCredential{}).Error; err != nil {
+		common.SysLog(fmt.Sprintf("DeletePasskeyByUserIDTx: failed for user %d: %v", userID, err))
+		return fmt.Errorf("删除失败，请重试")
+	}
+	return nil
+}

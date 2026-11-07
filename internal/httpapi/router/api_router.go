@@ -73,7 +73,7 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, misccontroller.ResetPassword)
 		// OAuth routes - specific routes must come before :provider wildcard
 		apiRouter.GET("/oauth/state", middleware.CriticalRateLimit(), oauthcontroller.GenerateOAuthCode)
-		apiRouter.POST("/oauth/email/bind", middleware.UserAuth(), middleware.CriticalRateLimit(), anonymousRequestBodyLimit, usercontroller.EmailBind)
+		apiRouter.POST("/oauth/email/bind", middleware.UserAuth(), middleware.CriticalRateLimit(), middleware.SecureVerificationRequiredScope("email_bind"), anonymousRequestBodyLimit, usercontroller.EmailBind)
 		// Standard OAuth providers (GitHub, LinuxDO) - unified route
 		apiRouter.GET("/oauth/:provider", middleware.CriticalRateLimit(), oauthcontroller.HandleOAuth)
 
@@ -85,6 +85,7 @@ func SetApiRouter(router *gin.Engine) {
 		userRoute := apiRouter.Group("/user")
 		{
 			userRoute.POST("/register", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), usercontroller.Register)
+			userRoute.GET("/login/encryption-key", middleware.DisableCache(), usercontroller.GetPasswordEncryptionKey)
 			userRoute.POST("/login", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, middleware.TurnstileCheck(), usercontroller.Login)
 			userRoute.POST("/login/2fa", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, twofacontroller.Verify2FALogin)
 			userRoute.POST("/passkey/login/begin", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, passkeycontroller.PasskeyLoginBegin)
@@ -101,9 +102,9 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/self", usercontroller.GetSelf)
 				selfRoute.GET("/models", usercontroller.GetUserModels)
 				selfRoute.GET("/self/usage_log_fields", misccontroller.GetUsageLogFieldsVisible)
-				selfRoute.PUT("/self", usercontroller.UpdateSelf)
-				selfRoute.DELETE("/self", usercontroller.DeleteSelf)
-				selfRoute.GET("/token", usercontroller.GenerateAccessToken)
+				selfRoute.PUT("/self", middleware.CriticalRateLimit(), usercontroller.UpdateSelf)
+				selfRoute.DELETE("/self", middleware.SecureVerificationRequiredScope("account_delete"), usercontroller.DeleteSelf)
+				selfRoute.GET("/token", middleware.CriticalRateLimit(), middleware.UserCriticalRateLimit("access-token"), middleware.SecureVerificationRequiredScope("access_token"), usercontroller.GenerateAccessToken)
 				selfRoute.GET("/passkey", passkeycontroller.PasskeyStatus)
 				selfRoute.POST("/passkey/register/begin", passkeycontroller.PasskeyRegisterBegin)
 				selfRoute.POST("/passkey/register/finish", passkeycontroller.PasskeyRegisterFinish)
@@ -121,8 +122,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/amount", topupcontroller.RequestAmount)
 				selfRoute.POST("/stripe/pay", middleware.CriticalRateLimit(), topupcontroller.RequestStripePay)
 				selfRoute.POST("/stripe/amount", topupcontroller.RequestStripeAmount)
-				selfRoute.POST("/aff_transfer", usercontroller.TransferAffQuota)
-				selfRoute.PUT("/setting", usercontroller.UpdateUserSetting)
+				selfRoute.POST("/aff_transfer", middleware.UserCriticalRateLimit("aff-transfer"), usercontroller.TransferAffQuota)
+				selfRoute.PUT("/setting", middleware.CriticalRateLimit(), usercontroller.UpdateUserSetting)
 
 				// 2FA routes
 				selfRoute.GET("/2fa/status", twofacontroller.Get2FAStatus)
@@ -145,16 +146,16 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.POST("/topup/complete", topupcontroller.AdminCompleteTopUp)
 				adminRoute.GET("/search", usercontroller.SearchUsers)
 				adminRoute.GET("/:id", usercontroller.GetUser)
-				adminRoute.POST("/", usercontroller.CreateUser)
+				adminRoute.POST("/", middleware.SecureVerificationRequiredScope("admin_user_manage"), usercontroller.CreateUser)
 				adminRoute.POST("/manage", usercontroller.ManageUser)
 				adminRoute.POST("/ban", usercontroller.BanUserByIdentifier)
-				adminRoute.PUT("/", usercontroller.UpdateUser)
-				adminRoute.DELETE("/:id", usercontroller.DeleteUser)
-				adminRoute.DELETE("/:id/reset_passkey", passkeycontroller.AdminResetPasskey)
+				adminRoute.PUT("/", middleware.SecureVerificationRequiredScope("admin_user_manage"), usercontroller.UpdateUser)
+				adminRoute.DELETE("/:id", middleware.SecureVerificationRequiredScope("admin_user_manage"), usercontroller.DeleteUser)
+				adminRoute.DELETE("/:id/reset_passkey", middleware.SecureVerificationRequiredScope("admin_user_manage"), passkeycontroller.AdminResetPasskey)
 
 				// Admin 2FA routes
 				adminRoute.GET("/2fa/stats", twofacontroller.Admin2FAStats)
-				adminRoute.DELETE("/:id/2fa", twofacontroller.AdminDisable2FA)
+				adminRoute.DELETE("/:id/2fa", middleware.SecureVerificationRequiredScope("admin_user_manage"), twofacontroller.AdminDisable2FA)
 			}
 		}
 

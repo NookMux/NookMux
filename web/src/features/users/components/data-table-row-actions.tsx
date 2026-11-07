@@ -41,6 +41,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
 import {
   USER_STATUS,
@@ -62,6 +66,16 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
   const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'admin_user_manage' })
 
   const handleEdit = () => {
     setCurrentRow(user)
@@ -75,15 +89,18 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   const handleManage = async (action: Exclude<ManageUserAction, 'delete'>) => {
     try {
-      const result = await manageUser(user.id, action)
-      if (result.success) {
-        toast.success(t(getUserActionMessage(action)))
-        triggerRefresh()
-      } else {
-        toast.error(
-          result.message || t('users.errors.failedToActionUser', { action })
-        )
-      }
+      await withVerification(async () => {
+        const result = await manageUser(user.id, action)
+        if (result.success) {
+          toast.success(t(getUserActionMessage(action)))
+          triggerRefresh()
+        } else {
+          toast.error(
+            result.message || t('users.errors.failedToActionUser', { action })
+          )
+        }
+        return result
+      })
     } catch (_error) {
       toast.error(t(ERROR_MESSAGES.UNEXPECTED))
     }
@@ -91,13 +108,16 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   const handleResetPasskey = async () => {
     try {
-      const result = await resetUserPasskey(user.id)
-      if (result.success) {
-        toast.success(t('users.fields.passkeyResetSuccessfully'))
-        triggerRefresh()
-      } else {
-        toast.error(result.message || t('users.errors.failedToResetPasskey'))
-      }
+      await withVerification(async () => {
+        const result = await resetUserPasskey(user.id)
+        if (result.success) {
+          toast.success(t('users.fields.passkeyResetSuccessfully'))
+          triggerRefresh()
+        } else {
+          toast.error(result.message || t('users.errors.failedToResetPasskey'))
+        }
+        return result
+      })
     } catch (_error) {
       toast.error(t(ERROR_MESSAGES.UNEXPECTED))
     } finally {
@@ -107,13 +127,16 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
   const handleResetTwoFA = async () => {
     try {
-      const result = await resetUserTwoFA(user.id)
-      if (result.success) {
-        toast.success(t('users.fields.twoFactorAuthenticationReset'))
-        triggerRefresh()
-      } else {
-        toast.error(result.message || t('users.errors.failedToReset2Fa'))
-      }
+      await withVerification(async () => {
+        const result = await resetUserTwoFA(user.id)
+        if (result.success) {
+          toast.success(t('users.fields.twoFactorAuthenticationReset'))
+          triggerRefresh()
+        } else {
+          toast.error(result.message || t('users.errors.failedToReset2Fa'))
+        }
+        return result
+      })
     } catch (_error) {
       toast.error(t(ERROR_MESSAGES.UNEXPECTED))
     } finally {
@@ -249,6 +272,23 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         desc={`Reset 2FA for ${user.username}? The user must set up 2FA again to continue using it.`}
         confirmText={t('users.actions.resetTwoFactorAuthentication')}
         handleConfirm={handleResetTwoFA}
+      />
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
       />
     </>
   )

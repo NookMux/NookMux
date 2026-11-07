@@ -32,6 +32,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import { sendEmailVerification, bindEmail } from '../../api'
 
 // ============================================================================
@@ -64,6 +68,16 @@ export function EmailBindDialog({
   } = useCountdown({
     initialSeconds: 60,
   })
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'email_bind' })
 
   const handleSendCode = async () => {
     if (!email || !email.includes('@')) {
@@ -100,18 +114,25 @@ export function EmailBindDialog({
 
     try {
       setLoading(true)
-      const response = await bindEmail(email, code)
+      const response = await withVerification(async () => {
+        const result = await bindEmail(email, code)
 
-      if (response.success) {
-        toast.success(t('profile.tips.emailBoundSuccessfully'))
-        onOpenChange(false)
-        onSuccess()
-        // Reset form
-        setEmail('')
-        setCode('')
-        resetCountdown()
-      } else {
-        toast.error(response.message || t('profile.errors.failedToBindEmail'))
+        if (result.success) {
+          toast.success(t('profile.tips.emailBoundSuccessfully'))
+          onOpenChange(false)
+          onSuccess()
+          // Reset form
+          setEmail('')
+          setCode('')
+          resetCountdown()
+        } else {
+          toast.error(result.message || t('profile.errors.failedToBindEmail'))
+        }
+        return result
+      })
+      if (!response) {
+        // 已触发安全验证，验证通过后将自动重试。
+        return
       }
     } catch (_error) {
       toast.error(t('profile.errors.failedToBindEmail'))
@@ -133,80 +154,99 @@ export function EmailBindDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='sm:max-w-md'>
-        <DialogHeader>
-          <DialogTitle>{t('profile.actions.bindEmail')}</DialogTitle>
-          <DialogDescription>
-            {currentEmail
-              ? t('profile.tips.currentEmailEmailEnterANewEmailToChange', {
-                  email: currentEmail,
-                })
-              : t('profile.actions.bindAnEmailAddressToYourAccount')}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>{t('profile.actions.bindEmail')}</DialogTitle>
+            <DialogDescription>
+              {currentEmail
+                ? t('profile.tips.currentEmailEmailEnterANewEmailToChange', {
+                    email: currentEmail,
+                  })
+                : t('profile.actions.bindAnEmailAddressToYourAccount')}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className='space-y-4 py-4'>
-          <div className='space-y-2'>
-            <Label htmlFor='email'>{t('profile.fields.emailAddress')}</Label>
-            <Input
-              id='email'
-              type='email'
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('profile.placeholders.enterYourEmail')}
-              disabled={loading}
-            />
-          </div>
-
-          <div className='space-y-2'>
-            <Label htmlFor='code'>{t('auth.fields.verificationCode')}</Label>
-            <div className='flex gap-2'>
+          <div className='space-y-4 py-4'>
+            <div className='space-y-2'>
+              <Label htmlFor='email'>{t('profile.fields.emailAddress')}</Label>
               <Input
-                id='code'
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder={t('profile.placeholders.enterCode')}
+                id='email'
+                type='email'
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t('profile.placeholders.enterYourEmail')}
                 disabled={loading}
-                maxLength={6}
               />
-              <Button
-                type='button'
-                variant='outline'
-                onClick={handleSendCode}
-                disabled={sendingCode || isActive || !email}
-              >
-                {isActive
-                  ? `${secondsLeft}s`
-                  : sendingCode
-                    ? t('profile.tips.sending')
-                    : t('playground.actions.send')}
-              </Button>
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='code'>{t('auth.fields.verificationCode')}</Label>
+              <div className='flex gap-2'>
+                <Input
+                  id='code'
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder={t('profile.placeholders.enterCode')}
+                  disabled={loading}
+                  maxLength={6}
+                />
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={handleSendCode}
+                  disabled={sendingCode || isActive || !email}
+                >
+                  {isActive
+                    ? `${secondsLeft}s`
+                    : sendingCode
+                      ? t('profile.tips.sending')
+                      : t('playground.actions.send')}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => handleOpenChange(false)}
-            disabled={loading}
-          >
-            {t('common.actions.cancel')}
-          </Button>
-          <Button
-            type='button'
-            onClick={handleBind}
-            disabled={loading || !email || !code}
-          >
-            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-            {loading
-              ? t('profile.tips.binding')
-              : t('profile.actions.bindEmail')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => handleOpenChange(false)}
+              disabled={loading}
+            >
+              {t('common.actions.cancel')}
+            </Button>
+            <Button
+              type='button'
+              onClick={handleBind}
+              disabled={loading || !email || !code}
+            >
+              {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {loading
+                ? t('profile.tips.binding')
+                : t('profile.actions.bindEmail')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
+    </>
   )
 }

@@ -9,13 +9,16 @@ import (
 	domaingroup "github.com/NookMux/NookMux/internal/domain/group"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	secureverificationcontroller "github.com/NookMux/NookMux/internal/httpapi/controller/secure_verification"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/log"
+	"github.com/NookMux/NookMux/internal/infra/passwordcrypto"
 	"github.com/NookMux/NookMux/internal/infra/security"
 	"github.com/NookMux/NookMux/internal/store/audit"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/log"
+	"github.com/NookMux/NookMux/internal/store/passkey"
 	"github.com/NookMux/NookMux/internal/store/redemption"
 	"github.com/NookMux/NookMux/internal/store/token"
 	"github.com/NookMux/NookMux/internal/store/twofa"
@@ -23,6 +26,7 @@ import (
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"math"
 	"net/http"
 	"net/url"
@@ -33,9 +37,17 @@ import (
 )
 
 type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username          string `json:"username"`
+	Password          string `json:"password"`
+	PasswordEncrypted string `json:"password_encrypted"`
+	EncryptionKeyID   string `json:"encryption_key_id"`
 }
+
+// 改密前置校验的哨兵错误：UpdateSelf 按类型映射为对应的 i18n 提示。
+var (
+	errUserPasswordUnset        = errors.New("user password unset")
+	errOriginalPasswordMismatch = errors.New("original password mismatch")
+)
 
 func invalidateSecuritySensitiveUserCaches(userId int) {
 	if userId == 0 {
@@ -53,6 +65,24 @@ func addWouldOverflowInt(base int, delta int) bool {
 	return delta > 0 && base > math.MaxInt-delta
 }
 
+// GetPasswordEncryptionKey 下发浏览器登录密码加密公钥（opt-in 开关控制）。
+func GetPasswordEncryptionKey(c *gin.Context) {
+	if !common.PasswordLoginEncryptionEnabled {
+		httpapi.ApiSuccess(c, gin.H{"enabled": false})
+		return
+	}
+	keyID, publicKey := passwordcrypto.PasswordEncryptionPublicKey()
+	if keyID == "" || publicKey == "" {
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return
+	}
+	httpapi.ApiSuccess(c, gin.H{
+		"enabled":    true,
+		"kid":        keyID,
+		"public_key": publicKey,
+	})
+}
+
 func Login(c *gin.Context) {
 	if !common.PasswordLoginEnabled {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserPasswordLoginDisabled)
@@ -66,6 +96,20 @@ func Login(c *gin.Context) {
 	}
 	username := loginRequest.Username
 	password := loginRequest.Password
+	// 开启传输加密时强制密文登录：明文口令不得出现在请求体。所有畸形输
+	// 入统一按用户名或密码错误拒绝，不向未认证客户端泄露密码学细节。
+	if common.PasswordLoginEncryptionEnabled {
+		if loginRequest.PasswordEncrypted == "" || loginRequest.EncryptionKeyID == "" {
+			httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
+		password, err = passwordcrypto.DecryptPassword(loginRequest.PasswordEncrypted, loginRequest.EncryptionKeyID)
+		if err != nil {
+			common.SysLog("login password decryption rejected: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgUserUsernameOrPasswordError)
+			return
+		}
+	}
 	if username == "" || password == "" {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -88,8 +132,14 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// 检查是否启用2FA
-	if twofastore.IsTwoFAEnabled(user.Id) {
+	// 检查是否启用2FA；查询失败按失败关闭处理，防止数据库故障时绕过 2FA 直接签发会话
+	twoFAEnabled, err := twofastore.IsTwoFAEnabled(user.Id)
+	if err != nil {
+		common.SysLog(fmt.Sprintf("Login 2FA status error for user %s: %v", username, err))
+		httpapi.ApiErrorI18n(c, i18n.MsgUserLoginUnavailable)
+		return
+	}
+	if twoFAEnabled {
 		// 设置pending session，等待2FA验证；记录时间戳用于校验时效
 		session := sessions.Default(c)
 		session.Set("pending_username", user.Username)
@@ -122,6 +172,9 @@ func SetupLogin(user *userstore.User, c *gin.Context) {
 	session.Set("role", user.Role)
 	session.Set("status", user.Status)
 	session.Set("group", user.Group)
+	// 凭证版本随会话快照签发；authHelper 每请求与 DB 最新值比对，
+	// 凭证变更（改密/关 2FA 等）后旧会话立即失效。
+	session.Set("auth_version", user.AuthVersion)
 	err := session.Save()
 	if err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserSessionSaveFailed)
@@ -179,6 +232,11 @@ func Register(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	user.Username = strings.TrimSpace(user.Username)
+	if user.Username == "" {
+		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
 	if err := security.Validate.Struct(&user); err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserInputInvalid, map[string]any{"Error": err.Error()})
 		return
@@ -188,6 +246,7 @@ func Register(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgUserEmailVerificationRequired)
 			return
 		}
+		user.Email = userstore.NormalizeEmail(user.Email)
 		if !security.VerifyCodeWithKey(user.Email, user.VerificationCode, security.EmailVerificationPurpose) {
 			httpapi.ApiErrorI18n(c, i18n.MsgUserVerificationCodeError)
 			return
@@ -342,12 +401,6 @@ func GetUser(c *gin.Context) {
 
 func GenerateAccessToken(c *gin.Context) {
 	id := c.GetInt("id")
-	user, err := userstore.GetUserById(id, true)
-	if err != nil {
-		common.SysError("failed to get user by id: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-		return
-	}
 	// get rand int 28-32
 	randI := common.GetRandomInt(4)
 	key, err := common.GenerateRandomKey(29 + randI)
@@ -356,14 +409,15 @@ func GenerateAccessToken(c *gin.Context) {
 		common.SysLog("failed to generate key: " + err.Error())
 		return
 	}
-	user.SetAccessToken(key)
 
-	if dbstore.DB.Where("access_token = ?", user.AccessToken).First(user).RowsAffected != 0 {
+	// 查重使用独立对象，避免把当前用户快照覆盖成撞号记录。
+	var conflict userstore.User
+	if dbstore.DB.Where("access_token = ?", key).First(&conflict).RowsAffected != 0 {
 		httpapi.ApiErrorI18n(c, i18n.MsgUuidDuplicate)
 		return
 	}
 
-	if err := user.Update(false); err != nil {
+	if err := userstore.UpdateUserAccessToken(id, key); err != nil {
 		common.SysError("failed to update user access token: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
@@ -372,7 +426,7 @@ func GenerateAccessToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    user.AccessToken,
+		"data":    key,
 	})
 }
 
@@ -410,14 +464,15 @@ func GetAffCode(c *gin.Context) {
 		return
 	}
 	if user.AffCode == "" {
-		user.AffCode = common.GetRandomString(4)
-		if err := user.Update(false); err != nil {
+		affCode := common.GetRandomString(4)
+		if err := userstore.UpdateUserAffCode(id, affCode); err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": err.Error(),
 			})
 			return
 		}
+		user.AffCode = affCode
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -525,6 +580,16 @@ func UpdateUser(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	// 角色只允许四种标准值，拒绝任意整数破坏角色不变量。
+	if !common.IsValidateRole(req.Role) {
+		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	req.Username = strings.TrimSpace(req.Username)
+	if req.Username == "" {
+		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
 	originUser, err := userstore.GetUserById(req.Id, false)
 	if err != nil {
 		common.SysError("failed to get user by id: " + err.Error())
@@ -570,6 +635,12 @@ func UpdateUser(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
+	if updatePassword {
+		// 凭证变更：失效该用户全部既有会话（全端强制下线）。
+		if err := userstore.BumpAuthVersion(updatedUser.Id); err != nil {
+			common.SysError("failed to bump auth version after admin password reset: " + err.Error())
+		}
+	}
 	invalidateSecuritySensitiveUserCaches(updatedUser.Id)
 	if originUser.Quota != updatedUser.Quota {
 		userstore.RecordLog(originUser.Id, logstore.LogTypeManage, fmt.Sprintf("管理员将用户额度从 %s修改为 %s", log.LogQuota(originUser.Quota), log.LogQuota(updatedUser.Quota)))
@@ -611,14 +682,27 @@ func UpdateSelf(c *gin.Context) {
 	}
 	updatePassword, err := checkUpdatePassword(c, user.OriginalPassword, user.Password, cleanUser.Id)
 	if err != nil {
-		common.SysError("failed to check update password: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		switch {
+		case errors.Is(err, errUserPasswordUnset):
+			httpapi.ApiErrorI18n(c, i18n.MsgUserPasswordUnset)
+		case errors.Is(err, errOriginalPasswordMismatch):
+			httpapi.ApiErrorI18n(c, i18n.MsgUserOriginalPasswordError)
+		default:
+			common.SysError("failed to check update password: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		}
 		return
 	}
 	if err := cleanUser.Update(updatePassword); err != nil {
 		common.SysError("failed to update user: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
+	}
+	if updatePassword {
+		// 凭证变更：失效该用户全部既有会话（全端强制下线）。
+		if err := userstore.BumpAuthVersion(cleanUser.Id); err != nil {
+			common.SysError("failed to bump auth version: " + err.Error())
+		}
 	}
 	invalidateSecuritySensitiveUserCaches(cleanUser.Id)
 
@@ -635,17 +719,20 @@ func checkUpdatePassword(c *gin.Context, originalPassword string, newPassword st
 		return
 	}
 
-	// 密码不为空,需要验证原密码
-	// 支持第一次账号绑定时原密码为空的情况
-	if !security.ValidatePasswordAndHash(originalPassword, currentUser.Password) && currentUser.Password != "" {
-		err = fmt.Errorf("%s", i18n.T(c, i18n.MsgUserOriginalPasswordError))
-		return
-	}
+	// 仅修改资料（新密码为空）时不索要原密码。
 	if newPassword == "" {
-		return
+		return false, nil
 	}
-	updatePassword = true
-	return
+	// 无密码账户（纯 OAuth 注册）必须先经邮箱重置建立密码：会话劫持者
+	// 不得直接为账户设置首个密码完成接管。
+	if currentUser.Password == "" {
+		return false, errUserPasswordUnset
+	}
+	// 设置新密码必须持有原密码证明。
+	if !security.ValidatePasswordAndHash(originalPassword, currentUser.Password) {
+		return false, errOriginalPasswordMismatch
+	}
+	return true, nil
 }
 
 func DeleteUser(c *gin.Context) {
@@ -665,7 +752,20 @@ func DeleteUser(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserNoPermissionHigherLevel)
 		return
 	}
-	err = userstore.HardDeleteUserById(id)
+	// 同一事务内硬删除用户行及其全部认证数据（API 令牌、2FA、passkey），
+	// 消除孤儿凭据；随后统一失效缓存。
+	err = dbstore.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tokenstore.DeleteTokensByUserIdTx(tx, id); err != nil {
+			return err
+		}
+		if err := passkeystore.DeletePasskeyByUserIDTx(tx, id); err != nil {
+			return err
+		}
+		if err := twofastore.DeleteTwoFAByUserIdTx(tx, id); err != nil {
+			return err
+		}
+		return userstore.HardDeleteUserByIdTx(tx, id)
+	})
 	if err != nil {
 		common.SysError("failed to hard delete user: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
@@ -712,6 +812,11 @@ func CreateUser(c *gin.Context) {
 	}
 	if err := security.Validate.Struct(&user); err != nil {
 		httpapi.ApiErrorI18n(c, i18n.MsgUserInputInvalid, map[string]any{"Error": err.Error()})
+		return
+	}
+	// 角色只允许四种标准值，拒绝任意整数破坏角色不变量。
+	if !common.IsValidateRole(user.Role) {
+		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
 	if user.DisplayName == "" {
@@ -779,6 +884,14 @@ func ManageUser(c *gin.Context) {
 		return
 	}
 	originRemark := user.Remark
+	// 敏感管理动作（封禁/解封/提权/降权/删除）要求管理员单次安全验证；
+	// 额度调整维持现状。验证绑定动作作用域且一次证明只授权一个动作。
+	switch req.Action {
+	case "disable", "enable", "promote", "demote", "delete":
+		if !secureverificationcontroller.RequireScopeVerification(c, secureverificationcontroller.ScopeAdminUserManage) {
+			return
+		}
+	}
 	switch req.Action {
 	case "disable":
 		user.Status = common.UserStatusDisabled
@@ -802,6 +915,10 @@ func ManageUser(c *gin.Context) {
 				"message": err.Error(),
 			})
 			return
+		}
+		// 凭证面收敛：被删用户的全部会话立即失效。
+		if err := userstore.BumpAuthVersion(user.Id); err != nil {
+			common.SysError("failed to bump auth version after user deletion: " + err.Error())
 		}
 	case "promote":
 		if myRole != common.RoleRootUser {
@@ -923,7 +1040,7 @@ func EmailBind(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidRequestBody)
 		return
 	}
-	email := strings.TrimSpace(req.Email)
+	email := userstore.NormalizeEmail(req.Email)
 	code := strings.TrimSpace(req.Code)
 	if email == "" || code == "" {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidRequestBody)
@@ -942,32 +1059,31 @@ func EmailBind(c *gin.Context) {
 		})
 		return
 	}
-	user := userstore.User{
-		Id: id,
+	// 绑定前复查邮箱占用（验证码申请与绑定之间存在时间窗）；
+	// 撞占用时明确拒绝，而非依赖验证码流程兜底。
+	if userstore.IsEmailAlreadyTaken(email) {
+		httpapi.ApiErrorI18n(c, i18n.MsgMiscEmailTaken)
+		return
 	}
-	err := user.FillUserById()
-	if err != nil {
-		common.SysError("failed to fill user by id: " + err.Error())
+	// 只写邮箱列：绑定的并发封禁/降权/配额变更不可能被旧快照回滚。
+	var statusCheck userstore.User
+	if err := dbstore.DB.Select("id", "status").Where("id = ?", id).First(&statusCheck).Error; err != nil {
+		common.SysError("failed to load user status during email bind: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
-	// Re-check the authoritative status from DB; the session snapshot may be
-	// stale if an admin disabled this user after login.
-	if user.Status != common.UserStatusEnabled {
+	if statusCheck.Status != common.UserStatusEnabled {
 		session.Clear()
 		_ = session.Save()
 		httpapi.ApiErrorI18n(c, i18n.MsgUserBanned)
 		return
 	}
-	user.Email = email
-	// no need to check if this email already taken, because we have used verification code to check it
-	err = user.Update(false)
-	if err != nil {
+	if err := userstore.UpdateUserEmailColumn(id, email); err != nil {
 		common.SysError("failed to update user email: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
-	invalidateSecuritySensitiveUserCaches(user.Id)
+	invalidateSecuritySensitiveUserCaches(id)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -1144,12 +1260,6 @@ func UpdateUserSetting(c *gin.Context) {
 	}
 
 	userId := c.GetInt("id")
-	user, err := userstore.GetUserById(userId, true)
-	if err != nil {
-		common.SysError("failed to get user by id: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
-		return
-	}
 
 	// 构建设置
 	settings := shared.UserSetting{
@@ -1188,8 +1298,8 @@ func UpdateUserSetting(c *gin.Context) {
 	}
 
 	// 更新用户设置
-	user.SetSetting(settings)
-	if err := user.Update(false); err != nil {
+	if err := userstore.UpdateUserSetting(userId, settings); err != nil {
+		common.SysError("failed to update user setting: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgUpdateFailed)
 		return
 	}

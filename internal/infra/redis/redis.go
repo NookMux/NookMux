@@ -117,6 +117,66 @@ func RedisDelKey(key string) error {
 	return RDB.Del(ctx, key).Err()
 }
 
+// RedisKeyExists reports whether the key currently exists in Redis.
+func RedisKeyExists(key string) bool {
+	ctx := context.Background()
+	n, err := RDB.Exists(ctx, key).Result()
+	if err != nil {
+		return false
+	}
+	return n > 0
+}
+
+// RedisHGetField 读取哈希单字段的原始字符串值；字段或键不存在时返回错误。
+func RedisHGetField(key, field string) (string, error) {
+	value, err := RDB.HGet(context.Background(), key, field).Result()
+	if err != nil {
+		return "", fmt.Errorf("failed to get hash field %s of %s: %w", field, key, err)
+	}
+	return value, nil
+}
+
+// repairHashScript 以单命令原子完成"整组重写元数据 + 保留仍为整数的运行
+// 时计数 + 刷新 TTL"：元数据字段（含新签名与时效界）直接 HSET；计数字段
+// 仅当现有值缺失或非整数时以快照值替换，与并发 HINCRBY 无交错窗口。
+const repairHashScript = `
+local ttl = tonumber(ARGV[1])
+local metaCount = tonumber(ARGV[2])
+local args = {}
+for n = 1, metaCount * 2 do
+  table.insert(args, ARGV[2 + n])
+end
+redis.call('HSET', KEYS[1], unpack(args))
+local i = 3 + metaCount * 2
+while i < #ARGV do
+  local name = ARGV[i]
+  local snap = ARGV[i + 1]
+  local cur = redis.call('HGET', KEYS[1], name) or ''
+  if not string.match(cur, '^-?%d+$') then
+    redis.call('HSET', KEYS[1], name, snap)
+  end
+  i = i + 2
+end
+redis.call('EXPIRE', KEYS[1], ttl)`
+
+// RedisHSetMetadataPreserveCounters 原子修复哈希：整组写入元数据字段，
+// 保留仍为整数的运行时计数字段（非整数/缺失以快照值替换），刷新 TTL。
+// 用于完整性签名校验不过时的回源修复，避免覆盖并发原子增量。
+func RedisHSetMetadataPreserveCounters(key string, metadata map[string]string, counters map[string]string, ttlSeconds int) error {
+	argv := make([]interface{}, 0, 3+2*len(metadata)+2*len(counters))
+	argv = append(argv, ttlSeconds, len(metadata))
+	for field, value := range metadata {
+		argv = append(argv, field, value)
+	}
+	for field, value := range counters {
+		argv = append(argv, field, value)
+	}
+	if err := RDB.Eval(context.Background(), repairHashScript, []string{key}, argv...).Err(); err != nil {
+		return fmt.Errorf("failed to atomically repair hash %s: %w", key, err)
+	}
+	return nil
+}
+
 func RedisHSetObj(key string, obj interface{}, expiration time.Duration) error {
 	if common.DebugEnabled {
 		common.SysLog(fmt.Sprintf("Redis HSET: key=%s, obj=%+v, expiration=%v", key, obj, expiration))
@@ -327,6 +387,40 @@ func RedisHSetField(key, field string, value interface{}) error {
 		txn := RDB.TxPipeline()
 
 		hsetCmd := txn.HSet(ctx, key, field, value)
+		if err := hsetCmd.Err(); err != nil {
+			return err
+		}
+
+		txn.Expire(ctx, key, ttl)
+
+		_, err = txn.Exec(ctx)
+		return err
+	}
+	return nil
+}
+
+// RedisHSetFields updates multiple hash fields in one pipeline. Like
+// RedisHSetField it only touches hashes that already exist with a TTL, so a
+// field refresh never re-creates an expired or evicted hash from a stale
+// snapshot.
+func RedisHSetFields(key string, fields map[string]interface{}) error {
+	if common.DebugEnabled {
+		common.SysLog(fmt.Sprintf("Redis HSET fields: key=%s, fields=%v", key, fields))
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	ttlCmd := RDB.TTL(context.Background(), key)
+	ttl, err := ttlCmd.Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return fmt.Errorf("failed to get TTL: %w", err)
+	}
+
+	if ttl > 0 {
+		ctx := context.Background()
+		txn := RDB.TxPipeline()
+
+		hsetCmd := txn.HSet(ctx, key, fields)
 		if err := hsetCmd.Err(); err != nil {
 			return err
 		}

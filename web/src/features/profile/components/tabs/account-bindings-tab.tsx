@@ -36,6 +36,10 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StatusBadge } from '@/components/status-badge'
 import { OAUTH_BIND_STORAGE_KEY } from '@/features/auth/constants'
 import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
+import {
   getSelfOAuthBindings,
   unbindCustomOAuth,
   type CustomOAuthBinding,
@@ -68,6 +72,16 @@ export function AccountBindingsTab({
     null
   )
   const [unbinding, setUnbinding] = useState(false)
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    startVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'oauth_bind' })
 
   const customProviders = status?.custom_oauth_providers as
     | Array<{ id: string; name: string }>
@@ -115,7 +129,12 @@ export function AccountBindingsTab({
 
   const handleBindCustomOAuth = (provider: { id: string; name: string }) => {
     const redirectUrl = `${window.location.origin}/oauth/${provider.id}?bind=true`
-    window.location.href = `/api/oauth/${provider.id}?redirect=${encodeURIComponent(redirectUrl)}`
+    // 绑定属登录凭据变更：先完成安全验证（scope=oauth_bind），验证通过后
+    // 由挂起的回调携带已验证会话跳转 OAuth 授权页完成绑定。
+    void startVerification(async () => {
+      window.location.href = `/api/oauth/${provider.id}?redirect=${encodeURIComponent(redirectUrl)}`
+      return null
+    })
   }
 
   useEffect(() => {
@@ -417,6 +436,23 @@ export function AccountBindingsTab({
           onSuccess={onUpdate}
         />
       )}
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
     </>
   )
 }

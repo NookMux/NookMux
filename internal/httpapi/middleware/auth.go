@@ -135,6 +135,17 @@ func authHelper(c *gin.Context, minRole int) {
 		// group 同步最新值，避免管理员改组后旧 cookie 携带过期分组，
 		// 影响模型可用范围、倍率、动态规则、额度和业务权限。
 		group = latestUser.Group
+		// 凭证版本比对：改密、关闭 2FA 等凭证变更会自增 auth_version，
+		// 携带旧版本（含升级前签发、无版本字段的旧 cookie）的会话一律
+		// 失效并要求重新登录，等价于分布式强制下线。
+		sessionAuthVersion := 0
+		if raw, ok := session.Get("auth_version").(int); ok {
+			sessionAuthVersion = raw
+		}
+		if sessionAuthVersion != latestUser.AuthVersion {
+			clearAndReject(c, session, http.StatusUnauthorized, i18n.T(c, i18n.MsgAuthSessionExpired))
+			return
+		}
 	}
 	// get header New-Api-User
 	apiUserIdStr := c.Request.Header.Get("New-Api-User")
@@ -187,6 +198,16 @@ func authHelper(c *gin.Context, minRole int) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": i18n.T(c, i18n.MsgAuthInsufficientPermission),
+		})
+		c.Abort()
+		return
+	}
+	// 访问令牌只授予用户级 API，不进入管理面：长期凭据（可能经 DB 泄露）
+	// 的爆炸半径不得覆盖管理员/根用户的系统管理能力。
+	if useAccessToken && minRole >= common.RoleAdminUser {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": i18n.T(c, i18n.MsgAuthAccessTokenInvalid),
 		})
 		c.Abort()
 		return

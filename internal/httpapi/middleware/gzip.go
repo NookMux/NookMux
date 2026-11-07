@@ -70,7 +70,16 @@ func DecompressRequestMiddleware() gin.HandlerFunc {
 			})
 			decompressed = true
 		case "zstd":
-			reader, err := zstd.NewReader(origBody)
+			// 帧头即可声明解码窗口，解码器在产出任何输出前就分配它，
+			// 下方的输出侧上限约束不到；8MiB 是 RFC 8878 对编码器的
+			// 窗口建议上限，流式模式下 MaxMemory 同时把生效窗口钳到
+			// 请求体上限内。关闭异步解码，使解码只在下游中间件
+			// （含鉴权）真正消费请求体时才发生。
+			reader, err := zstd.NewReader(origBody,
+				zstd.WithDecoderMaxWindow(8<<20),
+				zstd.WithDecoderMaxMemory(uint64(maxBytes)),
+				zstd.WithDecoderConcurrency(1),
+			)
 			if err != nil {
 				_ = origBody.Close()
 				c.AbortWithStatus(http.StatusBadRequest)

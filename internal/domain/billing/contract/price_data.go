@@ -1,6 +1,9 @@
 package contract
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type GroupRatioInfo struct {
 	GroupRatio        float64
@@ -28,11 +31,13 @@ type PriceData struct {
 }
 
 func (p *PriceData) AddOtherRatio(key string, ratio float64) {
+	// 拒绝非正数与 NaN/Inf：NaN 的一切比较均为 false 会绕过 <=0 检查，
+	// 毒化后续乘法；Inf 会让额度计算溢出回绕。
+	if !(ratio > 0) || math.IsInf(ratio, 0) {
+		return
+	}
 	if p.OtherRatios == nil {
 		p.OtherRatios = make(map[string]float64)
-	}
-	if ratio <= 0 {
-		return
 	}
 	p.OtherRatios[key] = ratio
 }

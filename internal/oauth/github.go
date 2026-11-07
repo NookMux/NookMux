@@ -154,9 +154,6 @@ func (p *GitHubProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*O
 		Username:       githubUser.Login,
 		DisplayName:    githubUser.Name,
 		Email:          githubUser.Email,
-		Extra: map[string]any{
-			"legacy_id": githubUser.Login, // Store login for migration from old accounts
-		},
 	}, nil
 }
 
@@ -233,4 +230,9 @@ func (p *GitHubProvider) FillUserByProviderID(user *userstore.User, providerUser
 
 func (p *GitHubProvider) SetProviderUserID(user *userstore.User, providerUserID string) {
 	user.GitHubId = providerUserID
+}
+
+// BindColumn returns the users table column storing the GitHub binding.
+func (p *GitHubProvider) BindColumn() string {
+	return "github_id"
 }

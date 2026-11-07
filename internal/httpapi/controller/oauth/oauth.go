@@ -4,16 +4,19 @@ import (
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	secureverificationcontroller "github.com/NookMux/NookMux/internal/httpapi/controller/secure_verification"
 	usercontroller "github.com/NookMux/NookMux/internal/httpapi/controller/user"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/oauth"
 	"github.com/NookMux/NookMux/internal/store/db"
+	"github.com/NookMux/NookMux/internal/store/twofa"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // providerParams returns map with Provider key for i18n templates
@@ -127,6 +130,34 @@ func HandleOAuth(c *gin.Context) {
 		return
 	}
 
+	// 8.5 已启用 2FA 的账户在 OAuth 传输路径上同样受因子门控：仅凭第三方
+	// 会话（GitHub 账号被盗/邮箱合并自动绑定）登录不得绕过 TOTP，与密码
+	// 登录路径保持一致，由既有 POST /api/user/login/2fa 完成验证。
+	twoFAEnabled, err := twofastore.IsTwoFAEnabled(user.Id)
+	if err != nil {
+		common.SysLog(fmt.Sprintf("OAuth login 2FA status error for user %d: %v", user.Id, err))
+		httpapi.ApiErrorI18n(c, i18n.MsgUserLoginUnavailable)
+		return
+	}
+	if twoFAEnabled {
+		session := sessions.Default(c)
+		session.Set("pending_username", user.Username)
+		session.Set("pending_user_id", user.Id)
+		session.Set("pending_2fa_set_at", time.Now().Unix())
+		if err := session.Save(); err != nil {
+			httpapi.ApiErrorI18n(c, i18n.MsgUserSessionSaveFailed)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": i18n.T(c, i18n.MsgUserRequire2FA),
+			"success": true,
+			"data": map[string]interface{}{
+				"require_2fa": true,
+			},
+		})
+		return
+	}
+
 	// 9. Setup login
 	usercontroller.SetupLogin(user, c)
 }
@@ -135,6 +166,13 @@ func HandleOAuth(c *gin.Context) {
 func handleOAuthBind(c *gin.Context, provider oauth.Provider) {
 	if !provider.IsEnabled() {
 		httpapi.ApiErrorI18n(c, i18n.MsgOAuthNotEnabled, providerParams(provider.GetName()))
+		return
+	}
+
+	// 绑定属登录凭据变更：要求绑定发起会话先通过单次安全验证
+	// （scope=oauth_bind），被窃取的会话没有第二因子/原密码无法植入
+	// 持久后门。验证态存于会话 cookie，跨 OAuth 重定向往返保持有效。
+	if !secureverificationcontroller.RequireScopeVerification(c, secureverificationcontroller.ScopeOAuthBind) {
 		return
 	}
 
@@ -153,42 +191,41 @@ func handleOAuthBind(c *gin.Context, provider oauth.Provider) {
 		return
 	}
 
-	// Check if this OAuth account is already bound (check both new ID and legacy ID)
+	// Check if this OAuth account is already bound
 	if provider.IsUserIDTaken(oauthUser.ProviderUserID) {
 		httpapi.ApiErrorI18n(c, i18n.MsgOAuthAlreadyBound, providerParams(provider.GetName()))
 		return
 	}
-	// Also check legacy ID to prevent duplicate bindings during migration period
-	if legacyID, ok := oauthUser.Extra["legacy_id"].(string); ok && legacyID != "" {
-		if provider.IsUserIDTaken(legacyID) {
-			httpapi.ApiErrorI18n(c, i18n.MsgOAuthAlreadyBound, providerParams(provider.GetName()))
-			return
-		}
-	}
 
-	// Get current user from session
+	// Get current user from session; only the status column is needed for the
+	// ban re-check, so the read must not carry a full snapshot into the write.
 	session := sessions.Default(c)
-	id := session.Get("id")
-	user := userstore.User{Id: id.(int)}
-	err = user.FillUserById()
-	if err != nil {
-		common.SysError("failed to fill user by id during oauth bind: " + err.Error())
+	id, ok := session.Get("id").(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": i18n.T(c, i18n.MsgNotLoggedIn),
+		})
+		return
+	}
+	var statusCheck userstore.User
+	if err := dbstore.DB.Select("id", "status").Where("id = ?", id).First(&statusCheck).Error; err != nil {
+		common.SysError("failed to load user status during oauth bind: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
 	// Re-check the authoritative status from DB; the session snapshot may be
 	// stale if an admin disabled this user after login.
-	if user.Status != common.UserStatusEnabled {
+	if statusCheck.Status != common.UserStatusEnabled {
 		session.Clear()
 		_ = session.Save()
 		httpapi.ApiErrorI18n(c, i18n.MsgOAuthUserBanned)
 		return
 	}
 
-	provider.SetProviderUserID(&user, oauthUser.ProviderUserID)
-	err = user.Update(false)
-	if err != nil {
-		common.SysError("failed to update user during oauth bind: " + err.Error())
+	// 只写绑定列：并发的封禁/降权/配额变更不可能被旧快照回滚。
+	if err := userstore.UpdateUserBindColumn(id, provider.BindColumn(), oauthUser.ProviderUserID); err != nil {
+		common.SysError("failed to update user oauth binding: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
@@ -215,30 +252,6 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		return user, nil
 	}
 
-	// Try to find user with legacy ID (for migration from an old provider ID to the
-	// current numeric ID). Only a pure numeric legacy ID (a provider numeric ID) may
-	// serve as a migration key: provider-side mutable identifiers (e.g. GitHub login,
-	// which can be renamed or re-registered by others) must never authenticate a
-	// local account, so non-numeric values fall through to the normal login path.
-	if legacyID, ok := oauthUser.Extra["legacy_id"].(string); ok && isNumericProviderID(legacyID) {
-		if provider.IsUserIDTaken(legacyID) {
-			err := provider.FillUserByProviderID(user, legacyID)
-			if err != nil {
-				return nil, err
-			}
-			if user.Id != 0 {
-				// Found user with legacy ID, migrate to new ID
-				common.SysLog(fmt.Sprintf("[OAuth] Migrating user %d from legacy_id=%s to new_id=%s",
-					user.Id, legacyID, oauthUser.ProviderUserID))
-				if err := user.UpdateGitHubId(oauthUser.ProviderUserID); err != nil {
-					common.SysError(fmt.Sprintf("[OAuth] Failed to migrate user %d: %s", user.Id, err.Error()))
-					// Continue with login even if migration fails
-				}
-				return user, nil
-			}
-		}
-	}
-
 	// User doesn't exist, create new user if registration is enabled
 	if !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
@@ -247,6 +260,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	// If provider returned an email, try to find exactly one existing user with that email
 	// and merge by binding the OAuth provider ID to the existing account.
 	// We only merge when the email is unique in the system to avoid binding to the wrong account.
+	if oauthUser.Email != "" {
+		oauthUser.Email = userstore.NormalizeEmail(oauthUser.Email)
+	}
 	if oauthUser.Email != "" && userstore.IsEmailAlreadyTaken(oauthUser.Email) {
 		existingUser := &userstore.User{}
 		existingUser.Email = oauthUser.Email
@@ -360,20 +376,6 @@ func handleOAuthError(c *gin.Context, err error) {
 }
 
 const maxUsernameLen = 20
-
-// isNumericProviderID reports whether s is a non-empty decimal digit string,
-// i.e. the textual form of a provider numeric ID.
-func isNumericProviderID(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	return true
-}
 
 // buildOAuthUsername creates a unique username from the provider username and provider user ID.
 // Format: "providerUsername_providerUserID". When truncation is needed, the providerUserID

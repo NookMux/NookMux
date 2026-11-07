@@ -29,6 +29,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  SecureVerificationDialog,
+  useSecureVerification,
+} from '@/features/auth/secure-verification'
 import { deleteUser } from '../api'
 import { ERROR_MESSAGES } from '../constants'
 import { getUserActionMessage } from '../lib'
@@ -38,19 +42,36 @@ export function UsersDeleteDialog() {
   const { t } = useTranslation()
   const { open, setOpen, currentRow, triggerRefresh } = useUsers()
   const [isDeleting, setIsDeleting] = useState(false)
+  const {
+    open: verificationOpen,
+    methods: verificationMethods,
+    state: verificationState,
+    executeVerification,
+    withVerification,
+    cancel: cancelVerification,
+    setCode: setVerificationCode,
+    switchMethod: switchVerificationMethod,
+  } = useSecureVerification({ scope: 'admin_user_manage' })
 
   const handleDelete = async () => {
     if (!currentRow) return
 
     setIsDeleting(true)
     try {
-      const result = await deleteUser(currentRow.id)
-      if (result.success) {
-        toast.success(t(getUserActionMessage('delete')))
-        setOpen(null)
-        triggerRefresh()
-      } else {
-        toast.error(result.message || t(ERROR_MESSAGES.DELETE_FAILED))
+      const result = await withVerification(async () => {
+        const response = await deleteUser(currentRow.id)
+        if (response.success) {
+          toast.success(t(getUserActionMessage('delete')))
+          setOpen(null)
+          triggerRefresh()
+        } else {
+          toast.error(response.message || t(ERROR_MESSAGES.DELETE_FAILED))
+        }
+        return response
+      })
+      if (!result) {
+        // 已触发安全验证，验证通过后将自动重试。
+        return
       }
     } catch (_error) {
       toast.error(t(ERROR_MESSAGES.UNEXPECTED))
@@ -60,32 +81,53 @@ export function UsersDeleteDialog() {
   }
 
   return (
-    <AlertDialog
-      open={open === 'delete'}
-      onOpenChange={(open) => !open && setOpen(null)}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t('keys.tips.sure')}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t('users.tips.permanentlyDeleteUser')}{' '}
-            <span className='font-semibold'>{currentRow?.username}</span>
-            {t('keys.errors.actionCannotBeUndone')}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>
-            {t('common.actions.cancel')}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-          >
-            {isDeleting ? t('keys.tips.deleting') : t('common.actions.delete')}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <>
+      <AlertDialog
+        open={open === 'delete'}
+        onOpenChange={(open) => !open && setOpen(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('keys.tips.sure')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('users.tips.permanentlyDeleteUser')}{' '}
+              <span className='font-semibold'>{currentRow?.username}</span>
+              {t('keys.errors.actionCannotBeUndone')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              {t('common.actions.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              {isDeleting
+                ? t('keys.tips.deleting')
+                : t('common.actions.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <SecureVerificationDialog
+        open={verificationOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            cancelVerification()
+          }
+        }}
+        methods={verificationMethods}
+        state={verificationState}
+        onVerify={async (method, code) => {
+          await executeVerification(method, code)
+        }}
+        onCancel={cancelVerification}
+        onCodeChange={setVerificationCode}
+        onMethodChange={switchVerificationMethod}
+      />
+    </>
   )
 }

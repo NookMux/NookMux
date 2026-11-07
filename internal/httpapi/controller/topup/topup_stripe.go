@@ -45,6 +45,9 @@ func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
 		respondTopupError(c, i18n.MsgTopupAmountBelowMin, map[string]any{"Min": payment.GetStripeMinTopup()})
 		return
 	}
+	if rejectUncreditableTopup(c, req.Amount) {
+		return
+	}
 	id := c.GetInt("id")
 	group, err := userstore.GetUserGroup(id, true)
 	if err != nil {
@@ -68,8 +71,7 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 		respondTopupError(c, i18n.MsgTopupAmountBelowMin, map[string]any{"Min": payment.GetStripeMinTopup()})
 		return
 	}
-	if req.Amount > 10000 {
-		respondTopupError(c, i18n.MsgTopupAmountExceedMax)
+	if rejectUncreditableTopup(c, req.Amount) {
 		return
 	}
 

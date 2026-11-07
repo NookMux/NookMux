@@ -11,6 +11,7 @@ import (
 
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	secureverificationcontroller "github.com/NookMux/NookMux/internal/httpapi/controller/secure_verification"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/testsupport"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/oauth"
@@ -18,6 +19,8 @@ import (
 	"github.com/NookMux/NookMux/internal/store/log"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"github.com/NookMux/NookMux/pkg/jsonx"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -49,15 +52,29 @@ func createBanTestUser(t *testing.T, id int, mutate func(*userstore.User)) {
 	}
 }
 
+// requestBan 经带会话与已验证态的路由调用 BanUserByIdentifier：拉黑端点
+// 与 ManageUser 同样要求 admin_user_manage 作用域安全验证。
 func requestBan(t *testing.T, role int, body string) (*httptest.ResponseRecorder, banAPIResponse) {
 	t.Helper()
 
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/ban", strings.NewReader(body))
-	c.Set("role", role)
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.Use(func(c *gin.Context) {
+		c.Set("id", 1)
+		c.Set("role", role)
+		session := sessions.Default(c)
+		session.Set(secureverificationcontroller.SecureVerificationSessionKey, time.Now().Unix())
+		session.Set(secureverificationcontroller.SecureVerificationUserIDSessionKey, 1)
+		session.Set(secureverificationcontroller.SecureVerificationScopeSessionKey, secureverificationcontroller.ScopeAdminUserManage)
+		_ = session.Save()
+		c.Next()
+	})
+	router.POST("/api/user/ban", BanUserByIdentifier)
 
-	BanUserByIdentifier(c)
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/user/ban", strings.NewReader(body))
+	router.ServeHTTP(recorder, req)
 
 	var parsed banAPIResponse
 	if err := jsonx.Unmarshal(recorder.Body.Bytes(), &parsed); err != nil {
@@ -472,16 +489,37 @@ func TestBanUserRemarkTooLong(t *testing.T) {
 	}
 }
 
+// performManageUserRequest 经带会话与已验证态的路由调用 ManageUser：
+// 敏感管理动作要求绑定 admin_user_manage 作用域的单次安全验证。
+func performManageUserRequest(t *testing.T, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-secret"))))
+	router.Use(func(c *gin.Context) {
+		c.Set("id", 1)
+		c.Set("role", common.RoleRootUser)
+		session := sessions.Default(c)
+		session.Set(secureverificationcontroller.SecureVerificationSessionKey, time.Now().Unix())
+		session.Set(secureverificationcontroller.SecureVerificationUserIDSessionKey, 1)
+		session.Set(secureverificationcontroller.SecureVerificationScopeSessionKey, secureverificationcontroller.ScopeAdminUserManage)
+		_ = session.Save()
+		c.Next()
+	})
+	router.POST("/api/user/manage", ManageUser)
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/user/manage", strings.NewReader(body))
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
 func TestManageUserDisableWithRemark(t *testing.T) {
 	testsupport.SetupSecureVerificationTestDB(t)
 	createBanTestUser(t, 2016, nil)
 
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/manage",
-		strings.NewReader(`{"id":2016,"action":"disable","remark":"abusive API usage"}`))
-	c.Set("role", common.RoleRootUser)
-	ManageUser(c)
+	recorder := performManageUserRequest(t, `{"id":2016,"action":"disable","remark":"abusive API usage"}`)
 
 	if !strings.Contains(recorder.Body.String(), `"success":true`) {
 		t.Fatalf("response = %s, want success", recorder.Body.String())
@@ -499,12 +537,7 @@ func TestManageUserDisableWithoutRemarkKeepsRemark(t *testing.T) {
 	testsupport.SetupSecureVerificationTestDB(t)
 	createBanTestUser(t, 2017, func(u *userstore.User) { u.Remark = "keep me" })
 
-	recorder := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/manage",
-		strings.NewReader(`{"id":2017,"action":"disable"}`))
-	c.Set("role", common.RoleRootUser)
-	ManageUser(c)
+	recorder := performManageUserRequest(t, `{"id":2017,"action":"disable"}`)
 
 	if !strings.Contains(recorder.Body.String(), `"success":true`) {
 		t.Fatalf("response = %s, want success", recorder.Body.String())

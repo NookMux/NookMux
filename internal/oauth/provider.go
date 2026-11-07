@@ -29,4 +29,9 @@ type Provider interface {
 
 	// SetProviderUserID sets the provider user ID on the user model
 	SetProviderUserID(user *userstore.User, providerUserID string)
+
+	// BindColumn returns the users table column that stores this provider's
+	// binding (e.g. "github_id"). Targeted single-column updates use it so a
+	// bind never writes columns beyond its own binding column.
+	BindColumn() string
 }

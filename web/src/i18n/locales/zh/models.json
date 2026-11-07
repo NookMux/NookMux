@@ -14,6 +14,7 @@
   "models.tips.applying": "正在应用...",
   "models.tips.approx": "约",
   "models.errors.sureYouWantToDeleteCountModelSThis": "您确定要删除 {{count}} 个模型吗？此操作无法撤销。",
+  "models.errors.sureYouWantToDeleteModelNameThisAction": "您确定要删除模型 \"{{name}}\" 吗？此操作无法撤销。",
   "models.fields.argsSpaceSeparated": "参数 (空格分隔)",
   "models.fields.autoRefresh": "自动刷新",
   "models.titles.basicConfiguration": "基本配置",
