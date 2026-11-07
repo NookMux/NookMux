@@ -157,6 +157,10 @@
   消除跨域敏感头丢弃与凭据跟随重定向漏洞（GHSA-mrwp-f3q8-3g9p）。
   `bun audit --audit-level=high` 高危告警清零，CI 与本地 pre-push 门禁
   恢复全绿。
+- **钱包与个人资料页面宽度与其他页面不一致修复**：钱包页正文容器与个人资料
+  页整页内容均额外套 `mx-auto max-w-7xl` 居中限宽，宽屏下明显窄于其他页面
+  （`SectionPageLayout.Content` 等页面为全宽）；现移除两处限宽，页面内容
+  与控制台其余页面宽度对齐。
 
 ### Changed
 

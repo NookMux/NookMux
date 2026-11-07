@@ -255,7 +255,7 @@ export function Wallet(props: WalletProps) {
           {t('layout.titles.wallet')}
         </SectionPageLayout.Title>
         <SectionPageLayout.Content>
-          <div className='mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5'>
+          <div className='flex w-full flex-col gap-4 sm:gap-5'>
             <WalletStatsCard user={user} loading={userLoading} />
 
             <div className='grid gap-4'>
