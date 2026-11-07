@@ -36,14 +36,15 @@ const LLM_ICONS = [
 ] as const
 
 const DEV_ICONS = [
-  { name: 'Cursor.Mono', y: 39 },
-  { name: 'GithubCopilot.Mono', y: 134 },
-  { name: 'Trae.Mono', y: 229 },
-  { name: 'Codex.Mono', y: 324 },
+  { name: 'ClaudeCode.Mono', y: 39 },
+  { name: 'Codex.Mono', y: 110 },
+  { name: 'Cursor.Mono', y: 182 },
+  { name: 'OpenCode.Mono', y: 253 },
+  { name: 'CodeBuddy.Mono', y: 324 },
 ] as const
 
 /** Right-side fan-out curve colors, one per dev tool icon. */
-const CURVE_COLORS = ['#60a5fa', '#fb7185', '#fbbf24', '#2dd4bf']
+const CURVE_COLORS = ['#60a5fa', '#fb7185', '#fbbf24', '#2dd4bf', '#a78bfa']
 
 // Stage geometry (px); the SVG overlay shares this 400x420 coordinate space.
 const STAGE_WIDTH = 400
@@ -56,33 +57,17 @@ const ICON_LEFT = 328
 
 interface HubDiagramProps {
   className?: string
-  /**
-   * Turns the center hub into a control. Fires on hover, focus and tap, which
-   * is what the showcase card listens to before flipping to the API example.
-   */
-  onHubActivate?: () => void
-  /** Accessible name for the hub control; required with `onHubActivate`. */
-  hubLabel?: string
 }
 
 /**
- * Zeabur-style routing diagram: an infinitely scrolling pill of LLM provider
- * icons on the left converges into the NookMux hub, then fans out through
- * colored bezier curves to developer tools on the right.
- *
- * Decorative unless `onHubActivate` is passed, which promotes the center hub
- * to a real button so keyboard and touch users get the same affordance.
+ * Zeabur-style routing diagram: an upward-looping pill of LLM provider icons
+ * on the left converges into the NookMux hub, then fans out through colored
+ * bezier curves to developer tools on the right. Purely decorative.
  */
-export function HubDiagram({
-  className,
-  onHubActivate,
-  hubLabel,
-}: HubDiagramProps) {
-  const HubTag = onHubActivate ? 'button' : 'div'
-
+export function HubDiagram({ className }: HubDiagramProps) {
   return (
     <div
-      aria-hidden={onHubActivate ? undefined : 'true'}
+      aria-hidden='true'
       className={cn('relative overflow-hidden rounded-[2rem]', className)}
     >
       <div
@@ -118,9 +103,9 @@ export function HubDiagram({
           })}
         </svg>
 
-        {/* Left: infinitely scrolling LLM icon pill */}
-        <div className='scroll-container border-border bg-background/80 absolute top-[50px] bottom-[50px] left-4 w-14 overflow-hidden rounded-full border [mask-image:linear-gradient(to_bottom,transparent,black_15%,black_85%,transparent)]'>
-          <div className='animate-scroll-down flex flex-col items-center gap-6 py-3'>
+        {/* Left: upward-looping LLM icon pill */}
+        <div className='border-border bg-background/80 absolute top-[50px] bottom-[50px] left-4 w-14 overflow-hidden rounded-full border [mask-image:linear-gradient(to_bottom,transparent,black_15%,black_85%,transparent)]'>
+          <div className='animate-scroll-vertical flex flex-col items-center gap-6 py-3'>
             {[...LLM_ICONS, ...LLM_ICONS].map((iconName, i) => (
               // oxlint-disable-next-line react/no-array-index-key
               <span
@@ -136,22 +121,9 @@ export function HubDiagram({
         {/* Center: NookMux hub */}
         <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'>
           <div className='bg-primary/20 absolute -inset-5 rounded-full blur-2xl' />
-          <HubTag
-            {...(onHubActivate && {
-              type: 'button' as const,
-              'aria-label': hubLabel,
-              onMouseEnter: onHubActivate,
-              onFocus: onHubActivate,
-              onClick: onHubActivate,
-            })}
-            className={cn(
-              'border-border bg-card relative flex h-16 w-16 items-center justify-center rounded-2xl border shadow-lg',
-              onHubActivate &&
-                'focus-visible:ring-ring/50 cursor-pointer transition-transform duration-300 outline-none hover:scale-110 focus-visible:ring-3'
-            )}
-          >
+          <div className='border-border bg-card relative flex h-16 w-16 items-center justify-center rounded-2xl border shadow-lg'>
             <Logo className='size-8' />
-          </HubTag>
+          </div>
         </div>
 
         {/* Right: developer tool icons */}

@@ -334,8 +334,12 @@ For commercial licensing, please contact support@quantumnous.com
     }
   }
 
-  /* Vertical scroll animation for icon lists */
-  @keyframes scroll-up {
+  /* Continuous upward vertical marquee for icon lists: the track holds the
+     icon list twice, so the shift from 0 to -50% loops seamlessly with the
+     icons always flowing bottom-to-top. This marquee stays exempt from the
+     prefers-reduced-motion kill switch below: it is a small, slow, purely
+     decorative loop that must keep running as part of the hero's identity. */
+  @keyframes scroll-vertical {
     0% {
       transform: translateY(0);
     }
@@ -344,28 +348,15 @@ For commercial licensing, please contact support@quantumnous.com
     }
   }
 
-  .animate-scroll-up {
-    animation: scroll-up 20s linear infinite;
+  .animate-scroll-vertical {
+    animation: scroll-vertical 20s linear infinite;
     will-change: transform;
-  }
-
-  .animate-scroll-down {
-    animation: scroll-up 20s linear infinite reverse;
-    will-change: transform;
-  }
-
-  /* Pause animation on hover */
-  .scroll-container:hover .animate-scroll-up,
-  .scroll-container:hover .animate-scroll-down {
-    animation-play-state: paused;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-appear,
   .animate-appear-zoom,
-  .animate-scroll-up,
-  .animate-scroll-down,
   [data-slot='table'] tbody tr {
     animation: none !important;
     opacity: 1;

@@ -39,8 +39,6 @@
   "home.fields.request": "Request",
   "home.tips.schedulingControls": "scheduling controls",
   "home.fields.secureReliable": "Secure & Reliable",
-  "home.tips.showApiExample": "Show the API example",
-  "home.tips.showRoutingDiagram": "Show the routing diagram",
   "home.tips.supportForHighConcurrencyWithAutomaticLoadBalancing": "Support for high concurrency with automatic load balancing",
   "home.fields.teamCollaboration": "Team Collaboration",
   "home.fields.threeStepsToGetStarted": "Three steps to get started",

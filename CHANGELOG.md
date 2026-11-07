@@ -208,6 +208,14 @@
 
 ### Changed
 
+- **首页路由图交互精简与视觉更新**：移除首页 Hero 右侧悬浮翻转卡片与 API
+  请求示例终端面板（`HubFlipCard`、`HeroTerminalDemo` 组件删除），路由拓扑
+  图常驻展示并转为纯装饰（`HubDiagram` 交互 props 移除）；左侧模型图标列
+  改为从下到上匀速无缝循环（20s/圈 linear，豁免系统「减少动态效果」设置
+  常驻运行，单向滚动动画工具类收敛为 `animate-scroll-vertical`）；右侧开
+  发者工具图标换为 ClaudeCode、Codex、Cursor、OpenCode、CodeBuddy 五席并
+  等距重排（中间图标正对 hub 中线，扇出曲线补第五条紫罗兰色）；同步清理
+  翻转交互相关 i18n 文案。
 - **使用平台识别数据管道性能优化**：历史日志平台回填迁移由逐行 UPDATE 改为
   同批按平台分组批量更新（每组一条 `UPDATE ... WHERE id IN (...)`，单条
   上限 500 个 id，兼容 SQLite 绑定参数与 Oracle 系 IN 列表限制），百万级

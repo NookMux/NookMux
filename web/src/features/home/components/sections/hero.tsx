@@ -21,7 +21,7 @@ import { ArrowRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { GrainField } from '@/components/landing/grain-field'
 import { FlipWords } from '../flip-words'
-import { HubFlipCard } from '../hub-flip-card'
+import { HubDiagram } from '../hub-diagram'
 
 interface HeroProps {
   className?: string
@@ -30,7 +30,7 @@ interface HeroProps {
 
 /**
  * Editorial hero: oversized left-aligned display type over a full-bleed grainy
- * purple field, with the two-faced routing card holding the right column.
+ * purple field, with the routing diagram holding the right column.
  */
 export function Hero(props: HeroProps) {
   const { t } = useTranslation()
@@ -104,7 +104,7 @@ export function Hero(props: HeroProps) {
             )}
           </div>
         </div>
-        <HubFlipCard className='hidden lg:block' />
+        <HubDiagram className='hidden lg:block' />
       </div>
     </section>
   )

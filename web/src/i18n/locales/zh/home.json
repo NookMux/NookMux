@@ -39,8 +39,6 @@
   "home.fields.request": "请求",
   "home.tips.schedulingControls": "调度控制能力",
   "home.fields.secureReliable": "安全可靠",
-  "home.tips.showApiExample": "查看 API 示例",
-  "home.tips.showRoutingDiagram": "查看路由拓扑图",
   "home.tips.supportForHighConcurrencyWithAutomaticLoadBalancing": "支持高并发和自动负载均衡",
   "home.fields.teamCollaboration": "团队协作",
   "home.fields.threeStepsToGetStarted": "三步快速上手",
