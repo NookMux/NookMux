@@ -22,7 +22,7 @@
 2. 适配了中国一部分AI厂商的套餐对接、额度查询等功能
 3. 优化了渠道对接，例如基础URL、多协议原生适配、移除部分冗余协议
 4. 优化了协议转换，使得原本不支持Responses的渠道，也能自主的将Responses转换为上游支持的Chat接口
-...
+   ...
 
 或许还有更多功能的优化，只是由于记忆原因没法较为详细的在此地方表述。
 
@@ -45,7 +45,7 @@
 
 由于本项目包含 AI 辅助生成与人工调整内容，可能存在实现不完善、边界情况处理不足或潜在兼容性问题。若因部署、修改、使用本项目产生任何第三方争议、服务风险、账号风险或合规问题，均由使用者自行承担，与本项目维护者及上游项目无关。
 
-如果你使用AI Coding对本项目进行维护开发，建议您配置好两个MCP，`serena`和`codegraph`，其中`serena`需要先拉起HTTP服务，详情可以参考我的云端开发Docker容器环境：[OpenCode-Docker](https://github.com/zhongruan0522/opencode-docker)
+如果你使用AI Coding对本项目进行维护开发，建议您配置好两个MCP，`serena`和 `codegraph`，其中 `serena`需要先拉起HTTP服务，详情可以参考我的云端开发Docker容器环境：[OpenCode-Docker](https://github.com/zhongruan0522/opencode-docker)
 
 ### 使用的 AI Coding 工具
 
@@ -56,7 +56,7 @@
 
 ### 当前使用的 AI 模型
 
-> 关于模型，实际格式为`供应商/模型[思维强度/是否开启思考]`
+> 关于模型，实际格式为 `供应商/模型[思维强度/是否开启思考]`
 
 - Zhipu/GLM-5.3[Max]
 - Zhipu/GLM-5.3-Flash[Max]
@@ -64,6 +64,7 @@
 - Anthropic/Claude-Opus-5-5[Max]
 
 > 我们将在近期对ClaudeMax渠道的Opus5.5做评估，评估范围为产品视觉介绍
+>
 > 1. 由于ClaudeCode的配置导致很多本身是GLM响应的请求被写成了Claude系列模型，在正式声明Claude全系进入当前使用模型之前一切Claude模型标识的修改基本都为GLM负责
 >    对应规则如下：Sonnet及其以下为GLM-5.3-Flash，Opus及其以上为GLM-5.3，会随着动态更新至智谱最新的模型
 
@@ -95,6 +96,6 @@
 感谢以下开源项目对本项目的启发与帮助：
 
 - **[QuantumNous/new-api](https://github.com/QuantumNous/new-api)** — 本项目基座。
-- **[CuzTeam/new-api](https://github.com/CuzTeam/new-api)** — 首页UI。
+- **[lonely-land/new-api](https://github.com/lonely-land/new-api)** — 首页UI。
 - **[looplj/AxonHub](https://github.com/looplj/axonhub)** — 协议转换。
 - **[farion1231/cc-switch](https://github.com/farion1231/cc-switch)** — 中国模型厂商的套餐查询相关接口、协议转换。
