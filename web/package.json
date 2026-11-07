@@ -73,7 +73,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@rsbuild/core": "^2.1.11",
+    "@rsbuild/core": "^2.3.1",
     "@rsbuild/plugin-react": "^2.1.1",
     "@tanstack/eslint-plugin-query": "^5.103.1",
     "@tanstack/react-query-devtools": "^5.104.5",
