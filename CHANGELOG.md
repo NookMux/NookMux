@@ -50,6 +50,11 @@
     DOMPurify / rehype-sanitize 消毒。
   - **限流**：访问令牌生成、邀请划转、改密与管理员用户管理等敏感路由
     补齐关键级限流。
+  - **依赖审计门禁回归无豁免基线**：braces 漏洞通告（GHSA-vfj7-8cjw-p6xm /
+    CVE-2026-93687）经上游复核于 2026-10-23 撤销（非实际可利用漏洞），
+    `bun audit` 不再报告该通告；据此移除 CI 与本地门禁中的通告级豁免及
+    `braces@3.0.3` 深度防护补丁，审计步骤恢复为无豁免的
+    `bun audit --audit-level=high`。
 
 ### Added
 
