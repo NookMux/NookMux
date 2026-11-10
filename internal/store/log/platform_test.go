@@ -2,7 +2,7 @@ package logstore
 
 import "testing"
 
-// TestDetectPlatform 覆盖首批平台的三头识别规则、优先级与误报防护。
+// TestDetectPlatform 覆盖受支持平台的三头识别规则、优先级与误报防护。
 func TestDetectPlatform(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -54,10 +54,20 @@ func TestDetectPlatform(t *testing.T) {
 		{"cherry referer", "-", "-", "https://cherry-ai.com", PlatformCherryStudio},
 		{"cherry referer with path", "-", "-", "https://cherry-ai.com/docs", PlatformCherryStudio},
 
+		// RikkaHub：默认 UA 为 RikkaHub-Android/{version}，Referer 指向官方站点。
+		{"rikka default ua", "RikkaHub-Android/1.5.0", "-", "-", PlatformRikkaHub},
+		{"rikka bare ua", "rikkahub", "-", "-", PlatformRikkaHub},
+		{"rikka ua variant", "RikkaHub/2.0.0", "-", "-", PlatformRikkaHub},
+		{"rikka referer", "-", "-", "https://rikka-ai.com", PlatformRikkaHub},
+		{"rikka referer with path", "-", "-", "https://rikka-ai.com/docs", PlatformRikkaHub},
+		{"rikkahubite must not match", "rikkahubite/1.0", "-", "-", ""},
+
 		// 优先级：UA 描述实际客户端进程，冲突时优先于 Referer。
 		{"ua wins over referer", "claude-cli/2.1.0 (external, cli)", "-", "https://cherry-ai.com", PlatformClaudeCode},
+		{"rikka ua wins over referer", "RikkaHub-Android/1.5.0", "-", "https://cherry-ai.com", PlatformRikkaHub},
 		{"x-title is not authoritative", "-", "Cherry Studio", "-", ""},
 		{"x-title is not authoritative for openclaw", "-", "OpenClaw", "-", ""},
+		{"x-title is not authoritative for rikkahub", "-", "RikkaHub", "-", ""},
 
 		// 无信号与占位值。
 		{"all dashes", "-", "-", "-", ""},

@@ -81,6 +81,15 @@
   `POST /api/dashboard/config/reset` 补 `rankings_platform_limit`（默认 10、
   范围 1-50）；`POST /api/data/recalculate` 的聚合粒度说明补平台维度。
   全部字段对照后端源码核实。
+- **使用平台识别新增 RikkaHub**：基于源码级核实的两条识别规则——UA 默认
+  `RikkaHub-Android/{version}`（客户端 OkHttp 拦截器对全部出站请求注入，
+  `rikkahub` 前缀锚定，兼容 `RikkaHub/{version}` 变体且不误报
+  `rikkahubite/1.0` 之类近似前缀）与 Referer host `rikka-ai.com`（官方
+  站点，OpenRouter 场景固定上报，用户亦可在提供商自定义头中显式配置）；
+  `X-Title: RikkaHub` 按既有设计仅作弱佐证不参与判定。历史日志回填迁移
+  marker 由 `data_migration.log_platform.v1.done` 升级为
+  `data_migration.log_platform.v2.done`，已部署实例升级后启动时自动对
+  `platform` 为空的存量行增量重跑识别（已识别行不受影响），无需人工干预。
 - **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
   端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
   cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段

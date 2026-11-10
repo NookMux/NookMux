@@ -38,6 +38,7 @@ export const PLATFORM_META: Record<string, PlatformMeta> = {
   pi: { name: 'pi', icon: 'Pi' },
   'new-api': { name: 'New API', icon: 'NewAPI' },
   'cherry-studio': { name: 'Cherry Studio', icon: 'CherryStudio' },
+  rikkahub: { name: 'RikkaHub', icon: 'RikkaHub' },
 }
 
 export function getPlatformMeta(platform: string): PlatformMeta {

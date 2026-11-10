@@ -17,6 +17,7 @@ const (
 	PlatformPi              = "pi"
 	PlatformNewAPI          = "new-api"
 	PlatformCherryStudio    = "cherry-studio"
+	PlatformRikkaHub        = "rikkahub"
 )
 
 // AllPlatformIDs 返回全部受支持的平台 ID，供测试与维护检查使用。
@@ -31,6 +32,7 @@ func AllPlatformIDs() []string {
 		PlatformPi,
 		PlatformNewAPI,
 		PlatformCherryStudio,
+		PlatformRikkaHub,
 	}
 }
 
@@ -63,6 +65,10 @@ var uaProductPrefixes = map[string]string{
 	// new-api 网关自报 UA 为弱信号：其转发模型流量时默认不带 UA，
 	// 仅显式配置或非模型出站请求可能携带。
 	"new-api": PlatformNewAPI,
+	// RikkaHub 默认 UA 为 RikkaHub-Android/{version}（OkHttp 拦截器对全部
+	// 出站请求注入，用户可自定义覆盖），rikkahub 前缀锚定后同样命中
+	// RikkaHub/{version} 等变体。
+	"rikkahub": PlatformRikkaHub,
 }
 
 // refererHostPlatforms 定义 HTTP-Referer 的 host 精确匹配表（host 已小写、去端口）。
@@ -71,6 +77,9 @@ var refererHostPlatforms = map[string]string{
 	"hermes-agent.nousresearch.com": PlatformHermesAgent,
 	"openclaw.ai":                   PlatformOpenClaw,
 	"pi.dev":                        PlatformPi,
+	// rikka-ai.com 为 RikkaHub 官方站点，客户端在 OpenRouter 场景固定
+	// 上报该 Referer，用户亦可在提供商自定义头中显式配置。
+	"rikka-ai.com": PlatformRikkaHub,
 }
 
 // DetectPlatform 基于客户端请求头（User-Agent、X-Title、HTTP-Referer）识别客户端
