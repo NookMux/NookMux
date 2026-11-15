@@ -312,6 +312,13 @@
   联动升级 `@tanstack/react-query` 至 5.104.5 以满足 devtools 的 peer 版本
   要求（TanStack 官方要求两者同版本）。
 
+- **依赖批量升级**：合并 dependabot 全量依赖更新。Go：`tidwall/gjson`
+  1.20.0、`gin-contrib/gzip` 1.2.9、`gin-contrib/static` 1.1.9、
+  `golang.org/x/net` 0.62.0、`aws-sdk-go-v2/credentials` 1.20.13；web：
+  `@rsbuild/core` 2.3.1、`@visactor/vchart` 2.2.1、`streamdown` 2.7.1、
+  `zustand` 5.0.16、`@types/node` 26.6.6；CI：`docker/login-action` 4.8.0、
+  `sigstore/cosign-installer` 4.1.3。
+
 - **系统设置分区调整**：「默认折叠侧边栏」由 运维 → 系统行为 迁移至
   站点与品牌 → 侧边栏模块 顶部，作为切换即时保存的独立开关；运维下的
   「系统行为」分区更名为「自动重试」。
