@@ -14,6 +14,7 @@
 | `channel/constant/` | **渠道常量叶子包**：`APIType*`、`ChannelType*`、`EndpointType`、`MultiKeyMode`、Azure 时间点、套餐 BaseURL 映射等纯契约常量。 |
 | `audit/` | **审计日志服务**：`audit.RecordAudit` 唯一入口，详见 [audit/AGENTS.md](audit/AGENTS.md)。 |
 | `logcleanup/` | **日志自动清理编排**：`NextRunTime` / `RetentionCutoff`（执行时刻对齐服务器本地时区自然边界 00:00：日/周/月/年）、`RunCleanup` 分批删除超期数据（单批 100 行）、`StartWorker` 后台循环（10 分钟检查步长，段式睡眠感知配置变更）。配置源为 `config/operation` 的 `log_cleanup_setting`，清理目标含 logs / quota_data / stored_media / audit_logs。 |
+| `perfmetrics/` | **中继性能采样**：`RecordRelaySample` 挂中继请求边界（每请求恰好一次），成败分类（网关侧业务拒绝与本地校验失败不计入成功率）、首字延迟/生成阶段吞吐计时，样本写入 `store/perfmetrics` 热桶。 |
 | `rankings/` | 模型与供应商用量排行榜聚合。 |
 | `ticket/` | 工单领域服务。 |
 | `sensitive/` | 敏感词高效匹配（`AcSearch` / `SundaySearch`），供 relay 与渠道治理调用。 |

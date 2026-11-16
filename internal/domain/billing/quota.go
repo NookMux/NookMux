@@ -249,6 +249,7 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 		// group_ratio 记录原始分组倍率（不含动态倍率）
 		other["group_ratio"] = groupRatio / relayInfo.PriceData.GroupRatioInfo.DynamicRatio
 	}
+	relayInfo.PerformanceOutputTokens = int64(usage.OutputTokens)
 	logstore.RecordConsumeLog(ctx, relayInfo.UserId, logstore.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     usage.InputTokens,
@@ -379,6 +380,7 @@ func PostClaudeConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, 
 	}
 	// 共享流式日志指标，避免 Claude /v1/messages 丢失吐字速度展示。
 	AppendStreamMetrics(other, relayInfo, useTimeMs, completionTokens)
+	relayInfo.PerformanceOutputTokens = int64(completionTokens)
 	logstore.RecordConsumeLog(ctx, relayInfo.UserId, logstore.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     promptTokens,
@@ -509,6 +511,7 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 		other["dynamic_ratio"] = relayInfo.PriceData.GroupRatioInfo.DynamicRatio
 		other["group_ratio"] = groupRatio / relayInfo.PriceData.GroupRatioInfo.DynamicRatio
 	}
+	relayInfo.PerformanceOutputTokens = int64(usage.CompletionTokens)
 	logstore.RecordConsumeLog(ctx, relayInfo.UserId, logstore.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     usage.PromptTokens,

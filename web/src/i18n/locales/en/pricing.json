@@ -67,6 +67,7 @@
   "pricing.fields.priceLowToHigh": "Price: Low to High",
   "pricing.fields.pricesShownPer": "Prices shown per",
   "pricing.tips.pricesVaryByUsageTierAndRequestConditions": "Prices vary by usage tier and request conditions",
+  "pricing.tips.contextPricingBaseNote": "Prices above are base prices without group ratio applied; actual prices scale with the group ratio — see Pricing by Group below.",
   "pricing.fields.byGroup": "Pricing by Group",
   "pricing.fields.type": "Pricing Type",
   "pricing.fields.proprietary": "Proprietary",
@@ -91,6 +92,7 @@
   "pricing.fields.throughputShort": "TPS",
   "pricing.fields.tier": "Tier",
   "pricing.fields.tieredPriceTable": "Tiered price table",
+  "pricing.fields.tokenRange": "Token Range",
   "pricing.fields.tiers": "tiers",
   "pricing.fields.token": "Token",
   "pricing.fields.tokenUnit": "Token unit",
@@ -104,5 +106,13 @@
   "pricing.fields.in": "In",
   "pricing.fields.tieredPricing": "Tiered Pricing",
   "pricing.tips.checkTheUpstreamProviderPolicyForDetails": "Check the upstream provider policy for details",
-  "pricing.fields.all": "All"
+  "pricing.fields.all": "All",
+  "pricing.titles.performance": "Performance",
+  "pricing.titles.groupPerformance": "Performance by Group",
+  "pricing.titles.ttftTrend": "Avg first-token latency trend",
+  "pricing.titles.successRateTrend": "Success rate trend",
+  "pricing.fields.firstTokenLatency": "First-token latency",
+  "pricing.tips.perfWindowHours": "Last {{hours}} hours",
+  "pricing.tips.noPerformanceData": "No performance data available.",
+  "pricing.errors.failedToLoadPerformanceData": "Failed to load performance data."
 }

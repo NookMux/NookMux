@@ -9,6 +9,7 @@ import (
 	"github.com/NookMux/NookMux/internal/config/operation"
 	billing "github.com/NookMux/NookMux/internal/domain/billing"
 	domainchannel "github.com/NookMux/NookMux/internal/domain/channel"
+	perfmetrics "github.com/NookMux/NookMux/internal/domain/perfmetrics"
 	sensitive "github.com/NookMux/NookMux/internal/domain/sensitive"
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	"github.com/NookMux/NookMux/internal/httpapi"
@@ -129,6 +130,13 @@ func Relay(c *gin.Context, relayFormat relayconstant.RelayFormat) {
 		newAPIError = shared.NewError(err, shared.ErrorCodeGenRelayInfoFailed)
 		return
 	}
+
+	// 请求边界性能采样：defer 恰好执行一次，天然覆盖全部模态且多渠道重试
+	// 不会重复计数；成功侧 token 数由各结算出口回填到 RelayInfo。
+	perfSampleStart := time.Now()
+	defer func() {
+		perfmetrics.RecordRelaySample(relayInfo, newAPIError, time.Since(perfSampleStart))
+	}()
 
 	needSensitiveCheck := config.ShouldCheckPromptSensitive()
 	needCountToken := shared.CountToken

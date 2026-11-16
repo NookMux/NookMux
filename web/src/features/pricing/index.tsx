@@ -30,7 +30,7 @@ import {
   ModelCardGrid,
   ModelDetailsDrawer,
 } from './components'
-import { EXCLUDED_GROUPS, VIEW_MODES } from './constants'
+import { EXCLUDED_GROUPS, FILTER_ALL, VIEW_MODES } from './constants'
 import { useFilters } from './hooks/use-filters'
 import { usePricingData } from './hooks/use-pricing-data'
 
@@ -103,6 +103,16 @@ export function Pricing() {
     [usableGroup]
   )
 
+  // Ratio of the group selected in the sidebar/toolbar filter; prices in the
+  // card/table views are displayed at this ratio instead of the model's
+  // minimum enabled-group ratio. The group filter already narrows the list to
+  // models whose enable_groups contains the selected group.
+  const effectiveGroupRatio = useMemo(() => {
+    if (groupFilter === FILTER_ALL) return undefined
+    const ratio = (groupRatio || {})[groupFilter]
+    return Number.isFinite(ratio) ? ratio : undefined
+  }, [groupFilter, groupRatio])
+
   const handleClearAll = useCallback(() => {
     clearFilters()
     clearSearch()
@@ -128,6 +138,7 @@ export function Pricing() {
           usdExchangeRate={usdExchangeRate}
           tokenUnit={tokenUnit}
           showRechargePrice={showRechargePrice}
+          groupRatioOverride={effectiveGroupRatio}
         />
       )
     }
@@ -139,6 +150,7 @@ export function Pricing() {
         usdExchangeRate={usdExchangeRate}
         tokenUnit={tokenUnit}
         showRechargePrice={showRechargePrice}
+        groupRatioOverride={effectiveGroupRatio}
         onModelClick={handleModelClick}
       />
     )

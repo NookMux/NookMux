@@ -67,6 +67,7 @@
   "pricing.fields.priceLowToHigh": "价格：从低到高",
   "pricing.fields.pricesShownPer": "价格显示单位",
   "pricing.tips.pricesVaryByUsageTierAndRequestConditions": "价格根据用量档位和请求条件动态调整",
+  "pricing.tips.contextPricingBaseNote": "以上为未叠加分组倍率的基准价格，实际价格随分组倍率变化，详见「按分组定价」。",
   "pricing.fields.byGroup": "按分组定价",
   "pricing.fields.type": "定价类型",
   "pricing.fields.proprietary": "商业闭源",
@@ -91,6 +92,7 @@
   "pricing.fields.throughputShort": "吞吐",
   "pricing.fields.tier": "档位",
   "pricing.fields.tieredPriceTable": "分档价格表",
+  "pricing.fields.tokenRange": "Token 区间",
   "pricing.fields.tiers": "档",
   "pricing.fields.token": "令牌",
   "pricing.fields.tokenUnit": "Token 单位",
@@ -104,5 +106,13 @@
   "pricing.fields.in": "输入",
   "pricing.fields.tieredPricing": "阶梯计费",
   "pricing.tips.checkTheUpstreamProviderPolicyForDetails": "请查看上游供应商政策了解详情",
-  "pricing.fields.all": "全部"
+  "pricing.fields.all": "全部",
+  "pricing.titles.performance": "性能",
+  "pricing.titles.groupPerformance": "各分组性能",
+  "pricing.titles.ttftTrend": "平均首字延迟趋势",
+  "pricing.titles.successRateTrend": "成功率趋势",
+  "pricing.fields.firstTokenLatency": "首字延迟",
+  "pricing.tips.perfWindowHours": "近 {{hours}} 小时",
+  "pricing.tips.noPerformanceData": "暂无性能数据。",
+  "pricing.errors.failedToLoadPerformanceData": "性能数据加载失败。"
 }

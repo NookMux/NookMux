@@ -15,6 +15,7 @@ import (
 	"github.com/NookMux/NookMux/internal/httpapi/controller/oauth"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/option"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/passkey"
+	perfmetricscontroller "github.com/NookMux/NookMux/internal/httpapi/controller/perfmetrics"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/performance"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/prefill_group"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/rankings"
@@ -68,6 +69,8 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/home_page_content", misccontroller.GetHomePageContent)
 		apiRouter.GET("/pricing", middleware.HeaderNavModuleAuth("pricing"), billingcontroller.GetPricing)
 		apiRouter.GET("/rankings", middleware.HeaderNavModuleAuth("rankings"), rankingscontroller.GetRankings)
+		apiRouter.GET("/perf-metrics", middleware.HeaderNavModuleAuth("perf_metrics"), perfmetricscontroller.GetPerfMetrics)
+		apiRouter.GET("/perf-metrics/summary", middleware.HeaderNavModuleAuth("perf_metrics"), perfmetricscontroller.GetPerfMetricsSummary)
 		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), misccontroller.SendEmailVerification)
 		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), misccontroller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), anonymousRequestBodyLimit, misccontroller.ResetPassword)

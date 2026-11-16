@@ -467,6 +467,7 @@ func ApplyQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, settlement *
 	}
 	// 共享流式日志指标，确保 OpenAI 兼容与 Claude 消费日志展示一致。
 	AppendStreamMetrics(other, relayInfo, settlement.useTimeMs, settlement.completionTokens)
+	relayInfo.PerformanceOutputTokens = int64(settlement.completionTokens)
 	logstore.RecordConsumeLog(ctx, relayInfo.UserId, logstore.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     settlement.promptTokens,

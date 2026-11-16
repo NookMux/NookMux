@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/dashboard"
+	_ "github.com/NookMux/NookMux/internal/config/perfmetrics"
 	_ "github.com/NookMux/NookMux/internal/config/performance"
 	"github.com/NookMux/NookMux/internal/config/ratio"
 	"github.com/NookMux/NookMux/internal/i18n"

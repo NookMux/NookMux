@@ -425,6 +425,11 @@ stored_media.forbidden: "You do not have permission to access this resource"
 stored_media.no_valid_ids: "No valid ids"
 
 # Performance messages
+perf_metrics.model_required: "Model name is required"
+perf_metrics.hours_invalid: "Invalid query window (1-720 hours)"
+option.perf_metrics_flush_interval_invalid: "Flush interval must be an integer of at least 1 minute"
+option.perf_metrics_bucket_time_invalid: "Bucket time must be one of minute, 5min, hour"
+option.perf_metrics_retention_invalid: "Retention days must be an integer of at least 0 (0 keeps forever)"
 performance.disk_cache_cleared: "Inactive disk cache has been cleared"
 performance.stats_reset: "Statistics have been reset"
 performance.gc_executed: "GC has been executed"

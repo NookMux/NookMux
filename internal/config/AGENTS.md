@@ -30,6 +30,10 @@
 
 校验入口 `ValidateLogCleanupValue` / `ValidateLogCleanupUnit` / `ValidateLogCleanupTargets`，由 `UpdateOption` 控制器按 key 逐项调用（错误消息走 i18n `option.log_cleanup_*`）；消费方为 `internal/domain/logcleanup` 的后台清理 worker。
 
+## 性能指标配置
+
+模型性能指标配置位于 `internal/config/perfmetrics/config.go`，由 `manager.GlobalConfig.Register("perf_metrics_setting", ...)` 注册：`enabled`（采样开关，默认开启）、`flush_interval`（热桶落库间隔分钟数，最小 1，默认 5）、`bucket_time`（聚合桶粒度 `minute`/`5min`/`hour`，默认 `hour`）、`retention_days`（桶数据保留天数，`0` 永久保留，默认 30）。桶粒度校验入口 `BucketTimeSeconds`，数值范围校验由 `UpdateOption` 控制器按 key 逐项执行（错误消息走 i18n `option.perf_metrics_*`）；消费方为 `internal/domain/perfmetrics` 采样与 `internal/store/perfmetrics` 落库 worker。
+
 ## 验证
 
 - `go test ./internal/config/...`

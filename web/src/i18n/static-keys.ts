@@ -317,6 +317,7 @@ export const STATIC_I18N_KEYS = [
   'systemSettings.fields.smtpEmail',
   'systemSettings.fields.workerProxy',
   'systemSettings.fields.logMaintenance',
+  'systemSettings.titles.perfMetricsSettings',
   'systemSettings.titles.information',
   'common.titles.systemAnnouncements',
   'systemSettings.fields.headerNavigation',

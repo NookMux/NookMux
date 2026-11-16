@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { StatusBadge } from '@/components/status-badge'
 import { DEFAULT_TOKEN_UNIT } from '../constants'
+import { formatTokenRangeShort } from '../lib/context-price'
 import {
   getDynamicDisplayGroupRatio,
   getDynamicPricingSummary,
@@ -36,35 +37,16 @@ import { ModelPerfBadge, type ModelPerfBadgeData } from './model-perf-badge'
 
 const TOKEN_UNIT_DIVISORS: Record<TokenUnit, number> = { M: 1, K: 1000 }
 
-function formatTokenRange(min: number, max?: number | null): string {
-  const fmt = (n: number) =>
-    n >= 1_000_000
-      ? `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`
-      : n >= 1000
-        ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`
-        : String(n)
-  if (max == null) return `>=${fmt(min)}`
-  return `${fmt(min)}~${fmt(max)}`
-}
-
 function computeTierPrice(
   ratio: number,
   model: PricingModel,
   tokenUnit: TokenUnit,
   showRechargePrice: boolean,
   priceRate: number,
-  usdExchangeRate: number
+  usdExchangeRate: number,
+  groupRatioOverride?: number
 ): string {
-  const groups = Array.isArray(model.enable_groups) ? model.enable_groups : []
-  const ratios = model.group_ratio || {}
-  let groupRatio = 1
-  if (groups.length > 0) {
-    let minR = Infinity
-    for (const g of groups) {
-      if (ratios[g] !== undefined && ratios[g] < minR) minR = ratios[g]
-    }
-    if (minR !== Infinity) groupRatio = minR
-  }
+  const groupRatio = getDynamicDisplayGroupRatio(model, groupRatioOverride)
   const base = ratio * 2 * groupRatio
   let priceUSD = base / TOKEN_UNIT_DIVISORS[tokenUnit]
   if (showRechargePrice) {
@@ -82,6 +64,7 @@ export interface ModelCardProps {
   usdExchangeRate?: number
   tokenUnit?: TokenUnit
   showRechargePrice?: boolean
+  groupRatioOverride?: number
   perf?: ModelPerfBadgeData
 }
 
@@ -111,7 +94,10 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         showRechargePrice,
         priceRate,
         usdExchangeRate,
-        groupRatioMultiplier: getDynamicDisplayGroupRatio(props.model),
+        groupRatioMultiplier: getDynamicDisplayGroupRatio(
+          props.model,
+          props.groupRatioOverride
+        ),
       })
     : null
 
@@ -195,7 +181,10 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                       className='text-muted-foreground text-xs whitespace-nowrap'
                     >
                       <span className='text-muted-foreground/60'>
-                        {formatTokenRange(tier.min_tokens, tier.max_tokens)}
+                        {formatTokenRangeShort(
+                          tier.min_tokens,
+                          tier.max_tokens
+                        )}
                       </span>{' '}
                       {t('pricing.fields.in')}{' '}
                       <span className='text-foreground font-mono font-semibold'>
@@ -205,7 +194,8 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                           tokenUnit,
                           showRechargePrice,
                           priceRate,
-                          usdExchangeRate
+                          usdExchangeRate,
+                          props.groupRatioOverride
                         )}
                       </span>
                       /{tokenUnitLabel}
@@ -223,7 +213,8 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                         tokenUnit,
                         showRechargePrice,
                         priceRate,
-                        usdExchangeRate
+                        usdExchangeRate,
+                        props.groupRatioOverride
                       )}
                     </span>
                     /{tokenUnitLabel}
@@ -237,7 +228,8 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                         tokenUnit,
                         showRechargePrice,
                         priceRate,
-                        usdExchangeRate
+                        usdExchangeRate,
+                        props.groupRatioOverride
                       )}
                     </span>
                     /{tokenUnitLabel}
@@ -252,7 +244,8 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                           tokenUnit,
                           showRechargePrice,
                           priceRate,
-                          usdExchangeRate
+                          usdExchangeRate,
+                          props.groupRatioOverride
                         )}
                       </span>
                     </span>
@@ -265,7 +258,8 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
                       props.model,
                       showRechargePrice,
                       priceRate,
-                      usdExchangeRate
+                      usdExchangeRate,
+                      props.groupRatioOverride
                     )}
                   </span>{' '}
                   / {t('home.fields.request')}

@@ -16,6 +16,7 @@ import (
 	"github.com/NookMux/NookMux/internal/store/loginkey"
 	"github.com/NookMux/NookMux/internal/store/option"
 	"github.com/NookMux/NookMux/internal/store/passkey"
+	"github.com/NookMux/NookMux/internal/store/perfmetrics"
 	"github.com/NookMux/NookMux/internal/store/prefill_group"
 	"github.com/NookMux/NookMux/internal/store/redemption"
 	"github.com/NookMux/NookMux/internal/store/stored_media"
@@ -263,6 +264,7 @@ func mainDBModels() []any {
 		&storedmediastore.StoredMedia{},
 		&topupstore.TopUp{},
 		&usedatastore.QuotaData{},
+		&perfmetricsstore.PerfMetric{},
 		&vendormetastore.Model{},
 		&vendormetastore.Vendor{},
 		&prefillgroupstore.PrefillGroup{},

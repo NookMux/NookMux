@@ -8,10 +8,12 @@ import (
 	"github.com/NookMux/NookMux/internal/config/manager"
 	"github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/config/operation"
+	perfconfig "github.com/NookMux/NookMux/internal/config/perfmetrics"
 	"github.com/NookMux/NookMux/internal/config/performance"
 	"github.com/NookMux/NookMux/internal/config/ratio"
 	"github.com/NookMux/NookMux/internal/config/system"
 	"github.com/NookMux/NookMux/internal/store/db"
+	perfmetricsstore "github.com/NookMux/NookMux/internal/store/perfmetrics"
 	"github.com/NookMux/NookMux/internal/store/usedata"
 	"strconv"
 	"strings"
@@ -621,6 +623,11 @@ func handleConfigUpdate(key, value string) (bool, error) {
 		// 避免 store 层反向依赖 config/dashboard（其迁移逻辑依赖 optionstore）
 		syncDashboardRuntimeConfig(cfg)
 	}
+	if configName == "perf_metrics_setting" {
+		// 同步采集开关与管道参数到 perfmetricsstore 包级变量，避免 store 层
+		// 反向依赖 config/perfmetrics。
+		syncPerfMetricsRuntimeConfig(cfg)
+	}
 
 	return true, nil // 已处理
 }
@@ -650,4 +657,24 @@ func syncDashboardRuntimeConfig(cfg any) {
 	flushIntervalSec, _ := strconv.Atoi(m["quota_data_refresh_interval"])
 	analyticsIntervalSec, _ := strconv.Atoi(m["user_analytics_refresh_interval"])
 	usedatastore.SyncQuotaDataRuntimeConfig(writeEnabled, flushIntervalSec, analyticsIntervalSec)
+}
+
+// syncPerfMetricsRuntimeConfig 从已更新的 perf_metrics_setting 配置对象读取
+// 采集开关与管道参数，同步到 perfmetricsstore 包级变量。桶粒度取值非法
+// （历史脏数据直载路径绕过控制器校验）时回退小时桶并以系统错误暴露。
+func syncPerfMetricsRuntimeConfig(cfg any) {
+	m, err := manager.ConfigToMap(cfg)
+	if err != nil {
+		common.SysError(fmt.Sprintf("syncPerfMetricsRuntimeConfig: 解析 perf_metrics_setting 失败: %s", err))
+		return
+	}
+	enabled, _ := strconv.ParseBool(m["enabled"])
+	flushIntervalMin, _ := strconv.Atoi(m["flush_interval"])
+	bucketSeconds, bucketErr := perfconfig.BucketTimeSeconds(m["bucket_time"])
+	if bucketErr != nil {
+		common.SysError(fmt.Sprintf("syncPerfMetricsRuntimeConfig: %s，回退小时桶", bucketErr.Error()))
+		bucketSeconds = 3600
+	}
+	retentionDays, _ := strconv.Atoi(m["retention_days"])
+	perfmetricsstore.SyncRuntimeConfig(enabled, flushIntervalMin, bucketSeconds, retentionDays)
 }

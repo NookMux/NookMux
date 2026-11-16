@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo } from 'react'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { ArrowLeft, Box, Code2, Info } from 'lucide-react'
+import { ArrowLeft, Box, Code2, Gauge, Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
@@ -47,6 +47,10 @@ import { PublicLayout } from '@/components/layout'
 import { DEFAULT_TOKEN_UNIT, QUOTA_TYPE_VALUES } from '../constants'
 import { usePricingData } from '../hooks/use-pricing-data'
 import {
+  formatTokenRangeShort,
+  getContextPriceEntries,
+} from '../lib/context-price'
+import {
   getDynamicPriceEntries,
   getDynamicPricingSummary,
   getDynamicPricingTiers,
@@ -57,6 +61,7 @@ import { getAvailableGroups, isTokenBasedModel } from '../lib/model-helpers'
 import { inferModelMetadata } from '../lib/model-metadata'
 import { formatFixedPrice, formatGroupPrice } from '../lib/price'
 import type {
+  ContextPricingTier,
   Modality,
   ModelCapability,
   PriceType,
@@ -66,6 +71,7 @@ import type {
 import { DynamicPricingBreakdown } from './dynamic-pricing-breakdown'
 import { ModelDetailsApi, ModelDetailsProviderInfo } from './model-details-api'
 import { ModalityIcons } from './model-details-modalities'
+import { ModelDetailsPerformance } from './model-details-performance'
 import { ModelDetailsQuickStats } from './model-details-quick-stats'
 
 // ----------------------------------------------------------------------------
@@ -300,6 +306,95 @@ function ModelHeader(props: { model: PricingModel }) {
 }
 
 // ----------------------------------------------------------------------------
+// Context pricing tier table (shared by base price and per-group cards)
+// ----------------------------------------------------------------------------
+
+function ContextPricingTierTable(props: {
+  tiers: ContextPricingTier[]
+  tokenUnit: TokenUnit
+  showRechargePrice: boolean
+  priceRate: number
+  usdExchangeRate: number
+  groupRatioMultiplier: number
+}) {
+  const { t } = useTranslation()
+  const thClass =
+    'text-muted-foreground py-2 text-[10px] font-medium tracking-wider uppercase'
+
+  // Columns are the union of the price fields across all tiers (computed at
+  // the base multiplier so a positive field is never masked by the ratio),
+  // which hides fields that are zero in every tier.
+  const priceFields = Array.from(
+    new Map(
+      props.tiers
+        .flatMap((tier) =>
+          getContextPriceEntries(tier, {
+            tokenUnit: props.tokenUnit,
+            showRechargePrice: props.showRechargePrice,
+            priceRate: props.priceRate,
+            usdExchangeRate: props.usdExchangeRate,
+            groupRatioMultiplier: 1,
+          })
+        )
+        .map((entry) => [entry.field, entry])
+    ).values()
+  )
+
+  return (
+    <div className='overflow-x-auto'>
+      <Table className='text-sm'>
+        <TableHeader>
+          <TableRow className='hover:bg-transparent'>
+            <TableHead className={thClass}>
+              {t('pricing.fields.tokenRange')}
+            </TableHead>
+            {priceFields.map((entry) => (
+              <TableHead key={entry.field} className={`${thClass} text-right`}>
+                {t(entry.shortLabel)}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {props.tiers.map((tier, tierIndex) => {
+            const entries = getContextPriceEntries(tier, {
+              tokenUnit: props.tokenUnit,
+              showRechargePrice: props.showRechargePrice,
+              priceRate: props.priceRate,
+              usdExchangeRate: props.usdExchangeRate,
+              groupRatioMultiplier: props.groupRatioMultiplier,
+            })
+            const entryMap = new Map(
+              entries.map((entry) => [entry.field, entry])
+            )
+
+            return (
+              <TableRow key={`context-tier-${tierIndex}`}>
+                <TableCell className='text-muted-foreground py-2.5'>
+                  {tier.name ||
+                    formatTokenRangeShort(tier.min_tokens, tier.max_tokens)}
+                </TableCell>
+                {priceFields.map((fieldEntry) => {
+                  const entry = entryMap.get(fieldEntry.field)
+                  return (
+                    <TableCell
+                      key={fieldEntry.field}
+                      className='py-2.5 text-right font-mono'
+                    >
+                      {entry?.formatted ?? '-'}
+                    </TableCell>
+                  )
+                })}
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+// ----------------------------------------------------------------------------
 // Base price card (used in the Overview tab)
 // ----------------------------------------------------------------------------
 
@@ -470,6 +565,28 @@ function PriceSection(props: {
             )}
           </span>
         </div>
+      </section>
+    )
+  }
+
+  const contextPricing = props.model.context_pricing
+  if (contextPricing?.enabled && contextPricing.tiers.length > 0) {
+    return (
+      <section>
+        <SectionTitle>{t('pricing.fields.basePrice')}</SectionTitle>
+        <div className='overflow-hidden rounded-lg border'>
+          <ContextPricingTierTable
+            tiers={contextPricing.tiers}
+            tokenUnit={props.tokenUnit}
+            showRechargePrice={props.showRechargePrice}
+            priceRate={props.priceRate}
+            usdExchangeRate={props.usdExchangeRate}
+            groupRatioMultiplier={1}
+          />
+        </div>
+        <p className='text-muted-foreground/40 mt-1.5 text-[10px]'>
+          {t('pricing.tips.contextPricingBaseNote')}
+        </p>
       </section>
     )
   }
@@ -759,6 +876,42 @@ function GroupPricingSection(props: {
     )
   }
 
+  const contextPricing = props.model.context_pricing
+  if (contextPricing?.enabled && contextPricing.tiers.length > 0) {
+    return (
+      <section>
+        <SectionTitle>{t('pricing.fields.byGroup')}</SectionTitle>
+        <AutoGroupChain model={props.model} autoGroups={props.autoGroups} />
+        <div className='space-y-3'>
+          {availableGroups.map((group) => {
+            const ratio = props.groupRatio[group] || 1
+            return (
+              <div key={group} className='overflow-hidden rounded-lg border'>
+                <div className='bg-muted/20 flex items-center justify-between gap-3 border-b px-3 py-2'>
+                  <GroupBadge group={group} size='sm' />
+                  <span className='text-muted-foreground font-mono text-xs'>
+                    {ratio}x
+                  </span>
+                </div>
+                <ContextPricingTierTable
+                  tiers={contextPricing.tiers}
+                  tokenUnit={props.tokenUnit}
+                  showRechargePrice={showRechargePrice}
+                  priceRate={props.priceRate}
+                  usdExchangeRate={props.usdExchangeRate}
+                  groupRatioMultiplier={ratio}
+                />
+              </div>
+            )
+          })}
+          <p className='text-muted-foreground/40 mt-1.5 text-[10px]'>
+            {t('pricing.fields.pricesShownPer')} {tokenUnitLabel} tokens
+          </p>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section>
       <SectionTitle>{t('pricing.fields.byGroup')}</SectionTitle>
@@ -879,7 +1032,7 @@ function GroupPricingSection(props: {
   )
 }
 
-const TAB_VALUES = ['overview', 'api'] as const
+const TAB_VALUES = ['overview', 'api', 'performance'] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
 const TAB_META: Record<
@@ -888,6 +1041,7 @@ const TAB_META: Record<
 > = {
   overview: { icon: Info, labelKey: 'common.titles.overview' },
   api: { icon: Code2, labelKey: 'common.fields.api' },
+  performance: { icon: Gauge, labelKey: 'pricing.titles.performance' },
 }
 
 interface ModelDetailsContentProps {
@@ -975,6 +1129,10 @@ function ModelDetailsContent(props: ModelDetailsContentProps) {
             model={props.model}
             endpointMap={props.endpointMap}
           />
+        </TabsContent>
+
+        <TabsContent value='performance' className='outline-none'>
+          <ModelDetailsPerformance modelName={props.model.model_name || ''} />
         </TabsContent>
       </Tabs>
     </div>

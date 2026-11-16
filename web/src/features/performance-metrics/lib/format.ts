@@ -27,3 +27,34 @@ export function formatLatency(ms: number): string {
   if (ms >= 1_000) return `${(ms / 1_000).toFixed(2)}s`
   return `${Math.round(ms)}ms`
 }
+
+export function formatSuccessRate(rate: number): string {
+  if (!Number.isFinite(rate)) return '—'
+  return `${rate.toFixed(1)}%`
+}
+
+export type SuccessRateTone = {
+  textClass: string
+  dotClass: string
+}
+
+// Upstream-aligned success rate tiers:
+// 100% green · >=90% light green · >=70% amber · <70% red.
+export function getSuccessRateTone(rate: number): SuccessRateTone {
+  if (!Number.isFinite(rate) || rate < 0) {
+    return {
+      textClass: 'text-muted-foreground',
+      dotClass: 'bg-muted-foreground/40',
+    }
+  }
+  if (rate >= 100) {
+    return { textClass: 'text-success', dotClass: 'bg-success' }
+  }
+  if (rate >= 90) {
+    return { textClass: 'text-success/80', dotClass: 'bg-success/70' }
+  }
+  if (rate >= 70) {
+    return { textClass: 'text-warning', dotClass: 'bg-warning' }
+  }
+  return { textClass: 'text-destructive', dotClass: 'bg-destructive' }
+}

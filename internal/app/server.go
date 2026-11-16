@@ -16,6 +16,7 @@ import (
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/option"
+	"github.com/NookMux/NookMux/internal/store/perfmetrics"
 	"github.com/NookMux/NookMux/internal/store/usedata"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -93,6 +94,9 @@ func Run() int {
 
 	// 数据看板
 	go usedatastore.UpdateQuotaData()
+
+	// 模型性能指标落库与保留清理
+	go perfmetricsstore.UpdatePerfMetrics()
 
 	// 日志自动清理
 	go logcleanup.StartWorker()
@@ -195,6 +199,8 @@ func Run() int {
 	// 流量停止后把批量暂存的统计增量（已用额度、请求计数）落库，
 	// 避免退出时丢失窗口内的数据。
 	dbstore.FlushBatchUpdates()
+	// 性能指标热桶在停机前整体落库，避免退出丢失窗口内的采样。
+	perfmetricsstore.FlushPerfMetrics()
 
 	return 0
 }

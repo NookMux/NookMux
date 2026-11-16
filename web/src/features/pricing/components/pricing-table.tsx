@@ -45,6 +45,7 @@ export interface PricingTableProps {
   usdExchangeRate?: number
   tokenUnit?: TokenUnit
   showRechargePrice?: boolean
+  groupRatioOverride?: number
   onModelClick?: (modelName: string) => void
 }
 
@@ -57,6 +58,7 @@ export function PricingTable(props: PricingTableProps) {
     usdExchangeRate = 1,
     tokenUnit = DEFAULT_TOKEN_UNIT,
     showRechargePrice = false,
+    groupRatioOverride,
     onModelClick,
   } = props
 
@@ -70,6 +72,7 @@ export function PricingTable(props: PricingTableProps) {
     priceRate,
     usdExchangeRate,
     showRechargePrice,
+    groupRatioOverride,
   })
 
   const table = useTable({

@@ -426,6 +426,11 @@ stored_media.forbidden: "无权访问该资源"
 stored_media.no_valid_ids: "没有有效的 id"
 
 # Performance messages
+perf_metrics.model_required: "模型名不能为空"
+perf_metrics.hours_invalid: "查询时间范围无效（1-720 小时）"
+option.perf_metrics_flush_interval_invalid: "落库间隔必须是不小于 1 的整数（分钟）"
+option.perf_metrics_bucket_time_invalid: "聚合时间桶粒度必须是 minute、5min 或 hour"
+option.perf_metrics_retention_invalid: "保留天数必须是不小于 0 的整数（0 表示永久保留）"
 performance.disk_cache_cleared: "不活跃的磁盘缓存已清理"
 performance.stats_reset: "统计信息已重置"
 performance.gc_executed: "GC 已执行"

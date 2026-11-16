@@ -334,6 +334,10 @@ export type OperationsSettings = {
   'performance_setting.monitor_cpu_threshold': number
   'performance_setting.monitor_memory_threshold': number
   'performance_setting.monitor_disk_threshold': number
+  'perf_metrics_setting.enabled': boolean
+  'perf_metrics_setting.flush_interval': number
+  'perf_metrics_setting.bucket_time': string
+  'perf_metrics_setting.retention_days': number
 }
 
 export type SecuritySettings = {

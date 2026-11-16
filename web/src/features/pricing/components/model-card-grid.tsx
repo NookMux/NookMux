@@ -17,12 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { getPerfMetricsSummary } from '@/features/performance-metrics/api'
 import { DEFAULT_PRICING_PAGE_SIZE, DEFAULT_TOKEN_UNIT } from '../constants'
 import type { PricingModel, TokenUnit } from '../types'
 import { ModelCard } from './model-card'
+import type { ModelPerfBadgeData } from './model-perf-badge'
 
 export interface ModelCardGridProps {
   models: PricingModel[]
@@ -31,6 +34,7 @@ export interface ModelCardGridProps {
   usdExchangeRate?: number
   tokenUnit?: TokenUnit
   showRechargePrice?: boolean
+  groupRatioOverride?: number
 }
 
 export function ModelCardGrid(props: ModelCardGridProps) {
@@ -45,6 +49,37 @@ export function ModelCardGrid(props: ModelCardGridProps) {
     const start = (currentPage - 1) * pageSize
     return props.models.slice(start, start + pageSize)
   }, [currentPage, pageSize, props.models])
+
+  // Badge data is fetched per visible page; flipping pages changes the query
+  // key (sorted model names) and triggers a fresh summary request.
+  const pageModelNames = useMemo(
+    () =>
+      pagedModels
+        .map((model) => model.model_name || '')
+        .filter(Boolean)
+        .sort(),
+    [pagedModels]
+  )
+
+  const { data: perfSummary } = useQuery({
+    queryKey: ['perf-metrics-summary', pageModelNames],
+    queryFn: () => getPerfMetricsSummary(),
+    staleTime: 60 * 1000,
+    retry: false,
+    enabled: pageModelNames.length > 0,
+  })
+
+  const perfByName = useMemo(() => {
+    const map = new Map<string, ModelPerfBadgeData>()
+    for (const model of perfSummary?.models ?? []) {
+      map.set(model.model_name, {
+        avg_latency_ms: model.avg_latency_ms,
+        success_rate: model.success_rate,
+        avg_tps: model.avg_tps,
+      })
+    }
+    return map
+  }, [perfSummary])
 
   if (props.models.length === 0) {
     return null
@@ -61,6 +96,8 @@ export function ModelCardGrid(props: ModelCardGridProps) {
             priceRate={props.priceRate}
             usdExchangeRate={props.usdExchangeRate}
             showRechargePrice={props.showRechargePrice}
+            groupRatioOverride={props.groupRatioOverride}
+            perf={perfByName.get(model.model_name || '')}
             onClick={() => props.onModelClick(model.model_name || '')}
           />
         ))}

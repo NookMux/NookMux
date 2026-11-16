@@ -26,6 +26,7 @@ import { PerformanceSection } from '../maintenance/performance-section'
 import { SystemMaintenanceSection } from '../maintenance/system-maintenance-section'
 import type { OperationsSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { PerfMetricsSection } from './perf-metrics-section'
 
 const OPERATIONS_SECTIONS = [
   {
@@ -143,6 +144,24 @@ const OPERATIONS_SECTIONS = [
             settings['performance_setting.monitor_memory_threshold'] ?? 90,
           'performance_setting.monitor_disk_threshold':
             settings['performance_setting.monitor_disk_threshold'] ?? 95,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'perf-metrics',
+    titleKey: 'systemSettings.titles.perfMetricsSettings',
+    build: (settings: OperationsSettings) => (
+      <PerfMetricsSection
+        defaultValues={{
+          'perf_metrics_setting.enabled':
+            settings['perf_metrics_setting.enabled'] ?? true,
+          'perf_metrics_setting.flush_interval':
+            settings['perf_metrics_setting.flush_interval'] ?? 5,
+          'perf_metrics_setting.bucket_time':
+            settings['perf_metrics_setting.bucket_time'] ?? 'hour',
+          'perf_metrics_setting.retention_days':
+            settings['perf_metrics_setting.retention_days'] ?? 30,
         }}
       />
     ),

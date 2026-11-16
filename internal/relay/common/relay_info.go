@@ -133,9 +133,12 @@ type RelayInfo struct {
 	// Subscription billing is removed; "" or "wallet" means wallet.
 	BillingSource string
 	// RequestId is used for idempotent pre-consume/refund
-	RequestId                 string
-	IsClaudeBetaQuery         bool // /v1/messages?beta=true
-	IsChannelTest             bool // channel test request
+	RequestId         string
+	IsClaudeBetaQuery bool // /v1/messages?beta=true
+	IsChannelTest     bool // channel test request
+	// PerformanceOutputTokens 结算出口回填的输出 token 快照，供请求边界的
+	// 性能采样（模型性能指标管道）在结算完成后读取。
+	PerformanceOutputTokens   int64
 	RuntimeHeadersOverride    map[string]interface{}
 	UseRuntimeHeadersOverride bool
 	ParamOverrideAudit        []string

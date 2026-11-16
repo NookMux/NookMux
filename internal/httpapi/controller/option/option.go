@@ -7,6 +7,7 @@ import (
 	"github.com/NookMux/NookMux/internal/config/console"
 	configmodel "github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/config/operation"
+	perfconfig "github.com/NookMux/NookMux/internal/config/perfmetrics"
 	"github.com/NookMux/NookMux/internal/config/ratio"
 	audit "github.com/NookMux/NookMux/internal/domain/audit"
 	rankings "github.com/NookMux/NookMux/internal/domain/rankings"
@@ -742,6 +743,23 @@ func UpdateOption(c *gin.Context) {
 	case "log_cleanup_setting.targets":
 		if err := operation.ValidateLogCleanupTargets(option.Value.(string)); err != nil {
 			httpapi.ApiErrorI18n(c, i18n.MsgOptionLogCleanupTargetsInvalid, map[string]any{"Error": err.Error()})
+			return
+		}
+	case "perf_metrics_setting.flush_interval":
+		value, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string)))
+		if parseErr != nil || value < 1 {
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionPerfMetricsFlushIntervalInvalid)
+			return
+		}
+	case "perf_metrics_setting.bucket_time":
+		if _, err := perfconfig.BucketTimeSeconds(strings.TrimSpace(option.Value.(string))); err != nil {
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionPerfMetricsBucketTimeInvalid)
+			return
+		}
+	case "perf_metrics_setting.retention_days":
+		value, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string)))
+		if parseErr != nil || value < 0 {
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionPerfMetricsRetentionInvalid)
 			return
 		}
 	case "RetryTimes":

@@ -17,6 +17,7 @@
 | `log/` | `logstore` | 消费日志、错误日志检索与用量统计聚合 |
 | `pricing/` | `pricingstore` | 模型定价缓存与刷新 |
 | `option/` | `optionstore` | 系统 Option 键值对、系统 Setup 记录、迁移状态 Marker |
+| `perfmetrics/` | `perfmetricsstore` | 模型性能指标聚合桶：内存热桶按（模型 × 分组 × 时间桶）累加，后台定时以六库兼容模式增量落库，查询时合并数据库行与内存热桶 |
 | 其他单资源目录 | `<资源>store` | redemption/ticket/topup/checkin/usedata/audit/twofa/passkey/voice/missing_models/prefill_group/stored_media/vendor_meta |
 
 `vendormetastore`（`vendor_meta/`）持有 `Model`/`Vendor` 元数据，是跨资源包的公共基础依赖；`dbstore` 位于持久层最底端，不依赖任何资源包。
