@@ -283,6 +283,9 @@ option.retry_enabled_must_bool: "自动重试开关必须是布尔值"
 option.retry_enable_needs_positive: "无法启用自动重试：请先将重试次数设置为大于 0 的值"
 option.tool_billing_rules_parse_failed: "工具计费规则解析失败: {{.Error}}"
 option.tool_billing_rules_set_failed: "工具计费规则设置失败: {{.Error}}"
+option.log_cleanup_value_invalid: "清理时长数值必须为正整数"
+option.log_cleanup_unit_invalid: "时间单位无效：必须为 year、month、week 或 day"
+option.log_cleanup_targets_invalid: "清理目标无效: {{.Error}}"
 
 # Model sync / audit / misc feature messages
 model_sync.get_models_failed: "获取模型列表失败，请稍后重试"

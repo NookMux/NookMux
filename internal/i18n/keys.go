@@ -358,6 +358,9 @@ const (
 	MsgOptionRetryEnableNeedsPositive     = "option.retry_enable_needs_positive"
 	MsgOptionToolBillingRulesParseFailed  = "option.tool_billing_rules_parse_failed"
 	MsgOptionToolBillingRulesSetFailed    = "option.tool_billing_rules_set_failed"
+	MsgOptionLogCleanupValueInvalid       = "option.log_cleanup_value_invalid"
+	MsgOptionLogCleanupUnitInvalid        = "option.log_cleanup_unit_invalid"
+	MsgOptionLogCleanupTargetsInvalid     = "option.log_cleanup_targets_invalid"
 )
 
 // Model sync and audit messages

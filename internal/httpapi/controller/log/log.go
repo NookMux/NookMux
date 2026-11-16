@@ -4,6 +4,7 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/console"
 	audit "github.com/NookMux/NookMux/internal/domain/audit"
+	"github.com/NookMux/NookMux/internal/domain/rankings"
 	"github.com/NookMux/NookMux/internal/httpapi"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/audit"
@@ -495,6 +496,7 @@ func DeleteHistoryLogs(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	cleanLogs := c.Query("clean_logs") == "true" || c.Query("clean_logs") == "1"
+	cleanQuotaData := c.Query("clean_quota_data") == "true" || c.Query("clean_quota_data") == "1"
 	cleanStoredImages := c.Query("clean_stored_images") == "true" || c.Query("clean_stored_images") == "1"
 	cleanStoredVideos := c.Query("clean_stored_videos") == "true" || c.Query("clean_stored_videos") == "1"
 	cleanAuditLogs := c.Query("clean_audit_logs") == "true" || c.Query("clean_audit_logs") == "1"
@@ -503,7 +505,7 @@ func DeleteHistoryLogs(c *gin.Context) {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	if !cleanLogs && !cleanStoredImages && !cleanStoredVideos && !cleanAuditLogs {
+	if !cleanLogs && !cleanQuotaData && !cleanStoredImages && !cleanStoredVideos && !cleanAuditLogs {
 		httpapi.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
@@ -526,6 +528,19 @@ func DeleteHistoryLogs(c *gin.Context) {
 		}
 		data["logs"] = count
 		detail["clean_logs"] = count
+	}
+	if cleanQuotaData {
+		count, err := usedatastore.DeleteQuotaDataInRange(c.Request.Context(), startTimestamp, endTimestamp, 100)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+		if err == nil {
+			// quota_data 聚合行被删除后，基于它构建的排行榜缓存必须失效，
+			// 用户分析缓存由 DeleteQuotaDataInRange 内部清空。
+			rankings.ClearRankingsCache()
+		}
+		data["quota_data"] = count
+		detail["clean_quota_data"] = count
 	}
 	if cleanStoredImages {
 		count, err := storedmediastore.DeleteStoredMediaInRange(c.Request.Context(), storedmediastore.MediaTypeImage, startTimestamp, endTimestamp, 100)

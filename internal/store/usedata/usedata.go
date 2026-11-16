@@ -1,6 +1,7 @@
 package usedatastore
 
 import (
+	"context"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/store/db"
@@ -354,6 +355,41 @@ func GetAllQuotaStat(startTime int64, endTime int64) (QuotaStat, error) {
 		Where("created_at >= ? and created_at <= ?", startTime, endTime).
 		Scan(&stat).Error
 	return stat, err
+}
+
+// DeleteQuotaDataInRange 删除 created_at 在 [startTimestamp, endTimestamp] 区间内的
+// quota_data 聚合行。startTimestamp 为 0 表示不限下界，endTimestamp 为 0 表示不限上界。
+// 分批删除避免单次事务过大；完成后清空用户分析内存缓存，保证统计口径与库内数据一致。
+// 基于 quota_data 的排行榜缓存（domain/rankings）由调用方负责失效。
+func DeleteQuotaDataInRange(ctx context.Context, startTimestamp, endTimestamp int64, limit int) (int64, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	var total int64 = 0
+
+	for {
+		if nil != ctx.Err() {
+			return total, ctx.Err()
+		}
+
+		tx := dbstore.DB.Where("created_at <= ?", endTimestamp)
+		if startTimestamp > 0 {
+			tx = tx.Where("created_at >= ?", startTimestamp)
+		}
+		result := tx.Limit(limit).Delete(&QuotaData{})
+		if nil != result.Error {
+			return total, result.Error
+		}
+
+		total += result.RowsAffected
+
+		if result.RowsAffected < int64(limit) {
+			break
+		}
+	}
+
+	ClearUserAnalyticsCache()
+	return total, nil
 }
 
 // RecalculateQuotaData 从 logs 表重新聚合指定时间范围的 quota_data（先删后插）。

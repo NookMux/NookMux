@@ -883,5 +883,19 @@
   "systemSettings.actions.resetAllToolBillingRules": "Reset all tool billing rules?",
   "systemSettings.tips.clearToolBillingRulesAndRestoreDefaults": "This will clear all current tool billing rules and restore the system defaults.",
   "systemSettings.fields.toolBillingRulesResetSuccessfully": "Tool billing rules reset successfully",
-  "systemSettings.errors.failedToResetToolBillingRules": "Failed to reset tool billing rules"
+  "systemSettings.errors.failedToResetToolBillingRules": "Failed to reset tool billing rules",
+  "systemSettings.fields.quotaDataStats": "Dashboard usage stats",
+  "systemSettings.tips.quotaDataStatsDesc": "Aggregated dashboard usage rows (quota_data). Dashboards and rankings stop covering the removed period.",
+  "systemSettings.titles.autoLogCleanup": "Auto cleanup",
+  "systemSettings.tips.autoLogCleanupIntro": "Automatically removes history data older than the retention period on a schedule. Cleanup runs at natural boundaries in the server's local timezone: 00:00 daily, Monday 00:00 weekly, the 1st 00:00 monthly, and January 1st 00:00 yearly.",
+  "systemSettings.fields.autoCleanEnabled": "Enable auto cleanup",
+  "systemSettings.tips.autoCleanEnabledDesc": "When enabled, data older than the retention period is removed automatically at each scheduled run.",
+  "systemSettings.fields.retentionPeriod": "Keep data for",
+  "systemSettings.fields.cleanupInterval": "Cleanup interval",
+  "systemSettings.fields.unitYear": "Year",
+  "systemSettings.fields.unitMonth": "Month",
+  "systemSettings.fields.unitWeek": "Week",
+  "systemSettings.fields.unitDay": "Day",
+  "systemSettings.fields.autoCleanTargets": "Auto cleanup targets",
+  "systemSettings.errors.positiveIntegerRequired": "Please enter a positive integer"
 }

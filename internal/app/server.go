@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/NookMux/NookMux/internal/app/webdist"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/domain/logcleanup"
 	"github.com/NookMux/NookMux/internal/httpapi/controller/channel"
 	"github.com/NookMux/NookMux/internal/httpapi/middleware"
 	"github.com/NookMux/NookMux/internal/httpapi/router"
@@ -92,6 +93,9 @@ func Run() int {
 
 	// 数据看板
 	go usedatastore.UpdateQuotaData()
+
+	// 日志自动清理
+	go logcleanup.StartWorker()
 
 	if os.Getenv("CHANNEL_UPDATE_FREQUENCY") != "" {
 		frequency, err := strconv.Atoi(os.Getenv("CHANNEL_UPDATE_FREQUENCY"))

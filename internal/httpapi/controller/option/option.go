@@ -728,6 +728,22 @@ func UpdateOption(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgOptionTokenKeyPrefixInvalid)
 			return
 		}
+	case "log_cleanup_setting.retention_value", "log_cleanup_setting.interval_value":
+		value, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string)))
+		if parseErr != nil || operation.ValidateLogCleanupValue(value) != nil {
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionLogCleanupValueInvalid)
+			return
+		}
+	case "log_cleanup_setting.retention_unit", "log_cleanup_setting.interval_unit":
+		if err := operation.ValidateLogCleanupUnit(option.Value.(string)); err != nil {
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionLogCleanupUnitInvalid)
+			return
+		}
+	case "log_cleanup_setting.targets":
+		if err := operation.ValidateLogCleanupTargets(option.Value.(string)); err != nil {
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionLogCleanupTargetsInvalid, map[string]any{"Error": err.Error()})
+			return
+		}
 	case "RetryTimes":
 		// RetryTimes must be a non-negative integer strictly less than 100.
 		retryValue, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string)))

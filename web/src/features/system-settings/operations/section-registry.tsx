@@ -99,6 +99,20 @@ const OPERATIONS_SECTIONS = [
     build: (settings: OperationsSettings) => (
       <LogSettingsSection
         defaultEnabled={Boolean(settings.LogConsumeEnabled)}
+        defaultAutoClean={{
+          auto_clean_enabled: Boolean(
+            settings['log_cleanup_setting.auto_clean_enabled']
+          ),
+          retention_value: settings['log_cleanup_setting.retention_value'] ?? 2,
+          retention_unit:
+            settings['log_cleanup_setting.retention_unit'] ?? 'year',
+          interval_value: settings['log_cleanup_setting.interval_value'] ?? 1,
+          interval_unit:
+            settings['log_cleanup_setting.interval_unit'] ?? 'week',
+          targets: JSON.parse(
+            settings['log_cleanup_setting.targets'] ?? '[]'
+          ) as string[],
+        }}
       />
     ),
   },

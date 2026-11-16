@@ -75,6 +75,7 @@ export type CleanLogsParams = {
   start_timestamp?: number
   end_timestamp: number
   clean_logs?: boolean
+  clean_quota_data?: boolean
   clean_stored_images?: boolean
   clean_stored_videos?: boolean
   clean_audit_logs?: boolean
@@ -82,6 +83,7 @@ export type CleanLogsParams = {
 
 export type CleanLogsResult = {
   logs?: number
+  quota_data?: number
   stored_images?: number
   stored_videos?: number
   audit_logs?: number
@@ -318,6 +320,12 @@ export type OperationsSettings = {
   WorkerValidKey: string
   WorkerAllowHttpImageRequestEnabled: boolean
   LogConsumeEnabled: boolean
+  'log_cleanup_setting.auto_clean_enabled': boolean
+  'log_cleanup_setting.retention_value': number
+  'log_cleanup_setting.retention_unit': string
+  'log_cleanup_setting.interval_value': number
+  'log_cleanup_setting.interval_unit': string
+  'log_cleanup_setting.targets': string
   'performance_setting.disk_cache_enabled': boolean
   'performance_setting.disk_cache_threshold_mb': number
   'performance_setting.disk_cache_max_size_mb': number

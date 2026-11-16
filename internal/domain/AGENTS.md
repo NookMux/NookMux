@@ -13,6 +13,7 @@
 | `channel/` | **渠道治理服务**：渠道自动禁用/启用、加权负载均衡、错误重试策略、渠道亲和性缓存；含 `channel_error.go`（`ChannelError`）。 |
 | `channel/constant/` | **渠道常量叶子包**：`APIType*`、`ChannelType*`、`EndpointType`、`MultiKeyMode`、Azure 时间点、套餐 BaseURL 映射等纯契约常量。 |
 | `audit/` | **审计日志服务**：`audit.RecordAudit` 唯一入口，详见 [audit/AGENTS.md](audit/AGENTS.md)。 |
+| `logcleanup/` | **日志自动清理编排**：`NextRunTime` / `RetentionCutoff`（执行时刻对齐服务器本地时区自然边界 00:00：日/周/月/年）、`RunCleanup` 分批删除超期数据（单批 100 行）、`StartWorker` 后台循环（10 分钟检查步长，段式睡眠感知配置变更）。配置源为 `config/operation` 的 `log_cleanup_setting`，清理目标含 logs / quota_data / stored_media / audit_logs。 |
 | `rankings/` | 模型与供应商用量排行榜聚合。 |
 | `ticket/` | 工单领域服务。 |
 | `sensitive/` | 敏感词高效匹配（`AcSearch` / `SundaySearch`），供 relay 与渠道治理调用。 |
@@ -30,7 +31,7 @@
 - **分层单向性**：`domain` 下的包**严禁 import** controller / middleware / router；数据持久层 store 严禁反向依赖 domain。
 - **契约叶子包纯度**：`domain/channel/constant/` 与 `domain/billing/contract/` 必须保持**纯契约叶子包**（仅依赖标准库或 `pkg/`）。它们被 config/ratio、store/pricing、relay 广泛引用，一旦引入业务 import 即会与领域服务成环。
 - **无环依赖网**：领域服务包（`billing/`、`channel/` 等）可以依赖 store、config、infra，但领域包之间及对 infra 的依赖必须严格无环。
-  - 当前既定依赖方向：`billing → {channel, channel/constant, shared, contract, i18n, infra/log, infra/notify, infra/runtime, infra/tokenizer, httpapi根, config/*, relay/common, relay/constant, store/*}`；`channel → {sensitive, group, infra/notify}`。新增依赖前必须确认不成环。
+  - 当前既定依赖方向：`billing → {channel, channel/constant, shared, contract, i18n, infra/log, infra/notify, infra/runtime, infra/tokenizer, httpapi根, config/*, relay/common, relay/constant, store/*}`；`channel → {sensitive, group, infra/notify}`；`logcleanup → {common, config/operation, domain/rankings, store/audit, store/log, store/stored_media, store/usedata}`。新增依赖前必须确认不成环。
 - `domain/shared/` 仅单向依赖 `internal/common` 与 `internal/infra/log`；`internal/common` 严禁反向 import `shared`。
 
 ## 检查清单

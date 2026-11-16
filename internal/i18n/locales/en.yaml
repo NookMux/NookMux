@@ -282,6 +282,9 @@ option.retry_enabled_must_bool: "Automatic retry switch must be a boolean"
 option.retry_enable_needs_positive: "Cannot enable automatic retry: please set retry times to a value greater than 0 first"
 option.tool_billing_rules_parse_failed: "Failed to parse tool billing rules: {{.Error}}"
 option.tool_billing_rules_set_failed: "Failed to set tool billing rules: {{.Error}}"
+option.log_cleanup_value_invalid: "Cleanup duration value must be a positive integer"
+option.log_cleanup_unit_invalid: "Invalid time unit: must be year, month, week, or day"
+option.log_cleanup_targets_invalid: "Invalid cleanup target: {{.Error}}"
 
 # Model sync / audit / misc feature messages
 model_sync.get_models_failed: "Failed to get model list, please try again later"

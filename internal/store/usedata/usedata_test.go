@@ -402,3 +402,56 @@ func TestRecalculateQuotaDataSeparatesPlatformsAndHours(t *testing.T) {
 		}
 	}
 }
+
+// TestDeleteQuotaDataInRange 验证区间删除：仅删截止区间行、保留其余行，
+// 且删除完成后用户分析内存缓存被清空。
+func TestDeleteQuotaDataInRange(t *testing.T) {
+	setupQuotaDataTestDB(t)
+
+	rows := []*usedatastore.QuotaData{
+		{UserID: 1, Username: "u1", ModelName: "gpt", Platform: "", CreatedAt: 1000, Count: 1},
+		{UserID: 1, Username: "u1", ModelName: "gpt", Platform: "", CreatedAt: 2000, Count: 1},
+		{UserID: 2, Username: "u2", ModelName: "glm", Platform: "", CreatedAt: 3000, Count: 1},
+	}
+	if err := dbstore.DB.Table("quota_data").Create(rows).Error; err != nil {
+		t.Fatalf("seed quota_data: %v", err)
+	}
+
+	usedatastore.ClearUserAnalyticsCache()
+	// 预热缓存，验证删除后被清空
+	if _, err := usedatastore.GetQuotaDataGroupByUserCached(0, 9999); err != nil {
+		t.Fatalf("warm user analytics cache: %v", err)
+	}
+
+	deleted, err := usedatastore.DeleteQuotaDataInRange(t.Context(), 0, 2500, 100)
+	if err != nil {
+		t.Fatalf("DeleteQuotaDataInRange error: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("deleted = %d, want 2", deleted)
+	}
+
+	var remaining []*usedatastore.QuotaData
+	if err := dbstore.DB.Table("quota_data").Order("created_at asc").Find(&remaining).Error; err != nil {
+		t.Fatalf("query remaining: %v", err)
+	}
+	if len(remaining) != 1 || remaining[0].CreatedAt != 3000 {
+		t.Fatalf("remaining = %+v, want single row created_at=3000", remaining)
+	}
+
+	// 验证分批删除：limit=1 时分多次删除仍然完整清空区间
+	deleted, err = usedatastore.DeleteQuotaDataInRange(t.Context(), 0, 9999, 1)
+	if err != nil {
+		t.Fatalf("batched DeleteQuotaDataInRange error: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("batched deleted = %d, want 1", deleted)
+	}
+	var total int64
+	if err := dbstore.DB.Table("quota_data").Count(&total).Error; err != nil {
+		t.Fatalf("count quota_data: %v", err)
+	}
+	if total != 0 {
+		t.Fatalf("quota_data rows = %d, want 0", total)
+	}
+}

@@ -883,5 +883,19 @@
   "systemSettings.actions.resetAllToolBillingRules": "重置所有工具计费规则？",
   "systemSettings.tips.clearToolBillingRulesAndRestoreDefaults": "这将清空当前所有工具计费规则并恢复为系统默认规则。",
   "systemSettings.fields.toolBillingRulesResetSuccessfully": "工具计费规则重置成功",
-  "systemSettings.errors.failedToResetToolBillingRules": "重置工具计费规则失败"
+  "systemSettings.errors.failedToResetToolBillingRules": "重置工具计费规则失败",
+  "systemSettings.fields.quotaDataStats": "数据看板统计",
+  "systemSettings.tips.quotaDataStatsDesc": "数据看板用量聚合记录（quota_data），删除后仪表盘与排行榜不再统计对应时段。",
+  "systemSettings.titles.autoLogCleanup": "自动清理",
+  "systemSettings.tips.autoLogCleanupIntro": "按保留时长与清理间隔自动删除历史数据。清理在服务器本地时区的自然边界时刻执行：每天为 00:00，每周对齐周一 00:00，每月对齐 1 日 00:00，每年对齐 1 月 1 日 00:00。",
+  "systemSettings.fields.autoCleanEnabled": "启用自动清理",
+  "systemSettings.tips.autoCleanEnabledDesc": "开启后，超过保留时长的数据会在每个清理时刻被自动删除。",
+  "systemSettings.fields.retentionPeriod": "数据最长保存",
+  "systemSettings.fields.cleanupInterval": "自动清理间隔",
+  "systemSettings.fields.unitYear": "年",
+  "systemSettings.fields.unitMonth": "月",
+  "systemSettings.fields.unitWeek": "周",
+  "systemSettings.fields.unitDay": "天",
+  "systemSettings.fields.autoCleanTargets": "自动清理范围",
+  "systemSettings.errors.positiveIntegerRequired": "请输入正整数"
 }
