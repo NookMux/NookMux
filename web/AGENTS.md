@@ -72,6 +72,9 @@
 
 ## 样式与交互
 
+- **修改任何 UI 前必读 [DESIGN.md](../DESIGN.md)**：前端视觉与交互的唯一设计规范
+  （设计原则、颜色令牌、布局、动效）；颜色只用语义令牌（`src/styles/theme.css`），
+  禁止硬编码色值。
 - Tailwind 为主，动态类名用项目 `cn()`/`tailwind-merge` 体系。
 - 组件优先复用 `src/components/ui/` 和现有 feature 组件。
 - UI 应支持深浅色、主题 preset、移动端和键盘操作。
