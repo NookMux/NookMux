@@ -129,8 +129,6 @@ export function OrderQuery() {
             isLoading={loading}
             emptyTitle={t('orderQuery.fields.noOrdersFound')}
             skeletonKeyPrefix='order-query-skeleton'
-            tableClassName='overflow-x-auto'
-            tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
             toolbar={
               <OrderQueryFilterBar
                 keyword={keyword}

@@ -234,6 +234,15 @@
 
 ### Fixed
 
+- **列表页表格统一化（#444）**：`DataTablePage` 升级为整页固定高度容器——
+  根节点 `h-full` 填满 `SectionPageLayout.Content`，页面高度不再随数据条数
+  伸缩；表格区 `flex-1` 顶到底部固定分页栏，数据超出时在表格容器内部滚动；
+  表头内置 `sticky top-0`（`Table` 原语新增 `containerClassName` 以打通滚动
+  容器，原实现 sticky 相对不滚动的包装层导致固定失效），筛选区与统计区固定
+  不随滚动移动，移动端卡片列表同步在固定高度内滚动。同步迁移工单页
+  （`features/tickets/`）与密钥用量查询页（`features/key-query/`）到手拼
+  Card+Table 之外的统一 `DataTablePage` 容器，并清理各列表页冗余的
+  `tableClassName` / `tableHeaderClassName` sticky 传参。
 - **使用日志「Token」列标签显示为裸 i18n 键修复**：`prompt_tokens` 列的
   `meta.label` 未包 `t()`，而移动端卡片视图与列显隐菜单直接渲染该字符串，
   界面显示 `rankings.fields.tokens` 而非「Token」/「Tokens」；现按列定义

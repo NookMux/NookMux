@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircle2,
@@ -35,10 +35,15 @@ import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatTimestampToDate } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
+import {
+  appTableFeatures,
+  type ColumnDef,
+  flexRender,
+  useTable,
+} from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogClose,
@@ -63,17 +68,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { TableCell, TableRow } from '@/components/ui/table'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { DataTablePage } from '@/components/data-table'
 import { SectionPageLayout } from '@/components/layout'
 import {
   closeTicket,
@@ -95,7 +94,6 @@ import type {
 } from './types'
 
 const DEFAULT_PAGE_SIZE = 20
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 
 const STATUS_OPTIONS: Array<{
   value: TicketStatusFilter
@@ -403,7 +401,7 @@ export function Tickets() {
     await queryClient.invalidateQueries({ queryKey: ['tickets'] })
   }
 
-  const detailMutation = useMutation({
+  const { mutate: mutateTicketDetail, isPending: detailLoading } = useMutation({
     mutationFn: getTicketDetail,
     onSuccess: (detail) => {
       setTicketDetail(detail)
@@ -439,7 +437,7 @@ export function Tickets() {
       toast.success(t('tickets.fields.replySent'))
       setReplyText('')
       await refreshTickets()
-      detailMutation.mutate(ticketId)
+      mutateTicketDetail(ticketId)
     },
     onError: (error) => toast.error(t(error.message)),
   })
@@ -462,7 +460,7 @@ export function Tickets() {
       setStatusTarget(null)
       await refreshTickets()
       if (detailOpen && currentTicket?.id === target.ticket.id) {
-        detailMutation.mutate(target.ticket.id)
+        mutateTicketDetail(target.ticket.id)
       }
     },
     onError: (error) => toast.error(error.message),
@@ -480,13 +478,148 @@ export function Tickets() {
     setPage(1)
   }
 
-  const openDetail = (ticket: TicketSummary) => {
-    setPreviewTicket(ticket)
-    setTicketDetail(null)
-    setReplyText('')
-    setDetailOpen(true)
-    detailMutation.mutate(ticket.id)
-  }
+  const openDetail = useCallback(
+    (ticket: TicketSummary) => {
+      setPreviewTicket(ticket)
+      setTicketDetail(null)
+      setReplyText('')
+      setDetailOpen(true)
+      mutateTicketDetail(ticket.id)
+    },
+    [mutateTicketDetail]
+  )
+
+  const openStatusAction = useCallback(
+    (ticket: TicketSummary, action: 'close' | 'reopen') => {
+      setStatusTarget({ ticket, action })
+    },
+    []
+  )
+
+  const columns = useMemo<ColumnDef<TicketSummary>[]>(
+    () => [
+      {
+        accessorKey: 'title',
+        header: () => t('tickets.fields.title'),
+        meta: { label: t('tickets.fields.title'), mobileTitle: true },
+        cell: ({ row }) => (
+          <div className='max-w-96 truncate font-medium'>
+            {row.original.title}
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'type',
+        header: () => t('channels.fields.type'),
+        meta: { label: t('channels.fields.type'), mobileHidden: true },
+        cell: ({ row }) => <TypeBadge type={row.original.type} />,
+      },
+      {
+        accessorKey: 'status',
+        header: () => t('channels.fields.status'),
+        meta: { label: t('channels.fields.status'), mobileBadge: true },
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
+      {
+        accessorKey: 'created_at',
+        header: () => t('multimodalFiles.status.createdAt'),
+        meta: { label: t('multimodalFiles.status.createdAt') },
+        cell: ({ row }) => formatTime(row.original.created_at),
+      },
+      {
+        accessorKey: 'updated_at',
+        header: () => t('models.status.updatedAt'),
+        meta: { label: t('models.status.updatedAt') },
+        cell: ({ row }) => formatTime(row.original.updated_at),
+      },
+      {
+        id: 'actions',
+        header: () => (
+          <div className='text-right'>{t('channels.fields.actions')}</div>
+        ),
+        meta: { label: t('channels.fields.actions') },
+        size: 56,
+        cell: ({ row }) => {
+          const ticket = row.original
+          return (
+            <div className='text-right'>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant='ghost'
+                      className='data-popup-open:bg-muted h-8 w-8 p-0'
+                      onClick={(event) => event.stopPropagation()}
+                    />
+                  }
+                >
+                  <MoreHorizontal className='size-4' />
+                  <span className='sr-only'>
+                    {t('channels.actions.openMenu')}
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end' className='w-40'>
+                  <DropdownMenuItem
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      openDetail(ticket)
+                    }}
+                  >
+                    <Eye className='size-4' />
+                    {t('models.actions.viewDetails')}
+                  </DropdownMenuItem>
+                  {ticket.status === 'completed' && isAdmin ? (
+                    <DropdownMenuItem
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        openStatusAction(ticket, 'reopen')
+                      }}
+                    >
+                      <RotateCcw className='size-4' />
+                      {t('tickets.fields.reopen')}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {ticket.status !== 'completed' ? (
+                    <DropdownMenuItem
+                      variant='destructive'
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        openStatusAction(ticket, 'close')
+                      }}
+                    >
+                      {t('tickets.actions.closeTicket')}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )
+        },
+      },
+    ],
+    [t, isAdmin, openDetail, openStatusAction]
+  )
+
+  const table = useTable({
+    features: appTableFeatures,
+    data: tickets,
+    columns,
+    state: {
+      pagination: { pageIndex: page - 1, pageSize },
+    },
+    enableRowSelection: false,
+    manualPagination: true,
+    manualFiltering: true,
+    pageCount: totalPages,
+    onPaginationChange: (updater) => {
+      const next =
+        typeof updater === 'function'
+          ? updater({ pageIndex: page - 1, pageSize })
+          : updater
+      setPage(next.pageIndex + 1)
+      setPageSize(next.pageSize)
+    },
+  })
 
   const submitCreate = () => {
     const title = createForm.title.trim()
@@ -632,8 +765,14 @@ export function Tickets() {
         </SectionPageLayout.Actions>
 
         <SectionPageLayout.Content>
-          <Card size='sm'>
-            <CardContent className='space-y-4'>
+          <DataTablePage
+            table={table}
+            columns={columns}
+            isLoading={ticketsQuery.isLoading}
+            isFetching={ticketsQuery.isFetching}
+            emptyTitle={t('tickets.fields.noTickets')}
+            skeletonKeyPrefix='tickets-skeleton'
+            toolbar={
               <div className='flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between'>
                 <Tabs
                   value={status}
@@ -672,190 +811,21 @@ export function Tickets() {
                   </Button>
                 </div>
               </div>
-
-              <div className='overflow-x-auto rounded-lg border'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className='min-w-64'>
-                        {t('tickets.fields.title')}
-                      </TableHead>
-                      <TableHead className='min-w-32'>
-                        {t('channels.fields.type')}
-                      </TableHead>
-                      <TableHead className='min-w-32'>
-                        {t('channels.fields.status')}
-                      </TableHead>
-                      <TableHead className='min-w-40'>
-                        {t('multimodalFiles.status.createdAt')}
-                      </TableHead>
-                      <TableHead className='min-w-40'>
-                        {t('models.status.updatedAt')}
-                      </TableHead>
-                      <TableHead className='w-14 text-right'>
-                        {t('channels.fields.actions')}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ticketsQuery.isLoading ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className='text-muted-foreground h-36 text-center'
-                        >
-                          <div className='inline-flex items-center gap-2'>
-                            <Loader2 className='size-4 animate-spin' />
-                            {t('common.tips.loading')}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : tickets.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className='text-muted-foreground h-36 text-center'
-                        >
-                          {t('tickets.fields.noTickets')}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      tickets.map((ticket) => (
-                        <TableRow
-                          key={ticket.id}
-                          className='cursor-pointer'
-                          onClick={() => openDetail(ticket)}
-                        >
-                          <TableCell>
-                            <div className='max-w-96 truncate font-medium'>
-                              {ticket.title}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <TypeBadge type={ticket.type} />
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={ticket.status} />
-                          </TableCell>
-                          <TableCell>{formatTime(ticket.created_at)}</TableCell>
-                          <TableCell>{formatTime(ticket.updated_at)}</TableCell>
-                          <TableCell className='text-right'>
-                            <DropdownMenu modal={false}>
-                              <DropdownMenuTrigger
-                                render={
-                                  <Button
-                                    variant='ghost'
-                                    className='data-popup-open:bg-muted h-8 w-8 p-0'
-                                    onClick={(event) => event.stopPropagation()}
-                                  />
-                                }
-                              >
-                                <MoreHorizontal className='size-4' />
-                                <span className='sr-only'>
-                                  {t('channels.actions.openMenu')}
-                                </span>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align='end' className='w-40'>
-                                <DropdownMenuItem
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    openDetail(ticket)
-                                  }}
-                                >
-                                  <Eye className='size-4' />
-                                  {t('models.actions.viewDetails')}
-                                </DropdownMenuItem>
-                                {ticket.status === 'completed' && isAdmin ? (
-                                  <DropdownMenuItem
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      setStatusTarget({
-                                        ticket,
-                                        action: 'reopen',
-                                      })
-                                    }}
-                                  >
-                                    <RotateCcw className='size-4' />
-                                    {t('tickets.fields.reopen')}
-                                  </DropdownMenuItem>
-                                ) : null}
-                                {ticket.status !== 'completed' ? (
-                                  <DropdownMenuItem
-                                    variant='destructive'
-                                    onClick={(event) => {
-                                      event.stopPropagation()
-                                      setStatusTarget({
-                                        ticket,
-                                        action: 'close',
-                                      })
-                                    }}
-                                  >
-                                    {t('tickets.actions.closeTicket')}
-                                  </DropdownMenuItem>
-                                ) : null}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className='flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between'>
-                <div className='text-muted-foreground'>
-                  {t('dashboard.fields.total')}: {total}
-                </div>
-                <div className='flex flex-wrap items-center gap-2'>
-                  <span className='text-muted-foreground whitespace-nowrap'>
-                    {t('common.fields.rowsPerPage')}
-                  </span>
-                  <Select
-                    value={String(pageSize)}
-                    onValueChange={(value) => {
-                      setPageSize(Number(value))
-                      setPage(1)
-                    }}
-                  >
-                    <SelectTrigger className='w-28'>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {PAGE_SIZE_OPTIONS.map((size) => (
-                          <SelectItem key={size} value={String(size)}>
-                            {size}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant='outline'
-                    disabled={page <= 1}
-                    onClick={() =>
-                      setPage((current) => Math.max(1, current - 1))
-                    }
-                  >
-                    {t('common.actions.previous')}
-                  </Button>
-                  <span className='text-muted-foreground min-w-16 text-center'>
-                    {page} / {totalPages}
-                  </span>
-                  <Button
-                    variant='outline'
-                    disabled={page >= totalPages}
-                    onClick={() =>
-                      setPage((current) => Math.min(totalPages, current + 1))
-                    }
-                  >
-                    {t('common.actions.next')}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            }
+            renderRow={(row) => (
+              <TableRow
+                key={row.id}
+                className='cursor-pointer'
+                onClick={() => openDetail(row.original)}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            )}
+          />
         </SectionPageLayout.Content>
       </SectionPageLayout>
 
@@ -873,7 +843,7 @@ export function Tickets() {
         }}
         ticket={previewTicket}
         detail={ticketDetail}
-        loading={detailMutation.isPending}
+        loading={detailLoading}
         sending={replyMutation.isPending}
         isAdmin={isAdmin}
         replyText={replyText}

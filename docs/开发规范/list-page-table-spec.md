@@ -17,18 +17,31 @@
 - 用户（`features/users/`）
 - 审计日志（`features/audit-logs/`）
 - 音色管理（`features/voice-management/`）
+- 工单（`features/tickets/`）
+- 密钥用量查询（`features/key-query/`，公开页 `PublicLayout` 布局，走 inline 分页）
 
 ## 标准参照页面
 
 **使用日志**（`features/usage-logs/components/usage-logs-table.tsx`）是唯一标准参照。
 该页面实现了完整的标准布局：
 
-- `SectionPageLayout` 三段式壳层（顶部固定 + 中间滚动 + 底部固定分页）
-- `DataTablePage` 统一表格容器
-- sticky 表头（`tableClassName='overflow-x-auto'` + `tableHeaderClassName='bg-muted/30 sticky top-0 z-10'`）
+- `SectionPageLayout` 三段式壳层（顶部固定 + 表格区自适应填满 + 底部固定分页）
+- `DataTablePage` 统一表格容器（内置整页固定高度与 sticky 表头）
 - 自定义 toolbar 筛选区（`CommonLogsFilterBar`）
 - `renderRow` 自定义行渲染
 - 内置骨架屏 / 空状态
+
+## 高度与滚动模型
+
+`DataTablePage` 内置统一的高度行为，页面无需自行处理：
+
+- 组件根节点 `h-full` 填满 `SectionPageLayout.Content`，页面整体高度固定，
+  不随数据条数伸缩。
+- 筛选区（toolbar）、统计区（afterTable）固定在表格上方/下方，不随滚动移动。
+- 表格区域 `flex-1` 顶到底部固定分页栏；数据不足时留白，数据超出时在表格
+  容器内部滚动。
+- 表头默认 `sticky top-0 z-10`，滚动时固定在表格容器顶部。
+- 移动端卡片列表（`MobileCardList`）同样在固定高度内滚动。
 
 ## 核心组件
 
@@ -36,11 +49,12 @@
 
 路径：`@/components/layout`
 
-三段式 flex 布局，提供"顶部固定 + 中间滚动 + 底部固定"结构：
+三段式 flex 布局，提供"顶部固定 + 中间自适应 + 底部固定"结构：
 
 - `SectionPageLayout.Title`：页面标题（`shrink-0`，固定不滚动）
 - `SectionPageLayout.Actions`：顶部操作按钮区（`shrink-0`，固定不滚动）
-- `SectionPageLayout.Content`：中间内容区（`min-h-0 flex-1 overflow-auto`，内部滚动）
+- `SectionPageLayout.Content`：中间内容区（`min-h-0 flex-1 overflow-auto`，
+  正常情况下内容不溢出——表格在 `DataTablePage` 内部滚动）
 - 底部 footer：经 `PageFooterPortal` 渲染分页（`shrink-0 border-t`，固定不滚动）
 
 ### DataTablePage
@@ -51,14 +65,17 @@
 
 | 能力 | 说明 |
 |------|------|
-| toolbar | 筛选区（默认 `DataTableToolbar` 或自定义 `toolbar` slot） |
-| 表格本体 | `overflow-hidden rounded-lg border` 边框表格（非 Card） |
+| 整页固定高度 | 根节点 `h-full` 填满 Content，页面高度不随数据条数伸缩 |
+| 表格内滚动 | 表格区 `flex-1` 顶到分页栏，数据超出时表格容器内部滚动 |
+| sticky 表头 | 内置 `sticky top-0 z-10`，滚动时表头固定（`tableHeaderClassName` 可覆盖） |
+| toolbar | 筛选区（默认 `DataTableToolbar` 或自定义 `toolbar` slot），固定不滚动 |
+| 表格本体 | `rounded-lg border` 边框表格（非 Card） |
 | 分页 | 默认走 `PageFooterPortal` 渲染到固定底栏 |
 | 骨架屏 | 内置 `TableSkeleton`（传 `isLoading`） |
 | 空状态 | 内置 `TableEmpty`（传 `emptyTitle` / `emptyDescription`） |
-| 移动端卡片 | 内置 `MobileCardList`（默认启用，可 `hideMobile` 关闭） |
+| 移动端卡片 | 内置 `MobileCardList`（默认启用，可 `hideMobile` 关闭），固定高度内滚动 |
 | 批量操作 | `bulkActions` slot 渲染 `DataTableBulkActions` |
-| afterTable | 表格与分页之间的额外内容区 |
+| afterTable | 表格与分页之间的额外内容区，固定不滚动 |
 
 ### DataTablePageProps 完整列表
 
@@ -86,8 +103,8 @@ type DataTablePageProps<TData> = {
   paginationInFooter?: boolean          // 分页走 PageFooterPortal（默认 true）
   afterTable?: React.ReactNode          // 表格后额外内容
   className?: string                    // 外层 wrapper className
-  tableClassName?: string               // 表格容器 className
-  tableHeaderClassName?: string         // 表头 className
+  tableClassName?: string               // 表格容器 className（覆盖内置边框容器样式）
+  tableHeaderClassName?: string         // 表头 className（合并在内置 sticky 样式之上）
 }
 ```
 
@@ -105,19 +122,14 @@ type DataTablePageProps<TData> = {
 
 页面壳层使用 `SectionPageLayout`，表格渲染在 `SectionPageLayout.Content` 内。
 
-### 3. Sticky 表头约定
+### 3. Sticky 表头（内置）
 
-传入以下属性使表头在内容区滚动时贴住容器顶部固定：
+`DataTablePage` 已内置 sticky 表头与整页固定高度，无需（也不应）再传
+`tableClassName='overflow-x-auto'` 或 `tableHeaderClassName='bg-muted/30
+sticky top-0 z-10'`。仅在需要覆盖表头样式时才传 `tableHeaderClassName`
+（会合并在内置样式之上）。
 
-```tsx
-<DataTablePage
-  tableClassName='overflow-x-auto'
-  tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
-  // ...
-/>
-```
-
-列定义有 `size` 时同时传 `applyHeaderSize` 以生效列宽。
+列定义有 `size` 时传 `applyHeaderSize` 以生效列宽。
 
 ### 4. Card 禁用规则
 
@@ -187,8 +199,6 @@ export function MyListPage() {
           emptyTitle={t('myFeature.titles.noItemsFound')}
           emptyDescription={t('myFeature.tips.noItemsAvailable')}
           skeletonKeyPrefix='my-feature-skeleton'
-          tableClassName='overflow-x-auto'
-          tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
           toolbar={<MyFilterBar table={table} />}
           bulkActions={<DataTableBulkActions table={table} />}
         />
@@ -204,7 +214,7 @@ export function MyListPage() {
 
 - [ ] 使用 `SectionPageLayout` 作为页面壳
 - [ ] 使用 `DataTablePage` 作为表格容器
-- [ ] 传入 `tableClassName='overflow-x-auto'` + `tableHeaderClassName` sticky
+- [ ] 表头 sticky 与整页固定高度由组件内置，未传冗余 `tableClassName` / `tableHeaderClassName`
 - [ ] 表格为 `border` 边框，未被 `Card` 包裹
 - [ ] 分页走 `PageFooterPortal`（默认）或显式 `showPagination={false}`
 - [ ] loading 用 `TableSkeleton`，空状态用 `TableEmpty`

@@ -189,8 +189,8 @@ export type DataTablePageProps<TData extends RowData> = {
   tableClassName?: string
 
   /**
-   * Desktop `<TableHeader>` className override.
-   * Useful for sticky headers (`'sticky top-0 z-10 bg-muted/30'`) on long lists.
+   * Desktop `<TableHeader>` className override. Merged on top of the built-in
+   * `sticky top-0 z-10 bg-background` header styling.
    */
   tableHeaderClassName?: string
 }
@@ -228,7 +228,12 @@ export function DataTablePage<TData extends RowData>(
 
   return (
     <>
-      <div className={cn('space-y-2.5 sm:space-y-3', props.className)}>
+      <div
+        className={cn(
+          'flex h-full min-h-0 flex-col space-y-2.5 sm:space-y-3',
+          props.className
+        )}
+      >
         {toolbarNode}
         {mobileNode}
         {desktopNode}
@@ -245,7 +250,7 @@ export function DataTablePage<TData extends RowData>(
             <DataTablePagination table={props.table} />
           </PageFooterPortal>
         ) : (
-          <div className='pt-2'>
+          <div className='shrink-0 pt-2'>
             <DataTablePagination table={props.table} />
           </div>
         ))}
@@ -273,7 +278,6 @@ function renderMobile<TData extends RowData>(
   showMobile: boolean
 ): React.ReactNode {
   if (!showMobile) return null
-  if (props.mobile !== undefined) return props.mobile
 
   const ownGetRowClassName = props.getRowClassName
   const mobileGetRowClassName =
@@ -282,7 +286,7 @@ function renderMobile<TData extends RowData>(
       ? (row: Row<TData>) => ownGetRowClassName(row, { isMobile: true })
       : undefined)
 
-  return (
+  const mobileNode = props.mobile ?? (
     <MobileCardList
       table={props.table}
       isLoading={props.isLoading}
@@ -292,6 +296,8 @@ function renderMobile<TData extends RowData>(
       getRowClassName={mobileGetRowClassName}
     />
   )
+
+  return <div className='min-h-0 flex-1 overflow-y-auto'>{mobileNode}</div>
 }
 
 function renderDesktop<TData extends RowData>(
@@ -306,15 +312,20 @@ function renderDesktop<TData extends RowData>(
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-lg border transition-opacity duration-150',
+        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border transition-opacity duration-150',
         isFetchingOnly && 'pointer-events-none opacity-60',
         props.tableClassName
       )}
     >
-      <Table>
-        <TableHeader className={props.tableHeaderClassName}>
+      <Table containerClassName='min-h-0 flex-1 overflow-y-auto'>
+        <TableHeader
+          className={cn(
+            'bg-background sticky top-0 z-10',
+            props.tableHeaderClassName
+          )}
+        >
           {props.table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} className='bg-muted/30'>
               {headerGroup.headers.map((header) => (
                 <TableHead
                   key={header.id}

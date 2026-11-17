@@ -34,23 +34,8 @@ import {
 } from '@/lib/tanstack-table'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { TableCell, TableRow } from '@/components/ui/table'
+import { DataTablePage } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
 import {
   DetailsDialog,
@@ -420,209 +405,87 @@ export function KeyQueryLogsTable({ rawKey }: KeyQueryLogsTableProps) {
   }
 
   return (
-    <Card size='sm'>
-      <CardHeader className='border-b'>
-        <div className='flex items-center justify-between gap-3'>
-          <CardTitle>{t('keyQuery.titles.callDetails')}</CardTitle>
-          <Button
-            variant='outline'
-            onClick={exportLogs}
-            disabled={logs.length === 0}
-          >
-            <Download />
-            {t('keyQuery.actions.exportCsv')}
-          </Button>
-        </div>
-      </CardHeader>
-
-      <CardContent className='space-y-3 p-3'>
-        {/* 筛选区域 */}
-        <div className='bg-card/50 grid grid-cols-1 gap-2 rounded-lg border p-2.5 sm:grid-cols-[1fr_1fr_auto]'>
-          <DateTimeRangeInput
-            start={startTime}
-            end={endTime}
-            onStartChange={setStartTime}
-            onEndChange={setEndTime}
-          />
-          <input
-            className='border-input bg-background h-8 min-w-0 rounded-md border px-2 text-sm'
-            placeholder={t('models.fields.modelName')}
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                setPageIndex(0)
-              }
-            }}
-          />
-          <div className='flex items-center gap-1.5'>
+    <DataTablePage
+      table={table}
+      columns={columns}
+      isLoading={isLoading}
+      isFetching={isFetching}
+      emptyTitle={t('keyQuery.titles.noTokenLogs')}
+      skeletonKeyPrefix='key-query-logs-skeleton'
+      applyHeaderSize
+      paginationInFooter={false}
+      toolbar={
+        <div className='space-y-2.5 sm:space-y-3'>
+          <div className='flex items-center justify-between gap-3'>
+            <h3 className='text-base font-semibold'>
+              {t('keyQuery.titles.callDetails')}
+            </h3>
             <Button
-              type='button'
               variant='outline'
-              size='sm'
-              onClick={handleReset}
-              disabled={isFetching}
+              onClick={exportLogs}
+              disabled={logs.length === 0}
             >
-              {t('common.actions.reset')}
-            </Button>
-            <Button
-              type='button'
-              size='sm'
-              onClick={() => setPageIndex(0)}
-              disabled={isFetching}
-            >
-              {isFetching && <Loader2 className='animate-spin' />}
-              {t('common.actions.search')}
+              <Download />
+              {t('keyQuery.actions.exportCsv')}
             </Button>
           </div>
+
+          <div className='bg-card/50 grid grid-cols-1 gap-2 rounded-lg border p-2.5 sm:grid-cols-[1fr_1fr_auto]'>
+            <DateTimeRangeInput
+              start={startTime}
+              end={endTime}
+              onStartChange={setStartTime}
+              onEndChange={setEndTime}
+            />
+            <input
+              className='border-input bg-background h-8 min-w-0 rounded-md border px-2 text-sm'
+              placeholder={t('models.fields.modelName')}
+              value={model}
+              onChange={(event) => setModel(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  setPageIndex(0)
+                }
+              }}
+            />
+            <div className='flex items-center gap-1.5'>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={handleReset}
+                disabled={isFetching}
+              >
+                {t('common.actions.reset')}
+              </Button>
+              <Button
+                type='button'
+                size='sm'
+                onClick={() => setPageIndex(0)}
+                disabled={isFetching}
+              >
+                {isFetching && <Loader2 className='animate-spin' />}
+                {t('common.actions.search')}
+              </Button>
+            </div>
+          </div>
         </div>
-
-        {/* 表格 */}
-        <div className='overflow-x-auto rounded-md border'>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {table.getHeaderGroups().map((headerGroup) =>
-                  headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      style={{
-                        width:
-                          header.getSize() && header.getSize() !== 150
-                            ? header.getSize()
-                            : undefined,
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </TableHead>
-                  ))
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className='text-muted-foreground h-24 text-center'
-                  >
-                    <Loader2 className='text-muted-foreground mx-auto animate-spin' />
-                  </TableCell>
-                </TableRow>
-              ) : logs.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className='text-muted-foreground h-24 text-center'
-                  >
-                    {t('keyQuery.titles.noTokenLogs')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => {
-                  const isExpanded = expandedRowId === row.original.id
-                  return (
-                    <LogRow
-                      key={row.id}
-                      row={row}
-                      isExpanded={isExpanded}
-                      onToggle={() =>
-                        setExpandedRowId(isExpanded ? null : row.original.id)
-                      }
-                      visibility={visibility}
-                    />
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* 分页 */}
-        <SimplePagination
-          page={pageIndex + 1}
-          pageSize={pageSize}
-          total={total}
-          onPageChange={(next) => {
-            setPageIndex(next - 1)
-            setExpandedRowId(null)
-          }}
-          onPageSizeChange={(next) => {
-            setPageSize(next)
-            setPageIndex(0)
-            setExpandedRowId(null)
-          }}
-        />
-      </CardContent>
-    </Card>
-  )
-}
-
-/**
- * 简易分页器（不依赖 DataTable 上下文，适配公开页独立表格）。
- */
-function SimplePagination(props: {
-  page: number
-  pageSize: number
-  total: number
-  onPageChange: (page: number) => void
-  onPageSizeChange: (pageSize: number) => void
-}) {
-  const { t } = useTranslation()
-  const totalPages = Math.max(1, Math.ceil(props.total / props.pageSize))
-  return (
-    <div className='text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-xs'>
-      <span>
-        {t('common.fields.totalCount', { count: props.total })} ·{' '}
-        {t('common.fields.pageCurrentOfTotal', {
-          current: props.page,
-          total: totalPages,
-        })}
-      </span>
-      <div className='flex items-center gap-1.5'>
-        <Button
-          variant='outline'
-          size='sm'
-          className='h-7 px-2'
-          onClick={() => props.onPageChange(props.page - 1)}
-          disabled={props.page <= 1}
-        >
-          {t('common.actions.previous')}
-        </Button>
-        <Button
-          variant='outline'
-          size='sm'
-          className='h-7 px-2'
-          onClick={() => props.onPageChange(props.page + 1)}
-          disabled={props.page >= totalPages}
-        >
-          {t('common.actions.next')}
-        </Button>
-        <span className='whitespace-nowrap'>
-          {t('common.fields.rowsPerPage')}
-        </span>
-        <Select
-          value={String(props.pageSize)}
-          onValueChange={(value) => props.onPageSizeChange(Number(value))}
-        >
-          <SelectTrigger className='h-7 w-[64px]'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false}>
-            <SelectGroup>
-              {[10, 20, 50, 100].map((size) => (
-                <SelectItem key={size} value={String(size)}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+      }
+      renderRow={(row) => {
+        const isExpanded = expandedRowId === row.original.id
+        return (
+          <LogRow
+            key={row.id}
+            row={row}
+            isExpanded={isExpanded}
+            onToggle={() =>
+              setExpandedRowId(isExpanded ? null : row.original.id)
+            }
+            visibility={visibility}
+          />
+        )
+      }}
+    />
   )
 }
 

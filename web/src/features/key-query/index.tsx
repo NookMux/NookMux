@@ -112,7 +112,7 @@ export function KeyQuery() {
               'linear-gradient(to bottom, black 40%, transparent 100%)',
           }}
         />
-        <main className='relative mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col gap-4 px-3 pt-20 pb-8 sm:px-6 sm:pt-24 lg:px-8'>
+        <main className='relative mx-auto flex h-[calc(100vh-4rem)] w-full max-w-6xl flex-col gap-4 px-3 pt-20 pb-8 sm:px-6 sm:pt-24 lg:px-8'>
           <header className='space-y-2'>
             <h1 className='text-2xl font-bold tracking-tight'>
               {t('keyQuery.titles.usageQuery')}

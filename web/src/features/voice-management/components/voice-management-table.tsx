@@ -217,8 +217,6 @@ export function VoiceManagementTable(props: VoiceManagementTableProps) {
         'voiceManagement.tips.voiceRecordsWillAppearHereAfterUsersCreateVoices'
       )}
       skeletonKeyPrefix='voice-management-skeleton'
-      tableClassName='overflow-x-auto'
-      tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
       toolbar={props.toolbar}
       applyHeaderSize
       renderRow={(row) => (

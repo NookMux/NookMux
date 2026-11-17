@@ -70,8 +70,8 @@ NookMux 前端（`web/`）的视觉与交互规范，团队与 AI 代理共读�
 ## 5. 布局与响应式
 
 - Header 高 `3rem`（sticky，z-40）+ 侧栏 `13rem`（折叠 `2.75rem`，移动 `17rem`，`Ctrl/Cmd+B`）
-- 页面壳 `SectionPageLayout` 三段式：`.Title` / `.Actions` 固定，`.Content` 唯一滚动区，分页走 `PageFooterPortal`
-- 列表页强制 `DataTablePage` + `SectionPageLayout`，sticky 表头 `bg-muted/30 sticky top-0 z-10`，移动端 `MobileCardList`；细则见 `docs/开发规范/list-page-table-spec.md`
+- 页面壳 `SectionPageLayout` 三段式：`.Title` / `.Actions` 固定，`.Content` 承载内容，分页走 `PageFooterPortal`
+- 列表页强制 `DataTablePage` + `SectionPageLayout`：页面高度固定不随数据伸缩，表格区顶到固定分页栏并在容器内滚动，sticky 表头由 `DataTablePage` 内置；移动端 `MobileCardList`；细则见 `docs/开发规范/list-page-table-spec.md`
 - 断点用 Tailwind 默认值（sm 640 / md 768 / lg 1024 / xl 1280），≤640px 表格转移动卡片
 - 公开页用 `PublicLayout` + `container`；管理页不得使用 Landing 的玻璃、渐变与入场动效
 

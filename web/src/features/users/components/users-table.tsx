@@ -168,8 +168,6 @@ export function UsersTable() {
         'users.tips.noUsersAvailableTryAdjustingYourSearchOrFilters'
       )}
       skeletonKeyPrefix='users-skeleton'
-      tableClassName='overflow-x-auto'
-      tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
       toolbar={<UsersFilterBar table={table} />}
       getRowClassName={(row, { isMobile }) =>
         isDisabledUserRow(row.original)

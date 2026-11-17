@@ -348,8 +348,6 @@ export function AuditLogsTable({ search }: AuditLogsTableProps) {
           'auditLogs.tips.noAuditLogsAvailableLogsWillAppearHereOnce'
         )}
         skeletonKeyPrefix='audit-log-skeleton'
-        tableClassName='overflow-x-auto'
-        tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
         toolbar={
           <AuditLogsFilterBar
             filters={urlFilters}

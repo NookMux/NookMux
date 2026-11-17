@@ -250,12 +250,6 @@ export function MultimodalFiles() {
           </Button>
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
-          {mediaQuery.error instanceof Error && (
-            <div className='border-destructive/40 text-destructive mb-2.5 rounded-lg border px-3 py-2 text-sm'>
-              {mediaQuery.error.message}
-            </div>
-          )}
-
           <DataTablePage
             table={table}
             columns={columns}
@@ -263,26 +257,31 @@ export function MultimodalFiles() {
             isFetching={mediaQuery.isFetching}
             emptyTitle={t('multimodalFiles.fields.noMultimodalFiles')}
             skeletonKeyPrefix='multimodal-files-skeleton'
-            tableClassName='overflow-x-auto'
-            tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
             toolbar={
-              <MultimodalFilesFilterBar
-                startTime={startTime}
-                endTime={endTime}
-                onStartTimeChange={(value) => {
-                  setStartTime(value)
-                  setPagination({ ...pagination, pageIndex: 0 })
-                  setRowSelection({})
-                }}
-                onEndTimeChange={(value) => {
-                  setEndTime(value)
-                  setPagination({ ...pagination, pageIndex: 0 })
-                  setRowSelection({})
-                }}
-                onQuery={() => void refresh()}
-                onReset={resetFilters}
-                onRefresh={() => void refresh()}
-              />
+              <div className='space-y-2.5 sm:space-y-3'>
+                {mediaQuery.error instanceof Error && (
+                  <div className='border-destructive/40 text-destructive rounded-lg border px-3 py-2 text-sm'>
+                    {mediaQuery.error.message}
+                  </div>
+                )}
+                <MultimodalFilesFilterBar
+                  startTime={startTime}
+                  endTime={endTime}
+                  onStartTimeChange={(value) => {
+                    setStartTime(value)
+                    setPagination({ ...pagination, pageIndex: 0 })
+                    setRowSelection({})
+                  }}
+                  onEndTimeChange={(value) => {
+                    setEndTime(value)
+                    setPagination({ ...pagination, pageIndex: 0 })
+                    setRowSelection({})
+                  }}
+                  onQuery={() => void refresh()}
+                  onReset={resetFilters}
+                  onRefresh={() => void refresh()}
+                />
+              </div>
             }
             bulkActions={
               <MultimodalFilesBulkActions

@@ -301,8 +301,6 @@ export function ApiKeysTable() {
       emptyTitle={t('keys.fields.noApiKeysFound')}
       emptyDescription={t('keys.tips.noApiKeysAvailableCreateYourFirstApiKey')}
       skeletonKeyPrefix='api-keys-skeleton'
-      tableClassName='overflow-x-auto'
-      tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
       toolbar={<ApiKeysFilterBar table={table} />}
       mobile={<ApiKeysMobileList table={table} isLoading={isLoading} />}
       getRowClassName={(row) =>

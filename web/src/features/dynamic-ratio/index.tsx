@@ -420,20 +420,21 @@ export function DynamicRatio() {
           </Button>
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
-          {errorMessage && (
-            <div className='border-destructive/40 text-destructive mb-2.5 rounded-lg border px-3 py-2 text-sm'>
-              {errorMessage}
-            </div>
-          )}
-
           <DataTablePage
             table={table}
             columns={columns}
             isLoading={rulesQuery.isLoading}
             showPagination={false}
             hideMobile
-            tableClassName='overflow-x-auto'
-            tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
+            toolbar={
+              <div className='space-y-2.5 sm:space-y-3'>
+                {errorMessage && (
+                  <div className='border-destructive/40 text-destructive rounded-lg border px-3 py-2 text-sm'>
+                    {errorMessage}
+                  </div>
+                )}
+              </div>
+            }
             afterTable={
               <div className='grid gap-3 sm:grid-cols-3'>
                 <div>

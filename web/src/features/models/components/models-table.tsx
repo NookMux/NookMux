@@ -232,8 +232,6 @@ export function ModelsTable() {
       )}
       skeletonKeyPrefix='model-skeleton'
       applyHeaderSize
-      tableClassName='overflow-x-auto'
-      tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
       toolbarProps={{
         searchPlaceholder: t('models.actions.filterByModelName'),
         filters: [

@@ -89,9 +89,13 @@
 
 关键约定：
 
-- **Sticky 表头**：传 `tableClassName='overflow-x-auto'` +
-  `tableHeaderClassName='bg-muted/30 sticky top-0 z-10'`，有 `size` 时配 `applyHeaderSize`。
-- **分页**：默认走 `PageFooterPortal`；无分页传 `showPagination={false}`。
+- **整页固定高度 + 内置 sticky 表头**：`DataTablePage` 根节点 `h-full` 填满
+  `SectionPageLayout.Content`，页面高度不随数据条数伸缩；表格区 `flex-1` 顶到
+  固定分页栏，数据超出时在表格容器内部滚动；表头默认 `sticky top-0 z-10`
+  固定，筛选区固定不滚。无需传 `tableClassName='overflow-x-auto'` 或
+  `tableHeaderClassName` sticky 类（仅在需要覆盖表头样式时才传）。
+- **分页**：默认走 `PageFooterPortal`；无分页传 `showPagination={false}`，
+  非 `SectionPageLayout` 壳层的页面（公开页）传 `paginationInFooter={false}`。
 - **筛选区**：作为 `toolbar` slot 传入，简单走 `toolbarProps`，复杂传自定义节点。
 - **骨架屏/空状态**：必须用内置 `TableSkeleton` / `TableEmpty` / `MobileCardList`，
   禁止纯文字或 `Loader2` 占位。
