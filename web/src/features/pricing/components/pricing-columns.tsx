@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { Maximize2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { type ColumnDef } from '@/lib/tanstack-table'
@@ -111,6 +113,16 @@ export function usePricingColumns(
   options: PricingColumnsOptions = {}
 ): ColumnDef<PricingModel>[] {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const search = useSearch({ from: '/pricing/' })
+  const openFullDetails = (e: React.MouseEvent, modelName: string) => {
+    e.stopPropagation()
+    navigate({
+      to: '/pricing/$modelId',
+      params: { modelId: modelName },
+      search,
+    })
+  }
   const {
     tokenUnit = DEFAULT_TOKEN_UNIT,
     priceRate = 1,
@@ -144,6 +156,14 @@ export function usePricingColumns(
             <span className='truncate font-mono text-sm font-medium'>
               {model.model_name}
             </span>
+            <button
+              type='button'
+              onClick={(e) => openFullDetails(e, model.model_name || '')}
+              className='text-muted-foreground hover:text-foreground hover:bg-muted rounded-md p-1 transition-colors'
+              title={t('pricing.actions.openFullDetails')}
+            >
+              <Maximize2 className='size-3.5' />
+            </button>
           </div>
         )
       },

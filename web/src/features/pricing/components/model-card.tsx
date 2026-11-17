@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { memo } from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { ChevronRight, Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getLobeIcon } from '@/lib/lobe-icon'
@@ -70,6 +71,8 @@ export interface ModelCardProps {
 
 export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const search = useSearch({ from: '/pricing/' })
   const { copyToClipboard } = useCopyToClipboard()
   const tokenUnit = props.tokenUnit ?? DEFAULT_TOKEN_UNIT
   const priceRate = props.priceRate ?? 1
@@ -117,10 +120,20 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
     copyToClipboard(props.model.model_name || '')
   }
 
+  const handleOpenFullDetails = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigate({
+      to: '/pricing/$modelId',
+      params: { modelId: props.model.model_name || '' },
+      search,
+    })
+  }
+
   return (
     <div
+      onClick={props.onClick}
       className={cn(
-        'group relative flex flex-col rounded-xl border p-3 transition-colors sm:p-5',
+        'group relative flex cursor-pointer flex-col rounded-xl border p-3 transition-colors sm:p-5',
         'hover:bg-muted/20'
       )}
     >
@@ -272,7 +285,7 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
         <div className='flex shrink-0 items-center gap-1.5'>
           <button
             type='button'
-            onClick={props.onClick}
+            onClick={handleOpenFullDetails}
             className='text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors sm:px-2.5 sm:py-1.5'
           >
             {t('auditLogs.titles.details')}
