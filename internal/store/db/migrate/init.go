@@ -80,6 +80,7 @@ func InitLogDB() (err error) {
 		if common.IsMasterNode {
 			backfillLogClientHeaderColumns()
 			backfillLogPlatforms()
+			backfillLogChannelNames()
 		}
 		return
 	}
@@ -113,9 +114,10 @@ func InitLogDB() (err error) {
 			return err
 		}
 		// 独立日志库：AutoMigrate 完成后回填历史日志的客户端请求头列，
-		// 再基于回填结果识别历史日志的客户端平台。
+		// 再基于回填结果识别历史日志的客户端平台，并回填渠道名快照列。
 		backfillLogClientHeaderColumns()
 		backfillLogPlatforms()
+		backfillLogChannelNames()
 		return err
 	} else {
 		common.FatalLog(err)

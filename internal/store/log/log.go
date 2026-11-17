@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
-	"github.com/NookMux/NookMux/internal/domain/shared"
 	logger "github.com/NookMux/NookMux/internal/infra/log"
 	"github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/store/db"
@@ -33,10 +32,12 @@ type Log struct {
 	UseTime          int    `json:"use_time" gorm:"default:0"`
 	IsStream         bool   `json:"is_stream"`
 	ChannelId        int    `json:"channel" gorm:"index"`
-	ChannelName      string `json:"channel_name" gorm:"->"`
-	TokenId          int    `json:"token_id" gorm:"default:0;index"`
-	Group            string `json:"group" gorm:"index"`
-	Ip               string `json:"ip" gorm:"index;default:''"`
+	// ChannelName 为请求时刻的渠道名快照，随日志写入持久化；渠道后续改名
+	// 不影响历史行，渠道已删除或无法匹配时为空串。
+	ChannelName string `json:"channel_name" gorm:"default:''"`
+	TokenId     int    `json:"token_id" gorm:"default:0;index"`
+	Group       string `json:"group" gorm:"index"`
+	Ip          string `json:"ip" gorm:"index;default:''"`
 	// 客户端请求头，原存于 Other JSON，现独立为列以便检索与裁剪。
 	// 使用显式 text 类型而非依赖 string+default:''，避免 MySQL 下因带默认值
 	// 被生成为 varchar(191)，导致长 UA/Referer 在严格模式下写入失败或被截断。
@@ -237,6 +238,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		ModelName:         modelName,
 		Quota:             0,
 		ChannelId:         channelId,
+		ChannelName:       c.GetString(string(common.ContextKeyChannelName)),
 		TokenId:           tokenId,
 		UseTime:           useTimeMs,
 		IsStream:          isStream,
@@ -307,6 +309,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		ModelName:         params.ModelName,
 		Quota:             params.Quota,
 		ChannelId:         params.ChannelId,
+		ChannelName:       c.GetString(string(common.ContextKeyChannelName)),
 		TokenId:           params.TokenId,
 		UseTime:           params.UseTimeMs,
 		IsStream:          params.IsStream,
@@ -462,30 +465,6 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	err = tx.Order("logs.created_at desc, logs.id desc").Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
 		return nil, 0, err
-	}
-
-	channelIds := shared.NewSet[int]()
-	for _, log := range logs {
-		if log.ChannelId != 0 {
-			channelIds.Add(log.ChannelId)
-		}
-	}
-
-	if channelIds.Len() > 0 {
-		var channels []struct {
-			Id   int    `gorm:"column:id"`
-			Name string `gorm:"column:name"`
-		}
-		if err = dbstore.DB.Table("channels").Select("id, name").Where("id IN ?", channelIds.Items()).Find(&channels).Error; err != nil {
-			return logs, total, err
-		}
-		channelMap := make(map[int]string, len(channels))
-		for _, channel := range channels {
-			channelMap[channel.Id] = channel.Name
-		}
-		for i := range logs {
-			logs[i].ChannelName = channelMap[logs[i].ChannelId]
-		}
 	}
 
 	enrichLogModelIcons(logs)

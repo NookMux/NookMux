@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/infra/redis"
-	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/log"
 	"github.com/NookMux/NookMux/internal/store/user"
@@ -14,8 +13,7 @@ import (
 )
 
 // setupLogQueryTestDB prepares an in-memory sqlite DB with the tables needed by
-// the log list queries under test (logs + channels; GetAllLogs joins channels to
-// resolve channel names).
+// the log list queries under test.
 func setupLogQueryTestDB(t *testing.T) {
 	t.Helper()
 
@@ -28,7 +26,7 @@ func setupLogQueryTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite test db: %v", err)
 	}
-	if err := db.AutoMigrate(&userstore.User{}, &logstore.Log{}, &channelstore.Channel{}); err != nil {
+	if err := db.AutoMigrate(&userstore.User{}, &logstore.Log{}); err != nil {
 		t.Fatalf("migrate sqlite test db: %v", err)
 	}
 	dbstore.DB = db
@@ -172,4 +170,35 @@ func collectQuota(logs []*logstore.Log) []int {
 		out[i] = l.Quota
 	}
 	return out
+}
+
+func TestGetAllLogsReturnsPersistedChannelNameSnapshot(t *testing.T) {
+	setupLogQueryTestDB(t)
+
+	rows := []*logstore.Log{
+		{UserId: 1, CreatedAt: 1000, Type: logstore.LogTypeConsume, ChannelId: 7, ChannelName: "渠道甲"},
+		{UserId: 1, CreatedAt: 2000, Type: logstore.LogTypeConsume, ChannelId: 9},
+	}
+	for _, r := range rows {
+		if err := dbstore.LOG_DB.Create(r).Error; err != nil {
+			t.Fatalf("create log: %v", err)
+		}
+	}
+
+	// channel_name 快照随日志持久化，是唯一数据来源；测试库刻意不建
+	// channels 表且行携带非零 channel_id，约束实现不得联查渠道表。
+	logs, _, err := logstore.GetAllLogs(logstore.LogTypeUnknown, 0, 0, "", "", "", 0, 100, 0, "", "", "", "", "", "", "")
+	if err != nil {
+		t.Fatalf("GetAllLogs error = %v", err)
+	}
+	if len(logs) != 2 {
+		t.Fatalf("got %d logs, want 2", len(logs))
+	}
+	// newest first：created_at=2000 的行无快照，created_at=1000 的行带快照。
+	if logs[0].ChannelName != "" {
+		t.Fatalf("logs[0].channel_name = %q, want empty", logs[0].ChannelName)
+	}
+	if logs[1].ChannelName != "渠道甲" {
+		t.Fatalf("logs[1].channel_name = %q, want %q", logs[1].ChannelName, "渠道甲")
+	}
 }

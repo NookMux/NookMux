@@ -521,6 +521,8 @@ func CustomVoicePreview(c *gin.Context, userId int, req CustomVoicePreviewReques
 	if err != nil {
 		return nil, err
 	}
+	// 选定上游渠道后向请求上下文发布渠道名，消费日志按此写入渠道名快照。
+	c.Set(string(common.ContextKeyChannelName), upstream.channel.Name)
 
 	// 先清理超过 7 天未确认的试听记录，确保过期音色 ID 可被重新使用（系统自动清理，不写审计）。
 	if err := cleanupExpiredCustomVoicePreviews(lang); err != nil {
