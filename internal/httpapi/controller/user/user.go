@@ -205,10 +205,8 @@ func Logout(c *gin.Context) {
 	session.Clear()
 	err := session.Save()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"message": err.Error(),
-			"success": false,
-		})
+		common.SysError("failed to save session on logout: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgUserSessionSaveFailed)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -449,7 +447,8 @@ func TransferAffQuota(c *gin.Context) {
 	}
 	err = user.TransferAffQuotaToQuota(tran.Quota)
 	if err != nil {
-		httpapi.ApiErrorI18n(c, i18n.MsgUserTransferFailed, map[string]any{"Error": err.Error()})
+		msg := i18n.ResolveContextError(c, err, i18n.MsgDatabaseError)
+		httpapi.ApiErrorI18n(c, i18n.MsgUserTransferFailed, map[string]any{"Error": msg})
 		return
 	}
 	httpapi.ApiSuccessI18n(c, i18n.MsgUserTransferSuccess, nil)
@@ -466,10 +465,8 @@ func GetAffCode(c *gin.Context) {
 	if user.AffCode == "" {
 		affCode := common.GetRandomString(4)
 		if err := userstore.UpdateUserAffCode(id, affCode); err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": err.Error(),
-			})
+			common.SysError("failed to update user aff code: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 			return
 		}
 		user.AffCode = affCode
@@ -910,10 +907,8 @@ func ManageUser(c *gin.Context) {
 			return
 		}
 		if err := user.Delete(); err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": err.Error(),
-			})
+			common.SysError("failed to delete user: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 			return
 		}
 		// 凭证面收敛：被删用户的全部会话立即失效。

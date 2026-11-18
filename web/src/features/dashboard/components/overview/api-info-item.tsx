@@ -84,7 +84,7 @@ export function ApiInfoItemComponent(props: ApiInfoItemProps) {
           {status.latency !== null && !status.testing && (
             <StatusBadge
               variant='success'
-              label={`${status.latency}${t('dashboard.fields.ms')}`}
+              label={`${status.latency} ${t('dashboard.fields.ms')}`}
               className={cn(
                 'font-mono font-medium',
                 getLatencyColorClass(status.latency)

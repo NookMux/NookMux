@@ -236,7 +236,7 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={t('dynamicRatio.status.created')}
+          title={t('common.fields.createdAt')}
         />
       ),
       cell: ({ row }) => (
@@ -244,7 +244,7 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
           {formatTimestampToDate(row.getValue('created_time'))}
         </span>
       ),
-      meta: { label: t('dynamicRatio.status.created'), mobileHidden: true },
+      meta: { label: t('common.fields.createdAt'), mobileHidden: true },
     },
     {
       accessorKey: 'accessed_time',

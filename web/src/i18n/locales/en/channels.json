@@ -722,5 +722,17 @@
   "channels.titles.testSelectedModels": "Test selected models",
   "channels.titles.value": "Channels",
   "channels.titles.verifyToViewChannelKey": "Verify to view channel key",
-  "channels.types.custom": "Custom Channel"
+  "channels.types.custom": "Custom Channel",
+  "channels.fields.zhipuDeveloperPlatform": "Zhipu Developer Platform",
+  "channels.tips.setTagForCountSelectedChannels": "Set a tag for {{count}} selected channel(s). Leave empty to remove tag.",
+  "channels.tips.multiKeyChannelKeysWillBeReplaced": "Multi-key channel: New keys will replace all existing keys",
+  "channels.tips.multiKeyChannelKeysWillBeAppended": "Multi-key channel: New keys will be appended to existing keys",
+  "channels.fields.planPackageNew": "New Plan",
+  "channels.fields.planPackageLegacy": "Legacy Plan",
+  "channels.tips.presetSetOpenAiDefaultTemp": "Set default temperature for openai/* models.",
+  "channels.tips.presetPassRequestIdHeader": "Pass through X-Request-Id header to upstream.",
+  "channels.tips.presetGeminiImage4k": "Set imageSize to 4K when model contains gemini/image and ends with 4k.",
+  "channels.tips.presetBedrockClaudeBetaHeaders": "Normalize anthropic-beta header tokens for Bedrock compatibility.",
+  "channels.tips.presetBedrockRemoveInputExamples": "Remove all tools[*].custom.input_examples before upstream relay.",
+  "channels.tips.presetClaudeBetaAppendKeepOnly": "Append anthropic-beta tokens, dedupe existing values, and drop undeclared tokens."
 }

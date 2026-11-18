@@ -22,7 +22,10 @@ import { Link } from '@tanstack/react-router'
 import { ArrowRight, Flame, ShieldCheck, TrendingDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
-import { getCurrencyLabel, isCurrencyDisplayEnabled } from '@/lib/currency'
+import {
+  getLocalizedCurrencyLabel,
+  isCurrencyDisplayEnabled,
+} from '@/lib/currency'
 import { formatNumber, formatQuota } from '@/lib/format'
 import { computeTimeRange } from '@/lib/time'
 import { cn } from '@/lib/utils'
@@ -178,8 +181,8 @@ export function SummaryCards() {
       ? statusCurrencyFlag
       : currencyEnabledFromStore
   const currencyLabel = currencyEnabled
-    ? getCurrencyLabel()
-    : 'rankings.fields.tokens'
+    ? getLocalizedCurrencyLabel(t)
+    : t('rankings.fields.tokens')
 
   const sparklineData = useMemo(
     () =>

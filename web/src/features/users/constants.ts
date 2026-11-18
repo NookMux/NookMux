@@ -48,7 +48,7 @@ export const USER_STATUSES = {
     value: USER_STATUS.DISABLED,
   },
   DELETED: {
-    labelKey: 'Deleted',
+    labelKey: 'subscriptions.actions.deleted',
     variant: 'danger' as const,
     value: -1,
   },
@@ -122,12 +122,12 @@ export const DEFAULT_GROUP = 'default' as const
 // ============================================================================
 
 export const BINDING_FIELDS = [
-  { key: 'github_id', label: 'GitHub ID' },
-  { key: 'discord_id', label: 'Discord ID' },
-  { key: 'oidc_id', label: 'OIDC ID' },
-  { key: 'wechat_id', label: 'WeChat ID' },
+  { key: 'github_id', label: 'users.fields.gitHubId' },
+  { key: 'discord_id', label: 'users.fields.discordId' },
+  { key: 'oidc_id', label: 'users.fields.oidcId' },
+  { key: 'wechat_id', label: 'users.fields.wechatId' },
   { key: 'email', label: 'auth.fields.email' },
-  { key: 'telegram_id', label: 'Telegram ID' },
+  { key: 'telegram_id', label: 'users.fields.telegramId' },
 ] as const
 
 // ============================================================================

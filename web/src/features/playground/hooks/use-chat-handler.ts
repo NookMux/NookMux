@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback } from 'react'
+import i18next from 'i18next'
 import { toast } from 'sonner'
 import { sendChatCompletion } from '../api'
 import { MESSAGE_STATUS, ERROR_MESSAGES } from '../constants'
@@ -166,7 +167,7 @@ export function useChatHandler({
         handleStreamError(
           err?.response?.data?.message ||
             err?.message ||
-            ERROR_MESSAGES.API_REQUEST_ERROR,
+            i18next.t(ERROR_MESSAGES.API_REQUEST_ERROR),
           err?.response?.data?.error?.code || undefined
         )
       }

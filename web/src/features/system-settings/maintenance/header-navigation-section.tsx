@@ -231,7 +231,7 @@ export function HeaderNavigationSection({
             onSave={form.handleSubmit(onSubmit)}
             onReset={resetToDefault}
             isSaving={updateOption.isPending}
-            resetLabel='Reset to default'
+            resetLabel='common.actions.resetToDefault'
             saveLabel='common.actions.saveNavigation'
           />
           <div className='grid gap-4 md:grid-cols-2'>

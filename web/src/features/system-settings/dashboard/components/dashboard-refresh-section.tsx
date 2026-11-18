@@ -43,10 +43,22 @@ import {
 } from '../hooks/use-dashboard-config'
 
 const refreshIntervalSchema = z.object({
-  quota_data_refresh_interval: z.number().min(60).max(86400),
-  user_analytics_refresh_interval: z.number().min(60).max(86400),
-  rankings_refresh_interval: z.number().min(60).max(86400),
-  uptime_kuma_refresh_interval: z.number().min(30).max(3600),
+  quota_data_refresh_interval: z
+    .number()
+    .min(60, 'common.errors.mustBeBetween60And86400')
+    .max(86400, 'common.errors.mustBeBetween60And86400'),
+  user_analytics_refresh_interval: z
+    .number()
+    .min(60, 'common.errors.mustBeBetween60And86400')
+    .max(86400, 'common.errors.mustBeBetween60And86400'),
+  rankings_refresh_interval: z
+    .number()
+    .min(60, 'common.errors.mustBeBetween60And86400')
+    .max(86400, 'common.errors.mustBeBetween60And86400'),
+  uptime_kuma_refresh_interval: z
+    .number()
+    .min(30, 'common.errors.mustBeBetween30And3600')
+    .max(3600, 'common.errors.mustBeBetween30And3600'),
 })
 
 type RefreshIntervalFormData = z.infer<typeof refreshIntervalSchema>

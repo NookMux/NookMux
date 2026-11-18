@@ -22,7 +22,7 @@
   "about.placeholders.urlGithubComNookMuxNookMux": "https://github.com/NookMux/NookMux",
   "about.tips.agplV30License": "AGPL v3.0 协议",
   "about.tips.capabilityBillingDesc": "按量计费、实时统计，每一笔用量清晰可查。",
-  "about.tips.capabilityKeysDesc": "令牌分组、额度与过期策略，细粒度权限管理。",
+  "about.tips.capabilityKeysDesc": "密钥分组、额度与过期策略，细粒度权限管理。",
   "about.tips.capabilityRoutingDesc": "多渠道负载均衡与自动重试，保障每一次请求稳定送达。",
   "about.tips.capabilityUnifiedDesc": "OpenAI 兼容协议一处接入，主流模型开箱即用。",
   "about.tips.ctaDescription": "注册即用，或自托管一套属于你的网关。",

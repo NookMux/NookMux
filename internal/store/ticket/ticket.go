@@ -3,6 +3,7 @@ package ticketstore
 import (
 	"errors"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"gorm.io/gorm"
 	"strconv"
@@ -27,7 +28,7 @@ const (
 	TicketEntryTypeStatusChange
 )
 
-var ErrTicketNotFound = errors.New("工单不存在")
+var ErrTicketNotFound = i18n.NewError(i18n.MsgTicketNotFound)
 
 var ticketTypeToName = map[int]string{
 	TicketTypeBug:      "bug",
@@ -106,7 +107,7 @@ func TicketStatusName(status int) string {
 func ParseTicketType(value string) (int, error) {
 	ticketType, ok := ticketNameToType[strings.TrimSpace(value)]
 	if !ok {
-		return 0, errors.New("无效的工单类型")
+		return 0, i18n.NewError(i18n.MsgTicketInvalidType)
 	}
 	return ticketType, nil
 }
@@ -114,14 +115,14 @@ func ParseTicketType(value string) (int, error) {
 func ParseTicketStatus(value string) (int, error) {
 	status, ok := ticketNameToStatus[strings.TrimSpace(value)]
 	if !ok {
-		return 0, errors.New("无效的工单状态")
+		return 0, i18n.NewError(i18n.MsgTicketInvalidStatus)
 	}
 	return status, nil
 }
 
 func ListUserTickets(filter TicketListFilter) ([]*Ticket, int64, error) {
 	if filter.UserId <= 0 {
-		return nil, 0, errors.New("无效的用户")
+		return nil, 0, i18n.NewError(i18n.MsgTicketInvalidUser)
 	}
 	query := buildTicketListQuery(dbstore.DB.Model(&Ticket{}).Where("user_id = ?", filter.UserId), filter)
 	return listTickets(query, filter)

@@ -26,7 +26,7 @@ import { type UserFormData, type User } from '../types'
 // ============================================================================
 
 export const userFormSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
+  username: z.string().min(1, 'auth.errors.pleaseEnterUsername'),
   display_name: z.string().optional(),
   password: z.string().optional(),
   role: z.number().optional(),

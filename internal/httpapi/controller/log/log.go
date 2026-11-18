@@ -73,7 +73,7 @@ func GetUserLogs(c *gin.Context) {
 		XTitle:            xTitle,
 		HttpReferer:       httpReferer,
 	}
-	if msg := validateUserLogFilters(filter); msg != "" {
+	if msg := validateUserLogFilters(c, filter); msg != "" {
 		c.JSON(200, gin.H{
 			"success": false,
 			"message": msg,
@@ -397,7 +397,7 @@ func GetLogsSelfStat(c *gin.Context) {
 	}
 
 	// 普通用户统计接口禁止使用不可见字段做过滤条件，避免通过统计结果变化做侧信道探测。
-	if msg := validateUserLogFilters(filter); msg != "" {
+	if msg := validateUserLogFilters(c, filter); msg != "" {
 		c.JSON(200, gin.H{
 			"success": false,
 			"message": msg,
@@ -455,7 +455,7 @@ func GetLogsSelfStat(c *gin.Context) {
 //     不依赖配置（channel 已从 Defaults 移除，IsUsageLogFieldVisible 回退到 return false）。
 //   - 详情弹窗独有字段（request_id/upstream_request_id/ip/ua/x_title/http_referer）
 //     受总开关和单字段可见性双重控制。
-func validateUserLogFilters(filter logstore.LogStatFilter) string {
+func validateUserLogFilters(c *gin.Context, filter logstore.LogStatFilter) string {
 	// 详情弹窗独有字段受总开关和单字段可见性双重控制。
 	// 总开关关闭时，详情弹窗独有字段都不可作为过滤条件。
 	// 但表格列字段（token_name/group/model_name 等）不受此限制，始终可过滤。
@@ -483,10 +483,10 @@ func validateUserLogFilters(filter logstore.LogStatFilter) string {
 		}
 		// 总开关关闭时，所有详情弹窗独有字段都不可过滤
 		if detailsDisabled {
-			return "使用日志详情已禁用，不支持按详情字段过滤"
+			return i18n.T(c, i18n.MsgLogDetailsFilterDisabled)
 		}
 		if !console.IsUsageLogFieldVisible(chk.fieldKey, false) {
-			return "无权使用此过滤条件: " + chk.fieldMsg
+			return i18n.T(c, i18n.MsgLogFilterFieldForbidden, map[string]any{"Field": chk.fieldMsg})
 		}
 	}
 	return ""

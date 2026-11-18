@@ -412,9 +412,9 @@ export function UserBanDialog() {
                   placeholder={t(identifierPlaceholderKeys[selectedType])}
                   {...form.register('value')}
                 />
-                {form.formState.errors.value && (
+                {form.formState.errors.value?.message && (
                   <p className='text-destructive text-sm'>
-                    {form.formState.errors.value.message}
+                    {t(form.formState.errors.value.message)}
                   </p>
                 )}
               </div>
@@ -425,9 +425,9 @@ export function UserBanDialog() {
                   maxLength={255}
                   {...form.register('remark')}
                 />
-                {form.formState.errors.remark && (
+                {form.formState.errors.remark?.message && (
                   <p className='text-destructive text-sm'>
-                    {form.formState.errors.remark.message}
+                    {t(form.formState.errors.remark.message)}
                   </p>
                 )}
               </div>

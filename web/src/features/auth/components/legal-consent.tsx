@@ -76,7 +76,9 @@ export function LegalConsent({
               {t('layout.fields.userAgreement')}
             </a>
           )}
-          {hasUserAgreement && hasPrivacyPolicy && ' and the '}
+          {hasUserAgreement &&
+            hasPrivacyPolicy &&
+            ` ${t('auth.fields.value')} `}
           {hasPrivacyPolicy && (
             <a
               href='/privacy-policy'
@@ -87,7 +89,7 @@ export function LegalConsent({
               {t('layout.fields.privacyPolicy')}
             </a>
           )}
-          .
+          {t('auth.fields.sentencePeriod')}
         </span>
       </Label>
     </div>

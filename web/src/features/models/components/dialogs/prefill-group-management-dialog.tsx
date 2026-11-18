@@ -264,7 +264,7 @@ export function PrefillGroupManagementDialog({
                       </AlertTitle>
                       <AlertDescription>
                         {(error as Error).message ||
-                          'Please retry or refresh the page.'}
+                          t('models.tips.pleaseRetryOrRefreshPage')}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -310,7 +310,7 @@ export function PrefillGroupManagementDialog({
                                   size='sm'
                                   copyable={false}
                                 >
-                                  {meta.label}
+                                  {t(meta.label)}
                                   <span className='text-muted-foreground/30'>
                                     ·
                                   </span>
@@ -358,7 +358,9 @@ export function PrefillGroupManagementDialog({
                             <div className='text-muted-foreground flex flex-wrap items-center gap-2 text-xs font-medium tracking-wide uppercase'>
                               <span>{t('models.fields.items')}</span>
                               <StatusBadge
-                                label={`${parsedItems.length} item${parsedItems.length === 1 ? '' : 's'}`}
+                                label={t('models.fields.countItems', {
+                                  count: parsedItems.length,
+                                })}
                                 variant='neutral'
                                 size='sm'
                                 copyable={false}
@@ -376,7 +378,9 @@ export function PrefillGroupManagementDialog({
                                 ))}
                                 {parsedItems.length > 6 && (
                                   <StatusBadge
-                                    label={`+${parsedItems.length - 6} more`}
+                                    label={t('rankings.fields.countMore', {
+                                      count: parsedItems.length - 6,
+                                    })}
                                     variant='neutral'
                                     size='sm'
                                     copyable={false}
@@ -439,7 +443,7 @@ export function PrefillGroupManagementDialog({
                                   </TableCell>
                                   <TableCell className='align-top'>
                                     <StatusBadge
-                                      label={meta.label}
+                                      label={t(meta.label)}
                                       variant={meta.badge}
                                       size='sm'
                                       copyable={false}
@@ -461,7 +465,12 @@ export function PrefillGroupManagementDialog({
                                             ))}
                                           {parsedItems.length > 6 && (
                                             <StatusBadge
-                                              label={`+${parsedItems.length - 6} more`}
+                                              label={t(
+                                                'rankings.fields.countMore',
+                                                {
+                                                  count: parsedItems.length - 6,
+                                                }
+                                              )}
                                               variant='neutral'
                                               size='sm'
                                               copyable={false}
@@ -481,8 +490,9 @@ export function PrefillGroupManagementDialog({
                                       )}
                                     </div>
                                     <div className='text-muted-foreground mt-2 text-xs font-medium tracking-wide uppercase'>
-                                      {parsedItems.length} item
-                                      {parsedItems.length === 1 ? '' : 's'}
+                                      {t('models.fields.countItems', {
+                                        count: parsedItems.length,
+                                      })}
                                     </div>
                                   </TableCell>
                                   <TableCell className='align-top'>
@@ -494,7 +504,7 @@ export function PrefillGroupManagementDialog({
                                       >
                                         <Pencil className='h-4 w-4' />
                                         <span className='sr-only'>
-                                          Edit group
+                                          {t('models.actions.editGroup')}
                                         </span>
                                       </Button>
                                       <Button
@@ -505,7 +515,7 @@ export function PrefillGroupManagementDialog({
                                       >
                                         <Trash2 className='h-4 w-4' />
                                         <span className='sr-only'>
-                                          Delete group
+                                          {t('models.actions.deleteGroup')}
                                         </span>
                                       </Button>
                                     </div>
@@ -531,9 +541,9 @@ export function PrefillGroupManagementDialog({
         title={t('models.actions.deleteGroup')}
         desc={
           <p>
-            {t('channels.fields.sureYouWantToDelete')}{' '}
-            <span className='font-medium'>{deleteState.group?.name}</span>
-            {t('models.errors.actionCannotBeUndone')}
+            {t('models.tips.confirmDeletePrefillGroup', {
+              name: deleteState.group?.name ?? '',
+            })}
           </p>
         }
         destructive

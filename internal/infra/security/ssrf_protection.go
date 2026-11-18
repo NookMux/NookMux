@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/NookMux/NookMux/internal/i18n"
 )
 
 // SSRFProtection SSRF防护配置
@@ -242,12 +244,12 @@ func (p *SSRFProtection) ValidateURL(urlStr string) error {
 	// 解析URL
 	u, err := url.Parse(urlStr)
 	if err != nil {
-		return fmt.Errorf("invalid URL format: %v", err)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("invalid URL format: %v", err), i18n.MsgSSRFInvalidURL, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 
 	// 只允许HTTP/HTTPS协议
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("unsupported protocol: %s (only http/https allowed)", u.Scheme)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("unsupported protocol: %s (only http/https allowed)", u.Scheme), i18n.MsgSSRFUnsupportedProtocol, map[string]any{"Scheme": u.Scheme})
 	}
 
 	// 解析主机和端口
@@ -265,23 +267,23 @@ func (p *SSRFProtection) ValidateURL(urlStr string) error {
 	// 验证端口
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return fmt.Errorf("invalid port: %s", portStr)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("invalid port: %s", portStr), i18n.MsgSSRFInvalidPort, map[string]any{"Port": portStr})
 	}
 
 	if !p.isAllowedPort(port) {
-		return fmt.Errorf("port %d is not allowed", port)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("port %d is not allowed", port), i18n.MsgSSRFPortNotAllowed, map[string]any{"Port": port})
 	}
 
 	// 如果 host 是 IP，则跳过域名检查
 	if ip := net.ParseIP(host); ip != nil {
 		if !p.IsIPAccessAllowed(ip) {
 			if isPrivateIP(ip) {
-				return fmt.Errorf("private IP address not allowed: %s", ip.String())
+				return i18n.NewErrorWithFallback(fmt.Sprintf("private IP address not allowed: %s", ip.String()), i18n.MsgSSRFPrivateIPNotAllowed, map[string]any{"IP": ip.String()})
 			}
 			if p.IpFilterMode {
-				return fmt.Errorf("ip not in whitelist: %s", ip.String())
+				return i18n.NewErrorWithFallback(fmt.Sprintf("ip not in whitelist: %s", ip.String()), i18n.MsgSSRFIPNotInWhitelist, map[string]any{"IP": ip.String()})
 			}
-			return fmt.Errorf("ip in blacklist: %s", ip.String())
+			return i18n.NewErrorWithFallback(fmt.Sprintf("ip in blacklist: %s", ip.String()), i18n.MsgSSRFIPInBlacklist, map[string]any{"IP": ip.String()})
 		}
 		return nil
 	}
@@ -289,9 +291,9 @@ func (p *SSRFProtection) ValidateURL(urlStr string) error {
 	// 先进行域名过滤
 	if !p.isDomainAllowed(host) {
 		if p.DomainFilterMode {
-			return fmt.Errorf("domain not in whitelist: %s", host)
+			return i18n.NewErrorWithFallback(fmt.Sprintf("domain not in whitelist: %s", host), i18n.MsgSSRFDomainNotInWhitelist, map[string]any{"Host": host})
 		}
-		return fmt.Errorf("domain in blacklist: %s", host)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("domain in blacklist: %s", host), i18n.MsgSSRFDomainInBlacklist, map[string]any{"Host": host})
 	}
 
 	// 若未启用对域名应用IP过滤，则到此通过
@@ -302,17 +304,17 @@ func (p *SSRFProtection) ValidateURL(urlStr string) error {
 	// 解析域名对应IP并检查
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		return fmt.Errorf("DNS resolution failed for %s: %v", host, err)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("DNS resolution failed for %s: %v", host, err), i18n.MsgSSRFDNSResolutionFailed, map[string]any{"Host": host, "Error": err.Error()}).WithCause(err)
 	}
 	for _, ip := range ips {
 		if !p.IsIPAccessAllowed(ip) {
 			if isPrivateIP(ip) && !p.AllowPrivateIp {
-				return fmt.Errorf("private IP address not allowed: %s resolves to %s", host, ip.String())
+				return i18n.NewErrorWithFallback(fmt.Sprintf("private IP address not allowed: %s resolves to %s", host, ip.String()), i18n.MsgSSRFResolvedPrivateIP, map[string]any{"Host": host, "IP": ip.String()})
 			}
 			if p.IpFilterMode {
-				return fmt.Errorf("ip not in whitelist: %s resolves to %s", host, ip.String())
+				return i18n.NewErrorWithFallback(fmt.Sprintf("ip not in whitelist: %s resolves to %s", host, ip.String()), i18n.MsgSSRFResolvedIPNotInWhitelist, map[string]any{"Host": host, "IP": ip.String()})
 			}
-			return fmt.Errorf("ip in blacklist: %s resolves to %s", host, ip.String())
+			return i18n.NewErrorWithFallback(fmt.Sprintf("ip in blacklist: %s resolves to %s", host, ip.String()), i18n.MsgSSRFResolvedIPInBlacklist, map[string]any{"Host": host, "IP": ip.String()})
 		}
 	}
 	return nil
@@ -346,12 +348,12 @@ func (p *SSRFProtection) CheckConnectedIP(ip net.IP) error {
 		return nil
 	}
 	if isPrivateIP(ip) && !p.AllowPrivateIp {
-		return fmt.Errorf("connected IP %s is not allowed (private address, possible DNS rebinding)", ip.String())
+		return i18n.NewErrorWithFallback(fmt.Sprintf("connected IP %s is not allowed (private address, possible DNS rebinding)", ip.String()), i18n.MsgSSRFResolvedPrivateIP, map[string]any{"Host": "connected", "IP": ip.String()})
 	}
 	if p.IpFilterMode {
-		return fmt.Errorf("connected IP %s is not in the ip whitelist", ip.String())
+		return i18n.NewErrorWithFallback(fmt.Sprintf("connected IP %s is not in the ip whitelist", ip.String()), i18n.MsgSSRFResolvedIPNotInWhitelist, map[string]any{"Host": "connected", "IP": ip.String()})
 	}
-	return fmt.Errorf("connected IP %s is in the ip blacklist", ip.String())
+	return i18n.NewErrorWithFallback(fmt.Sprintf("connected IP %s is in the ip blacklist", ip.String()), i18n.MsgSSRFResolvedIPInBlacklist, map[string]any{"Host": "connected", "IP": ip.String()})
 }
 
 // ValidateURLWithFetchSetting 使用FetchSetting配置验证URL
@@ -363,7 +365,7 @@ func ValidateURLWithFetchSetting(urlStr string, enableSSRFProtection, allowPriva
 
 	protection, err := BuildSSRFProtection(allowPrivateIp, domainFilterMode, ipFilterMode, domainList, ipList, allowedPorts, applyIPFilterForDomain)
 	if err != nil {
-		return fmt.Errorf("request reject - invalid port configuration: %v", err)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("request reject - invalid port configuration: %v", err), i18n.MsgSSRFInvalidPortConfig, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	return protection.ValidateURL(urlStr)
 }

@@ -259,8 +259,8 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                     value={field.value}
                     onChange={field.onChange}
                     optionKey='minimax.model_redirect'
-                    fromLabel='Client Model'
-                    toLabel='MiniMax Model'
+                    fromLabel='systemSettings.fields.clientModel'
+                    toLabel='systemSettings.fields.minimaxModel'
                     fromPlaceholder='tts-1'
                     toPlaceholder='speech-01-turbo'
                     jsonPlaceholder={t('common.tips.clientModelMinimaxModel')}
@@ -272,9 +272,7 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                       null,
                       2
                     )}
-                    emptyText={t(
-                      'common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
-                    )}
+                    emptyText='common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
                     onFullValueLoaded={syncJsonMapBaseline(
                       'minimax.model_redirect',
                       'minimax.model_redirect'
@@ -328,8 +326,8 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                     value={field.value}
                     onChange={field.onChange}
                     optionKey='minimax.emotion_redirect'
-                    fromLabel='Emotion Tag'
-                    toLabel='MiniMax Emotion'
+                    fromLabel='systemSettings.fields.emotionTag'
+                    toLabel='systemSettings.fields.minimaxEmotion'
                     fromPlaceholder='happy'
                     toPlaceholder='happy'
                     jsonPlaceholder={t('common.tips.tagValueMinimaxEmotion')}
@@ -338,9 +336,7 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                       null,
                       2
                     )}
-                    emptyText={t(
-                      'common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
-                    )}
+                    emptyText='common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
                     onFullValueLoaded={syncJsonMapBaseline(
                       'minimax.emotion_redirect',
                       'minimax.emotion_redirect'
@@ -391,19 +387,20 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                     value={field.value}
                     onChange={field.onChange}
                     optionKey='minimax.tone_word_redirect'
-                    fromLabel='Tone Word Tag'
-                    toLabel='Replacement'
+                    fromLabel='systemSettings.fields.toneWordTag'
+                    toLabel='systemSettings.fields.replacementText'
                     fromPlaceholder='laughs'
-                    toPlaceholder='笑'
+                    toPlaceholder={t('systemSettings.tips.toneWordSampleLaugh')}
                     jsonPlaceholder={t('common.fields.tagValueReplacement')}
                     template={JSON.stringify(
-                      { laughs: '笑', crying: '哭' },
+                      {
+                        laughs: t('systemSettings.tips.toneWordSampleLaugh'),
+                        crying: t('systemSettings.tips.toneWordSampleCry'),
+                      },
                       null,
                       2
                     )}
-                    emptyText={t(
-                      'common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
-                    )}
+                    emptyText='common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
                     onFullValueLoaded={syncJsonMapBaseline(
                       'minimax.tone_word_redirect',
                       'minimax.tone_word_redirect'
@@ -414,7 +411,10 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                   {t(
                     'systemSettings.status.jsonMapOfToneWordTagValueToReplacement'
                   )}{' '}
-                  {`{ "laughs": "笑", "crying": "哭" }`}
+                  {JSON.stringify({
+                    laughs: t('systemSettings.tips.toneWordSampleLaugh'),
+                    crying: t('systemSettings.tips.toneWordSampleCry'),
+                  })}
                 </FormDescription>
                 <FormMessage />
               </FormItem>

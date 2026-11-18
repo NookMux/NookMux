@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
@@ -67,7 +68,7 @@ func glmAccountReportHeaders() http.Header {
 func FetchGlmAccountReport(apiKey string, planBaseURL string, proxyURL string) (*GlmAccountReportData, error) {
 	apiBase := getGlmApiBase(planBaseURL)
 	if apiBase == "" {
-		return nil, fmt.Errorf("无法确定套餐对应的 API 地址")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaAPIBaseUnknown)
 	}
 
 	// 与联系方式查询的官方调用形式一致，Authorization 需带 Bearer 前缀；
@@ -86,21 +87,21 @@ func FetchGlmAccountReport(apiKey string, planBaseURL string, proxyURL string) (
 func parseGlmAccountReport(body []byte) (*GlmAccountReportData, error) {
 	var resp glmAccountReportResp
 	if err := jsonx.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("解析账户报告响应失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelParseResponseFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	if (resp.Code != nil && *resp.Code != 200) || (resp.Success != nil && !*resp.Success) {
 		msg := strings.TrimSpace(resp.Msg)
-		if msg == "" {
-			msg = "智谱返回非成功状态"
-		}
 		code := "nil"
 		if resp.Code != nil {
 			code = strconv.Itoa(*resp.Code)
 		}
-		return nil, fmt.Errorf("%s (code=%s)", msg, code)
+		if msg == "" {
+			return nil, i18n.NewError(i18n.MsgPlanQuotaUpstreamNonSuccess)
+		}
+		return nil, i18n.NewErrorWithFallback(fmt.Sprintf("%s (code=%s)", msg, code), i18n.MsgPlanQuotaUpstreamCodeError, map[string]any{"Message": msg, "Code": code})
 	}
 	if resp.Data == nil {
-		return nil, fmt.Errorf("上游未返回账户报告数据")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaNoReportData)
 	}
 
 	raw := resp.Data
@@ -119,7 +120,7 @@ func parseGlmAccountReport(body []byte) (*GlmAccountReportData, error) {
 // 两者均缺失说明上游数据异常，直接报错暴露问题。
 func PickGlmPersistBalance(report *GlmAccountReportData) (float64, error) {
 	if report == nil {
-		return 0, fmt.Errorf("账户报告为空")
+		return 0, i18n.NewError(i18n.MsgPlanQuotaEmptyReport)
 	}
 	if report.AvailableBalance != nil {
 		return *report.AvailableBalance, nil
@@ -127,5 +128,5 @@ func PickGlmPersistBalance(report *GlmAccountReportData) (float64, error) {
 	if report.Balance != nil {
 		return *report.Balance, nil
 	}
-	return 0, fmt.Errorf("上游未返回可用余额")
+	return 0, i18n.NewError(i18n.MsgPlanQuotaNoBalanceData)
 }

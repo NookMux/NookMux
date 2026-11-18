@@ -30,7 +30,10 @@ export function getApiKeyFormSchema(t: TFunction) {
   return z
     .object({
       name: z.string().min(1, t('keys.errors.pleaseEnterAName')),
-      quota_type: z.number().min(0).max(3),
+      quota_type: z
+        .number()
+        .min(0, 'common.errors.mustBeBetween0And3')
+        .max(3, 'common.errors.mustBeBetween0And3'),
       remain_quota_dollars: z.number().optional(),
       expired_time: z.date().optional(),
       unlimited_quota: z.boolean(),
@@ -44,7 +47,10 @@ export function getApiKeyFormSchema(t: TFunction) {
       allow_ips: z.string().optional(),
       group: z.string().optional(),
       cross_group_retry: z.boolean().optional(),
-      tokenCount: z.number().min(1).optional(),
+      tokenCount: z
+        .number()
+        .min(1, 'systemSettings.errors.mustBeAtLeast1')
+        .optional(),
     })
     .superRefine((data, ctx) => {
       const modelMapping = (data.model_mapping || '').trim()

@@ -435,7 +435,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                       rel='noreferrer'
                       className='underline underline-offset-4'
                     >
-                      智谱开发者平台
+                      {t('channels.fields.zhipuDeveloperPlatform')}
                     </a>{' '}
                     {t('channels.tips.resolutionSteps')}
                   </p>

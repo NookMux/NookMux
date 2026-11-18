@@ -5,6 +5,7 @@ import (
 	"github.com/NookMux/NookMux/internal/domain/shared"
 	channelcontroller "github.com/NookMux/NookMux/internal/httpapi/controller/channel"
 	tokencontroller "github.com/NookMux/NookMux/internal/httpapi/controller/token"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/token"
 	"github.com/gin-gonic/gin"
 )
@@ -27,8 +28,9 @@ func GetSubscription(c *gin.Context) {
 		expiredTime = 0
 	}
 	if err != nil {
+		common.SysError("failed to get subscription token: " + err.Error())
 		openAIError := shared.OpenAIError{
-			Message: err.Error(),
+			Message: i18n.T(c, i18n.MsgDatabaseError),
 			Type:    "upstream_error",
 		}
 		c.JSON(200, gin.H{
@@ -63,8 +65,9 @@ func GetUsage(c *gin.Context) {
 		quota = snapshot.TotalUsed
 	}
 	if err != nil {
+		common.SysError("failed to get usage token: " + err.Error())
 		openAIError := shared.OpenAIError{
-			Message: err.Error(),
+			Message: i18n.T(c, i18n.MsgDatabaseError),
 			Type:    string(shared.ErrorTypeNookMuxError),
 		}
 		c.JSON(200, gin.H{

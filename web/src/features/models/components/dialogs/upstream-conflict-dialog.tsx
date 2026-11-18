@@ -79,7 +79,7 @@ const FIELD_LABELS: Record<string, string> = {
   tags: 'models.fields.tags',
   vendor: 'models.fields.vendor',
   name_rule: 'models.fields.nameRule',
-  status: 'Status',
+  status: 'channels.fields.status',
   endpoints: 'models.fields.endpoints',
   quota_types: 'models.fields.quotaTypes',
   enable_groups: 'models.actions.enableGroups',
@@ -184,7 +184,7 @@ export function UpstreamConflictDialog({
       }
 
       const fieldMatch = conflict.fields?.some((field) => {
-        const label = FIELD_LABELS[field.field] || field.field
+        const label = t(FIELD_LABELS[field.field] || field.field)
         return (
           label.toLowerCase().includes(normalizedSearch) ||
           field.field.toLowerCase().includes(normalizedSearch)
@@ -213,7 +213,7 @@ export function UpstreamConflictDialog({
   const columns = useMemo<ColumnDef<ConflictFieldRow>[]>(() => {
     const modelColumn: ColumnDef<ConflictFieldRow> = {
       accessorKey: 'modelName',
-      header: 'Model',
+      header: t('common.fields.model'),
       cell: ({ row }) => (
         <div className='flex items-start gap-3'>
           {isMobile ? (
@@ -230,7 +230,7 @@ export function UpstreamConflictDialog({
             </span>
             {isMobile ? (
               <StatusBadge
-                label={row.original.fieldLabel}
+                label={t(row.original.fieldLabel)}
                 variant='neutral'
                 size='sm'
                 copyable={false}
@@ -244,7 +244,7 @@ export function UpstreamConflictDialog({
 
     const diffColumn: ColumnDef<ConflictFieldRow> = {
       id: 'actions',
-      header: 'Diff',
+      header: t('models.fields.diff'),
       enableSorting: false,
       enableHiding: false,
       cell: ({ row }) => (
@@ -259,7 +259,7 @@ export function UpstreamConflictDialog({
             }
           >
             <MousePointerClick className='h-3.5 w-3.5' />
-            {!isMobile && 'View diff'}
+            {!isMobile && t('models.actions.viewDiff')}
           </PopoverTrigger>
           <PopoverContent className='w-[min(90vw,24rem)] space-y-4 text-sm'>
             <div>
@@ -326,10 +326,10 @@ export function UpstreamConflictDialog({
       modelColumn,
       {
         accessorKey: 'fieldLabel',
-        header: 'Field',
+        header: t('models.fields.fieldLabel'),
         cell: ({ row }) => (
           <StatusBadge
-            label={row.original.fieldLabel}
+            label={t(row.original.fieldLabel)}
             variant='neutral'
             size='sm'
             copyable={false}
@@ -340,12 +340,12 @@ export function UpstreamConflictDialog({
       },
       {
         accessorKey: 'localValue',
-        header: 'Local Value',
+        header: t('models.fields.localValue'),
         cell: ({ row }) => <ValuePreview value={row.original.localValue} />,
       },
       {
         accessorKey: 'upstreamValue',
-        header: 'Upstream Value',
+        header: t('models.fields.upstreamValue'),
         cell: ({ row }) => <ValuePreview value={row.original.upstreamValue} />,
       },
     ]
@@ -486,17 +486,15 @@ export function UpstreamConflictDialog({
               <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
                 <div className='space-y-1'>
                   <div className='text-sm font-medium'>
-                    {visibleModelCount}{' '}
-                    {visibleModelCount === 1
-                      ? t('common.fields.model')
-                      : t('channels.titles.models')}{' '}
-                    {t('models.fields.conflicts')}
+                    {t('models.tips.countModelsWithConflicts', {
+                      count: visibleModelCount,
+                    })}
                   </div>
                   <div className='text-muted-foreground text-xs'>
-                    {visibleFieldCount} {t('models.fields.field')}
-                    {visibleFieldCount === 1 ? '' : 's'}{' '}
-                    {t('models.fields.showingd03544')} {totalSelectedFields}{' '}
-                    {t('common.placeholders.selected')}
+                    {t('models.tips.fieldsShowingAndSelected', {
+                      visible: visibleFieldCount,
+                      selected: totalSelectedFields,
+                    })}
                   </div>
                 </div>
                 <div className='flex w-full flex-col gap-2 sm:w-auto sm:flex-row'>
@@ -574,10 +572,11 @@ export function UpstreamConflictDialog({
 
                   <div className='bg-muted/40 flex flex-col gap-2 border-t px-2 py-1.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-3 sm:py-2'>
                     <div className='text-muted-foreground text-xs'>
-                      {t('models.fields.showing')} {displayStart}-{displayEnd}{' '}
-                      {t('common.fields.valuede04fa')} {visibleFieldCount}{' '}
-                      {t('models.fields.field')}
-                      {visibleFieldCount === 1 ? '' : 's'}
+                      {t('models.tips.showingStartEndOfTotalFields', {
+                        start: displayStart,
+                        end: displayEnd,
+                        total: visibleFieldCount,
+                      })}
                     </div>
                     <div className='flex items-center justify-between gap-2 sm:flex-wrap sm:gap-3'>
                       <div className='flex items-center gap-1.5 text-xs sm:gap-2'>

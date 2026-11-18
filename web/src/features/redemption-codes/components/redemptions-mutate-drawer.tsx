@@ -21,7 +21,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
+import { getCurrencyDisplay, getLocalizedCurrencyLabel } from '@/lib/currency'
 import { addTimeToDate } from '@/lib/time'
 import { Button } from '@/components/ui/button'
 import {
@@ -144,13 +144,13 @@ export function RedemptionsMutateDrawer({
   }
 
   const { meta: currencyMeta } = getCurrencyDisplay()
-  const currencyLabel = getCurrencyLabel()
+  const currencyLabel = getLocalizedCurrencyLabel(t)
   const tokensOnly = currencyMeta.kind === 'tokens'
-  const quotaLabel = `${t('keys.fields.quota')} (${t(currencyLabel)})`
+  const quotaLabel = `${t('keys.fields.quota')} (${currencyLabel})`
   const quotaPlaceholder = tokensOnly
     ? t('keys.placeholders.enterQuotaInTokens')
     : t('keys.placeholders.enterQuotaInCurrency', {
-        currency: t(currencyLabel),
+        currency: currencyLabel,
       })
 
   return (
@@ -231,7 +231,7 @@ export function RedemptionsMutateDrawer({
                       {tokensOnly
                         ? t('keys.placeholders.enterTheQuotaAmountInTokens')
                         : t('keys.placeholders.enterTheQuotaAmountInCurrency', {
-                            currency: t(currencyLabel),
+                            currency: currencyLabel,
                           })}
                     </FormDescription>
                     <FormMessage />

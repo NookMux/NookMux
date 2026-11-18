@@ -2,10 +2,10 @@ package channelstore
 
 import (
 	"errors"
-	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/ratio"
 	"github.com/NookMux/NookMux/internal/domain/channel/constant"
+	"github.com/NookMux/NookMux/internal/i18n"
 	relayconstant "github.com/NookMux/NookMux/internal/relay/constant"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"math/rand"
@@ -143,7 +143,7 @@ func getRandomSatisfiedChannelWithRelayFormat(group string, model string, priori
 			}
 			return channel, nil
 		}
-		return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channels[0])
+		return nil, i18n.NewError(i18n.MsgChannelCacheConsistencyError, map[string]any{"ID": channels[0]})
 	}
 
 	uniquePriorities := make(map[int]bool)
@@ -151,7 +151,7 @@ func getRandomSatisfiedChannelWithRelayFormat(group string, model string, priori
 		if channel, ok := channelsIDM[channelId]; ok {
 			uniquePriorities[int(channel.GetPriority())] = true
 		} else {
-			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelId)
+			return nil, i18n.NewError(i18n.MsgChannelCacheConsistencyError, map[string]any{"ID": channelId})
 		}
 	}
 	var sortedUniquePriorities []int
@@ -180,7 +180,7 @@ func getRandomSatisfiedChannelWithRelayFormat(group string, model string, priori
 				targetChannels = append(targetChannels, channel)
 			}
 		} else {
-			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelId)
+			return nil, i18n.NewError(i18n.MsgChannelCacheConsistencyError, map[string]any{"ID": channelId})
 		}
 	}
 
@@ -304,7 +304,7 @@ func CacheGetChannel(id int) (*Channel, error) {
 
 	c, ok := channelsIDM[id]
 	if !ok {
-		return nil, fmt.Errorf("渠道# %d，已不存在", id)
+		return nil, i18n.NewError(i18n.MsgChannelCacheNotFound, map[string]any{"ID": id})
 	}
 	return c, nil
 }
@@ -322,7 +322,7 @@ func CacheGetChannelInfo(id int) (*ChannelInfo, error) {
 
 	c, ok := channelsIDM[id]
 	if !ok {
-		return nil, fmt.Errorf("渠道# %d，已不存在", id)
+		return nil, i18n.NewError(i18n.MsgChannelCacheNotFound, map[string]any{"ID": id})
 	}
 	return &c.ChannelInfo, nil
 }

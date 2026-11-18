@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NookMux/NookMux/internal/i18n"
 	httpclient "github.com/NookMux/NookMux/internal/infra/httpclient"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
@@ -77,7 +78,7 @@ func FetchKimiPlanQuota(apiKey string, proxyURL string) (*KimiPlanQuotaData, err
 
 	baseClient, err := httpclient.GetHttpClientWithProxy(proxyURL)
 	if err != nil {
-		return nil, fmt.Errorf("代理客户端创建失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelProxyClientCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	client := &http.Client{
 		Transport:     baseClient.Transport,
@@ -86,7 +87,7 @@ func FetchKimiPlanQuota(apiKey string, proxyURL string) (*KimiPlanQuotaData, err
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("请求 Kimi API 失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelUpstreamRequestFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	defer res.Body.Close()
 
@@ -99,12 +100,12 @@ func FetchKimiPlanQuota(apiKey string, proxyURL string) (*KimiPlanQuotaData, err
 
 	if res.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("Kimi API 返回 HTTP %d: %s", res.StatusCode, string(body))
+		return nil, i18n.NewError(i18n.MsgChannelUpstreamStatusError, map[string]any{"Status": res.StatusCode, "Body": string(body)})
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取 Kimi 响应失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelResponseReadFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 
 	var resp kimiUsageResp

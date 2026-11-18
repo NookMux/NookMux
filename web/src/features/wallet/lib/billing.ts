@@ -57,12 +57,13 @@ export function getStatusConfig(status: TopupStatus): StatusConfig {
 /**
  * Payment method display names
  */
-const PAYMENT_METHOD_NAMES: Record<string, string> = {
-  stripe: 'Stripe',
-  alipay: 'Alipay',
-  wxpay: 'WeChat Pay',
-  waffo: 'Waffo',
-}
+const PAYMENT_METHOD_NAMES: Record<string, { key: string; fallback: string }> =
+  {
+    stripe: { key: 'common.fields.stripe', fallback: 'Stripe' },
+    alipay: { key: 'common.fields.alipay', fallback: 'Alipay' },
+    wxpay: { key: 'common.fields.chatPay', fallback: 'WeChat Pay' },
+    waffo: { key: 'wallet.fields.waffo', fallback: 'Waffo' },
+  }
 
 /**
  * Get payment method display name
@@ -71,8 +72,9 @@ export function getPaymentMethodName(
   method: string,
   t?: (key: string) => string
 ): string {
-  const name = PAYMENT_METHOD_NAMES[method] || method
-  return t ? t(name) : name
+  const entry = PAYMENT_METHOD_NAMES[method]
+  if (!entry) return method
+  return t ? t(entry.key) : entry.fallback
 }
 
 /**

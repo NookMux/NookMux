@@ -21,7 +21,7 @@ import * as z from 'zod'
 import type { Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import { getCurrencyLabel } from '@/lib/currency'
+import { getLocalizedCurrencyLabel } from '@/lib/currency'
 import { parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
 import {
   Form,
@@ -45,12 +45,22 @@ import { useSettingsForm } from '../hooks/use-settings-form'
 import { useUpdateOption } from '../hooks/use-update-option'
 
 const quotaSchema = z.object({
-  QuotaForNewUser: z.coerce.number().min(0),
-  PreConsumedQuota: z.coerce.number().min(0),
-  QuotaForInviter: z.coerce.number().min(0),
-  QuotaForInvitee: z.coerce.number().min(0),
+  QuotaForNewUser: z.coerce
+    .number()
+    .min(0, 'systemSettings.errors.mustBeNonNegative'),
+  PreConsumedQuota: z.coerce
+    .number()
+    .min(0, 'systemSettings.errors.mustBeNonNegative'),
+  QuotaForInviter: z.coerce
+    .number()
+    .min(0, 'systemSettings.errors.mustBeNonNegative'),
+  QuotaForInvitee: z.coerce
+    .number()
+    .min(0, 'systemSettings.errors.mustBeNonNegative'),
   quota_setting: z.object({
-    free_model_pre_consumed_quota: z.coerce.number().min(0),
+    free_model_pre_consumed_quota: z.coerce
+      .number()
+      .min(0, 'systemSettings.errors.mustBeNonNegative'),
   }),
 })
 
@@ -65,7 +75,7 @@ export function QuotaSettingsSection({
 }: QuotaSettingsSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
-  const quotaUnitLabel = t(getCurrencyLabel())
+  const quotaUnitLabel = getLocalizedCurrencyLabel(t)
   const displayDefaultValues = useMemo(
     () => ({
       ...defaultValues,

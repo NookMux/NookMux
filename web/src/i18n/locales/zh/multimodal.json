@@ -18,7 +18,7 @@
   "multimodal.status.previewFailed": "预览失败",
   "multimodal.fields.previewModel": "预览模型",
   "multimodal.fields.previewText": "预览文本",
-  "multimodal.tips.supportsMp3M4aWavDuration10s5minMax20": "支持 mp3、m4a、wav，时长 10 秒-5 分钟，最大 20MB。",
+  "multimodal.tips.supportsMp3M4aWavDuration10s5minMax20": "支持 mp3、m4a、wav，时长 10 秒–5 分钟，最大 20 MB。",
   "multimodal.tips.toneWordTagsWrapWithParentheses": "语气词标签（用括号包裹）",
   "multimodal.status.ttsEnhancementIsDisabled": "TTS 增强未启用。",
   "multimodal.actions.uploadAnAudioSampleChooseATtsModelEnter": "上传音频样本，选择 TTS 模型，填写音色 ID，生成预览音频并确认是否定制。",

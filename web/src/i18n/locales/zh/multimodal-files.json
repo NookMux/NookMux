@@ -11,5 +11,9 @@
   "multimodalFiles.fields.noMultimodalFiles": "暂无多模态文件",
   "multimodalFiles.placeholders.selectFile": "选择文件",
   "multimodalFiles.placeholders.selectVisibleFiles": "选择当前页文件",
-  "multimodalFiles.placeholders.selectedSelectedOfTotal": "已选择 {{selected}} / {{total}}"
+  "multimodalFiles.placeholders.selectedSelectedOfTotal": "已选择 {{selected}} / {{total}}",
+  "multimodalFiles.errors.failedToLoadStoredMedia": "加载多模态文件失败",
+  "multimodalFiles.errors.failedToLoadStoredMediaDetail": "加载多模态文件详情失败",
+  "multimodalFiles.errors.failedToDeleteStoredMedia": "删除多模态文件失败",
+  "multimodalFiles.errors.failedToDeleteSelectedStoredMedia": "批量删除所选多模态文件失败"
 }

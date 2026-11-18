@@ -256,11 +256,16 @@ export function RechargeFormCard({
                             )}
                           </div>
                           <div className='text-muted-foreground mt-1.5 w-full text-xs sm:mt-2'>
-                            Pay {formatCurrency(actualPrice)}
+                            {t('wallet.fields.payAmount', {
+                              amount: formatCurrency(actualPrice),
+                            })}
                             {hasDiscount && savedAmount > 0 && (
                               <span className='text-green-600'>
                                 {' '}
-                                • Save {formatCurrency(savedAmount)}
+                                •{' '}
+                                {t('wallet.fields.saveAmount', {
+                                  amount: formatCurrency(savedAmount),
+                                })}
                               </span>
                             )}
                           </div>
@@ -285,7 +290,7 @@ export function RechargeFormCard({
                     value={localAmount}
                     onChange={(e) => handleAmountChange(e.target.value)}
                     min={minTopup}
-                    placeholder={`Minimum ${minTopup}`}
+                    placeholder={`${t('wallet.fields.minimum')} ${minTopup}`}
                     className='h-9 text-base sm:h-10 sm:text-lg'
                   />
                   <div className='bg-muted/30 flex min-h-9 items-center justify-between gap-2 rounded-md border px-3 lg:min-w-52'>

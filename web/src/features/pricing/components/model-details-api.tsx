@@ -686,7 +686,9 @@ export function ModelDetailsProviderInfo(props: { model: PricingModel }) {
       <div className='border-border/60 bg-border/60 grid grid-cols-1 gap-px overflow-hidden rounded-lg border sm:grid-cols-2'>
         <InfoCell label={t('models.fields.provider')}>
           <div className='flex items-center gap-1.5'>
-            <span className='text-sm font-medium'>{info.vendor_label}</span>
+            <span className='text-sm font-medium'>
+              {info.vendor_is_custom ? info.vendor_label : t(info.vendor_label)}
+            </span>
             {info.homepage && (
               <a
                 href={info.homepage}
@@ -703,10 +705,12 @@ export function ModelDetailsProviderInfo(props: { model: PricingModel }) {
 
         <InfoCell label={t('pricing.fields.tokenizer')}>
           <div className='flex flex-col gap-0.5'>
-            <code className='font-mono text-xs'>{info.tokenizer}</code>
+            <code className='font-mono text-xs'>
+              {info.tokenizer_is_key ? t(info.tokenizer) : info.tokenizer}
+            </code>
             {info.tokenizer_note && (
               <span className='text-muted-foreground text-[10px]'>
-                {info.tokenizer_note}
+                {t(info.tokenizer_note)}
               </span>
             )}
           </div>
@@ -714,7 +718,7 @@ export function ModelDetailsProviderInfo(props: { model: PricingModel }) {
 
         <InfoCell label={t('pricing.fields.license')}>
           <div className='flex flex-col gap-1'>
-            <span className='text-sm'>{info.license}</span>
+            <span className='text-sm'>{t(info.license)}</span>
             <Badge
               variant='outline'
               className={cn(

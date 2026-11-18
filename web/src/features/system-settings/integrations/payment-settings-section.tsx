@@ -61,16 +61,16 @@ const paymentSchema = z.object({
     const trimmed = value.trim()
     if (!trimmed) return true
     return /^https?:\/\//.test(trimmed)
-  }, 'Provide a valid payment URL starting with http:// or https://'),
+  }, 'systemSettings.errors.provideValidPaymentUrl'),
   EpayId: z.string(),
   EpayKey: z.string(),
-  Price: z.number().min(0),
-  MinTopUp: z.number().min(0),
+  Price: z.number().min(0, 'systemSettings.errors.mustBeNonNegative'),
+  MinTopUp: z.number().min(0, 'systemSettings.errors.mustBeNonNegative'),
   CustomCallbackAddress: z.string().refine((value) => {
     const trimmed = value.trim()
     if (!trimmed) return true
     return /^https?:\/\//.test(trimmed)
-  }, 'Provide a valid callback URL starting with http:// or https://'),
+  }, 'systemSettings.errors.provideValidCallbackUrl'),
   PayMethods: z.string().superRefine((value, ctx) => {
     const error = getJsonError(value)
     if (error) {
@@ -96,8 +96,8 @@ const paymentSchema = z.object({
   StripeApiSecret: z.string(),
   StripeWebhookSecret: z.string(),
   StripePriceId: z.string(),
-  StripeUnitPrice: z.number().min(0),
-  StripeMinTopUp: z.number().min(0),
+  StripeUnitPrice: z.number().min(0, 'systemSettings.errors.mustBeNonNegative'),
+  StripeMinTopUp: z.number().min(0, 'systemSettings.errors.mustBeNonNegative'),
   StripePromotionCodesEnabled: z.boolean(),
   TopUpLink: z.string(),
 })
@@ -205,7 +205,7 @@ export function PaymentSettingsSection({
       updates.push({ key: 'EpayKey', value: sanitized.EpayKey })
     }
     if (sanitized.Price !== initial.Price) {
-      updates.push({ key: 'pricing.fields.price', value: sanitized.Price })
+      updates.push({ key: 'Price', value: sanitized.Price })
     }
     if (sanitized.MinTopUp !== initial.MinTopUp) {
       updates.push({ key: 'MinTopUp', value: sanitized.MinTopUp })
@@ -503,7 +503,7 @@ export function PaymentSettingsSection({
                     ) : (
                       <Textarea
                         rows={4}
-                        placeholder='[{"name":"支付宝","type":"alipay","color":"#1677FF"}]'
+                        placeholder={t('common.tips.nameTypeAlipayColor1677Ff')}
                         {...field}
                         onChange={(event) => field.onChange(event.target.value)}
                       />

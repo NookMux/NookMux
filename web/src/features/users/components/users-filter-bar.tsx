@@ -253,7 +253,7 @@ export function UsersFilterBar<TData extends RowData>(
       <LogsFilterField>
         <LogsFilterInput
           placeholder={t('users.fields.linuxDoId')}
-          autoComplete='systemSettings.fields.offda7a68'
+          autoComplete='off'
           value={filters.linuxDoId || ''}
           onChange={(e) => handleChange('linuxDoId', e.target.value)}
           onKeyDown={handleKeyDown}
@@ -262,7 +262,7 @@ export function UsersFilterBar<TData extends RowData>(
       <LogsFilterField>
         <LogsFilterInput
           placeholder={t('users.fields.gitHubId')}
-          autoComplete='systemSettings.fields.offda7a68'
+          autoComplete='off'
           value={filters.githubId || ''}
           onChange={(e) => handleChange('githubId', e.target.value)}
           onKeyDown={handleKeyDown}

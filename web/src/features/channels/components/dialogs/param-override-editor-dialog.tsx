@@ -258,7 +258,7 @@ const LEGACY_TEMPLATE = { temperature: 0, max_tokens: 1000 }
 const OPERATION_TEMPLATE = {
   operations: [
     {
-      description: 'Set default temperature for openai/* models.',
+      description: 'channels.tips.presetSetOpenAiDefaultTemp',
       path: 'temperature',
       mode: 'set',
       value: 0.7,
@@ -271,7 +271,7 @@ const OPERATION_TEMPLATE = {
 const HEADER_PASSTHROUGH_TEMPLATE = {
   operations: [
     {
-      description: 'Pass through X-Request-Id header to upstream.',
+      description: 'channels.tips.presetPassRequestIdHeader',
       mode: 'pass_headers',
       value: ['X-Request-Id'],
       keep_origin: true,
@@ -282,8 +282,7 @@ const HEADER_PASSTHROUGH_TEMPLATE = {
 const GEMINI_IMAGE_4K_TEMPLATE = {
   operations: [
     {
-      description:
-        'Set imageSize to 4K when model contains gemini/image and ends with 4k.',
+      description: 'channels.tips.presetGeminiImage4k',
       mode: 'set',
       path: 'generationConfig.imageConfig.imageSize',
       value: '4K',
@@ -337,8 +336,7 @@ const CLAUDE_CLI_HEADER_PASSTHROUGH_TEMPLATE = buildPassHeadersTemplate(
 const AWS_BEDROCK_ANTHROPIC_COMPAT_TEMPLATE = {
   operations: [
     {
-      description:
-        'Normalize anthropic-beta header tokens for Bedrock compatibility.',
+      description: 'channels.tips.presetBedrockClaudeBetaHeaders',
       mode: 'set_header',
       path: 'anthropic-beta',
       value: {
@@ -376,8 +374,7 @@ const AWS_BEDROCK_ANTHROPIC_COMPAT_TEMPLATE = {
       },
     },
     {
-      description:
-        'Remove all tools[*].custom.input_examples before upstream relay.',
+      description: 'channels.tips.presetBedrockRemoveInputExamples',
       mode: 'delete',
       path: 'tools.*.custom.input_examples',
     },
@@ -427,8 +424,7 @@ const TEMPLATE_PRESET_CONFIG: Record<string, TemplatePresetConfig> = {
     payload: {
       operations: [
         {
-          description:
-            'Append anthropic-beta tokens, dedupe existing values, and drop undeclared tokens.',
+          description: 'channels.tips.presetClaudeBetaAppendKeepOnly',
           mode: 'set_header',
           path: 'anthropic-beta',
           value: {
@@ -1618,8 +1614,19 @@ export function ParamOverrideEditorDialog(
         return
       }
 
-      const operationsPayload = ((payload as Record<string, unknown>)
-        .operations || []) as Record<string, unknown>[]
+      const operationsPayload = (
+        ((payload as Record<string, unknown>).operations || []) as Record<
+          string,
+          unknown
+        >[]
+      ).map((op) => ({
+        ...op,
+        description:
+          typeof op.description === 'string' &&
+          op.description.startsWith('channels.tips.')
+            ? t(op.description)
+            : op.description,
+      }))
 
       if (mode === 'append') {
         const appended = operationsPayload.map(normalizeOperation)

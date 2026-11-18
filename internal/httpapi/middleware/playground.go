@@ -9,6 +9,7 @@ import (
 
 	domaingroup "github.com/NookMux/NookMux/internal/domain/group"
 	"github.com/NookMux/NookMux/internal/httpapi"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/cache"
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +17,7 @@ import (
 func PlaygroundRequestContext() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		if c.GetBool("use_access_token") {
-			abortWithOpenAiMessage(c, http.StatusForbidden, "暂不支持使用 access token", shared.ErrorCodeAccessDenied)
+			abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgPlaygroundAccessTokenUnsupported), shared.ErrorCodeAccessDenied)
 			return
 		}
 
@@ -28,7 +29,7 @@ func PlaygroundRequestContext() func(c *gin.Context) {
 				statusCode = http.StatusRequestEntityTooLarge
 				errorCode = shared.ErrorCodeReadRequestBodyFailed
 			}
-			abortWithOpenAiMessage(c, statusCode, "无效的游乐场请求: "+err.Error(), errorCode)
+			abortWithOpenAiMessage(c, statusCode, i18n.T(c, i18n.MsgDistributorInvalidPlaygroundReq, map[string]any{"Error": err.Error()}), errorCode)
 			return
 		}
 
@@ -43,7 +44,7 @@ func PlaygroundRequestContext() func(c *gin.Context) {
 			userGroup = httpapi.GetContextKeyString(c, common.ContextKeyUsingGroup)
 		}
 		if !domaingroup.GroupInUserUsableGroups(userGroup, selectedGroup) && selectedGroup != userGroup {
-			abortWithOpenAiMessage(c, http.StatusForbidden, "无权访问该分组", shared.ErrorCodeAccessDenied)
+			abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied), shared.ErrorCodeAccessDenied)
 			return
 		}
 

@@ -44,7 +44,7 @@ func TestPlaygroundRequestContextRejectsAccessTokenBeforeNext(t *testing.T) {
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d, body = %s", recorder.Code, http.StatusForbidden, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), "暂不支持使用 access token") {
+	if !strings.Contains(recorder.Body.String(), "暂不支持使用 Access Token") {
 		t.Fatalf("expected access token rejection, got: %s", recorder.Body.String())
 	}
 }

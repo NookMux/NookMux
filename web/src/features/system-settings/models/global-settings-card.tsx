@@ -46,7 +46,9 @@ import { useUpdateOption } from '../hooks/use-update-option'
 const schema = z.object({
   general_setting: z.object({
     ping_interval_enabled: z.boolean(),
-    ping_interval_seconds: z.number().min(1),
+    ping_interval_seconds: z
+      .number()
+      .min(1, 'systemSettings.errors.mustBeAtLeast1'),
   }),
 })
 

@@ -442,7 +442,7 @@ export function ChannelMutateDrawer({
   const currentTypeLabel = useMemo(
     () =>
       CHANNEL_TYPE_OPTIONS.find((option) => option.value === currentType)
-        ?.label || `#${currentType}`,
+        ?.label ?? null,
     [currentType]
   )
 
@@ -1063,7 +1063,7 @@ export function ChannelMutateDrawer({
                   ? t('channels.actions.editChannel')
                   : t('channels.actions.createChannel')}
                 <span className='text-muted-foreground ml-2 text-sm font-normal'>
-                  {t(currentTypeLabel)}
+                  {currentTypeLabel ? t(currentTypeLabel) : `#${currentType}`}
                 </span>
               </span>
             </SheetTitle>
@@ -1830,12 +1830,13 @@ export function ChannelMutateDrawer({
                                   )}
                                   {isMultiKeyChannel && (
                                     <span className='text-warning mt-1 block'>
-                                      {t(
-                                        'channels.fields.multiKeyChannelKeysWillBe'
-                                      )}{' '}
                                       {keyMode === 'replace'
-                                        ? t('channels.fields.replaced')
-                                        : t('channels.fields.appended')}
+                                        ? t(
+                                            'channels.tips.multiKeyChannelKeysWillBeReplaced'
+                                          )
+                                        : t(
+                                            'channels.tips.multiKeyChannelKeysWillBeAppended'
+                                          )}
                                     </span>
                                   )}
                                 </>

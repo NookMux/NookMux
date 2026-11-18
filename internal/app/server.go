@@ -10,6 +10,7 @@ import (
 	"github.com/NookMux/NookMux/internal/httpapi/controller/channel"
 	"github.com/NookMux/NookMux/internal/httpapi/middleware"
 	"github.com/NookMux/NookMux/internal/httpapi/router"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/NookMux/NookMux/internal/infra/runtime"
 	"github.com/NookMux/NookMux/internal/infra/security"
@@ -135,7 +136,7 @@ func Run() int {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": gin.H{
-				"message": fmt.Sprintf("Panic detected, error: %v. Please submit a issue here: https://github.com/NookMux/NookMux", err),
+				"message": i18n.T(c, i18n.MsgInternalPanicError, map[string]any{"Error": fmt.Sprintf("%v", err)}),
 				"type":    "nookmux_panic",
 			},
 		})

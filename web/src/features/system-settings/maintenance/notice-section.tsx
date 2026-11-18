@@ -65,7 +65,7 @@ export function NoticeSection({ defaultValue }: NoticeSectionProps) {
       return
     }
     await updateOption.mutateAsync({
-      key: 'common.fields.notice',
+      key: 'Notice',
       value: normalized,
     })
   }

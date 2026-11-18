@@ -9,8 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/console"
 	"github.com/NookMux/NookMux/internal/config/dashboard"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 
 	"github.com/gin-gonic/gin"
@@ -185,7 +187,8 @@ func GetUptimeKumaStatus(c *gin.Context) {
 	if err := g.Wait(); err != nil {
 		// errgroup 中所有 goroutine 均显式 return nil，理论上不会到达；
 		// 保留显式处理以备未来扩展并避免吞错。
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		common.SysError("uptime kuma wait failed: " + err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": i18n.T(c, i18n.MsgDatabaseError)})
 		return
 	}
 

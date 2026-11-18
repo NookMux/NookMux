@@ -151,7 +151,7 @@ func Distribute() func(c *gin.Context) {
 						message := i18n.T(c, i18n.MsgDistributorSelectChannelFailed, map[string]any{
 							"Group": showGroup,
 							"Model": modelRequest.Model,
-							"Error": err.Error(),
+							"Error": i18n.ResolveContextError(c, err, ""),
 						})
 						// 如果错误，但是渠道不为空，说明是数据库一致性问题
 						//if channel != nil {
@@ -177,7 +177,7 @@ func Distribute() func(c *gin.Context) {
 			if statusCode == 0 {
 				statusCode = http.StatusServiceUnavailable
 			}
-			abortWithOpenAiMessage(c, statusCode, apiErr.Error(), apiErr.GetErrorCode())
+			abortWithOpenAiMessage(c, statusCode, i18n.ResolveContextError(c, apiErr, ""), apiErr.GetErrorCode())
 			return
 		}
 		c.Next()
@@ -281,13 +281,13 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 func SetupContextForSelectedChannel(c *gin.Context, channel *channelstore.Channel, modelName string) *shared.NookMuxError {
 	c.Set("original_model", modelName) // for retry
 	if channel == nil {
-		return shared.NewError(errors.New("channel is nil"), shared.ErrorCodeGetChannelFailed, shared.ErrOptionWithSkipRetry())
+		return shared.NewError(errors.New(i18n.T(c, i18n.MsgDistributorChannelEmpty)), shared.ErrorCodeGetChannelFailed, shared.ErrOptionWithSkipRetry())
 	}
 	if channel.Type == channelconstant.ChannelTypeUnknown {
-		return shared.NewError(errors.New("invalid channel type"), shared.ErrorCodeInvalidApiType, shared.ErrOptionWithSkipRetry())
+		return shared.NewError(errors.New(i18n.T(c, i18n.MsgDistributorChannelInvalidType)), shared.ErrorCodeInvalidApiType, shared.ErrOptionWithSkipRetry())
 	}
 	if _, ok := channelconstant.ChannelTypeNames[channel.Type]; !ok {
-		return shared.NewError(fmt.Errorf("unsupported channel type: %d", channel.Type), shared.ErrorCodeInvalidApiType, shared.ErrOptionWithSkipRetry())
+		return shared.NewError(errors.New(i18n.T(c, i18n.MsgDistributorChannelUnsupportedType, map[string]any{"Type": channel.Type})), shared.ErrorCodeInvalidApiType, shared.ErrOptionWithSkipRetry())
 	}
 	httpapi.SetContextKey(c, common.ContextKeyChannelId, channel.Id)
 	httpapi.SetContextKey(c, common.ContextKeyChannelName, channel.Name)

@@ -76,7 +76,7 @@ export function OperationsSettings() {
       defaultSection={OPERATIONS_DEFAULT_SECTION}
       getSectionContent={getOperationsSectionContent}
       getSectionMeta={getOperationsSectionMeta}
-      loadingMessage='Loading maintenance settings...'
+      loadingMessage='systemSettings.status.loadingMaintenanceSettings'
     />
   )
 }

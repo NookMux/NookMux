@@ -24,7 +24,7 @@ import { KeyRound, Settings2, WalletCards } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { getUserModels, getUserGroups } from '@/lib/api'
-import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
+import { getCurrencyDisplay, getLocalizedCurrencyLabel } from '@/lib/currency'
 import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import {
@@ -243,13 +243,13 @@ export function ApiKeysMutateDrawer({
   }
 
   const { meta: currencyMeta } = getCurrencyDisplay()
-  const currencyLabel = getCurrencyLabel()
+  const currencyLabel = getLocalizedCurrencyLabel(t)
   const tokensOnly = currencyMeta.kind === 'tokens'
-  const quotaLabel = `${t('keys.fields.quota')} (${t(currencyLabel)})`
+  const quotaLabel = `${t('keys.fields.quota')} (${currencyLabel})`
   const quotaPlaceholder = tokensOnly
     ? t('keys.placeholders.enterQuotaInTokens')
     : t('keys.placeholders.enterQuotaInCurrency', {
-        currency: t(currencyLabel),
+        currency: currencyLabel,
       })
   const quotaInputStep = tokensOnly ? 1 : 0.01
   const selectedGroup = form.watch('group')
@@ -536,7 +536,7 @@ export function ApiKeysMutateDrawer({
                           : t(
                               'keys.placeholders.enterTheQuotaAmountInCurrency',
                               {
-                                currency: t(currencyLabel),
+                                currency: currencyLabel,
                               }
                             )}
                       </FormDescription>
@@ -580,7 +580,7 @@ export function ApiKeysMutateDrawer({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          {t('keys.fields.windowQuota')} ({t(currencyLabel)})
+                          {t('keys.fields.windowQuota')} ({currencyLabel})
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -662,7 +662,7 @@ export function ApiKeysMutateDrawer({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          {t('keys.fields.cycleQuota')} ({t(currencyLabel)})
+                          {t('keys.fields.cycleQuota')} ({currencyLabel})
                         </FormLabel>
                         <FormControl>
                           <Input

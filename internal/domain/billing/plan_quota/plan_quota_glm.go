@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/NookMux/NookMux/internal/i18n"
 	httpclient "github.com/NookMux/NookMux/internal/infra/httpclient"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/google/uuid"
@@ -164,7 +165,7 @@ func (t *glmResetTime) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("nextResetTime 字段格式不支持: %s", raw)
+	return i18n.NewError(i18n.MsgPlanQuotaInvalidTimeField, map[string]any{"Field": "nextResetTime", "Value": string(raw)})
 }
 
 // normalizeGlmResetTime 将时间字符串统一整理成前端稳定可识别的格式。
@@ -179,7 +180,7 @@ func normalizeGlmResetTime(value string) (string, error) {
 
 	parsed, err := strconv.ParseInt(trimmed, 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("解析 nextResetTime 时间戳失败: %w", err)
+		return "", i18n.NewError(i18n.MsgPlanQuotaInvalidTimeField, map[string]any{"Field": "nextResetTime", "Value": trimmed}).WithCause(err)
 	}
 
 	return normalizeUnixTimestamp(parsed).Format(time.RFC3339), nil
@@ -268,7 +269,7 @@ func CheckGlmRiskStatus(apiKey string, proxyURL string) (*GlmRiskCheckResult, er
 
 	client, err := newGlmHttpClient(proxyURL)
 	if err != nil {
-		return nil, fmt.Errorf("代理客户端创建失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelProxyClientCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	res, err := client.Do(req)
 	if err != nil {
@@ -282,7 +283,7 @@ func CheckGlmRiskStatus(apiKey string, proxyURL string) (*GlmRiskCheckResult, er
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", res.StatusCode, string(body))
+		return nil, i18n.NewError(i18n.MsgChannelUpstreamStatusError, map[string]any{"Status": res.StatusCode, "Body": string(body)})
 	}
 
 	// 智谱在 Key 无效时仍返回 HTTP 200，但响应体为认证失败（code=1000）。
@@ -299,7 +300,7 @@ func CheckGlmRiskStatus(apiKey string, proxyURL string) (*GlmRiskCheckResult, er
 		Success bool        `json:"success"`
 	}
 	if err := jsonx.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("解析响应失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelParseResponseFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 
 	// data 不是 false 就视为风控
@@ -334,7 +335,7 @@ func newGlmHttpClient(proxyURL string) (*http.Client, error) {
 func FetchGlmPlanQuota(apiKey string, planBaseURL string, proxyURL string) (*GlmPlanQuotaData, error) {
 	apiBase := getGlmApiBase(planBaseURL)
 	if apiBase == "" {
-		return nil, fmt.Errorf("无法确定套餐对应的 API 地址")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaAPIBaseUnknown)
 	}
 
 	// 并行拉取订阅和限额
@@ -345,12 +346,12 @@ func FetchGlmPlanQuota(apiKey string, planBaseURL string, proxyURL string) (*Glm
 	go func() {
 		resp, err := fetchGlmAPI(apiBase, glmSubscriptionPath, apiKey, proxyURL, nil)
 		if err != nil {
-			errCh <- fmt.Errorf("获取订阅信息失败: %w", err)
+			errCh <- i18n.NewError(i18n.MsgPlanQuotaFetchSubscriptionFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 			return
 		}
 		var sub glmSubscriptionResp
 		if err := jsonx.Unmarshal(resp, &sub); err != nil {
-			errCh <- fmt.Errorf("解析订阅信息失败: %w", err)
+			errCh <- i18n.NewError(i18n.MsgPlanQuotaParseSubscriptionFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 			return
 		}
 		subscriptionCh <- &sub
@@ -359,12 +360,12 @@ func FetchGlmPlanQuota(apiKey string, planBaseURL string, proxyURL string) (*Glm
 	go func() {
 		resp, err := fetchGlmAPI(apiBase, glmQuotaLimitPath, apiKey, proxyURL, nil)
 		if err != nil {
-			errCh <- fmt.Errorf("获取限额信息失败: %w", err)
+			errCh <- i18n.NewError(i18n.MsgPlanQuotaFetchLimitFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 			return
 		}
 		var lim glmLimitResp
 		if err := jsonx.Unmarshal(resp, &lim); err != nil {
-			errCh <- fmt.Errorf("解析限额信息失败: %w", err)
+			errCh <- i18n.NewError(i18n.MsgPlanQuotaParseLimitFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 			return
 		}
 		limitCh <- &lim
@@ -429,7 +430,7 @@ func fetchGlmAPI(baseURL, path, apiKey, proxyURL string, extraHeaders http.Heade
 
 	client, err := newGlmHttpClient(proxyURL)
 	if err != nil {
-		return nil, fmt.Errorf("代理客户端创建失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelProxyClientCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	res, err := client.Do(req)
 	if err != nil {
@@ -443,7 +444,7 @@ func fetchGlmAPI(baseURL, path, apiKey, proxyURL string, extraHeaders http.Heade
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", res.StatusCode, string(body))
+		return nil, i18n.NewError(i18n.MsgChannelUpstreamStatusError, map[string]any{"Status": res.StatusCode, "Body": string(body)})
 	}
 
 	// 智谱在 Key 无效时仍返回 HTTP 200，响应体为认证失败（code=1000）。
@@ -598,7 +599,7 @@ func getGlmUsageStatus(percentage int) string {
 func FetchGlmUsageData(apiKey string, planBaseURL string, dataType string, startTime string, endTime string, proxyURL string) (json.RawMessage, error) {
 	apiBase := getGlmApiBase(planBaseURL)
 	if apiBase == "" {
-		return nil, fmt.Errorf("无法确定套餐对应的 API 地址")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaAPIBaseUnknown)
 	}
 
 	var path string
@@ -613,7 +614,7 @@ func FetchGlmUsageData(apiKey string, planBaseURL string, dataType string, start
 	case "performance":
 		path = "/api/monitor/usage/model-performance-day"
 	default:
-		return nil, fmt.Errorf("不支持的数据类型: %s", dataType)
+		return nil, i18n.NewError(i18n.MsgPlanQuotaUnsupportedDataType, map[string]any{"Type": dataType})
 	}
 
 	if startTime != "" && endTime != "" {
@@ -710,7 +711,7 @@ func ComputeGlmActivityTimeRange() (startTime, endTime string) {
 func FetchGlmCreditUsageActivity(apiKey string, planBaseURL string, accountType string, startTime string, endTime string, proxyURL string) (*GlmPlanActivityData, error) {
 	apiBase := getGlmApiBase(planBaseURL)
 	if apiBase == "" {
-		return nil, fmt.Errorf("无法确定套餐对应的 API 地址")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaAPIBaseUnknown)
 	}
 	if accountType == "" {
 		accountType = glmActivityAccountPersonal
@@ -736,14 +737,14 @@ func FetchGlmCreditUsageActivity(apiKey string, planBaseURL string, accountType 
 
 	var resp glmActivityResp
 	if err := jsonx.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("解析活跃数据响应失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelParseResponseFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	if !isGlmActivitySuccess(&resp) {
 		msg := strings.TrimSpace(resp.Msg)
 		if msg == "" {
-			msg = "智谱返回非成功状态"
+			return nil, i18n.NewError(i18n.MsgPlanQuotaUpstreamNonSuccess)
 		}
-		return nil, fmt.Errorf("%s (code=%v)", msg, resp.Code)
+		return nil, i18n.NewErrorWithFallback(fmt.Sprintf("%s (code=%v)", msg, resp.Code), i18n.MsgPlanQuotaUpstreamCodeError, map[string]any{"Message": msg, "Code": fmt.Sprintf("%v", resp.Code)})
 	}
 
 	data := &GlmPlanActivityData{}
@@ -852,7 +853,7 @@ func postGlmAPI(baseURL, path, apiKey, proxyURL string, body []byte) ([]byte, er
 
 	client, err := newGlmHttpClient(proxyURL)
 	if err != nil {
-		return nil, fmt.Errorf("代理客户端创建失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelProxyClientCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	res, err := client.Do(req)
 	if err != nil {
@@ -866,7 +867,7 @@ func postGlmAPI(baseURL, path, apiKey, proxyURL string, body []byte) ([]byte, er
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", res.StatusCode, string(respBody))
+		return nil, i18n.NewError(i18n.MsgChannelUpstreamStatusError, map[string]any{"Status": res.StatusCode, "Body": string(respBody)})
 	}
 
 	return respBody, nil
@@ -878,7 +879,7 @@ func postGlmAPI(baseURL, path, apiKey, proxyURL string, body []byte) ([]byte, er
 func FetchGlmResetCards(apiKey string, planBaseURL string, proxyURL string) (*GlmResetCardListData, error) {
 	apiBase := getGlmApiBase(planBaseURL)
 	if apiBase == "" {
-		return nil, fmt.Errorf("无法确定套餐对应的 API 地址")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaAPIBaseUnknown)
 	}
 
 	path := fmt.Sprintf("%s?targetType=%s", glmResetCardListPath, url.QueryEscape(string(GlmResetCardTypePersonal)))
@@ -889,7 +890,7 @@ func FetchGlmResetCards(apiKey string, planBaseURL string, proxyURL string) (*Gl
 
 	var resp glmResetCardListResp
 	if err := jsonx.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("解析重置卡列表失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelParseResponseFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 
 	data := &GlmResetCardListData{}
@@ -966,7 +967,7 @@ func normalizeGlmResetCards(cards []GlmResetCard) []GlmResetCard {
 func parseGlmResetCardExpireTime(value string) (time.Time, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return time.Time{}, fmt.Errorf("expireTime 为空")
+		return time.Time{}, i18n.NewError(i18n.MsgPlanQuotaInvalidTimeField, map[string]any{"Field": "expireTime", "Value": "empty"})
 	}
 	if t, err := time.ParseInLocation("2006-01-02 15:04:05", trimmed, time.Local); err == nil {
 		return t, nil
@@ -974,7 +975,7 @@ func parseGlmResetCardExpireTime(value string) (time.Time, error) {
 	if t, err := time.Parse(time.RFC3339, trimmed); err == nil {
 		return t, nil
 	}
-	return time.Time{}, fmt.Errorf("expireTime 格式不支持: %s", trimmed)
+	return time.Time{}, i18n.NewError(i18n.MsgPlanQuotaInvalidTimeField, map[string]any{"Field": "expireTime", "Value": trimmed})
 }
 
 // sortGlmResetCardsByExpire 按 expireTime 升序排序（稳定插入排序，规模小）。
@@ -1000,13 +1001,13 @@ type GlmResetCardUseRequest struct {
 func UseGlmResetCard(apiKey string, planBaseURL string, proxyURL string, req GlmResetCardUseRequest) (*GlmResetCardUseResult, error) {
 	apiBase := getGlmApiBase(planBaseURL)
 	if apiBase == "" {
-		return nil, fmt.Errorf("无法确定套餐对应的 API 地址")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaAPIBaseUnknown)
 	}
 	if req.RecordId <= 0 {
-		return nil, fmt.Errorf("recordId 无效")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaInvalidRecordID)
 	}
 	if _, ok := glmResetCardSourceKey[req.ResetType]; !ok {
-		return nil, fmt.Errorf("resetType 不支持: %s", req.ResetType)
+		return nil, i18n.NewError(i18n.MsgPlanQuotaUnsupportedResetType, map[string]any{"Type": req.ResetType})
 	}
 
 	// recordId 与智谱官方前端一致按数字提交（官方前端从列表响应原样透传）
@@ -1018,7 +1019,7 @@ func UseGlmResetCard(apiKey string, planBaseURL string, proxyURL string, req Glm
 	}
 	body, err := jsonx.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("构造使用重置卡请求失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelRequestCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 
 	respBody, err := postGlmAPI(apiBase, glmResetCardUsePath, apiKey, proxyURL, body)
@@ -1032,7 +1033,7 @@ func UseGlmResetCard(apiKey string, planBaseURL string, proxyURL string, req Glm
 		Success bool   `json:"success"`
 	}
 	if err := jsonx.Unmarshal(respBody, &resp); err != nil {
-		return nil, fmt.Errorf("解析使用重置卡响应失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelParseResponseFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 
 	if !resp.Success {
@@ -1109,7 +1110,7 @@ func FetchGlmContactInfo(apiKey string, planName string, proxyURL string) (*GlmC
 
 	client, err := newGlmHttpClient(proxyURL)
 	if err != nil {
-		return nil, fmt.Errorf("代理客户端创建失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelProxyClientCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	res, err := client.Do(req)
 	if err != nil {
@@ -1123,7 +1124,7 @@ func FetchGlmContactInfo(apiKey string, planName string, proxyURL string) (*GlmC
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", res.StatusCode, string(body))
+		return nil, i18n.NewError(i18n.MsgChannelUpstreamStatusError, map[string]any{"Status": res.StatusCode, "Body": string(body)})
 	}
 
 	if isGlmAuthFailure(body) {
@@ -1147,25 +1148,25 @@ func parseGlmContactResponse(body []byte) (*GlmContactInfo, error) {
 		} `json:"data"`
 	}
 	if err := jsonx.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("解析联系方式响应失败: %w", err)
+		return nil, i18n.NewError(i18n.MsgChannelParseResponseFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	if (resp.Code != nil && *resp.Code != 200) || (resp.Success != nil && !*resp.Success) {
 		msg := strings.TrimSpace(resp.Msg)
-		if msg == "" {
-			msg = "智谱返回非成功状态"
-		}
 		code := "nil"
 		if resp.Code != nil {
 			code = strconv.Itoa(*resp.Code)
 		}
-		return nil, fmt.Errorf("%s (code=%s)", msg, code)
+		if msg == "" {
+			return nil, i18n.NewError(i18n.MsgPlanQuotaUpstreamNonSuccess)
+		}
+		return nil, i18n.NewErrorWithFallback(fmt.Sprintf("%s (code=%s)", msg, code), i18n.MsgPlanQuotaUpstreamCodeError, map[string]any{"Message": msg, "Code": code})
 	}
 
 	// 成功响应但缺少 customerAcName 属于上游异常状态，直接暴露错误，
 	// 不返回空数据让前端弹空白窗。
 	rawName := strings.TrimSpace(resp.Data.CustomerAcName)
 	if rawName == "" {
-		return nil, fmt.Errorf("上游未返回 customerAcName")
+		return nil, i18n.NewError(i18n.MsgPlanQuotaNoContactData)
 	}
 
 	phone, name := parseGlmCustomerAcName(rawName)

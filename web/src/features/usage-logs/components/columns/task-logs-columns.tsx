@@ -202,7 +202,7 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
               className='border-border/60 bg-muted/30 max-w-full truncate rounded-md border px-1.5 py-0.5 font-mono'
             />
             <span className='text-muted-foreground/60 truncate text-[11px]'>
-              {t(log.platform)} · {t(taskActionMapper.getLabel(log.action))}
+              {log.platform} · {t(taskActionMapper.getLabel(log.action))}
             </span>
           </div>
         )
@@ -226,9 +226,13 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
       ),
       cell: ({ row }) => {
         const status = row.getValue('status') as string
+        const mappedStatusKey = taskStatusMapper.getLabel(status, '')
+        const statusLabel = mappedStatusKey
+          ? t(mappedStatusKey)
+          : status || t('common.fields.submitting')
         return (
           <StatusBadge
-            label={t(taskStatusMapper.getLabel(status, status || 'Submitting'))}
+            label={statusLabel}
             variant={taskStatusMapper.getVariant(status)}
             size='sm'
             copyable={false}

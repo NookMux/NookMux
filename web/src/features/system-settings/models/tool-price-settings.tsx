@@ -47,21 +47,21 @@ const OPTION_KEY = 'tool_billing_setting.rules'
 
 // --- 条件模式定义（与后端 common/condition.go 保持一致） ---
 const CONDITION_MODES = [
-  { value: 'eq', label: 'Equals (=)' },
-  { value: 'neq', label: 'Not Equals (≠)' },
+  { value: 'eq', label: 'systemSettings.fields.condEq' },
+  { value: 'neq', label: 'systemSettings.fields.condNeq' },
   { value: 'prefix', label: 'models.fields.prefix' },
   { value: 'suffix', label: 'models.fields.suffix' },
   { value: 'contains', label: 'models.fields.contains' },
-  { value: 'regex', label: 'Regex' },
-  { value: 'gt', label: 'Greater Than (>)' },
-  { value: 'gte', label: 'Greater or Equal (≥)' },
-  { value: 'lt', label: 'Less Than (<)' },
-  { value: 'lte', label: 'Less or Equal (≤)' },
+  { value: 'regex', label: 'systemSettings.fields.condRegex' },
+  { value: 'gt', label: 'common.fields.greaterThan' },
+  { value: 'gte', label: 'common.fields.greaterThanOrEqual' },
+  { value: 'lt', label: 'common.fields.lessThan' },
+  { value: 'lte', label: 'common.fields.lessThanOrEqual' },
 ] as const
 
 const CONDITION_LOGICS = [
-  { value: 'AND', label: 'ALL (AND)' },
-  { value: 'OR', label: 'ANY (OR)' },
+  { value: 'AND', label: 'systemSettings.fields.logicAllAnd' },
+  { value: 'OR', label: 'systemSettings.fields.logicAnyOr' },
 ] as const
 
 type ConditionMode = (typeof CONDITION_MODES)[number]['value']
@@ -121,40 +121,76 @@ function rowsToRules(rows: ToolBillingRow[]): ToolBillingRule[] {
   )
 }
 
-function validateRules(rules: ToolBillingRule[]): string | null {
+function validateRules(
+  rules: ToolBillingRule[],
+  t: (key: string, options?: Record<string, unknown>) => string
+): string | null {
   const seen = new Set<string>()
   for (const [index, rule] of rules.entries()) {
-    if (!rule.id) return `rule ${index}: id is required`
-    if (seen.has(rule.id)) return `rule ${index}: duplicate id ${rule.id}`
+    if (!rule.id) {
+      return t('systemSettings.errors.toolRuleIdRequired', { index })
+    }
+    if (seen.has(rule.id)) {
+      return t('systemSettings.errors.toolRuleDuplicateId', {
+        index,
+        id: rule.id,
+      })
+    }
     seen.add(rule.id)
-    if (!rule.name) return `rule ${index} (${rule.id}): name is required`
+    if (!rule.name) {
+      return t('systemSettings.errors.toolRuleNameRequired', {
+        index,
+        id: rule.id,
+      })
+    }
     if (!['web_search', 'image_generation'].includes(rule.tool_type)) {
-      return `rule ${index} (${rule.id}): unsupported tool_type`
+      return t('systemSettings.errors.toolRuleUnsupportedType', {
+        index,
+        id: rule.id,
+      })
     }
     if (rule.billing_mode !== 'per_call') {
-      return `rule ${index} (${rule.id}): only per_call billing is supported`
+      return t('systemSettings.errors.toolRulePerCallOnly', {
+        index,
+        id: rule.id,
+      })
     }
     if (!Number.isFinite(rule.price) || rule.price < 0) {
-      return `rule ${index} (${rule.id}): price must be a non-negative number`
+      return t('systemSettings.errors.toolRulePriceNonNegative', {
+        index,
+        id: rule.id,
+      })
     }
     // 验证 conditions
     for (const [ci, cond] of (rule.conditions ?? []).entries()) {
       if (!cond.field) {
-        return `rule ${index} (${rule.id}): condition ${ci} has empty field`
+        return t('systemSettings.errors.toolRuleConditionEmptyField', {
+          index,
+          id: rule.id,
+          conditionIndex: ci,
+        })
       }
       if (!CONDITION_MODES.some((m) => m.value === cond.mode)) {
-        return `rule ${index} (${rule.id}): condition ${ci} has unsupported mode "${cond.mode}"`
+        return t('systemSettings.errors.toolRuleConditionUnsupportedMode', {
+          index,
+          id: rule.id,
+          conditionIndex: ci,
+          mode: cond.mode,
+        })
       }
     }
   }
   return null
 }
 
-function parseInitialRules(rawValue: string | undefined): ToolBillingRule[] {
+function parseInitialRules(
+  rawValue: string | undefined,
+  t: (key: string) => string
+): ToolBillingRule[] {
   if (!rawValue) return []
   const parsed = JSON.parse(rawValue) as unknown
   if (!Array.isArray(parsed)) {
-    throw new Error('Tool billing rules must be a JSON array')
+    throw new Error(t('systemSettings.errors.toolBillingRulesMustBeArray'))
   }
   return parsed.map((item) => normalizeRule(item as ToolBillingRule))
 }
@@ -180,7 +216,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
 
   useEffect(() => {
     try {
-      const rules = parseInitialRules(defaultValue)
+      const rules = parseInitialRules(defaultValue, t)
       const initialRows = rules.map((rule, index) => ({
         ...rule,
         rowId: index + 1,
@@ -203,12 +239,15 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
 
   const currentRules = useMemo(() => rowsToRules(rows), [rows])
 
-  const syncFromRows = useCallback((nextRows: ToolBillingRow[]) => {
-    const rules = rowsToRules(nextRows)
-    setRows(nextRows)
-    setJsonText(JSON.stringify(rules, null, 2))
-    setJsonError(validateRules(rules) ?? '')
-  }, [])
+  const syncFromRows = useCallback(
+    (nextRows: ToolBillingRow[]) => {
+      const rules = rowsToRules(nextRows)
+      setRows(nextRows)
+      setJsonText(JSON.stringify(rules, null, 2))
+      setJsonError(validateRules(rules, t) ?? '')
+    },
+    [t]
+  )
 
   const handleJsonChange = useCallback(
     (text: string) => {
@@ -222,7 +261,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
         const rules = parsed.map((item) =>
           normalizeRule(item as ToolBillingRule)
         )
-        const validationError = validateRules(rules)
+        const validationError = validateRules(rules, t)
         if (validationError) {
           setJsonError(validationError)
           return
@@ -366,7 +405,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
   }, [jsonText, t])
 
   const handleSave = useCallback(async () => {
-    const validationError = validateRules(currentRules)
+    const validationError = validateRules(currentRules, t)
     if (validationError || jsonError) {
       toast.error(validationError || jsonError)
       return
@@ -375,7 +414,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
       key: OPTION_KEY,
       value: JSON.stringify(currentRules),
     })
-  }, [currentRules, jsonError, updateOption])
+  }, [currentRules, jsonError, t, updateOption])
 
   const toggleEditMode = useCallback(() => {
     setEditMode((prev) => (prev === 'visual' ? 'json' : 'visual'))
@@ -478,9 +517,11 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value='web_search'>web_search</SelectItem>
+                        <SelectItem value='web_search'>
+                          {t('common.fields.webSearch')}
+                        </SelectItem>
                         <SelectItem value='image_generation'>
-                          image_generation
+                          {t('common.fields.imageGeneration')}
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -566,7 +607,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                         <SelectContent>
                           {CONDITION_LOGICS.map((l) => (
                             <SelectItem key={l.value} value={l.value}>
-                              {l.label}
+                              {t(l.label)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -616,14 +657,16 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                           <SelectContent>
                             {CONDITION_MODES.map((m) => (
                               <SelectItem key={m.value} value={m.value}>
-                                {m.label}
+                                {t(m.label)}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <Input
                           value={String(cond.value ?? '')}
-                          placeholder='value'
+                          placeholder={t(
+                            'systemSettings.placeholders.conditionValue'
+                          )}
                           className='h-7 min-w-[120px] flex-1'
                           onChange={(e) =>
                             updateCondition(

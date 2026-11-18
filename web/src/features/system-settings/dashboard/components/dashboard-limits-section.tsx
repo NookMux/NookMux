@@ -44,12 +44,30 @@ import {
 
 const limitsSchema = z
   .object({
-    default_time_range_days: z.number().min(1).max(365),
-    max_time_range_days: z.number().min(1).max(365),
-    rankings_model_limit: z.number().min(1).max(100),
-    rankings_vendor_limit: z.number().min(1).max(50),
-    rankings_platform_limit: z.number().min(1).max(50),
-    user_analytics_top_n: z.number().min(1).max(100),
+    default_time_range_days: z
+      .number()
+      .min(1, 'common.errors.mustBeBetween1And365')
+      .max(365, 'common.errors.mustBeBetween1And365'),
+    max_time_range_days: z
+      .number()
+      .min(1, 'common.errors.mustBeBetween1And365')
+      .max(365, 'common.errors.mustBeBetween1And365'),
+    rankings_model_limit: z
+      .number()
+      .min(1, 'common.errors.mustBeBetween1And100')
+      .max(100, 'common.errors.mustBeBetween1And100'),
+    rankings_vendor_limit: z
+      .number()
+      .min(1, 'common.errors.mustBeBetween1And50')
+      .max(50, 'common.errors.mustBeBetween1And50'),
+    rankings_platform_limit: z
+      .number()
+      .min(1, 'common.errors.mustBeBetween1And50')
+      .max(50, 'common.errors.mustBeBetween1And50'),
+    user_analytics_top_n: z
+      .number()
+      .min(1, 'common.errors.mustBeBetween1And100')
+      .max(100, 'common.errors.mustBeBetween1And100'),
   })
   .refine((data) => data.default_time_range_days <= data.max_time_range_days, {
     message: 'common.errors.defaultTimeRangeExceedsMax',

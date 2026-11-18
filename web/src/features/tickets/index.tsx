@@ -126,8 +126,8 @@ type StatusActionTarget = {
   action: 'close' | 'reopen'
 }
 
-function getTypeLabel(type: TicketType) {
-  return TYPE_OPTIONS.find((item) => item.value === type)?.label ?? type
+function getTypeLabelKey(type: TicketType) {
+  return TYPE_OPTIONS.find((item) => item.value === type)?.label ?? null
 }
 
 function getStatusMeta(status: TicketStatus) {
@@ -174,9 +174,10 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 
 function TypeBadge({ type }: { type: TicketType }) {
   const { t } = useTranslation()
+  const labelKey = getTypeLabelKey(type)
   return (
     <Badge variant='secondary' className='capitalize'>
-      {t(getTypeLabel(type))}
+      {labelKey ? t(labelKey) : type}
     </Badge>
   )
 }
@@ -407,7 +408,7 @@ export function Tickets() {
       setTicketDetail(detail)
       setDetailOpen(true)
     },
-    onError: (error) => toast.error(t(error.message)),
+    onError: (error) => toast.error(error.message),
   })
 
   const createMutation = useMutation({
@@ -425,7 +426,7 @@ export function Tickets() {
       setDetailOpen(true)
       await refreshTickets()
     },
-    onError: (error) => toast.error(t(error.message)),
+    onError: (error) => toast.error(error.message),
   })
 
   const replyMutation = useMutation({
@@ -439,7 +440,7 @@ export function Tickets() {
       await refreshTickets()
       mutateTicketDetail(ticketId)
     },
-    onError: (error) => toast.error(t(error.message)),
+    onError: (error) => toast.error(error.message),
   })
 
   const statusMutation = useMutation({

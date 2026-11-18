@@ -47,6 +47,7 @@ const providerDictionary: Record<string, ProviderMeta> = {
     ),
   },
   telegram: { label: 'profile.fields.telegram', Icon: Send },
+  discord: { label: 'profile.fields.discord', Icon: Shield },
   wechat: {
     label: 'profile.fields.chat',
     Icon: (props: { className?: string }) => (
@@ -64,7 +65,7 @@ export function OAuthCallbackScreen({
     const normalized = provider?.toLowerCase() ?? ''
     return (
       providerDictionary[normalized] || {
-        label: 'account',
+        label: 'auth.fields.account',
         Icon: UserRound,
       }
     )

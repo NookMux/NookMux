@@ -1,11 +1,10 @@
 package ratio
 
 import (
-	"errors"
-
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/manager"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
@@ -114,11 +113,11 @@ func CheckGroupRatio(jsonStr string) error {
 	checkGroupRatio := make(map[string]float64)
 	err := jsonx.Unmarshal([]byte(jsonStr), &checkGroupRatio)
 	if err != nil {
-		return err
+		return i18n.NewErrorWithFallback(err.Error(), i18n.MsgOptionGroupRatioInvalidJSON).WithCause(err)
 	}
 	for name, ratio := range checkGroupRatio {
 		if ratio < 0 {
-			return errors.New("group ratio must be not less than 0: " + name)
+			return i18n.NewErrorWithFallback("group ratio must be not less than 0: "+name, i18n.MsgOptionGroupRatioNegative, map[string]any{"Group": name})
 		}
 	}
 	return nil

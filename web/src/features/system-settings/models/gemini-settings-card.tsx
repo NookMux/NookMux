@@ -67,7 +67,7 @@ const schema = z.object({
         predicate: (parsed) =>
           Array.isArray(parsed) &&
           parsed.every((item) => typeof item === 'string'),
-        predicateMessage: 'Expected a JSON array of model identifiers',
+        predicateMessage: 'systemSettings.errors.expectedJsonArrayOfModels',
       })
       if (!result.valid) {
         ctx.addIssue({

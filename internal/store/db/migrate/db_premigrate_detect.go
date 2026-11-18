@@ -1,11 +1,10 @@
 package dbmigrate
 
 import (
-	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/db"
 )
 
@@ -26,7 +25,7 @@ func currentMainDBType() (string, error) {
 	case db.UsingSQLite:
 		return db.DatabaseTypeSQLite, nil
 	default:
-		return "", errors.New("无法识别当前主数据库类型（UsingMySQL/UsingPostgreSQL/UsingOpenGauss/UsingKingbase/UsingDM/UsingSQLite 均为 false）")
+		return "", i18n.NewError(i18n.MsgDBMigrateDetectMainTypeFail)
 	}
 }
 
@@ -43,7 +42,7 @@ func currentLogDBType() (string, error) {
 	case db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeMySQL, db.DatabaseTypeDM, db.DatabaseTypeSQLite, db.DatabaseTypeKingbase:
 		return db.LogSqlType, nil
 	default:
-		return "", errors.New("无法识别当前日志数据库类型")
+		return "", i18n.NewError(i18n.MsgDBMigrateDetectLogTypeFail)
 	}
 }
 
@@ -89,17 +88,19 @@ func preMigratableTargetNames() string {
 
 func validateDBPreMigrateDirection(sourceType string, targetType string) error {
 	if sourceType == "" || targetType == "" {
-		return errors.New("数据库类型不能为空")
+		return i18n.NewError(i18n.MsgDBMigrateTypeEmpty)
 	}
 	if sourceType == targetType {
-		return errors.New("源数据库与目标数据库类型相同，无需迁移")
+		return i18n.NewError(i18n.MsgDBMigrateTypesEqual)
 	}
 	if sourceType != db.DatabaseTypeSQLite && !preMigratableTargetTypes[sourceType] {
-		return errors.New("不支持的源数据库类型")
+		return i18n.NewError(i18n.MsgDBMigratePreUnsupportedSrc)
 	}
 	if !preMigratableTargetTypes[targetType] {
-		return fmt.Errorf("仅支持 %s -> %s 的预迁移（SQLite 仅可作为源）",
-			preMigrateDBName(sourceType), preMigratableTargetNames())
+		return i18n.NewError(i18n.MsgDBMigratePreOnlySupported, map[string]any{
+			"Source": preMigrateDBName(sourceType),
+			"Target": preMigratableTargetNames(),
+		})
 	}
 	return nil
 }

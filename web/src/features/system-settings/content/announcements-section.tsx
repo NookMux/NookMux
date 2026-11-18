@@ -91,13 +91,13 @@ type AnnouncementsSectionProps = {
 const announcementSchema = z.object({
   content: z
     .string()
-    .min(1, 'Content is required')
-    .max(500, 'Content must be less than 500 characters'),
-  publishDate: z.string().min(1, 'Publish date is required'),
+    .min(1, 'systemSettings.errors.contentIsRequired')
+    .max(500, 'systemSettings.errors.contentMax500Chars'),
+  publishDate: z.string().min(1, 'systemSettings.errors.publishDateIsRequired'),
   type: z.enum(['default', 'ongoing', 'success', 'warning', 'error']),
   extra: z
     .string()
-    .max(100, 'Extra must be less than 100 characters')
+    .max(100, 'systemSettings.errors.extraMax100Chars')
     .optional(),
 })
 
@@ -318,8 +318,9 @@ export function AnnouncementsSection({ data }: AnnouncementsSectionProps) {
               disabled={selectedIds.length === 0}
             >
               <Trash2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.delete')}
-              {selectedIds.length})
+              {t('systemSettings.actions.deleteCount', {
+                count: selectedIds.length,
+              })}
             </Button>
             <Button
               onClick={handleSaveAll}

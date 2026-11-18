@@ -1,8 +1,8 @@
 package dbmigrate
 
 import (
-	"errors"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"gorm.io/driver/mysql"
@@ -20,7 +20,7 @@ const migrateTargetMaxOpenConns = 8
 func openDBByType(dsn string, dbType string) (*gorm.DB, error) {
 	dsn = strings.TrimSpace(dsn)
 	if dsn == "" {
-		return nil, errors.New("DSN 不能为空")
+		return nil, i18n.NewError(i18n.MsgDBMigrateTargetDSNRequired)
 	}
 	g, err := openDBByTypeUncapped(dsn, dbType)
 	if err != nil {
@@ -65,7 +65,7 @@ func openDBByTypeUncapped(dsn string, dbType string) (*gorm.DB, error) {
 			PrepareStmt: common.GetEnvOrDefaultBool("SQL_PREPARE_STMT", false),
 		})
 	default:
-		return nil, errors.New("不支持的数据库类型")
+		return nil, i18n.NewError(i18n.MsgDBMigrateUnsupportedDBType)
 	}
 }
 

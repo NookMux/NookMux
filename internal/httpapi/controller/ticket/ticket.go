@@ -1,6 +1,7 @@
 package ticketcontroller
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/NookMux/NookMux/internal/common"
@@ -9,6 +10,16 @@ import (
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/gin-gonic/gin"
 )
+
+func respondTicketError(c *gin.Context, logAction string, err error) {
+	var localizedErr *i18n.Error
+	if errors.As(err, &localizedErr) {
+		httpapi.ApiErrorI18n(c, localizedErr.Key, localizedErr.Params)
+		return
+	}
+	common.SysError(logAction + ": " + err.Error())
+	httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+}
 
 type createTicketRequest struct {
 	Title   string `json:"title"`
@@ -28,8 +39,7 @@ func GetUserTickets(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	items, total, err := domainticket.ListUserTickets(c.GetInt("id"), pageInfo.GetPage(), pageInfo.GetPageSize(), c.DefaultQuery("status", "all"), c.Query("keyword"))
 	if err != nil {
-		common.SysError("failed to list user tickets: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		respondTicketError(c, "failed to list user tickets", err)
 		return
 	}
 	pageInfo.SetTotal(int(total))
@@ -41,8 +51,7 @@ func GetAdminTickets(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	items, total, err := domainticket.ListAdminTickets(i18n.GetLangFromContext(c), c.GetInt("role"), pageInfo.GetPage(), pageInfo.GetPageSize(), c.DefaultQuery("status", "all"), c.Query("keyword"))
 	if err != nil {
-		common.SysError("failed to list admin tickets: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		respondTicketError(c, "failed to list admin tickets", err)
 		return
 	}
 	pageInfo.SetTotal(int(total))
@@ -66,8 +75,7 @@ func CreateTicket(c *gin.Context) {
 		Content:  req.Content,
 	})
 	if err != nil {
-		common.SysError("failed to create ticket: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		respondTicketError(c, "failed to create ticket", err)
 		return
 	}
 	httpapi.ApiSuccess(c, data)
@@ -82,8 +90,7 @@ func GetTicketDetail(c *gin.Context) {
 
 	data, err := domainticket.GetTicketDetail(i18n.GetLangFromContext(c), ticketId, c.GetInt("id"), c.GetInt("role"))
 	if err != nil {
-		common.SysError("failed to get ticket detail: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		respondTicketError(c, "failed to get ticket detail", err)
 		return
 	}
 	httpapi.ApiSuccess(c, data)
@@ -110,8 +117,7 @@ func ReplyTicket(c *gin.Context) {
 		Content:  req.Content,
 	})
 	if err != nil {
-		common.SysError("failed to reply ticket: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		respondTicketError(c, "failed to reply ticket", err)
 		return
 	}
 	httpapi.ApiSuccess(c, nil)
@@ -126,8 +132,7 @@ func CloseTicket(c *gin.Context) {
 
 	err = domainticket.CloseTicket(i18n.GetLangFromContext(c), ticketId, c.GetInt("id"), c.GetInt("role"), c.GetString("username"))
 	if err != nil {
-		common.SysError("failed to close ticket: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		respondTicketError(c, "failed to close ticket", err)
 		return
 	}
 	httpapi.ApiSuccess(c, nil)
@@ -148,8 +153,7 @@ func UpdateTicketStatus(c *gin.Context) {
 
 	err = domainticket.UpdateTicketStatus(i18n.GetLangFromContext(c), ticketId, c.GetInt("id"), c.GetInt("role"), c.GetString("username"), req.Status)
 	if err != nil {
-		common.SysError("failed to update ticket status: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		respondTicketError(c, "failed to update ticket status", err)
 		return
 	}
 	httpapi.ApiSuccess(c, nil)

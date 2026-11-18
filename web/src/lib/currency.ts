@@ -564,6 +564,24 @@ export function getCurrencyLabel(): string {
   }
 }
 
+export function getLocalizedCurrencyLabel(t: (key: string) => string): string {
+  const { config, meta } = getCurrencyDisplay()
+
+  if (meta.kind === 'tokens') {
+    return t('rankings.fields.tokens')
+  }
+
+  switch (config.quotaDisplayType) {
+    case 'CNY':
+      return t('common.fields.cny')
+    case 'CUSTOM':
+      return meta.kind === 'custom' ? meta.symbol : t('common.fields.custom')
+    case 'USD':
+    default:
+      return t('common.fields.usd')
+  }
+}
+
 /**
  * Check if currency display is enabled (not in token-only mode).
  *

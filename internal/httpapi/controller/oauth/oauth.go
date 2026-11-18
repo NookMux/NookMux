@@ -86,7 +86,11 @@ func HandleOAuth(c *gin.Context) {
 	// 4. Handle error from provider
 	errorCode := c.Query("error")
 	if errorCode != "" {
-		errorDescription := c.Query("error_description")
+		errorDescription := strings.TrimSpace(c.Query("error_description"))
+		if errorDescription == "" {
+			httpapi.ApiErrorI18n(c, i18n.MsgOAuthInvalidCode)
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": errorDescription,

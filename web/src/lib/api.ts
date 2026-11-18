@@ -84,7 +84,9 @@ api.interceptors.response.use(
     ) {
       if (!response.data.success) {
         // Show error toast for business failures
-        const msg = response.data.message || 'Request failed'
+        const msg =
+          response.data.message ||
+          i18next.t('subscriptions.status.requestFailed')
         toast.error(msg)
       }
     }
@@ -106,7 +108,9 @@ api.interceptors.response.use(
       } else {
         // Other errors: show error message from response or default
         const msg =
-          error?.response?.data?.message || error?.message || 'Request error'
+          error?.response?.data?.message ||
+          error?.message ||
+          i18next.t('subscriptions.status.requestFailed')
         toast.error(msg)
       }
     }

@@ -131,7 +131,7 @@ func (p *GitHubProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*O
 			bodyStr = bodyStr[:500] + "..."
 		}
 		log.LogError(ctx, fmt.Sprintf("[OAuth-GitHub] GetUserInfo failed: status=%d, body=%s", res.StatusCode, bodyStr))
-		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthGetUserErr, map[string]any{"Provider": "GitHub"}, fmt.Sprintf("status %d", res.StatusCode))
+		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthGetUserErr, nil, fmt.Sprintf("status %d", res.StatusCode))
 	}
 
 	var githubUser gitHubUser

@@ -735,7 +735,7 @@ export function LogSettingsSection({
                   <DateTimePicker
                     value={endDate}
                     onChange={setEndDate}
-                    placeholder={t('systemSettings.errors.required')}
+                    placeholder={t('systemSettings.placeholders.requiredField')}
                   />
                 </div>
               </div>

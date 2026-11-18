@@ -307,7 +307,9 @@ type ModelVendor =
 export type ApiInfo = {
   vendor: ModelVendor
   vendor_label: string
+  vendor_is_custom?: boolean
   tokenizer: string
+  tokenizer_is_key?: boolean
   tokenizer_note?: string
   license: string
   license_kind: 'proprietary' | 'open' | 'open-weight' | 'unknown'
@@ -319,21 +321,21 @@ export type ApiInfo = {
 const VENDOR_LABELS: Record<ModelVendor, string> = {
   openai: 'common.fields.openAi',
   anthropic: 'common.fields.anthropic',
-  google: 'Google',
-  meta: 'Meta',
-  mistral: 'Mistral AI',
-  qwen: 'Alibaba (Qwen)',
+  google: 'pricing.fields.vendorGoogle',
+  meta: 'pricing.fields.vendorMeta',
+  mistral: 'pricing.fields.vendorMistralAi',
+  qwen: 'pricing.fields.vendorAlibabaQwen',
   deepseek: 'common.fields.deepSeek',
   xai: 'common.fields.xAi',
   cohere: 'common.fields.cohere',
   baidu: 'common.fields.baidu',
-  zhipu: 'Zhipu AI',
-  moonshot: 'Moonshot AI',
+  zhipu: 'pricing.fields.vendorZhipuAi',
+  moonshot: 'pricing.fields.vendorMoonshotAi',
   minimax: 'common.fields.miniMax',
   tencent: 'common.fields.tencent',
   bytedance: 'common.fields.byteDance',
   midjourney: 'common.fields.midjourney',
-  stability: 'Stability AI',
+  stability: 'pricing.fields.vendorStabilityAi',
   unknown: 'channels.fields.unknown',
 }
 
@@ -360,22 +362,30 @@ function detectVendor(name: string): ModelVendor {
   return 'unknown'
 }
 
-const TOKENIZER_BY_VENDOR: Partial<Record<ModelVendor, string>> = {
-  openai: 'o200k_base',
-  anthropic: 'Anthropic Claude tokenizer',
-  google: 'SentencePiece (Gemini)',
-  meta: 'Llama 3 tokenizer',
-  mistral: 'Mistral tokenizer (BPE)',
-  qwen: 'Qwen tokenizer (tiktoken-compat)',
-  deepseek: 'DeepSeek tokenizer (BPE)',
-  xai: 'Grok tokenizer (BPE)',
-  cohere: 'Cohere tokenizer',
-  baidu: 'Ernie tokenizer',
-  zhipu: 'GLM tokenizer',
-  moonshot: 'Kimi tokenizer',
-  minimax: 'ABAB tokenizer',
-  tencent: 'Hunyuan tokenizer',
-  bytedance: 'Doubao tokenizer',
+const TOKENIZER_BY_VENDOR: Partial<
+  Record<ModelVendor, { value: string; isKey?: boolean }>
+> = {
+  openai: { value: 'o200k_base' },
+  anthropic: {
+    value: 'pricing.fields.tokenizerAnthropicClaude',
+    isKey: true,
+  },
+  google: {
+    value: 'pricing.fields.tokenizerSentencePieceGemini',
+    isKey: true,
+  },
+  meta: { value: 'pricing.fields.tokenizerLlama3', isKey: true },
+  mistral: { value: 'pricing.fields.tokenizerMistralBpe', isKey: true },
+  qwen: { value: 'pricing.fields.tokenizerQwenTiktokenCompat', isKey: true },
+  deepseek: { value: 'pricing.fields.tokenizerDeepSeekBpe', isKey: true },
+  xai: { value: 'pricing.fields.tokenizerGrokBpe', isKey: true },
+  cohere: { value: 'pricing.fields.tokenizerCohere', isKey: true },
+  baidu: { value: 'pricing.fields.tokenizerErnie', isKey: true },
+  zhipu: { value: 'pricing.fields.tokenizerGlm', isKey: true },
+  moonshot: { value: 'pricing.fields.tokenizerKimi', isKey: true },
+  minimax: { value: 'pricing.fields.tokenizerAbab', isKey: true },
+  tencent: { value: 'pricing.fields.tokenizerHunyuan', isKey: true },
+  bytedance: { value: 'pricing.fields.tokenizerDoubao', isKey: true },
 }
 
 function inferTokenizer(
@@ -383,40 +393,100 @@ function inferTokenizer(
   vendor: ModelVendor
 ): {
   tokenizer: string
+  isKey: boolean
   note?: string
 } {
   const name = model.model_name.toLowerCase()
   if (vendor === 'openai') {
     if (/gpt-3|davinci|babbage|whisper|tts/.test(name)) {
-      return { tokenizer: 'cl100k_base', note: 'Older GPT-3.5 family' }
+      return {
+        tokenizer: 'cl100k_base',
+        isKey: false,
+        note: 'pricing.tips.olderGpt35Family',
+      }
     }
-    return { tokenizer: 'o200k_base' }
+    return { tokenizer: 'o200k_base', isKey: false }
   }
-  return { tokenizer: TOKENIZER_BY_VENDOR[vendor] ?? 'BPE (vendor-specific)' }
+  const entry = TOKENIZER_BY_VENDOR[vendor]
+  if (entry) {
+    return {
+      tokenizer: entry.value,
+      isKey: Boolean(entry.isKey),
+    }
+  }
+  return {
+    tokenizer: 'pricing.fields.bpeVendorSpecific',
+    isKey: true,
+  }
 }
 
 const LICENSE_BY_VENDOR: Record<
   ModelVendor,
   { license: string; kind: ApiInfo['license_kind'] }
 > = {
-  openai: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  anthropic: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  google: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  meta: { license: 'Llama Community License', kind: 'open-weight' },
-  mistral: { license: 'Apache 2.0 / Commercial', kind: 'open-weight' },
-  qwen: { license: 'Tongyi Qianwen License', kind: 'open-weight' },
-  deepseek: { license: 'DeepSeek License', kind: 'open-weight' },
-  xai: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  cohere: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  baidu: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  zhipu: { license: 'GLM-4 License', kind: 'open-weight' },
-  moonshot: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  minimax: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  tencent: { license: 'Hunyuan License', kind: 'open-weight' },
-  bytedance: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  midjourney: { license: 'Proprietary (commercial)', kind: 'proprietary' },
-  stability: { license: 'Stability AI Community License', kind: 'open-weight' },
-  unknown: { license: 'Provider-specific', kind: 'unknown' },
+  openai: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  anthropic: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  google: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  meta: {
+    license: 'pricing.fields.licenseLlamaCommunity',
+    kind: 'open-weight',
+  },
+  mistral: {
+    license: 'pricing.fields.licenseApache2Commercial',
+    kind: 'open-weight',
+  },
+  qwen: {
+    license: 'pricing.fields.licenseTongyiQianwen',
+    kind: 'open-weight',
+  },
+  deepseek: {
+    license: 'pricing.fields.licenseDeepSeek',
+    kind: 'open-weight',
+  },
+  xai: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  cohere: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  baidu: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  zhipu: { license: 'pricing.fields.licenseGlm4', kind: 'open-weight' },
+  moonshot: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  minimax: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  tencent: { license: 'pricing.fields.licenseHunyuan', kind: 'open-weight' },
+  bytedance: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  midjourney: {
+    license: 'pricing.fields.proprietaryCommercial',
+    kind: 'proprietary',
+  },
+  stability: {
+    license: 'pricing.fields.licenseStabilityCommunity',
+    kind: 'open-weight',
+  },
+  unknown: { license: 'models.fields.providerSpecific', kind: 'unknown' },
 }
 
 const HOMEPAGE_BY_VENDOR: Partial<Record<ModelVendor, string>> = {
@@ -449,7 +519,9 @@ export function inferApiInfo(model: PricingModel): ApiInfo {
   return {
     vendor,
     vendor_label: model.vendor_name || VENDOR_LABELS[vendor],
+    vendor_is_custom: Boolean(model.vendor_name),
     tokenizer: tk.tokenizer,
+    tokenizer_is_key: tk.isKey,
     tokenizer_note: tk.note,
     license: license.license,
     license_kind: license.kind,

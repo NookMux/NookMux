@@ -3,8 +3,10 @@ package dbmigrate
 import (
 	"database/sql"
 	"fmt"
-	"gorm.io/gorm"
 	"strings"
+
+	"github.com/NookMux/NookMux/internal/i18n"
+	"gorm.io/gorm"
 )
 
 type pgOwnedSequence struct {
@@ -55,7 +57,8 @@ ORDER BY ns.nspname, t.relname, a.attname`
 func resetOnePostgresOwnedSequence(db *gorm.DB, seq pgOwnedSequence) error {
 	maxVal, hasValue, err := maxPostgresIntColumn(db, seq.SchemaName, seq.TableName, seq.ColumnName)
 	if err != nil {
-		return fmt.Errorf("获取最大值失败：%s.%s.%s: %w", seq.SchemaName, seq.TableName, seq.ColumnName, err)
+		target := fmt.Sprintf("%s.%s.%s", seq.SchemaName, seq.TableName, seq.ColumnName)
+		return i18n.NewError(i18n.MsgDBMigrateGetMaxValueFail, map[string]any{"Target": target, "Error": err.Error()}).WithCause(err)
 	}
 	setTo := int64(1)
 	isCalled := false

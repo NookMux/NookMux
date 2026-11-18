@@ -11,5 +11,9 @@
   "multimodalFiles.fields.noMultimodalFiles": "No multimodal files",
   "multimodalFiles.placeholders.selectFile": "Select file",
   "multimodalFiles.placeholders.selectVisibleFiles": "Select visible files",
-  "multimodalFiles.placeholders.selectedSelectedOfTotal": "Selected {{selected}} of {{total}}"
+  "multimodalFiles.placeholders.selectedSelectedOfTotal": "Selected {{selected}} of {{total}}",
+  "multimodalFiles.errors.failedToLoadStoredMedia": "Failed to load stored media",
+  "multimodalFiles.errors.failedToLoadStoredMediaDetail": "Failed to load stored media detail",
+  "multimodalFiles.errors.failedToDeleteStoredMedia": "Failed to delete stored media",
+  "multimodalFiles.errors.failedToDeleteSelectedStoredMedia": "Failed to delete selected stored media"
 }

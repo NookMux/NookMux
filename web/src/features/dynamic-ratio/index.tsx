@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import i18next from 'i18next'
 import { Plus, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -99,13 +100,13 @@ const DEFAULT_FORM: RuleFormState = {
 }
 
 const WEEKDAYS = [
-  { value: 0, label: 'Sun' },
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
+  { value: 0, label: 'dynamicRatio.fields.weekdaySun' },
+  { value: 1, label: 'dynamicRatio.fields.weekdayMon' },
+  { value: 2, label: 'dynamicRatio.fields.weekdayTue' },
+  { value: 3, label: 'dynamicRatio.fields.weekdayWed' },
+  { value: 4, label: 'dynamicRatio.fields.weekdayThu' },
+  { value: 5, label: 'dynamicRatio.fields.weekdayFri' },
+  { value: 6, label: 'dynamicRatio.fields.weekdaySat' },
 ]
 
 const queryKeys = {
@@ -121,7 +122,7 @@ function ruleToForm(rule: DynamicRatioRule | null): RuleFormState {
   if (rule.weekdays) {
     const parsed = JSON.parse(rule.weekdays) as unknown
     if (!Array.isArray(parsed)) {
-      throw new Error('Invalid weekday data')
+      throw new Error(i18next.t('dynamicRatio.errors.invalidWeekdayData'))
     }
     weekdays = parsed.map((day: unknown) => Number(day))
   }
@@ -153,11 +154,12 @@ function ruleToForm(rule: DynamicRatioRule | null): RuleFormState {
 
 function buildPayload(form: RuleFormState): DynamicRatioRulePayload {
   const group = form.group.trim()
-  if (!group) throw new Error('Please select a group')
+  if (!group)
+    throw new Error(i18next.t('dynamicRatio.errors.pleaseSelectGroup'))
 
   const ratio = Number(form.ratio)
   if (!Number.isFinite(ratio) || ratio <= 0) {
-    throw new Error('Ratio must be greater than 0')
+    throw new Error(i18next.t('dynamicRatio.errors.ratioMustBePositive'))
   }
 
   const modelsText = form.models.trim()
@@ -179,19 +181,21 @@ function buildPayload(form: RuleFormState): DynamicRatioRulePayload {
     concurrency !== null &&
     (!Number.isFinite(concurrency) || concurrency <= 0)
   ) {
-    throw new Error('Concurrency threshold must be greater than 0')
+    throw new Error(
+      i18next.t('dynamicRatio.errors.concurrencyThresholdMustBePositive')
+    )
   }
 
   const startTime = form.start_time.trim()
   const endTime = form.end_time.trim()
   if ((startTime && !endTime) || (!startTime && endTime)) {
-    throw new Error('Start time and end time must be set together')
+    throw new Error(i18next.t('dynamicRatio.errors.timeRangeMustBeSetTogether'))
   }
 
   const priorityText = form.priority.trim()
   const priority = priorityText === '' ? 0 : Number.parseInt(priorityText, 10)
   if (!Number.isFinite(priority)) {
-    throw new Error('Priority must be a number')
+    throw new Error(i18next.t('dynamicRatio.errors.priorityMustBeNumber'))
   }
 
   return {
@@ -233,8 +237,12 @@ export function DynamicRatio() {
     queryKey: queryKeys.groups,
     queryFn: async () => {
       const res = await getGroups()
-      if (!res.success) throw new Error(res.message || 'Failed to load groups')
-      if (!res.data) throw new Error('Failed to load groups')
+      if (!res.success)
+        throw new Error(
+          res.message || t('dynamicRatio.errors.failedToLoadGroups')
+        )
+      if (!res.data)
+        throw new Error(t('dynamicRatio.errors.failedToLoadGroups'))
       return res.data
     },
   })

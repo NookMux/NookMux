@@ -23,12 +23,21 @@ import { type ManageUserAction } from '../types'
 // ============================================================================
 
 const ACTION_MESSAGES: Record<ManageUserAction, string> = {
-  enable: 'User enabled successfully',
-  disable: 'User disabled successfully',
-  promote: 'User promoted to admin successfully',
-  demote: 'User demoted to regular user successfully',
-  delete: 'User deleted successfully',
+  enable: 'users.status.userEnabledSuccessfully',
+  disable: 'users.status.userDisabledSuccessfully',
+  promote: 'users.status.userPromotedSuccessfully',
+  demote: 'users.status.userDemotedSuccessfully',
+  delete: 'users.status.userDeletedSuccessfully',
   add_quota: 'users.fields.quotaAdjustedSuccessfully',
+}
+
+const ACTION_ERROR_MESSAGES: Record<ManageUserAction, string> = {
+  enable: 'users.errors.failedToEnableUser',
+  disable: 'users.errors.failedToDisableUser',
+  promote: 'users.errors.failedToPromoteUser',
+  demote: 'users.errors.failedToDemoteUser',
+  delete: 'users.errors.failedToDeleteUser',
+  add_quota: 'users.errors.failedToAdjustQuota',
 }
 
 /**
@@ -36,4 +45,11 @@ const ACTION_MESSAGES: Record<ManageUserAction, string> = {
  */
 export function getUserActionMessage(action: ManageUserAction): string {
   return ACTION_MESSAGES[action]
+}
+
+/**
+ * Get error message for user management action
+ */
+export function getUserActionErrorMessage(action: ManageUserAction): string {
+  return ACTION_ERROR_MESSAGES[action]
 }

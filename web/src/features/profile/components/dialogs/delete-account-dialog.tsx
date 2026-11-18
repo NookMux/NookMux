@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { AlertTriangle, Loader2 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { api } from '@/lib/api'
@@ -152,8 +152,11 @@ export function DeleteAccountDialog({
 
             <div className='space-y-2'>
               <Label htmlFor='confirmation'>
-                {t('channels.fields.type')} <strong>{username}</strong>{' '}
-                {t('profile.fields.confirm')}
+                <Trans
+                  i18nKey='profile.tips.typeUsernameToConfirm'
+                  values={{ username }}
+                  components={{ strong: <strong /> }}
+                />
               </Label>
               <Input
                 id='confirmation'

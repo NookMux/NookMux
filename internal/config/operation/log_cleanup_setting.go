@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/NookMux/NookMux/internal/config/manager"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
@@ -101,15 +102,15 @@ func ValidateLogCleanupValue(value int) error {
 func ValidateLogCleanupTargets(raw string) error {
 	var targets []string
 	if err := jsonx.UnmarshalJsonStr(raw, &targets); err != nil {
-		return fmt.Errorf("清理目标必须为字符串数组，解析失败: %w", err)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("清理目标必须为字符串数组，解析失败: %v", err), i18n.MsgOptionLogCleanupTargetsParse, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 	seen := make(map[string]struct{}, len(targets))
 	for _, target := range targets {
 		if _, ok := logCleanupTargets[target]; !ok {
-			return fmt.Errorf("清理目标无效: %q", target)
+			return i18n.NewErrorWithFallback(fmt.Sprintf("清理目标无效: %q", target), i18n.MsgOptionLogCleanupTargetInvalid, map[string]any{"Target": target})
 		}
 		if _, dup := seen[target]; dup {
-			return fmt.Errorf("清理目标重复: %q", target)
+			return i18n.NewErrorWithFallback(fmt.Sprintf("清理目标重复: %q", target), i18n.MsgOptionLogCleanupTargetDuplicate, map[string]any{"Target": target})
 		}
 		seen[target] = struct{}{}
 	}

@@ -26,7 +26,10 @@ export function createStatusMapper<T extends string>(mapping: {
   [key in T]?: { label: string; variant: StatusBadgeProps['variant'] }
 }) {
   return {
-    getLabel: (status: string, defaultLabel = 'Unknown'): string => {
+    getLabel: (
+      status: string,
+      defaultLabel = 'channels.fields.unknown'
+    ): string => {
       return mapping[status as T]?.label ?? defaultLabel
     },
     getVariant: (

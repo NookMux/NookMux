@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
 import { api } from '@/lib/api'
 import type {
   ApiResponse,
@@ -25,12 +26,12 @@ import type {
   TicketPage,
 } from './types'
 
-function unwrap<T>(res: ApiResponse<T>, fallbackMessage: string): T {
+function unwrap<T>(res: ApiResponse<T>, fallbackKey: string): T {
   if (!res.success) {
-    throw new Error(res.message || fallbackMessage)
+    throw new Error(res.message || i18next.t(fallbackKey))
   }
   if (res.data === undefined || res.data === null) {
-    throw new Error(fallbackMessage)
+    throw new Error(i18next.t(fallbackKey))
   }
   return res.data
 }
@@ -71,14 +72,18 @@ export async function replyTicket(
 ): Promise<void> {
   const res = await api.post(`/api/ticket/${ticketId}/reply`, { content })
   if (!res.data?.success) {
-    throw new Error(res.data?.message || 'tickets.errors.failedToSendReply')
+    throw new Error(
+      res.data?.message || i18next.t('tickets.errors.failedToSendReply')
+    )
   }
 }
 
 export async function closeTicket(ticketId: number): Promise<void> {
   const res = await api.post(`/api/ticket/${ticketId}/close`)
   if (!res.data?.success) {
-    throw new Error(res.data?.message || 'tickets.errors.failedToCloseTicket')
+    throw new Error(
+      res.data?.message || i18next.t('tickets.errors.failedToCloseTicket')
+    )
   }
 }
 
@@ -87,6 +92,8 @@ export async function reopenTicket(ticketId: number): Promise<void> {
     status: 'pending',
   })
   if (!res.data?.success) {
-    throw new Error(res.data?.message || 'tickets.errors.failedToReopenTicket')
+    throw new Error(
+      res.data?.message || i18next.t('tickets.errors.failedToReopenTicket')
+    )
   }
 }

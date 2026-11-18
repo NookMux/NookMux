@@ -217,10 +217,10 @@ func ClearChannelAffinityCacheByRuleName(ctx *gin.Context, ruleName string) (int
 		break
 	}
 	if matchedRule == nil {
-		return 0, fmt.Errorf("%s", i18n.T(ctx, i18n.MsgChannelAffinityUnknownRuleName))
+		return 0, i18n.NewError(i18n.MsgChannelAffinityUnknownRuleName)
 	}
 	if !matchedRule.IncludeRuleName {
-		return 0, fmt.Errorf("%s", i18n.T(ctx, i18n.MsgChannelAffinityIncludeRuleNameDisabled))
+		return 0, i18n.NewError(i18n.MsgChannelAffinityIncludeRuleNameDisabled)
 	}
 
 	cache := getChannelAffinityCache()

@@ -1,12 +1,14 @@
 package helper
 
 import (
+	"errors"
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/operation"
 	"github.com/NookMux/NookMux/internal/config/ratio"
 	"github.com/NookMux/NookMux/internal/domain/billing/contract"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/log"
 	relaycommon "github.com/NookMux/NookMux/internal/relay/common"
 	"github.com/NookMux/NookMux/internal/store/channel"
@@ -122,7 +124,7 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		var matchName string
 		modelRatio, success, matchName = ratio.GetModelRatio(info.OriginModelName)
 		if !success {
-			return contract.PriceData{}, fmt.Errorf("模型 %s 倍率或价格未配置，请联系管理员设置；Model %s ratio or price not set, please contact administrator to configure", matchName, matchName)
+			return contract.PriceData{}, errors.New(i18n.T(c, i18n.MsgRelayModelPriceNotSet, map[string]any{"Model": matchName}))
 		}
 		completionRatio = ratio.GetCompletionRatio(info.OriginModelName)
 		cacheRatio, _ = ratio.GetCacheRatio(info.OriginModelName)

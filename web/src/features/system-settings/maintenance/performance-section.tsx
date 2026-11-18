@@ -68,13 +68,25 @@ import { useUpdateOption } from '../hooks/use-update-option'
 const perfSchema = z.object({
   performance_setting: z.object({
     disk_cache_enabled: z.boolean(),
-    disk_cache_threshold_mb: z.coerce.number().min(1),
-    disk_cache_max_size_mb: z.coerce.number().min(100),
+    disk_cache_threshold_mb: z.coerce
+      .number()
+      .min(1, 'systemSettings.errors.mustBeAtLeast1'),
+    disk_cache_max_size_mb: z.coerce
+      .number()
+      .min(100, 'systemSettings.errors.mustBeAtLeast100'),
     disk_cache_path: z.string().optional(),
     monitor_enabled: z.boolean(),
-    monitor_cpu_threshold: z.coerce.number().min(0),
-    monitor_memory_threshold: z.coerce.number().min(0).max(100),
-    monitor_disk_threshold: z.coerce.number().min(0).max(100),
+    monitor_cpu_threshold: z.coerce
+      .number()
+      .min(0, 'systemSettings.errors.mustBeNonNegative'),
+    monitor_memory_threshold: z.coerce
+      .number()
+      .min(0, 'common.errors.mustBeBetween0And100')
+      .max(100, 'common.errors.mustBeBetween0And100'),
+    monitor_disk_threshold: z.coerce
+      .number()
+      .min(0, 'common.errors.mustBeBetween0And100')
+      .max(100, 'common.errors.mustBeBetween0And100'),
   }),
 })
 
@@ -779,7 +791,9 @@ export function PerformanceSection(props: Props) {
                     {stats.memory_stats.num_gc}
                   </div>
                   <div>
-                    <span className='text-muted-foreground'>Goroutines:</span>{' '}
+                    <span className='text-muted-foreground'>
+                      {t('systemSettings.fields.goroutines')}:
+                    </span>{' '}
                     {stats.memory_stats.num_goroutine}
                   </div>
                 </div>

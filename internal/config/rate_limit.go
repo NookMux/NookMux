@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 )
 
@@ -54,14 +55,14 @@ func CheckModelRequestRateLimitGroup(jsonStr string) error {
 	checkModelRequestRateLimitGroup := make(map[string][2]int)
 	err := jsonx.Unmarshal([]byte(jsonStr), &checkModelRequestRateLimitGroup)
 	if err != nil {
-		return err
+		return i18n.NewErrorWithFallback(err.Error(), i18n.MsgOptionGroupRatioInvalidJSON).WithCause(err)
 	}
 	for group, limits := range checkModelRequestRateLimitGroup {
 		if limits[0] < 0 || limits[1] < 1 {
-			return fmt.Errorf("group %s has negative rate limit values: [%d, %d]", group, limits[0], limits[1])
+			return i18n.NewErrorWithFallback(fmt.Sprintf("group %s has negative rate limit values: [%d, %d]", group, limits[0], limits[1]), i18n.MsgOptionRateLimitNegativeValues, map[string]any{"Group": group, "Min": limits[0], "Max": limits[1]})
 		}
 		if limits[0] > math.MaxInt32 || limits[1] > math.MaxInt32 {
-			return fmt.Errorf("group %s [%d, %d] has max rate limits value 2147483647", group, limits[0], limits[1])
+			return i18n.NewErrorWithFallback(fmt.Sprintf("group %s [%d, %d] has max rate limits value 2147483647", group, limits[0], limits[1]), i18n.MsgOptionRateLimitExceedsMax, map[string]any{"Group": group, "Min": limits[0], "Max": limits[1]})
 		}
 	}
 

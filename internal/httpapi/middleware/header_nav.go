@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
 )
@@ -106,7 +106,7 @@ func HeaderNavModuleAuth(module string) gin.HandlerFunc {
 		if !access.Enabled {
 			c.JSON(http.StatusForbidden, gin.H{
 				"success": false,
-				"message": fmt.Sprintf("%s is disabled", module),
+				"message": i18n.T(c, i18n.MsgHeaderNavModuleDisabled, map[string]any{"Module": module}),
 			})
 			c.Abort()
 			return

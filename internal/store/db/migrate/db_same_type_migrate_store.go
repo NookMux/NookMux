@@ -1,8 +1,8 @@
 package dbmigrate
 
 import (
-	"errors"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/google/uuid"
 	"strings"
@@ -16,7 +16,7 @@ var (
 
 func StartDBSameTypeMigrate(params DBSameTypeMigrateStartParams) (string, error) {
 	if strings.TrimSpace(params.TargetDSN) == "" {
-		return "", errors.New("目标数据库 DSN 不能为空")
+		return "", i18n.NewError(i18n.MsgDBMigrateTargetDSNRequired)
 	}
 
 	// 获取当前主库类型
@@ -41,7 +41,7 @@ func StartDBSameTypeMigrate(params DBSameTypeMigrateStartParams) (string, error)
 	dbSameTypeMigrateJobsMu.Lock()
 	defer dbSameTypeMigrateJobsMu.Unlock()
 	if hasRunningDBSameTypeMigrateJobLocked() {
-		return "", errors.New("已有同类型数据库迁移任务在运行，请等待其完成后再启动新的任务")
+		return "", i18n.NewError(i18n.MsgDBMigrateSameTypeRunning)
 	}
 
 	id := uuid.NewString()
@@ -94,15 +94,15 @@ func hasRunningDBSameTypeMigrateJobLocked() bool {
 
 func validateDBSameTypeMigrateDirection(sourceType string, targetType string) error {
 	if sourceType == "" || targetType == "" {
-		return errors.New("数据库类型不能为空")
+		return i18n.NewError(i18n.MsgDBMigrateTypeEmpty)
 	}
 	if sourceType != targetType {
-		return errors.New("同类型迁移要求源数据库与目标数据库类型一致")
+		return i18n.NewError(i18n.MsgDBMigrateSameTypeMismatch)
 	}
 	switch sourceType {
 	case db.DatabaseTypeMySQL, db.DatabaseTypePostgreSQL, db.DatabaseTypeOpenGauss, db.DatabaseTypeDM, db.DatabaseTypeKingbase:
 		return nil
 	default:
-		return errors.New("同类型迁移仅支持 MySQL -> MySQL、PostgreSQL -> PostgreSQL、openGauss -> openGauss、DM -> DM 和 KingbaseES -> KingbaseES")
+		return i18n.NewError(i18n.MsgDBMigrateSameTypeUnsupported)
 	}
 }

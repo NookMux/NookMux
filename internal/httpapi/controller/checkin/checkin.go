@@ -1,7 +1,9 @@
 package checkincontroller
 
 import (
+	"errors"
 	"fmt"
+	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/operation"
 	"github.com/NookMux/NookMux/internal/httpapi"
 	"github.com/NookMux/NookMux/internal/i18n"
@@ -27,9 +29,12 @@ func GetCheckinStatus(c *gin.Context) {
 
 	stats, err := checkinstore.GetUserCheckinStats(userId, month)
 	if err != nil {
+		if !errors.As(err, new(*i18n.Error)) {
+			common.SysError("failed to get checkin stats: " + err.Error())
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": i18n.ResolveContextError(c, err, i18n.MsgDatabaseError),
 		})
 		return
 	}
@@ -59,7 +64,7 @@ func DoCheckin(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": i18n.ResolveContextError(c, err, i18n.MsgCheckinFailed),
 		})
 		return
 	}

@@ -270,7 +270,7 @@ export function SidebarModulesSection({
             onSave={form.handleSubmit(onSubmit)}
             onReset={resetToDefault}
             isSaving={updateOption.isPending}
-            resetLabel='Reset to default'
+            resetLabel='common.actions.resetToDefault'
             saveLabel='common.actions.saveSidebarModules'
           />
           {sections.map(([sectionKey, sectionConfig]) => {

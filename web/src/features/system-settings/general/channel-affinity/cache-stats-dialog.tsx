@@ -129,13 +129,25 @@ export function CacheStatsDialog(props: Props) {
     const totalTokens = Number(s.total_tokens || 0)
 
     if (promptTokens > 0)
-      data.push({ key: 'Prompt tokens', value: promptTokens })
+      data.push({
+        key: t('usageLogs.fields.inputTokens'),
+        value: promptTokens,
+      })
     if (cachedTokens > 0)
-      data.push({ key: 'Cached tokens', value: cachedTokens })
+      data.push({
+        key: t('usageLogs.fields.cacheTokens'),
+        value: cachedTokens,
+      })
     if (completionTokens > 0)
-      data.push({ key: 'Completion tokens', value: completionTokens })
+      data.push({
+        key: t('usageLogs.fields.outputTokens'),
+        value: completionTokens,
+      })
     if (totalTokens > 0)
-      data.push({ key: 'common.fields.totalTokens', value: totalTokens })
+      data.push({
+        key: t('common.fields.totalTokens'),
+        value: totalTokens,
+      })
 
     return data
   }, [stats, props.target, t])

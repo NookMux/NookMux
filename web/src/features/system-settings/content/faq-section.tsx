@@ -78,12 +78,12 @@ type FAQSectionProps = {
 const faqSchema = z.object({
   question: z
     .string()
-    .min(1, 'Question is required')
-    .max(200, 'Question must be less than 200 characters'),
+    .min(1, 'systemSettings.errors.questionIsRequired')
+    .max(200, 'systemSettings.errors.questionMax200Chars'),
   answer: z
     .string()
-    .min(1, 'Answer is required')
-    .max(1000, 'Answer must be less than 1000 characters'),
+    .min(1, 'systemSettings.errors.answerIsRequired')
+    .max(1000, 'systemSettings.errors.answerMax1000Chars'),
 })
 
 type FAQFormValues = z.infer<typeof faqSchema>
@@ -233,8 +233,9 @@ export function FAQSection({ data }: FAQSectionProps) {
               disabled={selectedIds.length === 0}
             >
               <Trash2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.delete')}
-              {selectedIds.length})
+              {t('systemSettings.actions.deleteCount', {
+                count: selectedIds.length,
+              })}
             </Button>
             <Button
               onClick={handleSaveAll}

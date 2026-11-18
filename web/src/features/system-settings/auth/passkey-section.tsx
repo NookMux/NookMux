@@ -64,7 +64,11 @@ const passkeySchema = z.object({
     'platform',
     'cross-platform',
   ]),
-  'passkey.max_passkeys_per_user': z.number().int().min(1).max(20),
+  'passkey.max_passkeys_per_user': z
+    .number()
+    .int('common.errors.mustBeAnInteger')
+    .min(1, 'common.errors.mustBeBetween1And20')
+    .max(20, 'common.errors.mustBeBetween1And20'),
 })
 
 type PasskeyFormValues = z.infer<typeof passkeySchema>
@@ -261,7 +265,9 @@ export function PasskeySection({ defaultValues }: PasskeySectionProps) {
                     items={[
                       {
                         value: 'required',
-                        label: t('systemSettings.errors.required'),
+                        label: t(
+                          'systemSettings.fields.userVerificationRequired'
+                        ),
                       },
                       {
                         value: 'preferred',
@@ -285,7 +291,7 @@ export function PasskeySection({ defaultValues }: PasskeySectionProps) {
                     <SelectContent alignItemWithTrigger={false}>
                       <SelectGroup>
                         <SelectItem value='required'>
-                          {t('systemSettings.errors.required')}
+                          {t('systemSettings.fields.userVerificationRequired')}
                         </SelectItem>
                         <SelectItem value='preferred'>
                           {t('systemSettings.tips.recommended')}

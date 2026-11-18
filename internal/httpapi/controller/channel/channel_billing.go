@@ -362,7 +362,7 @@ func UpdateChannelBalance(c *gin.Context) {
 	balance, currency, grantedBalance, toppedUpBalance, err := updateChannelBalance(c, channel)
 	if err != nil {
 		common.SysError("failed to update channel balance: " + err.Error())
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 	response := gin.H{

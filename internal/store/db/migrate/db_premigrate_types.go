@@ -3,6 +3,8 @@ package dbmigrate
 import (
 	"sync"
 	"time"
+
+	"github.com/NookMux/NookMux/internal/i18n"
 )
 
 type DBPreMigrateJobStatus string
@@ -18,6 +20,7 @@ type DBPreMigrateStartParams struct {
 	TargetLogDSN string
 	IncludeLogs  bool
 	Force        bool
+	Lang         string `json:"-"`
 }
 
 type DBPreMigrateInfo struct {
@@ -46,10 +49,12 @@ type DBPreMigrateJob struct {
 	Logs         []string                    `json:"logs"`
 	Error        string                      `json:"error,omitempty"`
 
-	mu sync.Mutex
+	lang string
+	mu   sync.Mutex
 }
 
 func newDBPreMigrateJob(id string, sourceType string, targetType string, params DBPreMigrateStartParams) *DBPreMigrateJob {
+	lang := langOrDefault(params.Lang)
 	now := time.Now().Unix()
 	return &DBPreMigrateJob{
 		ID:           id,
@@ -59,10 +64,15 @@ func newDBPreMigrateJob(id string, sourceType string, targetType string, params 
 		TargetDBType: targetType,
 		IncludeLogs:  params.IncludeLogs,
 		Force:        params.Force,
-		CurrentStep:  "初始化",
+		CurrentStep:  i18n.Translate(lang, i18n.MsgDBMigrateStepInit, nil),
 		Tables:       make([]DBPreMigrateTableProgress, 0, 32),
 		Logs:         make([]string, 0, 64),
+		lang:         lang,
 	}
+}
+
+func (j *DBPreMigrateJob) jobLang() string {
+	return langOrDefault(j.lang)
 }
 
 func (j *DBPreMigrateJob) setStep(step string) {
@@ -100,7 +110,7 @@ func (j *DBPreMigrateJob) markFailed(err error) {
 	j.Status = DBPreMigrateJobStatusFailed
 	j.FinishedAt = time.Now().Unix()
 	if err != nil {
-		j.Error = err.Error()
+		j.Error = i18n.ResolveError(langOrDefault(j.lang), err, "")
 	}
 }
 

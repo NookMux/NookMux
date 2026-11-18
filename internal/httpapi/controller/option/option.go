@@ -668,7 +668,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": i18n.ResolveContextError(c, err, i18n.MsgOptionGroupRatioInvalidJSON),
 			})
 			return
 		}
@@ -701,7 +701,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": i18n.ResolveContextError(c, err, i18n.MsgOptionGroupRatioInvalidJSON),
 			})
 			return
 		}
@@ -710,7 +710,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": i18n.ResolveContextError(c, err, i18n.MsgOptionInvalidParams),
 			})
 			return
 		}
@@ -719,7 +719,7 @@ func UpdateOption(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": i18n.ResolveContextError(c, err, i18n.MsgOptionInvalidParams),
 			})
 			return
 		}
@@ -742,7 +742,7 @@ func UpdateOption(c *gin.Context) {
 		}
 	case "log_cleanup_setting.targets":
 		if err := operation.ValidateLogCleanupTargets(option.Value.(string)); err != nil {
-			httpapi.ApiErrorI18n(c, i18n.MsgOptionLogCleanupTargetsInvalid, map[string]any{"Error": err.Error()})
+			httpapi.ApiErrorI18n(c, i18n.MsgOptionLogCleanupTargetsInvalid, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 			return
 		}
 	case "perf_metrics_setting.flush_interval":

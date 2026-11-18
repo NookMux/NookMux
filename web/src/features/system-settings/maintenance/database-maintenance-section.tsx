@@ -102,6 +102,17 @@ function statusVariant(status?: DatabaseMigrationJob['status']) {
   return 'secondary'
 }
 
+const JOB_STATUS_LABEL_KEYS: Record<string, string> = {
+  running: 'common.fields.running73989d',
+  success: 'channels.status.success',
+  failed: 'channels.errors.failed',
+}
+
+function getJobStatusLabel(status: string, t: (key: string) => string): string {
+  const key = JOB_STATUS_LABEL_KEYS[status]
+  return key ? t(key) : status
+}
+
 export function DatabaseMaintenanceSection() {
   const { t } = useTranslation()
 
@@ -286,7 +297,9 @@ function DatabaseMigrationCard({ config }: { config: MigrationCardConfig }) {
           <p className='text-muted-foreground text-sm'>{config.description}</p>
         </div>
         {job ? (
-          <Badge variant={statusVariant(job.status)}>{t(job.status)}</Badge>
+          <Badge variant={statusVariant(job.status)}>
+            {getJobStatusLabel(job.status, t)}
+          </Badge>
         ) : null}
       </div>
 
@@ -502,7 +515,9 @@ function JobPanel({
             {t('systemSettings.fields.taskId')}: {job.id}
           </div>
         </div>
-        <Badge variant={statusVariant(job.status)}>{t(job.status)}</Badge>
+        <Badge variant={statusVariant(job.status)}>
+          {getJobStatusLabel(job.status, t)}
+        </Badge>
       </div>
 
       <Progress value={progress} />

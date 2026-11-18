@@ -10,5 +10,20 @@
   "playground.fields.takeScreenshot": "Take screenshot",
   "playground.actions.uploadPhoto": "Upload photo",
   "playground.errors.failedToLoadPlaygroundModels": "Failed to load playground models",
-  "playground.errors.failedToLoadPlaygroundGroups": "Failed to load playground groups"
+  "playground.errors.failedToLoadPlaygroundGroups": "Failed to load playground groups",
+  "playground.actions.saveAndSubmit": "Save & Submit",
+  "playground.status.responding": "Responding...",
+  "playground.fields.analyzeData": "Analyze data",
+  "playground.fields.surpriseMe": "Surprise me",
+  "playground.fields.summarizeText": "Summarize text",
+  "playground.fields.code": "Code",
+  "playground.fields.getAdvice": "Get advice",
+  "playground.errors.apiRequestError": "Request error occurred",
+  "playground.errors.networkError": "Network connection failed or server not responding",
+  "playground.errors.parseError": "Error parsing response data",
+  "playground.errors.streamStartError": "Error establishing connection",
+  "playground.errors.connectionClosed": "Connection closed",
+  "playground.errors.interrupted": "Generation was interrupted",
+  "playground.errors.noContentToCopy": "No content to copy",
+  "playground.tips.waitGenerationComplete": "Please wait for the current generation to complete"
 }

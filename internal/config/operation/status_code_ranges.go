@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/NookMux/NookMux/internal/i18n"
 )
 
 type StatusCodeRange struct {
@@ -128,7 +130,8 @@ func ParseHTTPStatusCodeRanges(input string) ([]StatusCodeRange, error) {
 	}
 
 	if len(invalid) > 0 {
-		return nil, fmt.Errorf("invalid http status code rules: %s", strings.Join(invalid, ", "))
+		detail := strings.Join(invalid, ", ")
+		return nil, i18n.NewErrorWithFallback(fmt.Sprintf("invalid http status code rules: %s", detail), i18n.MsgOptionStatusCodeRulesInvalid, map[string]any{"Detail": detail})
 	}
 	if len(ranges) == 0 {
 		return nil, nil

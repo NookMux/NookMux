@@ -565,11 +565,11 @@ export function useModelsColumns(vendors: Vendor[] = []): ColumnDef<Model>[] {
     // Created Time column
     {
       accessorKey: 'created_time',
-      meta: { label: t('dynamicRatio.status.created'), mobileHidden: true },
+      meta: { label: t('common.fields.createdAt'), mobileHidden: true },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={t('dynamicRatio.status.created')}
+          title={t('common.fields.createdAt')}
         />
       ),
       cell: ({ row }) => {

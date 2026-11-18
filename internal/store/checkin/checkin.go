@@ -1,14 +1,21 @@
 package checkinstore
 
 import (
-	"errors"
 	"github.com/NookMux/NookMux/internal/config/operation"
+	"github.com/NookMux/NookMux/internal/i18n"
 	infradb "github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/internal/store/user"
 	"gorm.io/gorm"
 	"math/rand"
 	"time"
+)
+
+var (
+	ErrCheckinDisabled          = i18n.NewError(i18n.MsgCheckinDisabled)
+	ErrAlreadyCheckedInToday    = i18n.NewError(i18n.MsgCheckinAlreadyChecked)
+	ErrCheckinFailed            = i18n.NewError(i18n.MsgCheckinFailed)
+	ErrCheckinUpdateQuotaFailed = i18n.NewError(i18n.MsgCheckinUpdateQuotaFailed)
 )
 
 // Checkin 签到记录
@@ -56,7 +63,7 @@ func HasCheckedInToday(userId int) (bool, error) {
 func UserCheckin(userId int) (*Checkin, error) {
 	setting := operation.GetCheckinSetting()
 	if !setting.Enabled {
-		return nil, errors.New("签到功能未启用")
+		return nil, ErrCheckinDisabled
 	}
 
 	// 检查今天是否已签到
@@ -65,7 +72,7 @@ func UserCheckin(userId int) (*Checkin, error) {
 		return nil, err
 	}
 	if hasChecked {
-		return nil, errors.New("今日已签到")
+		return nil, ErrAlreadyCheckedInToday
 	}
 
 	// 计算随机额度奖励
@@ -98,13 +105,13 @@ func userCheckinWithTransaction(checkin *Checkin, userId int, quotaAwarded int) 
 		// 步骤1: 创建签到记录
 		// 数据库有唯一约束 (user_id, checkin_date)，可以防止并发重复签到
 		if err := tx.Create(checkin).Error; err != nil {
-			return errors.New("签到失败，请稍后重试")
+			return ErrCheckinFailed
 		}
 
 		// 步骤2: 在事务中增加用户额度
 		if err := tx.Model(&userstore.User{}).Where("id = ?", userId).
 			Update("quota", gorm.Expr("quota + ?", quotaAwarded)).Error; err != nil {
-			return errors.New("签到失败：更新额度出错")
+			return ErrCheckinUpdateQuotaFailed
 		}
 
 		return nil
@@ -127,7 +134,7 @@ func userCheckinWithoutTransaction(checkin *Checkin, userId int, quotaAwarded in
 	// 步骤1: 创建签到记录
 	// 数据库有唯一约束 (user_id, checkin_date)，可以防止并发重复签到
 	if err := dbstore.DB.Create(checkin).Error; err != nil {
-		return nil, errors.New("签到失败，请稍后重试")
+		return nil, ErrCheckinFailed
 	}
 
 	// 步骤2: 增加用户额度
@@ -135,7 +142,7 @@ func userCheckinWithoutTransaction(checkin *Checkin, userId int, quotaAwarded in
 	if err := userstore.IncreaseUserQuota(userId, quotaAwarded); err != nil {
 		// 如果增加额度失败，需要回滚签到记录
 		dbstore.DB.Delete(checkin)
-		return nil, errors.New("签到失败：更新额度出错")
+		return nil, ErrCheckinUpdateQuotaFailed
 	}
 
 	return checkin, nil

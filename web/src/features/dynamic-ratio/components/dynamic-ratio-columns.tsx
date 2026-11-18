@@ -25,23 +25,27 @@ import { Switch } from '@/components/ui/switch'
 import type { DynamicRatioRule } from '../types'
 
 const WEEKDAYS = [
-  { value: 0, label: 'Sun' },
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
+  { value: 0, label: 'dynamicRatio.fields.weekdaySun' },
+  { value: 1, label: 'dynamicRatio.fields.weekdayMon' },
+  { value: 2, label: 'dynamicRatio.fields.weekdayTue' },
+  { value: 3, label: 'dynamicRatio.fields.weekdayWed' },
+  { value: 4, label: 'dynamicRatio.fields.weekdayThu' },
+  { value: 5, label: 'dynamicRatio.fields.weekdayFri' },
+  { value: 6, label: 'dynamicRatio.fields.weekdaySat' },
 ]
 
-function formatWeekdays(value: string, everyDayLabel: string): string {
+function formatWeekdays(
+  value: string,
+  everyDayLabel: string,
+  t: (key: string) => string
+): string {
   if (!value) return everyDayLabel
   const parsed = JSON.parse(value) as unknown
   if (!Array.isArray(parsed) || parsed.length === 0) return everyDayLabel
   return parsed
     .map((day) => {
       const weekday = WEEKDAYS.find((item) => item.value === Number(day))
-      return weekday?.label ?? String(day)
+      return weekday ? t(weekday.label) : String(day)
     })
     .join(', ')
 }
@@ -128,7 +132,11 @@ export function useDynamicRatioColumns(
       accessorKey: 'weekdays',
       header: t('dynamicRatio.fields.weekdays'),
       cell: ({ row }) =>
-        formatWeekdays(row.original.weekdays, t('dynamicRatio.fields.daily')),
+        formatWeekdays(
+          row.original.weekdays,
+          t('dynamicRatio.fields.daily'),
+          t
+        ),
     },
     {
       id: 'time_range',

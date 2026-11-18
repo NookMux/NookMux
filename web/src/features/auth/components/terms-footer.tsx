@@ -86,7 +86,7 @@ export function TermsFooter({
           </a>
         </>
       )}
-      .
+      {t('auth.fields.sentencePeriod')}
     </p>
   )
 }

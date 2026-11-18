@@ -186,7 +186,7 @@ export function CCSwitchDialog(props: Props) {
                 <div key={key} className='flex items-center gap-2'>
                   <RadioGroupItem value={key} id={`app-${key}`} />
                   <Label htmlFor={`app-${key}`} className='cursor-pointer'>
-                    {cfg.label}
+                    {t(cfg.label)}
                   </Label>
                 </div>
               ))}

@@ -411,12 +411,13 @@ func FetchUpstreamModels(c *gin.Context) {
 	if channel.Type == constant.ChannelTypeAws {
 		key, _, apiErr := channel.GetNextEnabledKey()
 		if apiErr != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": apiErr.Error()})
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelGetKeyFailed, map[string]any{"Error": apiErr.Error()})
 			return
 		}
 		models, err := awschannel.FetchClaudeModels(c.Request.Context(), key, channel.GetOtherSettings().AwsKeyType, channel.GetSetting().Proxy)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			common.SysError("failed to fetch aws claude models: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelFetchModelsFailed)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": models})
@@ -445,7 +446,7 @@ func FetchUpstreamModels(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": i18n.T(c, i18n.MsgChannelGeminiGetModelsFailed, map[string]any{"Error": err.Error()}),
+				"message": i18n.T(c, i18n.MsgChannelGeminiGetModelsFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")}),
 			})
 			return
 		}
@@ -597,10 +598,8 @@ func SearchChannels(c *gin.Context) {
 	if enableTagMode {
 		tags, err := channelstore.SearchTags(keyword, group, modelKeyword, idSort, idFilter, nameFilter, tagFilter)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": err.Error(),
-			})
+			common.SysError("failed to search channel tags: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelListFailed)
 			return
 		}
 		for _, tag := range tags {
@@ -622,10 +621,8 @@ func SearchChannels(c *gin.Context) {
 
 		channels, cnt, counts, err := channelstore.SearchChannelsWithMeta(keyword, group, modelKeyword, idSort, idFilter, nameFilter, tagFilter, statusFilter, typeFilter, (page-1)*pageSize, pageSize)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": err.Error(),
-			})
+			common.SysError("failed to search channels with meta: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelListFailed)
 			return
 		}
 		channelData = channels
@@ -772,7 +769,7 @@ func validateChannel(c *gin.Context, channel *channelstore.Channel, isAdd bool) 
 
 	// 校验 channel settings
 	if err := channel.ValidateSettings(); err != nil {
-		return fmt.Errorf("%s", i18n.T(c, i18n.MsgChannelSettingsInvalid, map[string]any{"Error": err.Error()}))
+		return fmt.Errorf("%s", i18n.T(c, i18n.MsgChannelSettingsInvalid, map[string]any{"Error": i18n.ResolveContextError(c, err, "")}))
 	}
 
 	// 如果是添加操作，检查模型名称长度
@@ -1126,10 +1123,8 @@ func UpdateChannel(c *gin.Context) {
 	// Preserve existing ChannelInfo to ensure multi-key channels keep correct state even if the client does not send ChannelInfo in the request.
 	originChannel, err := channelstore.GetChannelById(channel.Id, true)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		common.SysError("failed to get channel by id: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelNotFound)
 		return
 	}
 
@@ -1314,7 +1309,7 @@ func FetchModels(c *gin.Context) {
 		if err := validateFetchModelsURL(fmt.Sprintf("%s/v1/models", strings.TrimRight(resolveFetchModelsBaseURL(baseURL), "/"))); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": i18n.ResolveContextError(c, err, i18n.MsgChannelInvalidRequestParameters),
 			})
 			return
 		}
@@ -1339,7 +1334,8 @@ func FetchModels(c *gin.Context) {
 	if req.Type == constant.ChannelTypeAws {
 		models, err := awschannel.FetchClaudeModels(c.Request.Context(), key, req.AwsKeyType, strings.TrimSpace(req.Proxy))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			common.SysError("failed to fetch aws claude models: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelFetchModelsFailed)
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": models})
@@ -1350,7 +1346,7 @@ func FetchModels(c *gin.Context) {
 		if err := validateFetchModelsURL(fmt.Sprintf("%s/v1beta/models", strings.TrimRight(baseURL, "/"))); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": i18n.ResolveContextError(c, err, i18n.MsgChannelInvalidRequestParameters),
 			})
 			return
 		}
@@ -1358,7 +1354,7 @@ func FetchModels(c *gin.Context) {
 		applyFetchModelsDefaultHeaders(headers)
 		models, err := gemini.FetchGeminiModelsWithHeaders(baseURL, key, "", headers)
 		if err != nil {
-			httpapi.ApiErrorI18n(c, i18n.MsgChannelGeminiGetModelsFailed, map[string]any{"Error": err.Error()})
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelGeminiGetModelsFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 			return
 		}
 
@@ -1402,7 +1398,7 @@ func FetchModels(c *gin.Context) {
 	if err := validateFetchModelsURL(url); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": i18n.ResolveContextError(c, err, i18n.MsgChannelInvalidRequestParameters),
 		})
 		return
 	}
@@ -1411,7 +1407,7 @@ func FetchModels(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": localizedErrOrRaw(c, i18n.MsgChannelRequestCreateFailed, err),
 		})
 		return
 	}
@@ -1430,7 +1426,7 @@ func FetchModels(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": localizedErrOrRaw(c, i18n.MsgChannelUpstreamRequestFailed, err),
 		})
 		return
 	}
@@ -1453,7 +1449,7 @@ func FetchModels(c *gin.Context) {
 	if err := jsonx.DecodeJson(response.Body, &result); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": localizedErrOrRaw(c, i18n.MsgChannelParseResponseFailed, err),
 		})
 		return
 	}
@@ -1507,9 +1503,10 @@ func GetTagModels(c *gin.Context) {
 
 	channels, err := channelstore.GetChannelsByTag(tag, false, false) // idSort=false, selectAll=false
 	if err != nil {
+		common.SysError("failed to get channels by tag: " + err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": i18n.T(c, i18n.MsgChannelGetTagChannelsFailed),
 		})
 		return
 	}
@@ -2358,7 +2355,7 @@ func QueryPlanQuota(c *gin.Context) {
 				httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 				return
 			}
-			httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 			return
 		}
 		quotaData.PlanName = planName
@@ -2371,7 +2368,7 @@ func QueryPlanQuota(c *gin.Context) {
 		key := strings.Split(channel.Key, "\n")[0]
 		quotaData, err := planquota.FetchKimiPlanQuota(key, channel.GetSetting().Proxy)
 		if err != nil {
-			httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
@@ -2383,7 +2380,7 @@ func QueryPlanQuota(c *gin.Context) {
 		key := strings.Split(channel.Key, "\n")[0]
 		quotaData, err := planquota.FetchMiniMaxPlanQuota(key, planName, channel.GetSetting().Proxy)
 		if err != nil {
-			httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
+			httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
@@ -2460,7 +2457,7 @@ func QueryGlmUsage(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 			return
 		}
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelUsageQueryFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelUsageQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 
@@ -2503,7 +2500,7 @@ func QueryGlmPlanActivity(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 			return
 		}
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelActivityQueryFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelActivityQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 
@@ -2545,7 +2542,7 @@ func QueryRiskStatus(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 			return
 		}
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelRiskCheckFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelRiskCheckFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 
@@ -2583,7 +2580,7 @@ func QueryGlmContactInfo(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 			return
 		}
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelContactQueryFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelContactQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 
@@ -2622,13 +2619,13 @@ func QueryGlmAccountReport(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 			return
 		}
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 
 	balanceCNY, err := planquota.PickGlmPersistBalance(report)
 	if err != nil {
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelQuotaQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 	channel.UpdateBalance(balanceCNY)
@@ -2674,7 +2671,7 @@ func QueryGlmResetCards(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 			return
 		}
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelResetCardQueryFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelResetCardQueryFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 
@@ -2734,7 +2731,7 @@ func UseGlmResetCard(c *gin.Context) {
 			httpapi.ApiErrorI18n(c, i18n.MsgChannelKeyInvalid)
 			return
 		}
-		httpapi.ApiErrorI18n(c, i18n.MsgChannelResetCardUseFailed, map[string]any{"Error": err.Error()})
+		httpapi.ApiErrorI18n(c, i18n.MsgChannelResetCardUseFailed, map[string]any{"Error": i18n.ResolveContextError(c, err, "")})
 		return
 	}
 

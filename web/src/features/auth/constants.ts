@@ -23,26 +23,26 @@ import { z } from 'zod'
 // ============================================================================
 
 export const loginFormSchema = z.object({
-  username: z.string().min(1, 'Please enter your username or email'),
+  username: z.string().min(1, 'auth.errors.pleaseEnterUsernameOrEmail'),
   password: z
     .string()
-    .min(1, 'Please enter your password')
-    .min(8, 'Password must be at least 8 characters long'),
+    .min(1, 'auth.errors.pleaseEnterPassword')
+    .min(8, 'setup.errors.passwordMustBeAtLeast8CharactersLong'),
 })
 
 export const registerFormSchema = z
   .object({
-    username: z.string().min(1, 'Please enter your username'),
+    username: z.string().min(1, 'auth.errors.pleaseEnterUsername'),
     email: z.string().optional(),
     password: z
       .string()
-      .min(1, 'Please enter your password')
-      .min(8, 'Password must be at least 8 characters long')
-      .max(20, 'Password must be at most 20 characters long'),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
+      .min(1, 'auth.errors.pleaseEnterPassword')
+      .min(8, 'setup.errors.passwordMustBeAtLeast8CharactersLong')
+      .max(20, 'users.errors.passwordMustBeBetween8And20Characters'),
+    confirmPassword: z.string().min(1, 'auth.errors.pleaseConfirmPassword'),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match.",
+    message: 'profile.fields.passwordsDoNotMatch',
     path: ['confirmPassword'],
   })
 
@@ -53,7 +53,7 @@ export const forgotPasswordFormSchema = z.object({
 })
 
 export const otpFormSchema = z.object({
-  otp: z.string().min(1, 'Please enter a code.'),
+  otp: z.string().min(1, 'profile.errors.pleaseEnterYourVerificationCode'),
 })
 
 // ============================================================================

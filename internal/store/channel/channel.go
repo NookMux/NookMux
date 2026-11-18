@@ -8,6 +8,7 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/domain/channel/constant"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	"github.com/NookMux/NookMux/internal/i18n"
 	infradb "github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/NookMux/NookMux/internal/store/db"
 	"github.com/NookMux/NookMux/pkg/jsonx"
@@ -1054,10 +1055,10 @@ func (channel *Channel) ValidateSettings() error {
 		var rawMap map[string]json.RawMessage
 		if err := jsonx.Unmarshal([]byte(*channel.Setting), &rawMap); err == nil {
 			if _, ok := rawMap["system_prompt"]; ok {
-				return fmt.Errorf("channel setting \"system_prompt\" 已移除，请删除该字段")
+				return i18n.NewErrorWithFallback(`channel setting "system_prompt" 已移除，请删除该字段`, i18n.MsgChannelSettingFieldRemoved, map[string]any{"Scope": "setting", "Field": "system_prompt"})
 			}
 			if _, ok := rawMap["system_prompt_override"]; ok {
-				return fmt.Errorf("channel setting \"system_prompt_override\" 已移除，请删除该字段")
+				return i18n.NewErrorWithFallback(`channel setting "system_prompt_override" 已移除，请删除该字段`, i18n.MsgChannelSettingFieldRemoved, map[string]any{"Scope": "setting", "Field": "system_prompt_override"})
 			}
 		}
 	}
@@ -1068,28 +1069,28 @@ func (channel *Channel) ValidateSettings() error {
 			return err
 		}
 		if _, ok := otherSettings.ParseImageAutoConvertToURLMode(); !ok {
-			return fmt.Errorf("invalid image_auto_convert_to_url_mode")
+			return i18n.NewErrorWithFallback("invalid image_auto_convert_to_url_mode", i18n.MsgChannelSettingInvalidImageMode)
 		}
 
 		var rawMap map[string]json.RawMessage
 		if err := jsonx.Unmarshal([]byte(channel.OtherSettings), &rawMap); err == nil {
 			if _, ok := rawMap["image_auto_convert_to_url"]; ok {
-				return fmt.Errorf("channel other setting \"image_auto_convert_to_url\" 已移除，请删除该字段")
+				return i18n.NewErrorWithFallback(`channel other setting "image_auto_convert_to_url" 已移除，请删除该字段`, i18n.MsgChannelSettingFieldRemoved, map[string]any{"Scope": "other setting", "Field": "image_auto_convert_to_url"})
 			}
 			if rawMode, ok := rawMap["image_auto_convert_to_url_mode"]; ok {
 				var mode string
 				if err := jsonx.Unmarshal(rawMode, &mode); err != nil {
-					return fmt.Errorf("channel other setting \"image_auto_convert_to_url_mode\" 必须是字符串")
+					return i18n.NewErrorWithFallback(`channel other setting "image_auto_convert_to_url_mode" 必须是字符串`, i18n.MsgChannelSettingFieldMustBeString, map[string]any{"Scope": "other setting", "Field": "image_auto_convert_to_url_mode"})
 				}
 				if strings.EqualFold(strings.TrimSpace(mode), "third_party_model") {
-					return fmt.Errorf("channel other setting \"image_auto_convert_to_url_mode=third_party_model\" 已移除，请改用 \"mcp\"")
+					return i18n.NewErrorWithFallback(`channel other setting "image_auto_convert_to_url_mode=third_party_model" 已移除，请改用 "mcp"`, i18n.MsgChannelSettingImageModeThirdPartyRemove, map[string]any{"Scope": "other setting"})
 				}
 			}
 		}
 
 		if otherSettings.OpenRouterRouting != nil {
 			if channel.Type != constant.ChannelTypeOpenRouter {
-				return fmt.Errorf("channel other setting \"openrouter_routing\" 仅支持 OpenRouter 渠道")
+				return i18n.NewErrorWithFallback(`channel other setting "openrouter_routing" 仅支持 OpenRouter 渠道`, i18n.MsgChannelSettingOpenRouterOnly, map[string]any{"Scope": "other setting", "Field": "openrouter_routing"})
 			}
 			if err := otherSettings.OpenRouterRouting.Validate(); err != nil {
 				return err
@@ -1098,11 +1099,11 @@ func (channel *Channel) ValidateSettings() error {
 			// 丢弃，会出现"保存成功但运行时永不生效"的隐形失效。
 			var routingRaw map[string]json.RawMessage
 			if err := jsonx.Unmarshal(rawMap["openrouter_routing"], &routingRaw); err != nil {
-				return fmt.Errorf("channel other setting \"openrouter_routing\" 必须是对象: %w", err)
+				return i18n.NewErrorWithFallback(fmt.Sprintf(`channel other setting "openrouter_routing" 必须是对象: %v`, err), i18n.MsgChannelSettingMustBeJSONObject, map[string]any{"Scope": `other setting "openrouter_routing"`}).WithCause(err)
 			}
 			for key := range routingRaw {
 				if !shared.KnownOpenRouterRoutingKeys[key] {
-					return fmt.Errorf("channel other setting \"openrouter_routing.%s\" 不是有效字段，请检查拼写", key)
+					return i18n.NewErrorWithFallback(fmt.Sprintf(`channel other setting "openrouter_routing.%s" 不是有效字段，请检查拼写`, key), i18n.MsgChannelSettingInvalidField, map[string]any{"Scope": "other setting", "Field": "openrouter_routing." + key})
 				}
 			}
 			if sortRaw, ok := routingRaw["sort"]; ok {
@@ -1110,7 +1111,7 @@ func (channel *Channel) ValidateSettings() error {
 				if err := jsonx.Unmarshal(sortRaw, &sortRawMap); err == nil {
 					for key := range sortRawMap {
 						if key != "by" && key != "partition" {
-							return fmt.Errorf("channel other setting \"openrouter_routing.sort.%s\" 不是有效字段，请检查拼写", key)
+							return i18n.NewErrorWithFallback(fmt.Sprintf(`channel other setting "openrouter_routing.sort.%s" 不是有效字段，请检查拼写`, key), i18n.MsgChannelSettingInvalidField, map[string]any{"Scope": "other setting", "Field": "openrouter_routing.sort." + key})
 						}
 					}
 				}
@@ -1143,7 +1144,7 @@ func validateOptionalJSONField(value *string, fieldName string) error {
 	}
 	var raw json.RawMessage
 	if err := jsonx.Unmarshal([]byte(trimmed), &raw); err != nil {
-		return fmt.Errorf("channel %s 必须是合法的 JSON：%v", fieldName, err)
+		return i18n.NewErrorWithFallback(fmt.Sprintf("channel %s 必须是合法的 JSON：%v", fieldName, err), i18n.MsgChannelSettingMustBeJSON, map[string]any{"Scope": fieldName, "Error": err.Error()}).WithCause(err)
 	}
 	return nil
 }

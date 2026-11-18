@@ -53,7 +53,9 @@ const XAI_VIOLATION_FEE_DOC_URL =
 const schema = z.object({
   grok: z.object({
     violation_deduction_enabled: z.boolean(),
-    violation_deduction_amount: z.coerce.number().min(0),
+    violation_deduction_amount: z.coerce
+      .number()
+      .min(0, 'systemSettings.errors.mustBeNonNegative'),
   }),
 })
 

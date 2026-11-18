@@ -17,6 +17,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func localizedErrOrRaw(c *gin.Context, key string, err error) string {
+	msg := i18n.T(c, key, map[string]any{"Error": err.Error()})
+	if msg == key {
+		return err.Error()
+	}
+	return msg
+}
+
 // OpenRouterProviderEntry is the subset of an https://openrouter.ai/api/v1/providers
 // record that matters for provider picking in the channel form.
 type OpenRouterProviderEntry struct {
@@ -98,7 +106,7 @@ func FetchProviders(c *gin.Context) {
 	if err := validateFetchModelsURL(url); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": i18n.ResolveContextError(c, err, i18n.MsgChannelInvalidRequestParameters),
 		})
 		return
 	}
@@ -107,7 +115,7 @@ func FetchProviders(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": localizedErrOrRaw(c, i18n.MsgChannelRequestCreateFailed, err),
 		})
 		return
 	}
@@ -120,7 +128,7 @@ func FetchProviders(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": localizedErrOrRaw(c, i18n.MsgChannelUpstreamRequestFailed, err),
 		})
 		return
 	}

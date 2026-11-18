@@ -230,10 +230,15 @@ export interface PrefillGroupsResponse {
  */
 export const vendorFormSchema = z.object({
   id: z.number().optional(),
-  name: z.string().min(1, 'Vendor name is required'),
+  name: z.string().min(1, 'models.errors.vendorNameRequired'),
   description: z.string(),
   icon: z.string(),
-  data_retention_days: z.number().int().min(0).optional().nullable(),
+  data_retention_days: z
+    .number()
+    .int('common.errors.mustBeAnInteger')
+    .min(0, 'systemSettings.errors.mustBeNonNegative')
+    .optional()
+    .nullable(),
   training_opt_out: z.boolean().optional().nullable(),
   status: z.number(),
 })
@@ -245,7 +250,7 @@ export type VendorFormValues = z.infer<typeof vendorFormSchema>
  */
 export const prefillGroupFormSchema = z.object({
   id: z.number().optional(),
-  name: z.string().min(1, 'Group name is required'),
+  name: z.string().min(1, 'common.errors.groupNameIsRequired'),
   description: z.string().optional(),
   type: z.enum(['model', 'tag', 'endpoint']),
   items: z.union([z.string(), z.array(z.string())]),

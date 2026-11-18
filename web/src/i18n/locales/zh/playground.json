@@ -9,6 +9,21 @@
   "playground.fields.takePhoto": "拍照",
   "playground.fields.takeScreenshot": "截图",
   "playground.actions.uploadPhoto": "上传照片",
-  "playground.errors.failedToLoadPlaygroundModels": "加载体验中心模型失败",
-  "playground.errors.failedToLoadPlaygroundGroups": "加载体验中心分组失败"
+  "playground.errors.failedToLoadPlaygroundModels": "加载 Playground 模型失败",
+  "playground.errors.failedToLoadPlaygroundGroups": "加载 Playground 分组失败",
+  "playground.actions.saveAndSubmit": "保存并提交",
+  "playground.status.responding": "正在生成回复...",
+  "playground.fields.analyzeData": "分析数据",
+  "playground.fields.surpriseMe": "给我灵感",
+  "playground.fields.summarizeText": "总结文本",
+  "playground.fields.code": "编写代码",
+  "playground.fields.getAdvice": "获取建议",
+  "playground.errors.apiRequestError": "请求发生错误",
+  "playground.errors.networkError": "网络连接失败或服务器未响应",
+  "playground.errors.parseError": "解析响应数据出错",
+  "playground.errors.streamStartError": "建立流式连接失败",
+  "playground.errors.connectionClosed": "连接已关闭",
+  "playground.errors.interrupted": "生成已中断",
+  "playground.errors.noContentToCopy": "没有可复制的内容",
+  "playground.tips.waitGenerationComplete": "请等待当前生成完成"
 }

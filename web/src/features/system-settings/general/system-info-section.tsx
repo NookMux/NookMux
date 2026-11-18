@@ -103,7 +103,13 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
       error: () => t('systemSettings.errors.nameIsRequired'),
     }),
     ServerAddress: z.string().optional(),
-    Logo: z.string().url().optional().or(z.literal('')),
+    Logo: z
+      .string()
+      .url({
+        error: () => t('systemSettings.errors.mustBeAValidUrl'),
+      })
+      .optional()
+      .or(z.literal('')),
     Footer: z.string().optional(),
     About: z.string().optional(),
     HomePageContent: z.string().optional(),

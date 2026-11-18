@@ -257,7 +257,18 @@ export function OllamaModelsDialog({
       })
 
       if (!response.ok || !response.body) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        let errorMessage = response.statusText
+          ? `HTTP ${response.status}: ${response.statusText}`
+          : `HTTP ${response.status}`
+        try {
+          const errorBody = await response.clone().json()
+          if (errorBody?.message) {
+            errorMessage = String(errorBody.message)
+          }
+        } catch {
+          // ignore non-JSON error body
+        }
+        throw new Error(errorMessage)
       }
 
       const reader = response.body.getReader()
@@ -324,7 +335,10 @@ export function OllamaModelsDialog({
         'name' in err &&
         (err as { name?: unknown }).name === 'AbortError'
       if (!isAbort) {
-        const msg = err instanceof Error ? err.message : ''
+        const msg =
+          err instanceof Error && err.message
+            ? err.message
+            : t('channels.status.operationFailed')
         toast.error(t('channels.status.modelPullFailedMsg', { msg }))
       }
       setIsPulling(false)

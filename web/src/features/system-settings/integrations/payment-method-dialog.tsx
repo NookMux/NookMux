@@ -86,14 +86,14 @@ const getColorPreview = (color: string) => {
 }
 
 const COLOR_PRESETS = [
-  { value: '#1677FF', label: 'Blue (Alipay)' },
-  { value: '#07C160', label: 'Green (WeChat)' },
-  { value: '#635BFF', label: 'Purple (Stripe)' },
-  { value: '#1890FF', label: 'Sky Blue' },
-  { value: '#52C41A', label: 'Lime Green' },
-  { value: 'black', label: 'Black' },
-  { value: '#FF4D4F', label: 'Red' },
-  { value: '#FFA940', label: 'Orange' },
+  { value: '#1677FF', labelKey: 'systemSettings.fields.colorBlueAlipay' },
+  { value: '#07C160', labelKey: 'systemSettings.fields.colorGreenWechat' },
+  { value: '#635BFF', labelKey: 'systemSettings.fields.colorPurpleStripe' },
+  { value: '#1890FF', labelKey: 'systemSettings.fields.colorSkyBlue' },
+  { value: '#52C41A', labelKey: 'systemSettings.fields.colorLimeGreen' },
+  { value: 'black', labelKey: 'systemSettings.fields.colorBlack' },
+  { value: '#FF4D4F', labelKey: 'systemSettings.fields.colorRed' },
+  { value: '#FFA940', labelKey: 'systemSettings.fields.colorOrange' },
 ].map((preset) => {
   const previewColor = getColorPreview(preset.value)
   return {
@@ -118,6 +118,19 @@ export function PaymentMethodDialog({
   const { t } = useTranslation()
   const isEditMode = !!editData
   const paymentMethodDialogSchema = createPaymentMethodDialogSchema(t)
+  const paymentTypeOptions = useMemo(
+    () => PAYMENT_TYPES.map((item) => ({ ...item, label: t(item.label) })),
+    [t]
+  )
+  const colorPresetOptions = useMemo(
+    () =>
+      COLOR_PRESETS.map((item) => ({
+        value: item.value,
+        label: t(item.labelKey),
+        icon: item.icon,
+      })),
+    [t]
+  )
 
   const form = useForm<PaymentMethodDialogFormValues>({
     resolver: zodResolver(paymentMethodDialogSchema),
@@ -223,7 +236,7 @@ export function PaymentMethodDialog({
                   <FormLabel>{t('channels.fields.type')}</FormLabel>
                   <FormControl>
                     <Combobox
-                      options={PAYMENT_TYPES}
+                      options={paymentTypeOptions}
                       value={field.value}
                       onValueChange={field.onChange}
                       placeholder={t(
@@ -254,7 +267,7 @@ export function PaymentMethodDialog({
                   <FormControl>
                     <div className='flex items-center gap-2'>
                       <Combobox
-                        options={COLOR_PRESETS}
+                        options={colorPresetOptions}
                         value={field.value}
                         onValueChange={field.onChange}
                         placeholder={t(

@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
 import { api } from '@/lib/api'
 import type {
   ApiResponse,
@@ -26,12 +27,12 @@ import type {
   StoredMediaType,
 } from './types'
 
-function unwrap<T>(res: ApiResponse<T>, fallbackMessage: string): T {
+function unwrap<T>(res: ApiResponse<T>, fallbackKey: string): T {
   if (!res.success) {
-    throw new Error(res.message || fallbackMessage)
+    throw new Error(res.message || i18next.t(fallbackKey))
   }
   if (res.data === undefined || res.data === null) {
-    throw new Error(fallbackMessage)
+    throw new Error(i18next.t(fallbackKey))
   }
   return res.data
 }
@@ -50,7 +51,10 @@ export async function getStoredMedia(
       end_timestamp: params.endTimestamp,
     },
   })
-  return unwrap<StoredMediaPage>(res.data, 'Failed to load stored media')
+  return unwrap<StoredMediaPage>(
+    res.data,
+    'multimodalFiles.errors.failedToLoadStoredMedia'
+  )
 }
 
 export async function getStoredMediaDetail(
@@ -58,7 +62,10 @@ export async function getStoredMediaDetail(
   id: string
 ): Promise<StoredMediaItem> {
   const res = await api.get(`/api/stored_media/${mediaType}/${id}`)
-  return unwrap<StoredMediaItem>(res.data, 'Failed to load stored media detail')
+  return unwrap<StoredMediaItem>(
+    res.data,
+    'multimodalFiles.errors.failedToLoadStoredMediaDetail'
+  )
 }
 
 export async function deleteStoredMedia(
@@ -66,12 +73,18 @@ export async function deleteStoredMedia(
   id: string
 ): Promise<number> {
   const res = await api.delete(`/api/stored_media/${mediaType}/${id}`)
-  return unwrap<number>(res.data, 'Failed to delete stored media')
+  return unwrap<number>(
+    res.data,
+    'multimodalFiles.errors.failedToDeleteStoredMedia'
+  )
 }
 
 export async function batchDeleteStoredMedia(
   items: StoredMediaBatchItem[]
 ): Promise<number> {
   const res = await api.post('/api/stored_media/batch', { items })
-  return unwrap<number>(res.data, 'Failed to delete selected stored media')
+  return unwrap<number>(
+    res.data,
+    'multimodalFiles.errors.failedToDeleteSelectedStoredMedia'
+  )
 }

@@ -34,7 +34,7 @@ type linuxdoUser struct {
 }
 
 func (p *LinuxDOProvider) GetName() string {
-	return "Linux DO"
+	return "LinuxDO"
 }
 
 func (p *LinuxDOProvider) IsEnabled() bool {
@@ -79,7 +79,7 @@ func (p *LinuxDOProvider) ExchangeToken(ctx context.Context, code string, c *gin
 	res, err := client.Do(req)
 	if err != nil {
 		log.LogError(ctx, fmt.Sprintf("[OAuth-LinuxDO] ExchangeToken error: %s", err.Error()))
-		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthConnectFailed, map[string]any{"Provider": "Linux DO"}, err.Error())
+		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthConnectFailed, map[string]any{"Provider": "LinuxDO"}, err.Error())
 	}
 	defer res.Body.Close()
 
@@ -96,7 +96,7 @@ func (p *LinuxDOProvider) ExchangeToken(ctx context.Context, code string, c *gin
 
 	if tokenRes.AccessToken == "" {
 		log.LogError(ctx, fmt.Sprintf("[OAuth-LinuxDO] ExchangeToken failed: %s", tokenRes.Message))
-		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthTokenFailed, map[string]any{"Provider": "Linux DO"}, tokenRes.Message)
+		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthTokenFailed, map[string]any{"Provider": "LinuxDO"}, tokenRes.Message)
 	}
 
 	log.LogDebug(ctx, "[OAuth-LinuxDO] ExchangeToken success")
@@ -122,7 +122,7 @@ func (p *LinuxDOProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*
 	res, err := client.Do(req)
 	if err != nil {
 		log.LogError(ctx, fmt.Sprintf("[OAuth-LinuxDO] GetUserInfo error: %s", err.Error()))
-		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthConnectFailed, map[string]any{"Provider": "Linux DO"}, err.Error())
+		return nil, NewOAuthErrorWithRaw(i18n.MsgOAuthConnectFailed, map[string]any{"Provider": "LinuxDO"}, err.Error())
 	}
 	defer res.Body.Close()
 
@@ -136,7 +136,7 @@ func (p *LinuxDOProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*
 
 	if linuxdoUser.Id == 0 {
 		log.LogError(ctx, "[OAuth-LinuxDO] GetUserInfo failed: invalid user id")
-		return nil, NewOAuthError(i18n.MsgOAuthUserInfoEmpty, map[string]any{"Provider": "Linux DO"})
+		return nil, NewOAuthError(i18n.MsgOAuthUserInfoEmpty, map[string]any{"Provider": "LinuxDO"})
 	}
 
 	log.LogDebug(ctx, "[OAuth-LinuxDO] GetUserInfo: id=%d, username=%s, name=%s, trust_level=%d, active=%v, silenced=%v",

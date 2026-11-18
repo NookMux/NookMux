@@ -3,7 +3,7 @@ package dbmigrate
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/NookMux/NookMux/internal/i18n"
 	infradb "github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/NookMux/NookMux/internal/store/channel"
 	"github.com/NookMux/NookMux/internal/store/db"
@@ -64,24 +64,24 @@ func runDBPreMigrateJobWithContext(ctx context.Context, job *DBPreMigrateJob, pa
 		return err
 	}
 
-	job.setStep("完成")
-	job.appendLog(fmt.Sprintf("[%s] 预迁移完成", time.Now().Format(time.RFC3339)))
+	setMigrateStep(job, i18n.MsgDBMigrateStepDone)
+	appendMigrateLog(job, i18n.MsgDBMigrateLogPreDone)
 	return nil
 }
 
 func logDBPreMigrateStart(job *DBPreMigrateJob, targetType string, params DBPreMigrateStartParams) {
-	job.appendLog(fmt.Sprintf("[%s] 预迁移启动：%s -> %s", time.Now().Format(time.RFC3339), job.SourceDBType, targetType))
-	job.appendLog(fmt.Sprintf("[%s] 迁移日志：%v；覆盖目标库：%v", time.Now().Format(time.RFC3339), params.IncludeLogs, params.Force))
+	appendMigrateLog(job, i18n.MsgDBMigrateLogPreStart, map[string]any{"Source": job.SourceDBType, "Target": targetType})
+	appendMigrateLog(job, i18n.MsgDBMigrateLogOptions, map[string]any{"IncludeLogs": params.IncludeLogs, "Force": params.Force})
 }
 
 func prepareTargetMainDB(ctx context.Context, params DBPreMigrateStartParams, targetType string) (*gorm.DB, error) {
 	targetMainDB, err := openDBByType(params.TargetDSN, targetType)
 	if err != nil {
-		return nil, fmt.Errorf("连接目标主库失败：%w", err)
+		return nil, i18n.NewError(i18n.MsgDBMigrateConnectTargetMainFail).WithCause(err)
 	}
 	if err := autoMigrateTargetMainSchema(targetMainDB); err != nil {
 		_ = closeGormDB(targetMainDB)
-		return nil, fmt.Errorf("目标主库建表/迁移失败：%w", err)
+		return nil, i18n.NewError(i18n.MsgDBMigrateSchemaTargetMainFail).WithCause(err)
 	}
 	if err := ensureTargetMainDBEmptyOrForce(ctx, targetMainDB, params.Force); err != nil {
 		_ = closeGormDB(targetMainDB)
@@ -91,10 +91,42 @@ func prepareTargetMainDB(ctx context.Context, params DBPreMigrateStartParams, ta
 }
 
 // migrateJobRecorder 抽象预迁移与同类型迁移 job 的进度记录能力，使两个
-// runner 共享同一份 PostgreSQL 系序列重置实现。
+// runner 共享同一份 PostgreSQL 系序列重置与本地化日志实现。
 type migrateJobRecorder interface {
 	setStep(step string)
 	appendLog(line string)
+	jobLang() string
+}
+
+func langOrDefault(lang string) string {
+	if strings.TrimSpace(lang) == "" {
+		return i18n.DefaultLang
+	}
+	return lang
+}
+
+func setMigrateStep(job migrateJobRecorder, key string, args ...map[string]any) {
+	if job == nil {
+		return
+	}
+	var p map[string]any
+	if len(args) > 0 {
+		p = args[0]
+	}
+	job.setStep(i18n.Translate(job.jobLang(), key, p))
+}
+
+func appendMigrateLog(job migrateJobRecorder, key string, args ...map[string]any) {
+	if job == nil {
+		return
+	}
+	p := map[string]any{"Time": time.Now().Format(time.RFC3339)}
+	if len(args) > 0 {
+		for k, v := range args[0] {
+			p[k] = v
+		}
+	}
+	job.appendLog(i18n.Translate(job.jobLang(), key, p))
 }
 
 // resetPGFamilyTargetSequences 对 PostgreSQL 系内核（PG/openGauss/金仓）
@@ -107,19 +139,19 @@ func resetPGFamilyTargetSequences(job migrateJobRecorder, targetType string, mai
 		return nil
 	}
 
-	job.setStep("修复 PostgreSQL/openGauss/KingbaseES 自增序列")
+	setMigrateStep(job, i18n.MsgDBMigrateStepFixPGSequences)
 	updated, err := resetPostgresOwnedSequences(mainDB)
 	if err != nil {
-		return fmt.Errorf("修复 PostgreSQL 系自增序列失败：%w", err)
+		return i18n.NewError(i18n.MsgDBMigrateFixPGSeqMainFail).WithCause(err)
 	}
-	job.appendLog(fmt.Sprintf("[%s] 目标主库自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
+	appendMigrateLog(job, i18n.MsgDBMigrateLogPGSeqMainDone, map[string]any{"Count": updated})
 
 	if includeLogs && logDBNeedClose {
 		updated, err := resetPostgresOwnedSequences(logDB)
 		if err != nil {
-			return fmt.Errorf("修复 PostgreSQL 系(日志库) 自增序列失败：%w", err)
+			return i18n.NewError(i18n.MsgDBMigrateFixPGSeqLogFail).WithCause(err)
 		}
-		job.appendLog(fmt.Sprintf("[%s] 目标日志库自增序列已修复：%d 个", time.Now().Format(time.RFC3339), updated))
+		appendMigrateLog(job, i18n.MsgDBMigrateLogPGSeqLogDone, map[string]any{"Count": updated})
 	}
 	return nil
 }
@@ -137,10 +169,10 @@ func ensureTargetMainDBEmptyOrForce(ctx context.Context, target *gorm.DB, force 
 	for _, m := range checkModels {
 		has, err := hasAnyRow(ctx, target, m)
 		if err != nil {
-			return fmt.Errorf("检查目标主库是否为空失败：%w", err)
+			return i18n.NewError(i18n.MsgDBMigrateCheckEmptyMainFail).WithCause(err)
 		}
 		if has {
-			return errors.New("目标主库不是空库：请使用全新的空数据库，或勾选“覆盖目标库（清空后迁移）”")
+			return i18n.NewError(i18n.MsgDBMigrateTargetMainNotEmpty)
 		}
 	}
 	return nil
@@ -160,30 +192,30 @@ func prepareTargetLogDB(ctx context.Context, job *DBPreMigrateJob, params DBPreM
 		return nil, false, err
 	}
 	if logType != targetType {
-		return nil, false, errors.New("目标日志库类型必须与目标主库一致（当前仅支持同类型迁移）")
+		return nil, false, i18n.NewError(i18n.MsgDBMigrateTargetLogTypeMismatch)
 	}
 	if strings.TrimSpace(targetLogDSN) == strings.TrimSpace(params.TargetDSN) {
 		return targetMainDB, false, nil
 	}
 
-	job.appendLog(fmt.Sprintf("[%s] 使用独立的目标日志库", time.Now().Format(time.RFC3339)))
+	appendMigrateLog(job, i18n.MsgDBMigrateLogSeparateLog)
 	targetLogDB, err := openDBByType(targetLogDSN, logType)
 	if err != nil {
-		return nil, false, fmt.Errorf("连接目标日志库失败：%w", err)
+		return nil, false, i18n.NewError(i18n.MsgDBMigrateConnectTargetLogFail).WithCause(err)
 	}
 	if err := autoMigrateTargetLogSchema(targetLogDB); err != nil {
 		_ = closeGormDB(targetLogDB)
-		return nil, false, fmt.Errorf("目标日志库建表/迁移失败：%w", err)
+		return nil, false, i18n.NewError(i18n.MsgDBMigrateSchemaTargetLogFail).WithCause(err)
 	}
 	if !params.Force {
 		has, err := hasAnyRow(ctx, targetLogDB, &logstore.Log{})
 		if err != nil {
 			_ = closeGormDB(targetLogDB)
-			return nil, false, fmt.Errorf("检查目标日志库是否为空失败：%w", err)
+			return nil, false, i18n.NewError(i18n.MsgDBMigrateCheckEmptyLogFail).WithCause(err)
 		}
 		if has {
 			_ = closeGormDB(targetLogDB)
-			return nil, false, errors.New("目标日志库不是空库：请使用全新的空数据库，或勾选“覆盖目标库（清空后迁移）”")
+			return nil, false, i18n.NewError(i18n.MsgDBMigrateTargetLogNotEmpty)
 		}
 	}
 	return targetLogDB, true, nil
@@ -200,10 +232,10 @@ func migrateMainDBTables(ctx context.Context, job *DBPreMigrateJob, src *gorm.DB
 
 func migrateLogTable(ctx context.Context, job *DBPreMigrateJob, src *gorm.DB, dst *gorm.DB, params DBPreMigrateStartParams) error {
 	if src == nil {
-		return errors.New("源日志库连接为空")
+		return i18n.NewError(i18n.MsgDBMigrateSourceLogDBEmpty)
 	}
 	if dst == nil {
-		return errors.New("目标日志库连接为空")
+		return i18n.NewError(i18n.MsgDBMigrateTargetLogDBEmpty)
 	}
 	return dbPreMigrateLogStep.Run(ctx, job, src, dst, params)
 }

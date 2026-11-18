@@ -25,5 +25,8 @@
   "rankings.fields.trendingUp": "Trending up",
   "rankings.errors.unableToLoadRankings": "Unable to load rankings",
   "rankings.errors.unableToLoadRankingsData": "Unable to load rankings data",
-  "rankings.tips.vendorsRankedByAggregatedTokenVolume": "Vendors ranked by aggregated token volume"
+  "rankings.tips.vendorsRankedByAggregatedTokenVolume": "Vendors ranked by aggregated token volume",
+  "rankings.fields.thisWeek": "Week",
+  "rankings.fields.thisMonth": "Month",
+  "rankings.fields.thisYear": "Year"
 }

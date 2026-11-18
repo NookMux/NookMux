@@ -140,8 +140,11 @@ export function MissingModelsDialog({
           <div className='flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto'>
             <div className='flex shrink-0 items-center justify-between gap-3'>
               <div className='text-muted-foreground text-sm whitespace-nowrap'>
-                {t('models.fields.showing')} {displayStart}-{displayEnd}{' '}
-                {t('common.fields.valuede04fa')} {totalItems}
+                {t('models.tips.showingStartEndOfTotal', {
+                  start: displayStart,
+                  end: displayEnd,
+                  total: totalItems,
+                })}
               </div>
               <div className='relative w-48'>
                 <Search className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
@@ -193,7 +196,7 @@ export function MissingModelsDialog({
                         onClick={() => handleConfigureModel(modelName)}
                       >
                         <Plus className='h-4 w-4' />
-                        Configure
+                        {t('home.tips.configure')}
                       </Button>
                     </div>
                   ))}

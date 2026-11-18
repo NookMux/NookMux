@@ -21,7 +21,7 @@
   "setup.fields.mySqlDetected": "检测到 MySQL",
   "setup.tips.mySqlIsProductionReadyEnsureAutomatedBackupsAnd": "MySQL 已准备好投入生产环境。请确保配置了自动备份以及具有最低所需权限的专用用户。",
   "setup.fields.notSetYet": "尚未设置",
-  "setup.errors.passwordMustBeAtLeast8CharactersLong": "密码必须至少 8 个字符长",
+  "setup.errors.passwordMustBeAtLeast8CharactersLong": "密码长度至少为 8 个字符",
   "setup.fields.persistYourDataFile": "持久化您的数据文件",
   "setup.errors.pleaseEnterAnAdministratorUsername": "请输入管理员用户名",
   "setup.fields.postgreSqlDetected": "检测到 PostgreSQL",
@@ -38,10 +38,12 @@
   "setup.tips.setASecurePasswordMin8Characters": "设置安全密码（最少 8 个字符）",
   "setup.tips.setupWizardWillUseThisDatabaseDuringInitialization": "设置向导将在初始化期间使用此数据库。",
   "setup.status.systemInitializedSuccessfullyRedirecting": "系统初始化成功！正在重定向…",
-  "setup.titles.systemLogo": "系统徽标",
+  "setup.titles.systemLogo": "系统 Logo",
   "setup.titles.systemSetupWizard": "系统设置向导",
   "setup.tips.administratorAccountIsAlreadyInitializedYouCanKeepYour": "管理员账户已初始化。您可以保留现有凭据并继续下一步。",
   "setup.fields.usageMode": "使用模式",
-  "setup.tips.couldNotLoadTheSetupStatus": "我们无法加载设置状态。",
-  "setup.tips.runningInContainersOrEphemeralEnvironmentsEnsureTheSqlite": "在容器或临时环境中运行时，请确保 SQLite 文件映射到持久存储，以避免重启时数据丢失。"
+  "setup.tips.couldNotLoadTheSetupStatus": "无法加载初始化状态。",
+  "setup.tips.runningInContainersOrEphemeralEnvironmentsEnsureTheSqlite": "在容器或临时环境中运行时，请确保 SQLite 文件映射到持久存储，以避免重启时数据丢失。",
+  "setup.fields.damengDatabase": "达梦 DM8",
+  "setup.fields.kingbaseDatabase": "人大金仓 KingbaseES"
 }

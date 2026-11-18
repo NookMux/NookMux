@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/log"
 	"github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/NookMux/NookMux/internal/infra/runtime"
@@ -300,7 +301,7 @@ func inviteUser(inviterId int) (err error) {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("邀请人不存在！")
+		return i18n.NewError(i18n.MsgUserInviterNotFound)
 	}
 	return nil
 }
@@ -308,7 +309,7 @@ func inviteUser(inviterId int) (err error) {
 func (user *User) TransferAffQuotaToQuota(quota int) error {
 	// 检查quota是否小于最小额度
 	if float64(quota) < common.QuotaPerUnit {
-		return fmt.Errorf("转移额度最小为%s！", log.LogQuota(int(common.QuotaPerUnit)))
+		return i18n.NewError(i18n.MsgUserTransferMinQuota, map[string]any{"Min": log.LogQuota(int(common.QuotaPerUnit))})
 	}
 
 	// 开始数据库事务
@@ -326,7 +327,7 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 
 	// 再次检查用户的AffQuota是否足够
 	if user.AffQuota < quota {
-		return errors.New("邀请额度不足！")
+		return i18n.NewError(i18n.MsgUserTransferInsufficientAffQuota)
 	}
 
 	// 更新用户额度

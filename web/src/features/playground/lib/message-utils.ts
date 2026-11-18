@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
 import { nanoid } from 'nanoid'
 import { MESSAGE_ROLES, MESSAGE_STATUS, ERROR_MESSAGES } from '../constants'
 import type { Message, MessageVersion, ChatCompletionMessage } from '../types'
@@ -176,7 +177,7 @@ export function updateAssistantMessageWithError(
   return updateLastAssistantMessage(messages, (message) => {
     const updatedMessage = updateCurrentVersionContent(
       message,
-      `${ERROR_MESSAGES.API_REQUEST_ERROR}: ${errorMessage}`
+      `${i18next.t(ERROR_MESSAGES.API_REQUEST_ERROR)}: ${errorMessage}`
     )
     return {
       ...updatedMessage,
@@ -295,7 +296,7 @@ export function sanitizeMessagesOnLoad(messages: Message[]): Message[] {
       : {
           ...updateCurrentVersionContent(
             finalized,
-            `${ERROR_MESSAGES.API_REQUEST_ERROR}: ${ERROR_MESSAGES.INTERRUPTED}`
+            `${i18next.t(ERROR_MESSAGES.API_REQUEST_ERROR)}: ${i18next.t(ERROR_MESSAGES.INTERRUPTED)}`
           ),
           status: MESSAGE_STATUS.ERROR,
           isReasoningStreaming: false,

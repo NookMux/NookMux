@@ -169,58 +169,58 @@ export function Footer(props: FooterProps) {
   const fallbackColumns = useMemo<FooterColumnProps[]>(
     () => [
       {
-        title: t('layout.tips.footerColumnsAboutTitle'),
+        title: 'layout.tips.footerColumnsAboutTitle',
         links: [
           {
-            text: t('layout.tips.footerColumnsAboutLinksAboutProject'),
+            text: 'layout.tips.footerColumnsAboutLinksAboutProject',
             href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/guide/wiki/basic-concepts/project-introduction.mdx',
           },
           {
-            text: t('layout.tips.footerColumnsAboutLinksContact'),
+            text: 'layout.tips.footerColumnsAboutLinksContact',
             href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/guide/wiki/project-records/special-thanks.mdx',
           },
           {
-            text: t('layout.tips.footerColumnsAboutLinksFeatures'),
+            text: 'layout.tips.footerColumnsAboutLinksFeatures',
             href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/guide/wiki/basic-concepts/features-introduction.mdx',
           },
         ],
       },
       {
-        title: t('layout.tips.footerColumnsDocsTitle'),
+        title: 'layout.tips.footerColumnsDocsTitle',
         links: [
           {
-            text: t('layout.tips.footerColumnsDocsLinksQuickStart'),
+            text: 'layout.tips.footerColumnsDocsLinksQuickStart',
             href: 'https://github.com/NookMux/NookMux/blob/main/docs/zh/installation/index.mdx',
           },
           {
-            text: t('layout.tips.footerColumnsDocsLinksInstallation'),
+            text: 'layout.tips.footerColumnsDocsLinksInstallation',
             href: 'https://github.com/NookMux/NookMux/tree/main/docs/zh/installation',
           },
           {
-            text: t('layout.tips.footerColumnsDocsLinksApiDocs'),
+            text: 'layout.tips.footerColumnsDocsLinksApiDocs',
             href: 'https://github.com/NookMux/NookMux/tree/main/docs/zh/api',
           },
         ],
       },
       {
-        title: t('layout.tips.footerColumnsRelatedTitle'),
+        title: 'layout.tips.footerColumnsRelatedTitle',
         links: [
           {
-            text: t('layout.tips.footerColumnsRelatedLinksOneApi'),
+            text: 'layout.tips.footerColumnsRelatedLinksOneApi',
             href: 'https://github.com/songquanpeng/one-api',
           },
           {
-            text: t('layout.tips.footerColumnsRelatedLinksMidjourney'),
+            text: 'layout.tips.footerColumnsRelatedLinksMidjourney',
             href: 'https://github.com/novicezk/midjourney-proxy',
           },
           {
-            text: t('layout.tips.footerColumnsRelatedLinksNewApiKeyTool'),
+            text: 'layout.tips.footerColumnsRelatedLinksNewApiKeyTool',
             href: 'https://github.com/Calcium-Ion/new-api-key-tool',
           },
         ],
       },
     ],
-    [t]
+    []
   )
 
   const displayColumns = props.columns ?? fallbackColumns

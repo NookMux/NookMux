@@ -28,8 +28,16 @@ const banIdentifierTypeSchema = z.enum([
 
 export const banUserSchema = z.object({
   type: banIdentifierTypeSchema,
-  value: z.string().trim().min(1).max(64),
-  remark: z.string().trim().max(255).optional(),
+  value: z
+    .string()
+    .trim()
+    .min(1, 'users.ban.errors.identifierValueRequired')
+    .max(64, 'users.ban.errors.identifierValueTooLong'),
+  remark: z
+    .string()
+    .trim()
+    .max(255, 'users.ban.errors.remarkTooLong')
+    .optional(),
 })
 
 export type BanUserFormValues = z.infer<typeof banUserSchema>

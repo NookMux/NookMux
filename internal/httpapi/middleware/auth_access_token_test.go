@@ -91,7 +91,7 @@ func TestUserAuthRejectsEmptyBearerMatchingEmptyAccessToken(t *testing.T) {
 	if strings.Contains(recorder.Body.String(), `"id":1`) {
 		t.Fatalf("empty bearer authenticated root user, response: %s", recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), "access token 无效") {
+	if !strings.Contains(recorder.Body.String(), "Access Token 无效") {
 		t.Fatalf("expected invalid access token response, got: %s", recorder.Body.String())
 	}
 }
@@ -195,7 +195,7 @@ func TestUserAuthHidesAccessTokenDatabaseErrors(t *testing.T) {
 		t.Fatalf("status = %d, want %d, body = %s", recorder.Code, http.StatusOK, recorder.Body.String())
 	}
 	body := recorder.Body.String()
-	if !strings.Contains(body, "access token 无效") {
+	if !strings.Contains(body, "Access Token 无效") {
 		t.Fatalf("expected generic invalid access token response, got: %s", body)
 	}
 	if strings.Contains(body, "database") || strings.Contains(body, "数据库错误") || strings.Contains(body, "sql: database is closed") {

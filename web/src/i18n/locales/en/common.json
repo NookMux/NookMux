@@ -943,5 +943,19 @@
   "common.tips.usageLogFieldNameOperatorAdmin": "Operator Admin",
   "common.tips.usageLogFieldDescOperatorAdmin": "Admin information for management operations",
   "common.tips.usageLogFieldNameStreamStatus": "Stream Status",
-  "common.tips.usageLogFieldDescStreamStatus": "Status and error info for streaming response"
+  "common.tips.usageLogFieldDescStreamStatus": "Status and error info for streaming response",
+  "common.fields.goToPageNumber": "Go to page {{page}}",
+  "common.placeholders.selectOrType": "Select or type...",
+  "common.fields.noOptionFound": "No option found.",
+  "common.tips.usedCountSources": "Used {{count}} sources",
+  "common.errors.mustBeAnInteger": "Must be an integer",
+  "common.errors.mustBeBetween0And3": "Must be between 0 and 3",
+  "common.errors.mustBeBetween1And20": "Must be between 1 and 20",
+  "common.errors.mustBeBetween1And365": "Must be between 1 and 365",
+  "common.errors.mustBeBetween1And100": "Must be between 1 and 100",
+  "common.errors.mustBeBetween1And50": "Must be between 1 and 50",
+  "common.errors.mustBeBetween60And86400": "Must be between 60 and 86400",
+  "common.errors.mustBeBetween30And3600": "Must be between 30 and 3600",
+  "common.errors.mustBeBetween0And99": "Must be between 0 and 99",
+  "common.errors.mustBeBetween0And100": "Must be between 0 and 100"
 }

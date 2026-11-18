@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { type RowData, type Table } from '@/lib/tanstack-table'
 import { Button } from '@/components/ui/button'
@@ -169,12 +169,14 @@ export function DataTableBulkActions<TData extends RowData>({
         title={t('redemptionCodes.actions.deleteInvalidRedemptionCodesfa2061')}
         desc={
           <>
-            {t('redemptionCodes.tips.deleteAll')}{' '}
-            <strong>{t('common.status.used')}</strong>,{' '}
-            <strong>{t('channels.status.disabled')}</strong>
-            {t('redemptionCodes.fields.value')}{' '}
-            <strong>{t('redemptionCodes.status.expired')}</strong>{' '}
-            {t('redemptionCodes.tips.codes')}
+            <Trans
+              i18nKey='redemptionCodes.tips.deleteInvalidDesc'
+              components={{
+                used: <strong />,
+                disabled: <strong />,
+                expired: <strong />,
+              }}
+            />
             <br />
             {t('keys.errors.actionCannotBeUndone951f49')}
           </>

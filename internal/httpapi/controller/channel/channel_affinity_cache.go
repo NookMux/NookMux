@@ -48,7 +48,7 @@ func ClearChannelAffinityCache(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": err.Error(),
+			"message": i18n.ResolveContextError(c, err, i18n.MsgDatabaseError),
 		})
 		return
 	}

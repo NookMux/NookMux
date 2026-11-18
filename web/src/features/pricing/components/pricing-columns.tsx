@@ -181,7 +181,7 @@ export function usePricingColumns(
           <StatusBadge
             label={
               isTokenBased
-                ? t('pricing.fields.token')
+                ? t('pricing.fields.llmToken')
                 : t('home.fields.request')
             }
             variant={isTokenBased ? 'info' : 'neutral'}

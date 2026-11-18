@@ -2,12 +2,12 @@ package perfmetricscontroller
 
 import (
 	"math"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/ratio"
 	"github.com/NookMux/NookMux/internal/httpapi"
 	"github.com/NookMux/NookMux/internal/i18n"
@@ -93,7 +93,8 @@ func GetPerfMetrics(c *gin.Context) {
 		var err error
 		rows, err = perfmetricsstore.GetPerfMetricBuckets(modelName, groups, windowStart, windowEnd)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			common.SysError("failed to get perf metric buckets: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 			return
 		}
 	}
@@ -146,7 +147,8 @@ func GetPerfMetricsSummary(c *gin.Context) {
 		var err error
 		modelAggs, err = perfmetricsstore.GetAllPerfModelAggs(groups, windowStart, windowEnd)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			common.SysError("failed to get perf metric buckets: " + err.Error())
+			httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 			return
 		}
 	}

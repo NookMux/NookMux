@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
 import { api } from '@/lib/api'
 import type {
   ApiResponse,
@@ -24,12 +25,12 @@ import type {
   DynamicRatioStatus,
 } from './types'
 
-function unwrap<T>(res: ApiResponse<T>, fallbackMessage: string): T {
+function unwrap<T>(res: ApiResponse<T>, fallbackKey: string): T {
   if (!res.success) {
-    throw new Error(res.message || fallbackMessage)
+    throw new Error(res.message || i18next.t(fallbackKey))
   }
   if (res.data === undefined) {
-    throw new Error(fallbackMessage)
+    throw new Error(i18next.t(fallbackKey))
   }
   return res.data
 }
@@ -38,7 +39,7 @@ export async function getDynamicRatioRules(): Promise<DynamicRatioRule[]> {
   const res = await api.get('/api/dynamic_ratio/rules')
   return unwrap<DynamicRatioRule[]>(
     res.data,
-    'Failed to load dynamic ratio rules'
+    'dynamicRatio.errors.failedToLoadRules'
   )
 }
 
@@ -46,13 +47,13 @@ export async function getDynamicRatioStatus(): Promise<DynamicRatioStatus> {
   const res = await api.get('/api/dynamic_ratio/status')
   return unwrap<DynamicRatioStatus>(
     res.data,
-    'Failed to load dynamic ratio status'
+    'dynamicRatio.errors.failedToLoadStatus'
   )
 }
 
 export async function setDynamicRatioEnabled(enabled: boolean): Promise<void> {
   const res = await api.put('/api/dynamic_ratio/enabled', { enabled })
-  unwrap(res.data, 'Failed to update dynamic ratio status')
+  unwrap(res.data, 'dynamicRatio.errors.failedToUpdateStatus')
 }
 
 export async function createDynamicRatioRule(
@@ -61,7 +62,7 @@ export async function createDynamicRatioRule(
   const res = await api.post('/api/dynamic_ratio/rules', payload)
   return unwrap<DynamicRatioRule>(
     res.data,
-    'Failed to create dynamic ratio rule'
+    'dynamicRatio.errors.failedToCreateRule'
   )
 }
 
@@ -71,16 +72,16 @@ export async function updateDynamicRatioRule(
   const res = await api.put('/api/dynamic_ratio/rules', payload)
   return unwrap<DynamicRatioRule>(
     res.data,
-    'Failed to update dynamic ratio rule'
+    'dynamicRatio.errors.failedToUpdateRule'
   )
 }
 
 export async function deleteDynamicRatioRule(id: number): Promise<void> {
   const res = await api.delete(`/api/dynamic_ratio/rules/${id}`)
-  unwrap(res.data, 'Failed to delete dynamic ratio rule')
+  unwrap(res.data, 'dynamicRatio.errors.failedToDeleteRule')
 }
 
 export async function reorderDynamicRatioRules(ids: number[]): Promise<void> {
   const res = await api.put('/api/dynamic_ratio/rules/reorder', { ids })
-  unwrap(res.data, 'Failed to reorder dynamic ratio rules')
+  unwrap(res.data, 'dynamicRatio.errors.failedToReorderRules')
 }

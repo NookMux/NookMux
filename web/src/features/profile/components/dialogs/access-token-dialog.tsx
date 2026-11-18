@@ -85,7 +85,7 @@ export function AccessTokenDialog({
 
           <div className='my-6 space-y-4'>
             <div className='space-y-2'>
-              <Label htmlFor='token'>{t('pricing.fields.token')}</Label>
+              <Label htmlFor='token'>{t('profile.fields.accessToken')}</Label>
               <div className='flex gap-2'>
                 <Input
                   id='token'

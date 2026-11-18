@@ -1,6 +1,10 @@
 package dbmigratecontroller
 
 import (
+	"errors"
+	"net/http"
+	"strings"
+
 	"github.com/NookMux/NookMux/internal/common"
 	audit "github.com/NookMux/NookMux/internal/domain/audit"
 	"github.com/NookMux/NookMux/internal/httpapi"
@@ -9,8 +13,6 @@ import (
 	"github.com/NookMux/NookMux/internal/store/db/migrate"
 	"github.com/NookMux/NookMux/pkg/jsonx"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"strings"
 )
 
 type dbSameTypeMigrateStartRequest struct {
@@ -45,8 +47,14 @@ func StartDBSameTypeMigrate(c *gin.Context) {
 		TargetLogDSN: strings.TrimSpace(req.TargetLogDSN),
 		IncludeLogs:  req.IncludeLogs,
 		Force:        req.Force,
+		Lang:         i18n.GetLangFromContext(c),
 	})
 	if err != nil {
+		var localizedErr *i18n.Error
+		if errors.As(err, &localizedErr) {
+			httpapi.ApiErrorI18n(c, localizedErr.Key, localizedErr.Params)
+			return
+		}
 		common.SysError("failed to start db same type migrate: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return

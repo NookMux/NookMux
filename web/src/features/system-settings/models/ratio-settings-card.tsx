@@ -21,6 +21,7 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import i18next from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -159,7 +160,7 @@ const groupSchema = z.object({
       predicate: (parsed) =>
         Array.isArray(parsed) &&
         parsed.every((item) => typeof item === 'string'),
-      predicateMessage: 'Expected a JSON array of group identifiers',
+      predicateMessage: 'systemSettings.errors.expectedJsonArrayOfGroups',
     })
     if (!result.valid) {
       ctx.addIssue({
@@ -201,7 +202,7 @@ function parseJsonObject(value: string): Record<string, unknown> {
   }
   const parsed = JSON.parse(trimmed)
   if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Expected JSON object')
+    throw new Error(i18next.t('systemSettings.errors.expectedJsonObject'))
   }
   return parsed as Record<string, unknown>
 }
@@ -229,7 +230,10 @@ async function updateJsonMapFieldByDiff(
           map_key: mapKey,
         })
         if (!data.success) {
-          throw new Error(data.message || 'Failed to update setting')
+          throw new Error(
+            data.message ||
+              i18next.t('systemSettings.errors.failedToUpdateSetting')
+          )
         }
       }
       continue
@@ -242,7 +246,10 @@ async function updateJsonMapFieldByDiff(
         value: JSON.stringify(next[mapKey]),
       })
       if (!data.success) {
-        throw new Error(data.message || 'Failed to update setting')
+        throw new Error(
+          data.message ||
+            i18next.t('systemSettings.errors.failedToUpdateSetting')
+        )
       }
     }
   }

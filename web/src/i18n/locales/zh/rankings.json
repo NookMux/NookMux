@@ -25,5 +25,8 @@
   "rankings.fields.trendingUp": "上升趋势",
   "rankings.errors.unableToLoadRankings": "无法加载排行榜",
   "rankings.errors.unableToLoadRankingsData": "无法加载排行榜数据",
-  "rankings.tips.vendorsRankedByAggregatedTokenVolume": "厂商按聚合 Token 用量排序"
+  "rankings.tips.vendorsRankedByAggregatedTokenVolume": "厂商按聚合 Token 用量排序",
+  "rankings.fields.thisWeek": "本周",
+  "rankings.fields.thisMonth": "本月",
+  "rankings.fields.thisYear": "今年"
 }

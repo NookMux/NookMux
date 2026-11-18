@@ -73,9 +73,18 @@ export function useMultimodalFilesColumns(
     {
       accessorKey: 'media_type',
       header: t('channels.fields.type'),
-      cell: ({ row }) => (
-        <Badge variant='outline'>{t(row.original.media_type)}</Badge>
-      ),
+      cell: ({ row }) => {
+        const mediaType = row.original.media_type
+        const labelKey =
+          mediaType === 'image'
+            ? 'models.fields.image'
+            : mediaType === 'video'
+              ? 'pricing.fields.video'
+              : null
+        return (
+          <Badge variant='outline'>{labelKey ? t(labelKey) : mediaType}</Badge>
+        )
+      },
       size: 80,
     },
     {

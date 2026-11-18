@@ -22,7 +22,7 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getCurrencyLabel } from '@/lib/currency'
+import { getLocalizedCurrencyLabel } from '@/lib/currency'
 import { parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
 import {
   Form,
@@ -47,8 +47,8 @@ import { useUpdateOption } from '../hooks/use-update-option'
 
 const schema = z.object({
   enabled: z.boolean(),
-  minQuota: z.coerce.number().min(0),
-  maxQuota: z.coerce.number().min(0),
+  minQuota: z.coerce.number().min(0, 'systemSettings.errors.mustBeNonNegative'),
+  maxQuota: z.coerce.number().min(0, 'systemSettings.errors.mustBeNonNegative'),
 })
 
 type Values = z.infer<typeof schema>
@@ -64,7 +64,7 @@ export function CheckinSettingsSection({
 }) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
-  const quotaUnitLabel = t(getCurrencyLabel())
+  const quotaUnitLabel = getLocalizedCurrencyLabel(t)
   const displayDefaults = useMemo(
     () => ({
       enabled: defaultValues.enabled,

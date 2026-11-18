@@ -214,8 +214,9 @@ export function DataTableBulkActions<TData extends RowData>({
           <DialogHeader>
             <DialogTitle>{t('channels.fields.setTag')}</DialogTitle>
             <DialogDescription>
-              {t('channels.fields.setATagFor')} {selectedIds.length}{' '}
-              {t('channels.placeholders.selectedChannelSLeaveEmptyToRemoveTag')}
+              {t('channels.tips.setTagForCountSelectedChannels', {
+                count: selectedIds.length,
+              })}
             </DialogDescription>
           </DialogHeader>
 

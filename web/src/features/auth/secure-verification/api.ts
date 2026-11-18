@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
 import { api, get2FAStatus } from '@/lib/api'
 import {
   buildAssertionResult,
@@ -80,7 +81,9 @@ export async function verify(
     case 'password':
       return verifyPassword(code, scope)
     default:
-      throw new Error(`Unsupported verification method: ${method}`)
+      throw new Error(
+        i18next.t('auth.errors.unsupportedVerificationMethod', { method })
+      )
   }
 }
 
@@ -93,7 +96,9 @@ async function verifyTwoFA(
 ): Promise<void> {
   const trimmed = code?.trim()
   if (!trimmed) {
-    throw new Error('Please enter the verification code or backup code')
+    throw new Error(
+      i18next.t('profile.errors.pleaseEnterYourVerificationCodeOrBackupCode')
+    )
   }
 
   const res = await api.post('/api/verify', {
@@ -103,7 +108,9 @@ async function verifyTwoFA(
   })
 
   if (!res.data?.success) {
-    throw new Error(res.data?.message || 'Verification failed')
+    throw new Error(
+      res.data?.message || i18next.t('auth.errors.verificationFailed')
+    )
   }
 }
 
@@ -117,7 +124,7 @@ async function verifyPassword(
 ): Promise<void> {
   const trimmed = password?.trim()
   if (!trimmed) {
-    throw new Error('Please enter your current password')
+    throw new Error(i18next.t('profile.errors.pleaseEnterYourCurrentPassword'))
   }
 
   const res = await api.post('/api/verify', {
@@ -127,7 +134,9 @@ async function verifyPassword(
   })
 
   if (!res.data?.success) {
-    throw new Error(res.data?.message || 'Verification failed')
+    throw new Error(
+      res.data?.message || i18next.t('auth.errors.verificationFailed')
+    )
   }
 }
 
@@ -136,13 +145,16 @@ async function verifyPassword(
  */
 async function verifyPasskey(scope?: string): Promise<void> {
   if (typeof navigator === 'undefined' || !navigator.credentials) {
-    throw new Error('Passkey verification is not supported in this environment')
+    throw new Error(i18next.t('auth.tips.passkeyIsNotSupportedOnThisDevice'))
   }
 
   try {
     const beginResponse = await beginPasskeyVerification()
     if (!beginResponse.success) {
-      throw new Error(beginResponse.message || 'Failed to start verification')
+      throw new Error(
+        beginResponse.message ||
+          i18next.t('auth.errors.failedToStartVerification')
+      )
     }
 
     const publicKey = prepareCredentialRequestOptions(
@@ -154,17 +166,22 @@ async function verifyPasskey(scope?: string): Promise<void> {
     })) as PublicKeyCredential | null
 
     if (!credential) {
-      throw new Error('Passkey verification was cancelled')
+      throw new Error(
+        i18next.t('auth.errors.passkeyVerificationCancelledOrTimedOut')
+      )
     }
 
     const assertion = buildAssertionResult(credential)
     if (!assertion) {
-      throw new Error('Unable to build Passkey assertion')
+      throw new Error(i18next.t('auth.errors.unableToBuildPasskeyAssertion'))
     }
 
     const finishResponse = await finishPasskeyVerification(assertion)
     if (!finishResponse.success) {
-      throw new Error(finishResponse.message || 'Passkey verification failed')
+      throw new Error(
+        finishResponse.message ||
+          i18next.t('auth.errors.passkeyVerificationFailed')
+      )
     }
 
     const verifyResponse = await api.post('/api/verify', {
@@ -174,18 +191,22 @@ async function verifyPasskey(scope?: string): Promise<void> {
 
     if (!verifyResponse.data?.success) {
       throw new Error(
-        verifyResponse.data?.message || 'Failed to complete verification'
+        verifyResponse.data?.message ||
+          i18next.t('auth.errors.verificationFailed')
       )
     }
   } catch (error: unknown) {
     if (error instanceof DOMException && error.name === 'NotAllowedError') {
-      throw new Error('Passkey verification was cancelled or timed out', {
-        cause: error,
-      })
+      throw new Error(
+        i18next.t('auth.errors.passkeyVerificationCancelledOrTimedOut'),
+        {
+          cause: error,
+        }
+      )
     }
     if (error instanceof DOMException && error.name === 'InvalidStateError') {
       throw new Error(
-        'Passkey verification is not available in the current state',
+        i18next.t('auth.errors.passkeyVerificationUnavailableInState'),
         { cause: error }
       )
     }

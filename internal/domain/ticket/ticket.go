@@ -1,7 +1,6 @@
 package ticket
 
 import (
-	"errors"
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/store/db"
@@ -78,7 +77,7 @@ func ListUserTickets(userId int, page, pageSize int, status string, keyword stri
 
 func ListAdminTickets(lang string, role int, page, pageSize int, status string, keyword string) ([]TicketSummary, int64, error) {
 	if !canManageAllTickets(role) {
-		return nil, 0, errors.New(i18n.Translate(lang, i18n.MsgTicketNoPermission))
+		return nil, 0, i18n.NewError(i18n.MsgTicketNoPermission)
 	}
 	filter, err := buildTicketListFilter(0, page, pageSize, status, keyword)
 	if err != nil {
@@ -126,7 +125,7 @@ func CreateTicket(lang string, input CreateTicketInput) (*TicketDetail, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, errors.New(i18n.Translate(lang, i18n.MsgTicketCreateFailed))
+		return nil, i18n.NewError(i18n.MsgTicketCreateFailed)
 	}
 
 	return buildTicketDetail(ticket, []*ticketstore.TicketEntry{entry}), nil
@@ -173,10 +172,10 @@ func ReplyTicket(lang string, input ReplyTicketInput) error {
 			CreatedAt:    now,
 		}
 		if err := ticketstore.CreateTicketEntryTx(tx, entry); err != nil {
-			return errors.New(i18n.Translate(lang, i18n.MsgTicketReplyFailed))
+			return i18n.NewError(i18n.MsgTicketReplyFailed)
 		}
 		if err := ticketstore.UpdateTicketFieldsTx(tx, ticket.Id, map[string]any{"updated_at": now}); err != nil {
-			return errors.New(i18n.Translate(lang, i18n.MsgTicketReplyFailed))
+			return i18n.NewError(i18n.MsgTicketReplyFailed)
 		}
 		return nil
 	})
@@ -188,7 +187,7 @@ func CloseTicket(lang string, ticketId int, userId int, role int, username strin
 
 func UpdateTicketStatus(lang string, ticketId int, userId int, role int, username string, status string) error {
 	if !canManageAllTickets(role) {
-		return errors.New(i18n.Translate(lang, i18n.MsgTicketNoPermission))
+		return i18n.NewError(i18n.MsgTicketNoPermission)
 	}
 	targetStatus, err := ticketstore.ParseTicketStatus(status)
 	if err != nil {
@@ -221,10 +220,10 @@ func changeTicketStatus(lang string, ticketId int, userId int, role int, usernam
 		}
 		updated, err := ticketstore.UpdateTicketStatusTx(tx, ticket.Id, ticket.Status, values)
 		if err != nil {
-			return errors.New(i18n.Translate(lang, i18n.MsgTicketStatusUpdateFailed))
+			return i18n.NewError(i18n.MsgTicketStatusUpdateFailed)
 		}
 		if !updated {
-			return errors.New(i18n.Translate(lang, i18n.MsgTicketStatusConflict))
+			return i18n.NewError(i18n.MsgTicketStatusConflict)
 		}
 
 		entry := &ticketstore.TicketEntry{
@@ -238,7 +237,7 @@ func changeTicketStatus(lang string, ticketId int, userId int, role int, usernam
 			CreatedAt:    now,
 		}
 		if err := ticketstore.CreateTicketEntryTx(tx, entry); err != nil {
-			return errors.New(i18n.Translate(lang, i18n.MsgTicketStatusUpdateFailed))
+			return i18n.NewError(i18n.MsgTicketStatusUpdateFailed)
 		}
 		return nil
 	})
@@ -330,7 +329,7 @@ func ensureTicketAccess(lang string, ticket *ticketstore.Ticket, userId int, rol
 		return nil
 	}
 	if ticket.UserId != userId {
-		return errors.New(i18n.Translate(lang, i18n.MsgTicketAccessDenied))
+		return i18n.NewError(i18n.MsgTicketAccessDenied)
 	}
 	return nil
 }
@@ -342,10 +341,10 @@ func canManageAllTickets(role int) bool {
 func validateTicketText(lang string, value string, maxRunes int, emptyMessageKey string, tooLongMessageKey string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return "", errors.New(i18n.Translate(lang, emptyMessageKey))
+		return "", i18n.NewError(emptyMessageKey)
 	}
 	if utf8.RuneCountInString(value) > maxRunes {
-		return "", errors.New(i18n.Translate(lang, tooLongMessageKey))
+		return "", i18n.NewError(tooLongMessageKey)
 	}
 	return value, nil
 }

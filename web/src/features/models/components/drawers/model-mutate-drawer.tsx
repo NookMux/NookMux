@@ -89,16 +89,42 @@ const CAPABILITY_OPTIONS = [
   'embeddings',
 ] as const
 
+const MODEL_OPTION_LABEL_KEYS: Record<string, string> = {
+  text: 'common.fields.text',
+  image: 'models.fields.image',
+  audio: 'common.fields.audio',
+  video: 'pricing.fields.video',
+  file: 'common.fields.file',
+  function_calling: 'common.fields.functionCalling',
+  streaming: 'common.fields.streaming',
+  vision: 'common.fields.vision',
+  json_mode: 'common.fields.jsonMode',
+  structured_output: 'common.fields.structuredOutput',
+  reasoning: 'common.fields.reasoning',
+  tools: 'common.fields.tools',
+  system_prompt: 'common.fields.systemPrompt',
+  web_search: 'common.fields.webSearch',
+  code_interpreter: 'common.fields.codeInterpreter',
+  caching: 'common.fields.promptCaching',
+  embeddings: 'pricing.fields.embeddings',
+}
+
 const extendedModelFormSchema = z.object({
   id: z.number().optional(),
-  model_name: z.string().min(1, 'Model name is required'),
+  model_name: z.string().min(1, 'models.errors.modelNameRequired'),
   description: z.string(),
   icon: z.string(),
   tags: z.array(z.string()),
   vendor_id: z.number().optional(),
   endpoints: z.string(),
-  context_length: z.number().int().min(0),
-  max_output_tokens: z.number().int().min(0),
+  context_length: z
+    .number()
+    .int('common.errors.mustBeAnInteger')
+    .min(0, 'systemSettings.errors.mustBeNonNegative'),
+  max_output_tokens: z
+    .number()
+    .int('common.errors.mustBeAnInteger')
+    .min(0, 'systemSettings.errors.mustBeNonNegative'),
   input_modalities: z.array(z.string()),
   output_modalities: z.array(z.string()),
   capabilities: z.array(z.string()),
@@ -511,8 +537,8 @@ export function ModelMutateDrawer({
                         onChange={field.onChange}
                         keyPlaceholder='endpoint_type'
                         valuePlaceholder='{"path": "/v1/...", "method": "POST"}'
-                        keyLabel='Endpoint Type'
-                        valueLabel='Configuration'
+                        keyLabel={t('models.fields.endpointType')}
+                        valueLabel={t('models.fields.configuration')}
                         valueType='any'
                         emptyMessage={t(
                           'models.tips.noEndpointsConfiguredSwitchToJsonModeOrAdd'
@@ -736,7 +762,7 @@ export function ModelMutateDrawer({
             {isSubmitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {isEditing
               ? t('models.fields.updateModel')
-              : t('channels.actions.saveChanges')}
+              : t('models.actions.createModel')}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -773,7 +799,9 @@ function CheckboxGrid(props: {
                 props.onChange(Array.from(values))
               }}
             />
-            <span className='min-w-0 truncate'>{props.t(option)}</span>
+            <span className='min-w-0 truncate'>
+              {props.t(MODEL_OPTION_LABEL_KEYS[option] ?? option)}
+            </span>
           </label>
         )
       })}

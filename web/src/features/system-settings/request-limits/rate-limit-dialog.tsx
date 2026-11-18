@@ -42,15 +42,15 @@ import {
 import { Input } from '@/components/ui/input'
 
 const rateLimitDialogSchema = z.object({
-  groupName: z.string().min(1, 'Group name is required'),
+  groupName: z.string().min(1, 'common.errors.groupNameIsRequired'),
   maxRequests: z
     .number()
-    .min(0, 'Must be ≥ 0')
-    .max(2147483647, 'Must be ≤ 2,147,483,647'),
+    .min(0, 'systemSettings.errors.mustBeNonNegative')
+    .max(2147483647, 'common.errors.mustBe2147483647'),
   maxSuccess: z
     .number()
-    .min(1, 'Must be ≥ 1')
-    .max(2147483647, 'Must be ≤ 2,147,483,647'),
+    .min(1, 'systemSettings.errors.mustBeAtLeast1')
+    .max(2147483647, 'common.errors.mustBe2147483647'),
 })
 
 type RateLimitDialogFormValues = z.infer<typeof rateLimitDialogSchema>

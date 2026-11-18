@@ -67,16 +67,37 @@ interface PlaygroundInputProps {
 }
 
 const suggestions = [
-  { icon: BarChartIcon, text: 'Analyze data', color: '#76d0eb' },
-  { icon: BoxIcon, text: 'Surprise me', color: '#76d0eb' },
-  { icon: NotepadTextIcon, text: 'Summarize text', color: '#ea8444' },
   {
+    id: 'analyze',
+    icon: BarChartIcon,
+    labelKey: 'playground.fields.analyzeData',
+    color: '#76d0eb',
+  },
+  {
+    id: 'surprise',
+    icon: BoxIcon,
+    labelKey: 'playground.fields.surpriseMe',
+    color: '#76d0eb',
+  },
+  {
+    id: 'summarize',
+    icon: NotepadTextIcon,
+    labelKey: 'playground.fields.summarizeText',
+    color: '#ea8444',
+  },
+  {
+    id: 'code',
     icon: CodeSquareIcon,
-    text: 'redemptionCodes.fields.code',
+    labelKey: 'playground.fields.code',
     color: '#6c71ff',
   },
-  { icon: GraduationCapIcon, text: 'Get advice', color: '#76d0eb' },
-  { icon: null, text: 'common.fields.more' },
+  {
+    id: 'advice',
+    icon: GraduationCapIcon,
+    labelKey: 'playground.fields.getAdvice',
+    color: '#76d0eb',
+  },
+  { id: 'more', icon: null, labelKey: 'common.fields.more' },
 ]
 
 export function PlaygroundInput({
@@ -242,19 +263,22 @@ export function PlaygroundInput({
       </PromptInput>
 
       <Suggestions>
-        {suggestions.map(({ icon: Icon, text, color }) => (
-          <Suggestion
-            className={`text-xs font-normal sm:text-sm ${
-              text === 'More' ? 'hidden sm:flex' : ''
-            }`}
-            key={text}
-            onClick={() => handleSuggestionClick(text)}
-            suggestion={text}
-          >
-            {Icon && <Icon size={16} style={{ color }} />}
-            {text}
-          </Suggestion>
-        ))}
+        {suggestions.map(({ id, icon: Icon, labelKey, color }) => {
+          const label = t(labelKey)
+          return (
+            <Suggestion
+              className={`text-xs font-normal sm:text-sm ${
+                id === 'more' ? 'hidden sm:flex' : ''
+              }`}
+              key={id}
+              onClick={() => handleSuggestionClick(label)}
+              suggestion={label}
+            >
+              {Icon && <Icon size={16} style={{ color }} />}
+              {label}
+            </Suggestion>
+          )
+        })}
       </Suggestions>
     </div>
   )

@@ -58,9 +58,15 @@ import { useUpdateOption } from '../hooks/use-update-option'
 const perfMetricsSchema = z.object({
   perf_metrics_setting: z.object({
     enabled: z.boolean(),
-    flush_interval: z.coerce.number().int().min(1),
+    flush_interval: z.coerce
+      .number()
+      .int('common.errors.mustBeAnInteger')
+      .min(1, 'systemSettings.errors.mustBeAtLeast1'),
     bucket_time: z.enum(['minute', '5min', 'hour']),
-    retention_days: z.coerce.number().int().min(0),
+    retention_days: z.coerce
+      .number()
+      .int('common.errors.mustBeAnInteger')
+      .min(0, 'systemSettings.errors.mustBeNonNegative'),
   }),
 })
 

@@ -23,7 +23,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Pencil } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
+import { getCurrencyDisplay, getLocalizedCurrencyLabel } from '@/lib/currency'
 import { formatQuota, parseQuotaFromDollars } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import {
@@ -137,7 +137,7 @@ export function UsersMutateDrawer({
   } = useSecureVerification({ scope: 'admin_user_manage' })
 
   const { meta: currencyMeta } = getCurrencyDisplay()
-  const currencyLabel = getCurrencyLabel()
+  const currencyLabel = getLocalizedCurrencyLabel(t)
   const tokensOnly = currencyMeta.kind === 'tokens'
 
   const currentQuotaRaw = form.watch('quota_dollars') ?? 0
@@ -404,8 +404,8 @@ export function UsersMutateDrawer({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          {t('keyQuery.fields.remainingQuota')} (
-                          {t(currencyLabel)})
+                          {t('keyQuery.fields.remainingQuota')} ({currencyLabel}
+                          )
                         </FormLabel>
                         <div className='flex gap-2'>
                           <FormControl>

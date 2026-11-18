@@ -99,20 +99,20 @@ const createApiInfoSchema = (t: (key: string) => string) =>
 type ApiInfoFormValues = z.infer<ReturnType<typeof createApiInfoSchema>>
 
 const colorOptions = [
-  { value: 'blue', label: 'Blue' },
-  { value: 'green', label: 'Green' },
-  { value: 'cyan', label: 'Cyan' },
-  { value: 'purple', label: 'Purple' },
-  { value: 'pink', label: 'Pink' },
-  { value: 'red', label: 'Red' },
-  { value: 'orange', label: 'Orange' },
-  { value: 'amber', label: 'Amber' },
-  { value: 'yellow', label: 'Yellow' },
-  { value: 'lime', label: 'Lime' },
-  { value: 'teal', label: 'Teal' },
-  { value: 'indigo', label: 'Indigo' },
-  { value: 'violet', label: 'Violet' },
-  { value: 'slate', label: 'Slate' },
+  { value: 'blue', label: 'systemSettings.fields.colorBlue' },
+  { value: 'green', label: 'systemSettings.fields.colorGreen' },
+  { value: 'cyan', label: 'systemSettings.fields.colorCyan' },
+  { value: 'purple', label: 'systemSettings.fields.colorPurple' },
+  { value: 'pink', label: 'systemSettings.fields.colorPink' },
+  { value: 'red', label: 'systemSettings.fields.colorRed' },
+  { value: 'orange', label: 'systemSettings.fields.colorOrange' },
+  { value: 'amber', label: 'systemSettings.fields.colorAmber' },
+  { value: 'yellow', label: 'systemSettings.fields.colorYellow' },
+  { value: 'lime', label: 'systemSettings.fields.colorLime' },
+  { value: 'teal', label: 'systemSettings.fields.colorTeal' },
+  { value: 'indigo', label: 'systemSettings.fields.colorIndigo' },
+  { value: 'violet', label: 'systemSettings.fields.colorViolet' },
+  { value: 'slate', label: 'systemSettings.fields.colorSlate' },
 ]
 
 export function ApiInfoSection({ data }: ApiInfoSectionProps) {
@@ -275,8 +275,9 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
               disabled={selectedIds.length === 0}
             >
               <Trash2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.delete')}
-              {selectedIds.length})
+              {t('systemSettings.actions.deleteCount', {
+                count: selectedIds.length,
+              })}
             </Button>
             <Button
               onClick={handleSaveAll}
@@ -481,7 +482,7 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
                               <div
                                 className={`h-4 w-4 rounded-full ${getBgColorClass(option.value)}`}
                               />
-                              {option.label}
+                              {t(option.label)}
                             </div>
                           ),
                         })),
@@ -506,7 +507,7 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
                                 <div
                                   className={`h-4 w-4 rounded-full ${getBgColorClass(option.value)}`}
                                 />
-                                {option.label}
+                                {t(option.label)}
                               </div>
                             </SelectItem>
                           ))}
@@ -547,8 +548,10 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
             <AlertDialogTitle>{t('keys.tips.sure')}</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget === 'single'
-                ? 'This API shortcut will be removed from the list.'
-                : `${selectedIds.length} API shortcuts will be removed from the list.`}
+                ? t('systemSettings.tips.confirmRemoveSingleApiShortcut')
+                : t('systemSettings.tips.confirmRemoveCountApiShortcuts', {
+                    count: selectedIds.length,
+                  })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

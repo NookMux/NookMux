@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
+
 export function removeTrailingSlash(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return ''
@@ -72,7 +74,9 @@ function extractErrorPosition(
 }
 
 function formatJsonError(error: unknown, jsonString: string): string {
-  if (!(error instanceof Error)) return 'systemSettings.errors.invalidJson'
+  if (!(error instanceof Error)) {
+    return i18next.t('systemSettings.errors.invalidJson')
+  }
 
   const position = extractErrorPosition(error, jsonString)
   const message = error.message
@@ -83,11 +87,18 @@ function formatJsonError(error: unknown, jsonString: string): string {
     message.includes('Unexpected string')
 
   if (position.line && position.column) {
-    let hint = ''
-    if (isMissingCommaError && position.line > 1) {
-      hint = ` (check line ${position.line - 1} for missing comma)`
-    }
-    return `Error at line ${position.line}, column ${position.column}: ${message}${hint}`
+    const hint =
+      isMissingCommaError && position.line > 1
+        ? i18next.t('systemSettings.errors.jsonMissingCommaHint', {
+            line: position.line - 1,
+          })
+        : ''
+    return i18next.t('systemSettings.errors.jsonErrorAtLineColumn', {
+      line: position.line,
+      column: position.column,
+      message,
+      hint,
+    })
   }
 
   return message
@@ -102,7 +113,7 @@ export function getJsonError(
   try {
     const parsed = JSON.parse(trimmed)
     if (predicate && !predicate(parsed)) {
-      return 'JSON structure is invalid'
+      return i18next.t('common.errors.jsonStructureIsInvalid')
     }
     return null
   } catch (error) {

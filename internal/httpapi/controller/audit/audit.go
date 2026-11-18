@@ -54,11 +54,40 @@ func GetAuditLogs(c *gin.Context) {
 	})
 }
 
+var auditModuleLabelKeys = map[string]string{
+	auditstore.AuditModuleOption:          i18n.MsgAuditModuleOption,
+	auditstore.AuditModuleChannel:         i18n.MsgAuditModuleChannel,
+	auditstore.AuditModuleUser:            i18n.MsgAuditModuleUser,
+	auditstore.AuditModuleToken:           i18n.MsgAuditModuleToken,
+	auditstore.AuditModuleRedemption:      i18n.MsgAuditModuleRedemption,
+	auditstore.AuditModuleModel:           i18n.MsgAuditModuleModel,
+	auditstore.AuditModuleVendor:          i18n.MsgAuditModuleVendor,
+	auditstore.AuditModuleDynamicRatio:    i18n.MsgAuditModuleDynamicRatio,
+	auditstore.AuditModulePrefillGroup:    i18n.MsgAuditModulePrefillGroup,
+	auditstore.AuditModuleDB:              i18n.MsgAuditModuleDB,
+	auditstore.AuditModulePerformance:     i18n.MsgAuditModulePerformance,
+	auditstore.AuditModuleLog:             i18n.MsgAuditModuleLog,
+	auditstore.AuditModuleSetup:           i18n.MsgAuditModuleSetup,
+	auditstore.AuditModuleDashboardConfig: i18n.MsgAuditModuleDashboardConfig,
+	auditstore.AuditModuleVoice:           i18n.MsgAuditModuleVoice,
+}
+
 // GetAuditModules 返回所有审计模块列表，供前端渲染筛选下拉框。
 func GetAuditModules(c *gin.Context) {
+	modules := make([]auditstore.AuditModuleInfo, 0, len(auditstore.AuditModuleList))
+	for _, m := range auditstore.AuditModuleList {
+		label := m.Label
+		if key, ok := auditModuleLabelKeys[m.Value]; ok {
+			label = i18n.T(c, key)
+		}
+		modules = append(modules, auditstore.AuditModuleInfo{
+			Value: m.Value,
+			Label: label,
+		})
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    auditstore.AuditModuleList,
+		"data":    modules,
 	})
 }

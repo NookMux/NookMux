@@ -57,5 +57,7 @@
   "wallet.fields.waffoPayment": "Waffo Payment",
   "wallet.fields.pay": "You Pay",
   "wallet.fields.save": "You save",
-  "wallet.fields.waffo": "Waffo"
+  "wallet.fields.waffo": "Waffo",
+  "wallet.fields.payAmount": "Pay {{amount}}",
+  "wallet.fields.saveAmount": "Save {{amount}}"
 }

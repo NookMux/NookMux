@@ -52,7 +52,7 @@ import {
   ERROR_MESSAGES,
   isUserDeleted,
 } from '../constants'
-import { getUserActionMessage } from '../lib'
+import { getUserActionErrorMessage, getUserActionMessage } from '../lib'
 import { type User, type ManageUserAction } from '../types'
 import { useUsers } from './users-provider'
 
@@ -95,9 +95,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           toast.success(t(getUserActionMessage(action)))
           triggerRefresh()
         } else {
-          toast.error(
-            result.message || t('users.errors.failedToActionUser', { action })
-          )
+          toast.error(result.message || t(getUserActionErrorMessage(action)))
         }
         return result
       })

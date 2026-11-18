@@ -68,9 +68,17 @@ const isValidJSON = (value: string | undefined) => {
 const createRateLimitSchema = (t: (key: string) => string) =>
   z.object({
     ModelRequestRateLimitEnabled: z.boolean(),
-    ModelRequestRateLimitDurationMinutes: z.number().min(0),
-    ModelRequestRateLimitCount: z.number().min(0).max(100000000),
-    ModelRequestRateLimitSuccessCount: z.number().min(1).max(100000000),
+    ModelRequestRateLimitDurationMinutes: z
+      .number()
+      .min(0, t('systemSettings.errors.mustBeNonNegative')),
+    ModelRequestRateLimitCount: z
+      .number()
+      .min(0, t('systemSettings.errors.mustBeNonNegative'))
+      .max(100000000, t('systemSettings.errors.mustBeAtMost100000000')),
+    ModelRequestRateLimitSuccessCount: z
+      .number()
+      .min(1, t('systemSettings.errors.mustBeAtLeast1'))
+      .max(100000000, t('systemSettings.errors.mustBeAtMost100000000')),
     ModelRequestRateLimitGroup: z
       .string()
       .optional()

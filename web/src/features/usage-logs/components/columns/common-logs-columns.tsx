@@ -671,7 +671,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                   />
                 ) : (
                   <StatusBadge
-                    label='N/A'
+                    label={t('dashboard.fields.nA')}
                     variant='neutral'
                     size='sm'
                     copyable={false}

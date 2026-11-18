@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
+import { getCurrencyDisplay, getLocalizedCurrencyLabel } from '@/lib/currency'
 import { formatQuota, parseQuotaFromDollars } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -51,7 +51,7 @@ export function UserQuotaDialog(props: UserQuotaDialogProps) {
   const [loading, setLoading] = useState(false)
 
   const { meta: currencyMeta } = getCurrencyDisplay()
-  const currencyLabel = getCurrencyLabel()
+  const currencyLabel = getLocalizedCurrencyLabel(t)
   const tokensOnly = currencyMeta.kind === 'tokens'
 
   const amountValue = parseFloat(amount) || 0
@@ -115,7 +115,7 @@ export function UserQuotaDialog(props: UserQuotaDialogProps) {
   const placeholder = tokensOnly
     ? t('users.placeholders.enterAmountInTokens')
     : t('users.placeholders.enterAmountInCurrency', {
-        currency: t(currencyLabel),
+        currency: currencyLabel,
       })
 
   return (
@@ -162,7 +162,7 @@ export function UserQuotaDialog(props: UserQuotaDialogProps) {
 
           <div className='space-y-2'>
             <Label>
-              {t('orderQuery.fields.amount')} ({t(currencyLabel)})
+              {t('orderQuery.fields.amount')} ({currencyLabel})
             </Label>
             <Input
               type='number'

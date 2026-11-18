@@ -127,8 +127,8 @@ const OP_BADGE_MAP: Record<
   OpType,
   { variant: 'info' | 'danger' | 'neutral'; label: string }
 > = {
-  [OP_ADD]: { variant: 'info', label: 'Add (+:)' },
-  [OP_REMOVE]: { variant: 'danger', label: 'Remove (-:)' },
+  [OP_ADD]: { variant: 'info', label: 'systemSettings.fields.opAdd' },
+  [OP_REMOVE]: { variant: 'danger', label: 'systemSettings.fields.opRemove' },
   [OP_APPEND]: { variant: 'neutral', label: 'common.fields.append' },
 }
 

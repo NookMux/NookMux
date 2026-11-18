@@ -1,8 +1,7 @@
 {
-  "redemptionCodes.fields.value": ", and",
   "redemptionCodes.placeholders.value1W": "1W",
   "redemptionCodes.actions.addNewRedemptionCodeSByProvidingNecessaryInfo": "Add new redemption code(s) by providing necessary info.",
-  "redemptionCodes.tips.clickSaveWhenYouReDone": "Click save when you&apos;re done.",
+  "redemptionCodes.tips.clickSaveWhenYouReDone": "Click save when you're done.",
   "redemptionCodes.fields.code": "Code",
   "redemptionCodes.status.codesCopied": "Codes copied!",
   "redemptionCodes.actions.copyCode": "Copy code",
@@ -28,14 +27,13 @@
   "redemptionCodes.fields.redeemedBy": "Redeemed By",
   "redemptionCodes.fields.redeemed": "Redeemed:",
   "redemptionCodes.fields.codes": "Redemption Codes",
-  "redemptionCodes.tips.codes": "redemption codes.",
   "redemptionCodes.status.successfullyCreatedCountRedemptionCodes": "Successfully created {{count}} redemption codes",
   "redemptionCodes.status.successfullyDeletedCountInvalidRedemptionCodes": "Successfully deleted {{count}} invalid redemption codes",
-  "redemptionCodes.tips.deleteAll": "This will delete all",
   "redemptionCodes.tips.permanentlyDeleteRedemptionCode": "This will permanently delete redemption code",
   "redemptionCodes.fields.updateRedemptionCode": "Update Redemption Code",
   "redemptionCodes.tips.updateTheRedemptionCodeByProvidingNecessaryInfo": "Update the redemption code by providing necessary info.",
   "redemptionCodes.fields.userId": "User {{id}}",
   "redemptionCodes.errors.failedToFetchKey": "Failed to fetch the full redemption code, please try again later",
-  "redemptionCodes.status.failedToFetchKeyFor": "Failed to fetch the full code for {{name}}"
+  "redemptionCodes.status.failedToFetchKeyFor": "Failed to fetch the full code for {{name}}",
+  "redemptionCodes.tips.deleteInvalidDesc": "This will delete all <used>Used</used>, <disabled>Disabled</disabled>, and <expired>Expired</expired> redemption codes."
 }

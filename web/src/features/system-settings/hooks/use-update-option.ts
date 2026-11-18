@@ -23,11 +23,7 @@ import { updateSystemOption } from '../api'
 import type { UpdateOptionRequest } from '../types'
 
 // Configuration keys that require status refresh
-const STATUS_RELATED_KEYS = [
-  'HeaderNavModules',
-  'common.fields.notice',
-  'LogConsumeEnabled',
-]
+const STATUS_RELATED_KEYS = ['HeaderNavModules', 'Notice', 'LogConsumeEnabled']
 
 // Configuration keys served by the admin-only /api/status/admin_modules endpoint
 const ADMIN_MODULES_RELATED_KEYS = ['SidebarModulesAdmin']

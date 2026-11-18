@@ -671,7 +671,8 @@ func getSessionUser(c *gin.Context) (*userstore.User, error) {
 	}
 	user := &userstore.User{Id: id}
 	if err := user.FillUserById(); err != nil {
-		return nil, err
+		common.SysError("failed to get session user by id: " + err.Error())
+		return nil, errors.New(i18n.T(c, i18n.MsgPasskeyUserInfoFailed))
 	}
 	if user.Status != common.UserStatusEnabled {
 		return nil, errors.New(i18n.T(c, i18n.MsgPasskeyUserDisabled))

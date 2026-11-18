@@ -168,7 +168,6 @@
   "profile.tips.actionWillPermanentlyRemove2FaProtectionFromYour": "This action will permanently remove 2FA protection from your account.",
   "profile.tips.featureRequiresServerSideWeChatConfiguration": "This feature requires server-side WeChat configuration",
   "profile.fields.month": "This month",
-  "profile.fields.confirm": "to confirm",
   "profile.fields.today": "Today",
   "profile.tips.tokenObtainedFromYourGotifyApplication": "Token obtained from your Gotify application",
   "profile.status.tokenRegeneratedAndCopiedToClipboard": "Token regenerated and copied to clipboard",
@@ -202,5 +201,6 @@
   "profile.tips.redirectedToTelegramToCompleteTheBindingProcess": "You will be redirected to Telegram to complete the binding process.",
   "profile.fields.newBackupCodesAreReady": "Your new backup codes are ready",
   "profile.tips.pleaseUseWeChatSScanQrCodeFeatureTo": "Please use WeChat's \"Scan QR Code\" feature to complete the binding process.",
-  "profile.tips.thisPasskeyWillBeRemovedFromYourAccountYouCan": "This Passkey will be removed from your account. You can register it again anytime."
+  "profile.tips.thisPasskeyWillBeRemovedFromYourAccountYouCan": "This Passkey will be removed from your account. You can register it again anytime.",
+  "profile.tips.typeUsernameToConfirm": "Type <strong>{{username}}</strong> to confirm"
 }

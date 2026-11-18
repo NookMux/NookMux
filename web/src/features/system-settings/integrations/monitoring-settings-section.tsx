@@ -50,7 +50,7 @@ const numericString = z.string().refine((value) => {
   const trimmed = value.trim()
   if (!trimmed) return true
   return !Number.isNaN(Number(trimmed)) && Number(trimmed) >= 0
-}, 'Enter a non-negative number or leave empty')
+}, 'systemSettings.errors.enterNonNegativeNumberOrEmpty')
 
 const monitoringSchema = z
   .object({
@@ -64,8 +64,8 @@ const monitoringSchema = z
       auto_test_channel_enabled: z.boolean(),
       auto_test_channel_minutes: z.coerce
         .number()
-        .int()
-        .min(1, 'Interval must be at least 1 minute'),
+        .int('common.errors.mustBeAnInteger')
+        .min(1, 'systemSettings.errors.intervalMustBeAtLeast1Minute'),
     }),
   })
   .superRefine((values, ctx) => {

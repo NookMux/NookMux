@@ -22,9 +22,9 @@ import type { RankingPeriod } from '../types'
 
 const PERIODS: { id: RankingPeriod; labelKey: string }[] = [
   { id: 'today', labelKey: 'profile.fields.today' },
-  { id: 'week', labelKey: 'common.fields.week' },
-  { id: 'month', labelKey: 'common.fields.month' },
-  { id: 'year', labelKey: 'common.fields.year' },
+  { id: 'week', labelKey: 'rankings.fields.thisWeek' },
+  { id: 'month', labelKey: 'rankings.fields.thisMonth' },
+  { id: 'year', labelKey: 'rankings.fields.thisYear' },
   { id: 'all', labelKey: 'common.fields.allTime' },
 ]
 

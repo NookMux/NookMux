@@ -97,7 +97,7 @@ export function useSummaryCardsConfig(totals: {
       title: t('dashboard.fields.last24hUsage'),
       value: totals.todayUsageDisplay,
       description: totals.currencyEnabled
-        ? `${t('dashboard.fields.consumedInTheLast24Hours')} (${t(totals.currencyLabel)})`
+        ? `${t('dashboard.fields.consumedInTheLast24Hours')} (${totals.currencyLabel})`
         : t('dashboard.fields.consumedInTheLast24Hours'),
       icon: Flame,
     },
@@ -106,7 +106,7 @@ export function useSummaryCardsConfig(totals: {
       title: t('dashboard.fields.historicalUsage'),
       value: totals.usedDisplay,
       description: totals.currencyEnabled
-        ? `${t('dashboard.fields.totalConsumed')} (${t(totals.currencyLabel)})`
+        ? `${t('dashboard.fields.totalConsumed')} (${totals.currencyLabel})`
         : t('dashboard.fields.totalConsumedQuota'),
       icon: TrendingUp,
     },

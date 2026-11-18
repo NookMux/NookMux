@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { AxiosError } from 'axios'
+import i18next from 'i18next'
 
 export interface VerificationRequiredInfo {
   code?: string
@@ -56,7 +57,8 @@ export function extractVerificationInfo(
   const axiosError = error as AxiosError<{ code?: string; message?: string }>
   const code = axiosError.response?.data?.code
   const message =
-    axiosError.response?.data?.message ?? 'Secure verification is required'
+    axiosError.response?.data?.message ??
+    i18next.t('auth.titles.additionalVerificationRequired')
 
   return {
     code,

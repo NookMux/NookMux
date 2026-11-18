@@ -227,7 +227,7 @@ func doUpstreamRequest(up *minimaxUpstream, lang string, url string, contentType
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, errors.New(i18n.Translate(lang, i18n.MsgCustomVoiceRequestBuildFailed))
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	if contentType != "" {

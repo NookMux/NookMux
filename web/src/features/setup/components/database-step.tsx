@@ -56,12 +56,12 @@ const DATABASE_META: Record<
     variant: 'success',
   },
   dameng: {
-    label: '达梦 DM8',
+    label: 'setup.fields.damengDatabase',
     descriptionKey: 'common.tips.damengIsAnOracleLineageDomesticDatabaseFor',
     variant: 'success',
   },
   kingbase: {
-    label: '人大金仓 KingbaseES',
+    label: 'setup.fields.kingbaseDatabase',
     descriptionKey: 'common.tips.kingbaseIsAnOracleCompatibleDomestic',
     variant: 'success',
   },
@@ -99,7 +99,7 @@ export function DatabaseStep({ status }: DatabaseStepProps) {
             {t('setup.fields.detectedDatabase')}
           </p>
           <p className='text-foreground text-base font-semibold'>
-            {meta?.label ?? t('channels.fields.unknown')}
+            {meta ? t(meta.label) : t('channels.fields.unknown')}
           </p>
           <p className='text-muted-foreground text-sm'>
             {t(
@@ -109,7 +109,7 @@ export function DatabaseStep({ status }: DatabaseStepProps) {
           </p>
         </div>
         <StatusBadge
-          label={meta?.label ?? t('channels.fields.unknown')}
+          label={meta ? t(meta.label) : t('channels.fields.unknown')}
           variant={meta?.variant ?? 'info'}
           className='cursor-default'
           copyable={false}

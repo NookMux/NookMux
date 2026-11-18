@@ -1,5 +1,5 @@
 {
-  "home.actions.addYourApiKeysSetUpChannelsAndConfigure": "添加 API 密钥，设置渠道并配置访问权限",
+  "home.actions.addYourApiKeysSetUpChannelsAndConfigure": "添加 API Key，设置渠道并配置访问权限",
   "home.fields.aiApplicationInfrastructureFoundation": "AI 应用基础设施基座",
   "home.titles.allYourAiModels": "所有 AI 模型",
   "home.fields.builtForDevelopers": "为开发者打造，",
@@ -47,6 +47,6 @@
   "home.fields.unifiedApiGatewayFor": "统一 API 网关，服务于",
   "home.fields.upstreamServicesIntegrated": "上游服务适配",
   "home.actions.viewPricing": "查看定价",
-  "home.tips.aiIntegration": "你的 AI 集成了吗？",
+  "home.tips.aiIntegration": "你的 AI 接入流程了吗？",
   "home.titles.yourEntireLlmStack": "你的整个 LLM 技术栈。"
 }

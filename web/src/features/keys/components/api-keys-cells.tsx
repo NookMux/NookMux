@@ -161,8 +161,8 @@ function buildQuotaUsage(apiKey: ApiKey): QuotaUsage {
       windowLimit.remaining <= cycleLimit.remaining ? windowLimit : cycleLimit
     const primaryLabelKey =
       windowLimit.remaining <= cycleLimit.remaining
-        ? 'Window Quota'
-        : 'Cycle Quota'
+        ? 'keys.fields.windowQuota'
+        : 'keys.fields.cycleQuota'
 
     return {
       detailLines: [

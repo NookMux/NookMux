@@ -1,6 +1,7 @@
 package billingcontroller
 
 import (
+	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/operation"
 	"github.com/NookMux/NookMux/internal/config/ratio"
 	audit "github.com/NookMux/NookMux/internal/domain/audit"
@@ -71,18 +72,14 @@ func ResetModelRatio(c *gin.Context) {
 	defaultStr := ratio.DefaultModelRatio2JSONString()
 	err := optionstore.UpdateOption("ModelRatio", defaultStr)
 	if err != nil {
-		c.JSON(200, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		common.SysError("failed to update ModelRatio option: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
 	err = ratio.UpdateModelRatioByJSONString(defaultStr)
 	if err != nil {
-		c.JSON(200, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		common.SysError("failed to update ModelRatio memory cache: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
 	audit.RecordAudit(c, auditstore.AuditModuleOption, auditstore.AuditActionUpdate, "重置模型倍率", nil, nil)
@@ -96,10 +93,8 @@ func ResetToolBillingRules(c *gin.Context) {
 	defaultStr := operation.DefaultToolBillingRules2JSONString()
 	err := optionstore.UpdateOption("tool_billing_setting.rules", defaultStr)
 	if err != nil {
-		c.JSON(200, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		common.SysError("failed to update tool_billing_setting.rules option: " + err.Error())
+		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
 	audit.RecordAudit(c, auditstore.AuditModuleOption, auditstore.AuditActionUpdate, "重置工具计费规则", nil, nil)

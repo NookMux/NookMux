@@ -9,6 +9,7 @@ import (
 
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/cache/limiter"
 
 	"github.com/NookMux/NookMux/internal/httpapi"
@@ -87,11 +88,14 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		allowed, err := checkRedisRateLimit(ctx, rdb, successKey, successMaxCount, duration)
 		if err != nil {
 			fmt.Println("检查成功请求数限制失败:", err.Error())
-			abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
+			abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgRateLimitCheckFailed))
 			return
 		}
 		if !allowed {
-			abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到请求数限制：%d分钟内最多请求%d次", config.ModelRequestRateLimitDurationMinutes, successMaxCount))
+			abortWithOpenAiMessage(c, http.StatusTooManyRequests, i18n.T(c, i18n.MsgRateLimitSuccessReached, map[string]any{
+				"Minutes": config.ModelRequestRateLimitDurationMinutes,
+				"Max":     successMaxCount,
+			}))
 			return
 		}
 
@@ -110,12 +114,16 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 
 			if err != nil {
 				fmt.Println("检查总请求数限制失败:", err.Error())
-				abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgRateLimitCheckFailed))
 				return
 			}
 
 			if !allowed {
-				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到总请求数限制：%d分钟内最多请求%d次，包括失败次数，请检查您的请求是否正确", config.ModelRequestRateLimitDurationMinutes, totalMaxCount))
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests, i18n.T(c, i18n.MsgRateLimitTotalReached, map[string]any{
+					"Minutes": config.ModelRequestRateLimitDurationMinutes,
+					"Max":     totalMaxCount,
+				}))
+				return
 			}
 		}
 

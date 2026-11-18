@@ -48,7 +48,11 @@ import { useUpdateOption } from '../hooks/use-update-option'
 
 const behaviorSchema = z
   .object({
-    RetryTimes: z.coerce.number().int().min(0).max(99),
+    RetryTimes: z.coerce
+      .number()
+      .int('common.errors.mustBeAnInteger')
+      .min(0, 'common.errors.mustBeBetween0And99')
+      .max(99, 'common.errors.mustBeBetween0And99'),
     AutomaticRetryEnabled: z.boolean(),
     AutomaticRetryStatusCodes: z.string(),
   })
@@ -57,7 +61,7 @@ const behaviorSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['RetryTimes'],
-        message: 'Retry times must be greater than 0 when retry is enabled',
+        message: 'systemSettings.errors.retryTimesMustBePositiveWhenEnabled',
       })
     }
 

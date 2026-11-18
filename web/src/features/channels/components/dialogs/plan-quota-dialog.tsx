@@ -73,6 +73,40 @@ const PLAN_DISPLAY_NAME_KEYS: Record<string, string> = {
   'minimax-coding-plan-international':
     'channels.fields.planMinimaxCodingPlanInternational',
   'ollama-coding-plan': 'channels.fields.planOllamaCodingPlan',
+  'xiaomi-coding-plan': 'channels.fields.planXiaomiCodingPlan',
+  'xiaomi-coding-plan-ams': 'channels.fields.planXiaomiCodingPlanAmsterdam',
+  'xiaomi-coding-plan-sgp': 'channels.fields.planXiaomiCodingPlanSingapore',
+}
+
+const PLAN_STATUS_LABEL_KEYS: Record<string, string> = {
+  充裕: 'channels.status.planStatusAbundant',
+  适中: 'channels.status.planStatusModerate',
+  紧张: 'channels.status.planStatusTight',
+}
+
+const PLAN_MCP_TOOL_LABEL_KEYS: Record<string, string> = {
+  联网搜索: 'channels.fields.planNetworkSearch',
+  网页读取: 'channels.fields.planWebRead',
+  开源仓库: 'channels.fields.planOpenSourceRepo',
+}
+
+function getLocalizedPlanStatus(
+  status: string | undefined,
+  percent: number,
+  t: (key: string) => string
+): string {
+  if (!status) return `${percent}%`
+  const key = PLAN_STATUS_LABEL_KEYS[status]
+  return key ? t(key) : status
+}
+
+function getLocalizedMcpToolName(
+  name: string | undefined,
+  t: (key: string) => string
+): string {
+  if (!name) return '-'
+  const key = PLAN_MCP_TOOL_LABEL_KEYS[name]
+  return key ? t(key) : name
 }
 
 const FALLBACK_MODEL_COLORS = [
@@ -360,6 +394,7 @@ function LimitCard({
   data?: PlanLimitInfo | null
   resetLabel?: string
 }) {
+  const { t } = useTranslation()
   if (!data) return null
   const percent = clampPercent(data.percentage)
   const variant = getStatusVariant(data.status, percent)
@@ -369,7 +404,7 @@ function LimitCard({
       <div className='flex items-center justify-between gap-2'>
         <div className='text-sm font-medium'>{title}</div>
         <StatusBadge
-          label={data.status || `${percent}%`}
+          label={getLocalizedPlanStatus(data.status, percent, t)}
           variant={variant}
           copyable={false}
         />
@@ -398,7 +433,7 @@ function McpLimitCard({ data }: { data?: PlanMcpLimitInfo | null }) {
           {t('channels.titles.planMcpToolLimit')}
         </div>
         <StatusBadge
-          label={data.status || `${percent}%`}
+          label={getLocalizedPlanStatus(data.status, percent, t)}
           variant={variant}
           copyable={false}
         />
@@ -423,7 +458,7 @@ function McpLimitCard({ data }: { data?: PlanMcpLimitInfo | null }) {
               className='flex items-center justify-between gap-3 py-1 text-xs'
             >
               <span className='text-muted-foreground truncate'>
-                {tool.name || '-'}
+                {getLocalizedMcpToolName(tool.name, t)}
               </span>
               <span className='font-medium tabular-nums'>
                 {formatCompactNumber(tool.usage)}
@@ -1381,7 +1416,13 @@ function GlmPlanContent({
           <div className='flex flex-wrap gap-2'>
             {quotaData.plan_version && (
               <StatusBadge
-                label={`${quotaData.plan_version}${t('channels.fields.planPackage')}`}
+                label={
+                  quotaData.plan_version === '新'
+                    ? t('channels.fields.planPackageNew')
+                    : quotaData.plan_version === '旧'
+                      ? t('channels.fields.planPackageLegacy')
+                      : `${quotaData.plan_version}${t('channels.fields.planPackage')}`
+                }
                 variant={
                   quotaData.plan_version === '新' ? 'success' : 'warning'
                 }

@@ -1,8 +1,8 @@
 package dbmigrate
 
 import (
-	"errors"
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/db"
 	"github.com/google/uuid"
 	"strings"
@@ -16,7 +16,7 @@ var (
 
 func StartDBPreMigrate(params DBPreMigrateStartParams) (string, error) {
 	if strings.TrimSpace(params.TargetDSN) == "" {
-		return "", errors.New("目标数据库 DSN 不能为空")
+		return "", i18n.NewError(i18n.MsgDBMigrateTargetDSNRequired)
 	}
 	sourceType, err := currentMainDBType()
 	if err != nil {
@@ -33,7 +33,7 @@ func StartDBPreMigrate(params DBPreMigrateStartParams) (string, error) {
 	dbPreMigrateJobsMu.Lock()
 	defer dbPreMigrateJobsMu.Unlock()
 	if hasRunningDBPreMigrateJobLocked() {
-		return "", errors.New("已有数据库预迁移任务在运行，请等待其完成后再启动新的任务")
+		return "", i18n.NewError(i18n.MsgDBMigratePreRunning)
 	}
 
 	id := uuid.NewString()

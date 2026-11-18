@@ -43,5 +43,7 @@
   "setup.tips.administratorAccountIsAlreadyInitializedYouCanKeepYour": "The administrator account is already initialized. You can keep your existing credentials and continue to the next step.",
   "setup.fields.usageMode": "Usage mode",
   "setup.tips.couldNotLoadTheSetupStatus": "We could not load the setup status.",
-  "setup.tips.runningInContainersOrEphemeralEnvironmentsEnsureTheSqlite": "When running in containers or ephemeral environments, ensure the SQLite file is mapped to persistent storage to avoid data loss on restart."
+  "setup.tips.runningInContainersOrEphemeralEnvironmentsEnsureTheSqlite": "When running in containers or ephemeral environments, ensure the SQLite file is mapped to persistent storage to avoid data loss on restart.",
+  "setup.fields.damengDatabase": "Dameng DM8",
+  "setup.fields.kingbaseDatabase": "KingbaseES"
 }

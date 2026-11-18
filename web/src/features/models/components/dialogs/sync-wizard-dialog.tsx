@@ -88,14 +88,18 @@ export function SyncWizardDialog({
       const previewRes = await previewUpstreamDiff({ locale, source })
 
       if (!previewRes.success) {
-        throw new Error(previewRes.message || 'Failed to preview upstream diff')
+        throw new Error(
+          previewRes.message || t('models.errors.failedToPreviewUpstreamDiff')
+        )
       }
 
       const conflicts = previewRes.data?.conflicts || []
 
       if (conflicts.length > 0) {
         toast.warning(
-          `Found ${conflicts.length} conflict${conflicts.length > 1 ? 's' : ''}. Please resolve them first.`
+          t('models.tips.foundCountConflictsPleaseResolveFirst', {
+            count: conflicts.length,
+          })
         )
         setUpstreamConflicts(conflicts)
         setOpen('upstream-conflict')
@@ -255,7 +259,9 @@ export function SyncWizardDialog({
           <Button onClick={handleSync} disabled={isSyncing}>
             {isSyncing && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             <RefreshCw className='mr-2 h-4 w-4' />
-            {isSyncing ? 'Syncing...' : 'Sync Now'}
+            {isSyncing
+              ? t('models.status.syncing')
+              : t('models.actions.syncNow')}
           </Button>
         </DialogFooter>
       </DialogContent>

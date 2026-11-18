@@ -22,8 +22,8 @@ For commercial licensing, please contact support@quantumnous.com
  * These helpers convert between ArrayBuffer and Base64URL encodings and
  * normalise server-provided credential options into browser-compatible types.
  */
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import i18next from 'i18next'
 
 /**
  * Convert a base64url string to an ArrayBuffer.
@@ -49,9 +49,7 @@ function base64UrlToArrayBuffer(value?: string | null): ArrayBuffer {
           if (typeof globalRef.Buffer !== 'undefined') {
             return globalRef.Buffer.from(input, 'base64').toString('binary')
           }
-          throw new Error(
-            'Base64 decoding is not supported in this environment'
-          )
+          throw new Error(i18next.t('auth.errors.base64DecodingNotSupported'))
         }
 
   const binary = decode(base64)
@@ -90,9 +88,7 @@ function arrayBufferToBase64Url(
           if (typeof globalRef.Buffer !== 'undefined') {
             return globalRef.Buffer.from(input, 'binary').toString('base64')
           }
-          throw new Error(
-            'Base64 encoding is not supported in this environment'
-          )
+          throw new Error(i18next.t('auth.errors.base64EncodingNotSupported'))
         }
 
   return encode(binary)
@@ -115,7 +111,7 @@ export function prepareCredentialCreationOptions(
 
   if (!options) {
     throw new Error(
-      'Unable to parse Passkey registration options from response'
+      i18next.t('auth.errors.unableToParsePasskeyRegistrationOptions')
     )
   }
 
@@ -160,7 +156,7 @@ export function prepareCredentialRequestOptions(
     payload?.Response
 
   if (!options) {
-    throw new Error('Unable to parse Passkey login options from response')
+    throw new Error(i18next.t('auth.errors.unableToParsePasskeyLoginOptions'))
   }
 
   const publicKey: PublicKeyCredentialRequestOptions & Record<string, any> = {

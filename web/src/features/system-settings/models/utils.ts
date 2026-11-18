@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import i18next from 'i18next'
+
 export function formatJsonForTextarea(value: string) {
   if (!value || !value.trim()) {
     return ''
@@ -82,7 +84,9 @@ function extractErrorPosition(
 }
 
 function formatErrorMessage(error: unknown, jsonString: string): string {
-  if (!(error instanceof Error)) return 'systemSettings.errors.invalidJson'
+  if (!(error instanceof Error)) {
+    return i18next.t('systemSettings.errors.invalidJson')
+  }
 
   const position = extractErrorPosition(error, jsonString)
   const message = error.message
@@ -94,15 +98,25 @@ function formatErrorMessage(error: unknown, jsonString: string): string {
     message.includes('Unexpected string')
 
   if (position.line && position.column) {
-    let hint = ''
-    if (isMissingCommaError && position.line > 1) {
-      hint = ` (check line ${position.line - 1} for missing comma)`
-    }
-    return `Error at line ${position.line}, column ${position.column}: ${message}${hint}`
+    const hint =
+      isMissingCommaError && position.line > 1
+        ? i18next.t('systemSettings.errors.jsonMissingCommaHint', {
+            line: position.line - 1,
+          })
+        : ''
+    return i18next.t('systemSettings.errors.jsonErrorAtLineColumn', {
+      line: position.line,
+      column: position.column,
+      message,
+      hint,
+    })
   }
 
   if (position.position !== undefined) {
-    return `Error at position ${position.position}: ${message}`
+    return i18next.t('systemSettings.errors.jsonErrorAtPosition', {
+      position: position.position,
+      message,
+    })
   }
 
   return message
@@ -118,7 +132,9 @@ export function validateJsonString(
   if (!trimmed) {
     return {
       valid: allowEmpty,
-      message: allowEmpty ? undefined : 'common.errors.valueIsRequired',
+      message: allowEmpty
+        ? undefined
+        : i18next.t('common.errors.valueIsRequired'),
     }
   }
 
@@ -127,7 +143,9 @@ export function validateJsonString(
     if (predicate && !predicate(parsed)) {
       return {
         valid: false,
-        message: predicateMessage || 'common.errors.jsonStructureIsInvalid',
+        message: predicateMessage
+          ? i18next.t(predicateMessage)
+          : i18next.t('common.errors.jsonStructureIsInvalid'),
       }
     }
 

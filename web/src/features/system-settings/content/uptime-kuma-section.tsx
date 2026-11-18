@@ -250,8 +250,9 @@ export function UptimeKumaSection({ data }: UptimeKumaSectionProps) {
               disabled={selectedIds.length === 0}
             >
               <Trash2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.delete')}
-              {selectedIds.length})
+              {t('systemSettings.actions.deleteCount', {
+                count: selectedIds.length,
+              })}
             </Button>
             <Button
               onClick={handleSaveAll}
@@ -463,8 +464,10 @@ export function UptimeKumaSection({ data }: UptimeKumaSectionProps) {
             <AlertDialogTitle>{t('keys.tips.sure')}</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget === 'single'
-                ? 'This Uptime Kuma group will be removed from the list.'
-                : `${selectedIds.length} Uptime Kuma groups will be removed from the list.`}
+                ? t('systemSettings.tips.confirmRemoveSingleUptimeKumaGroup')
+                : t('systemSettings.tips.confirmRemoveCountUptimeKumaGroups', {
+                    count: selectedIds.length,
+                  })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

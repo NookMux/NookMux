@@ -53,9 +53,16 @@ type ApiKeyGroupComboboxProps = {
 
 function formatGroupRatio(
   ratio: ApiKeyGroupOption['ratio'],
-  ratioLabel: string
+  ratioLabel: string,
+  autoLabel: string
 ) {
   if (ratio === undefined || ratio === null || ratio === '') return null
+  if (typeof ratio === 'string') {
+    const normalized = ratio.trim().toLowerCase()
+    if (normalized === 'auto' || ratio.trim() === '自动') {
+      return autoLabel
+    }
+  }
   return `${ratio}x ${ratioLabel}`
 }
 
@@ -78,7 +85,11 @@ function getRatioBadgeClassName(ratio: ApiKeyGroupOption['ratio']) {
 
 function GroupRatioBadge({ ratio }: { ratio: ApiKeyGroupOption['ratio'] }) {
   const { t } = useTranslation()
-  const label = formatGroupRatio(ratio, t('dynamicRatio.fields.ratio794f65'))
+  const label = formatGroupRatio(
+    ratio,
+    t('dynamicRatio.fields.ratio794f65'),
+    t('common.fields.auto')
+  )
 
   if (!label) return null
 

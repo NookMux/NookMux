@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +18,7 @@ func RelayPanicRecover() gin.HandlerFunc {
 				common.SysLog(fmt.Sprintf("stacktrace from panic: %s", string(debug.Stack())))
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error": gin.H{
-						"message": fmt.Sprintf("Panic detected, error: %v. Please submit a issue here: https://github.com/NookMux/NookMux", err),
+						"message": i18n.T(c, i18n.MsgInternalPanicError, map[string]any{"Error": fmt.Sprintf("%v", err)}),
 						"type":    "nookmux_panic",
 					},
 				})

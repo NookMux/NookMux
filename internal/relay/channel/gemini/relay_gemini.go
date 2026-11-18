@@ -13,6 +13,7 @@ import (
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/model"
 	"github.com/NookMux/NookMux/internal/domain/shared"
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/log"
 	"github.com/NookMux/NookMux/internal/relay/channel/openai"
 	"github.com/NookMux/NookMux/internal/relay/channel/openrouter"
@@ -1555,7 +1556,7 @@ func FetchGeminiModels(baseURL, apiKey, proxyURL string) ([]string, error) {
 func FetchGeminiModelsWithHeaders(baseURL, apiKey, proxyURL string, headers http.Header) ([]string, error) {
 	client, err := httpclient.GetHttpClientWithProxy(proxyURL)
 	if err != nil {
-		return nil, fmt.Errorf("创建HTTP客户端失败: %v", err)
+		return nil, i18n.NewError(i18n.MsgChannelProxyClientCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 	}
 
 	allModels := make([]string, 0)
@@ -1572,7 +1573,7 @@ func FetchGeminiModelsWithHeaders(baseURL, apiKey, proxyURL string, headers http
 		request, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			cancel()
-			return nil, fmt.Errorf("创建请求失败: %v", err)
+			return nil, i18n.NewError(i18n.MsgChannelRequestCreateFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 		}
 
 		if headers != nil {
@@ -1606,26 +1607,26 @@ func FetchGeminiModelsWithHeaders(baseURL, apiKey, proxyURL string, headers http
 		response, err := client.Do(request)
 		if err != nil {
 			cancel()
-			return nil, fmt.Errorf("请求失败: %v", err)
+			return nil, i18n.NewError(i18n.MsgChannelUpstreamRequestFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 		}
 
 		if response.StatusCode != http.StatusOK {
 			body, _ := helper.ReadErrorResponseBody(response.Body)
 			response.Body.Close()
 			cancel()
-			return nil, fmt.Errorf("服务器返回错误 %d: %s", response.StatusCode, string(body))
+			return nil, i18n.NewError(i18n.MsgChannelUpstreamStatusError, map[string]any{"Status": response.StatusCode, "Body": string(body)})
 		}
 
 		body, err := helper.ReadModelListResponseBody(response.Body)
 		response.Body.Close()
 		cancel()
 		if err != nil {
-			return nil, fmt.Errorf("读取响应失败: %v", err)
+			return nil, i18n.NewError(i18n.MsgChannelResponseReadFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 		}
 
 		var modelsResponse GeminiModelsResponse
 		if err = jsonx.Unmarshal(body, &modelsResponse); err != nil {
-			return nil, fmt.Errorf("解析响应失败: %v", err)
+			return nil, i18n.NewError(i18n.MsgChannelParseResponseFailed, map[string]any{"Error": err.Error()}).WithCause(err)
 		}
 
 		for _, model := range modelsResponse.Models {

@@ -25,19 +25,19 @@ export const PREFILL_GROUP_TYPES = [
   {
     value: 'model' as PrefillGroupType,
     label: 'common.fields.modelGroup',
-    description: 'Reusable sets of models you can attach to channels.',
+    description: 'models.tips.prefillModelGroupDesc',
     badge: 'blue' as StatusBadgeProps['variant'],
   },
   {
     value: 'tag' as PrefillGroupType,
-    label: 'Tag Group',
-    description: 'Collections of metadata tags for bulk operations.',
+    label: 'models.fields.tagGroup',
+    description: 'models.tips.prefillTagGroupDesc',
     badge: 'purple' as StatusBadgeProps['variant'],
   },
   {
     value: 'endpoint' as PrefillGroupType,
-    label: 'Endpoint Group',
-    description: 'HTTP endpoint mappings shared across providers.',
+    label: 'models.fields.endpointGroup',
+    description: 'models.tips.prefillEndpointGroupDesc',
     badge: 'cyan' as StatusBadgeProps['variant'],
   },
 ] as const

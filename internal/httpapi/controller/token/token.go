@@ -542,7 +542,7 @@ func UpdateToken(c *gin.Context) {
 			return
 		}
 		if cleanToken.Status == common.TokenStatusExhausted && cleanToken.RemainQuota <= 0 && !cleanToken.UnlimitedQuota {
-			httpapi.ApiErrorI18n(c, i18n.MsgTokenExhaustedCannotEable)
+			httpapi.ApiErrorI18n(c, i18n.MsgTokenExhaustedCannotEnable)
 			return
 		}
 	}

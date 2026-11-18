@@ -48,35 +48,35 @@ type PaymentMethodsVisualEditorProps = {
 
 const PAYMENT_TEMPLATES = [
   {
-    name: 'Alipay',
+    nameKey: 'common.fields.alipay',
     template: {
       color: 'rgba(var(--semi-blue-5), 1)',
-      name: '支付宝',
+      nameKey: 'common.fields.alipay',
       type: 'alipay',
     },
   },
   {
-    name: 'WeChat Pay',
+    nameKey: 'common.fields.chatPay',
     template: {
       color: 'rgba(var(--semi-green-5), 1)',
-      name: '微信',
+      nameKey: 'common.fields.chatPay',
       type: 'wxpay',
     },
   },
   {
-    name: 'Stripe',
+    nameKey: 'common.fields.stripe',
     template: {
       color: 'rgba(var(--semi-green-5), 1)',
-      name: 'Stripe',
+      nameKey: 'common.fields.stripe',
       type: 'stripe',
     },
   },
   {
-    name: 'Custom',
+    nameKey: 'common.fields.custom',
     template: {
       color: 'black',
       min_topup: '50',
-      name: '自定义1',
+      nameKey: 'systemSettings.fields.customPayment1',
       type: 'custom1',
     },
   },
@@ -249,18 +249,22 @@ export function PaymentMethodsVisualEditor({
                 <div className='space-y-1'>
                   {PAYMENT_TEMPLATES.map((item) => (
                     <Button
-                      key={item.name}
+                      key={item.nameKey}
                       type='button'
                       variant='ghost'
                       className='w-full justify-start text-sm'
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        handleInsertTemplate(item.template)
+                        const { nameKey, ...rest } = item.template
+                        handleInsertTemplate({
+                          ...rest,
+                          name: t(nameKey),
+                        })
                       }}
                     >
                       <Plus className='mr-2 h-3 w-3' />
-                      {item.name}
+                      {t(item.nameKey)}
                     </Button>
                   ))}
                 </div>

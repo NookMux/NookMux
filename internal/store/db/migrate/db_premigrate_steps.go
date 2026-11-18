@@ -3,8 +3,9 @@ package dbmigrate
 import (
 	"context"
 	"fmt"
+
+	"github.com/NookMux/NookMux/internal/i18n"
 	"gorm.io/gorm"
-	"time"
 )
 
 const (
@@ -26,8 +27,8 @@ type gormTableCopyStep[T any] struct {
 func (s gormTableCopyStep[T]) Name() string { return s.name }
 
 func (s gormTableCopyStep[T]) Run(ctx context.Context, job *DBPreMigrateJob, src *gorm.DB, dst *gorm.DB, params DBPreMigrateStartParams) error {
-	job.setStep("迁移表：" + s.name)
-	job.appendLog(fmt.Sprintf("[%s] 开始迁移表 %s", time.Now().Format(time.RFC3339), s.name))
+	setMigrateStep(job, i18n.MsgDBMigrateStepMigratingTable, map[string]any{"Table": s.name})
+	appendMigrateLog(job, i18n.MsgDBMigrateLogTableStart, map[string]any{"Table": s.name})
 
 	copied, total, err := copyTable[T](ctx, src, dst, copyTableOptions{
 		ClearDst:  params.Force,
@@ -37,10 +38,17 @@ func (s gormTableCopyStep[T]) Run(ctx context.Context, job *DBPreMigrateJob, src
 	})
 	job.setTableProgress(s.name, copied, total)
 	if err != nil {
-		job.appendLog(fmt.Sprintf("[%s] 迁移表 %s 失败：%v", time.Now().Format(time.RFC3339), s.name, err))
+		appendMigrateLog(job, i18n.MsgDBMigrateLogTableFailed, map[string]any{
+			"Table": s.name,
+			"Error": i18n.ResolveError(job.jobLang(), err, ""),
+		})
 		return err
 	}
-	job.appendLog(fmt.Sprintf("[%s] 迁移表 %s 完成：%d/%d", time.Now().Format(time.RFC3339), s.name, copied, total))
+	appendMigrateLog(job, i18n.MsgDBMigrateLogTableDoneCount, map[string]any{
+		"Table":  s.name,
+		"Copied": copied,
+		"Total":  total,
+	})
 	return nil
 }
 

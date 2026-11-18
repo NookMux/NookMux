@@ -72,14 +72,14 @@ export const STORAGE_KEYS = {
   PARAMETER_ENABLED: 'playground_parameter_enabled',
 } as const
 
-// Error messages
+// Error messages (i18n keys)
 export const ERROR_MESSAGES = {
-  API_REQUEST_ERROR: 'Request error occurred',
-  NETWORK_ERROR: 'Network connection failed or server not responding',
-  PARSE_ERROR: 'Error parsing response data',
-  STREAM_START_ERROR: 'Error establishing connection',
-  CONNECTION_CLOSED: 'Connection closed',
-  INTERRUPTED: 'Generation was interrupted',
+  API_REQUEST_ERROR: 'playground.errors.apiRequestError',
+  NETWORK_ERROR: 'playground.errors.networkError',
+  PARSE_ERROR: 'playground.errors.parseError',
+  STREAM_START_ERROR: 'playground.errors.streamStartError',
+  CONNECTION_CLOSED: 'playground.errors.connectionClosed',
+  INTERRUPTED: 'playground.errors.interrupted',
 } as const
 
 // Message action button styles
@@ -89,13 +89,13 @@ export const MESSAGE_ACTION_BUTTON_STYLES = {
   ICON: 'size-4',
 } as const
 
-// Message action labels
+// Message action labels (i18n keys)
 export const MESSAGE_ACTION_LABELS = {
   COPY: 'channels.actions.copy',
   COPIED: 'common.status.copiedb7c3ca',
   REGENERATE: 'profile.fields.regenerate',
   EDIT: 'channels.actions.edit',
   DELETE: 'common.actions.delete',
-  NO_CONTENT: 'No content to copy',
-  WAIT_GENERATION: 'Please wait for the current generation to complete',
+  NO_CONTENT: 'playground.errors.noContentToCopy',
+  WAIT_GENERATION: 'playground.tips.waitGenerationComplete',
 } as const

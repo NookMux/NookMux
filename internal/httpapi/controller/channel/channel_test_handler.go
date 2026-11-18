@@ -95,6 +95,10 @@ func resolveChannelTestUserID(c *gin.Context) (int, error) {
 }
 
 func testChannel(channel *channelstore.Channel, testUserID int, testModel string, endpointType string, isStream bool, isTool bool) testResult {
+	return testChannelWithLang(i18n.DefaultLang, channel, testUserID, testModel, endpointType, isStream, isTool)
+}
+
+func testChannelWithLang(lang string, channel *channelstore.Channel, testUserID int, testModel string, endpointType string, isStream bool, isTool bool) testResult {
 	tik := time.Now()
 	var unsupportedTestChannelTypes = []int{
 		channelconstant.ChannelTypeMidjourney,
@@ -105,6 +109,9 @@ func testChannel(channel *channelstore.Channel, testUserID int, testModel string
 	c, _ := gin.CreateTestContext(w)
 	httpapi.SetContextKey(c, common.ContextKeyRequestStartTime, tik)
 	c.Request = &http.Request{Header: make(http.Header)}
+	if lang != "" {
+		c.Request.Header.Set("Accept-Language", lang)
+	}
 	if lo.Contains(unsupportedTestChannelTypes, channel.Type) {
 		channelTypeName := channelconstant.GetChannelTypeName(channel.Type)
 		return testResult{
@@ -1517,7 +1524,7 @@ func TestChannel(c *gin.Context) {
 		return
 	}
 	tik := time.Now()
-	result := testChannel(channel, testUserID, testModel, endpointType, isStream, isTool)
+	result := testChannelWithLang(i18n.GetLangFromContext(c), channel, testUserID, testModel, endpointType, isStream, isTool)
 	if result.localErr != nil {
 		errorCode := shared.ErrorCode("")
 		if result.newAPIError != nil {
@@ -1549,7 +1556,7 @@ func testAllChannels(c *gin.Context, notify bool) error {
 	testAllChannelsLock.Lock()
 	if testAllChannelsRunning {
 		testAllChannelsLock.Unlock()
-		return errors.New(i18n.T(c, i18n.MsgChannelTestAlreadyRunning))
+		return i18n.NewError(i18n.MsgChannelTestAlreadyRunning)
 	}
 	testAllChannelsRunning = true
 	testAllChannelsLock.Unlock()
@@ -1575,7 +1582,7 @@ func testAllChannels(c *gin.Context, notify bool) error {
 		for _, channel := range channels {
 			isChannelEnabled := channel.Status == common.ChannelStatusEnabled
 			tik := time.Now()
-			result := testChannel(channel, testUserID, "", "", false, false)
+			result := testChannelWithLang(lang, channel, testUserID, "", "", false, false)
 			tok := time.Now()
 			milliseconds := tok.Sub(tik).Milliseconds()
 
@@ -1624,6 +1631,11 @@ func testAllChannels(c *gin.Context, notify bool) error {
 func TestAllChannels(c *gin.Context) {
 	err := testAllChannels(c, true)
 	if err != nil {
+		var localizedErr *i18n.Error
+		if errors.As(err, &localizedErr) {
+			httpapi.ApiErrorI18n(c, localizedErr.Key, localizedErr.Params)
+			return
+		}
 		common.SysError("failed to test all channels: " + err.Error())
 		httpapi.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return

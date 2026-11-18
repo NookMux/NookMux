@@ -195,11 +195,10 @@ export function AmountDiscountDialog({
                     {t('systemSettings.tips.finalPriceMultiplier0955Discount')}
                     {discountPercentage > 0 && (
                       <span className='ml-1 font-medium text-green-600 dark:text-green-400'>
-                        = {discountPercentage}
-                        {t('systemSettings.fields.off')}
+                        ({discountPercentage}
+                        {t('systemSettings.fields.off')})
                       </span>
                     )}
-                    )
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
