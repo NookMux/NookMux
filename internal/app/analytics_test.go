@@ -20,8 +20,8 @@ func TestAnalyticsInjectionReplacesPlaceholders(t *testing.T) {
 	for _, want := range []string{
 		`data-website-id="umami-site"`,
 		"gtag/js?id=ga-site",
-		"<!--Umami QuantumNous-->\n",
-		"<!--Google Analytics QuantumNous-->\n",
+		"<!--Umami NookMux-->\n",
+		"<!--Google Analytics NookMux-->\n",
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("analytics injection missing %q: %s", want, page)

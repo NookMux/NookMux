@@ -15,6 +15,11 @@
 
 ### Fixed
 
+- **统一遗留品牌标识为 NookMux**：
+  - 将 Bark 与 Gotify 通知请求的 `User-Agent` 统一为 `NookMux-Bark-Notify/1.0` 与 `NookMux-Gotify-Notify/1.0`（`internal/infra/notify/user_notify.go`），收口请求发送逻辑并补充单元测试。
+  - 将日志文件落盘命名格式调整为 `nookmux-%s.log`（`internal/infra/log/logger.go`）并补充单元测试。
+  - 将页面统计脚本注入注释更新为 `<!--Umami NookMux-->` 与 `<!--Google Analytics NookMux-->`（`internal/app/analytics.go`），同步更新单元测试。
+
 - **前端运行时 i18n 键值透传、重复翻译与硬编码问题**：
   - 修复多模态文件列、数据库迁移状态、使用日志平台与任务状态、工单类型/错误提示、渠道类型与套餐额度弹窗（含补充 `xiaomi-coding-plan*` 分区及状态/MCP 工具映射）、货币标签、支付方式、模型元数据（分词器/协议/厂商显示名）、Passkey 与二步验证错误提示等将原始值或接口原文直接传入 `t(...)` 导致展示裸键值的问题。
   - 修复公开页眉导航、页脚备用列及 MiniMax 语音设置的 `t(t(...))` 重复翻译问题，重构渠道参数覆盖预设、系统设置校验（含 13 处 Zod 表单规则）、账号注销及兑换码批量删除弹窗中的文案拼接与半括号键，统一使用完整翻译键或 `<Trans />`。

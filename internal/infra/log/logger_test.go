@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -46,5 +47,32 @@ func TestLogError_StripsCRLFFromExternalInput(t *testing.T) {
 	}
 	if !strings.Contains(out, `download failed\x00with nulinjected line`) {
 		t.Errorf("sanitized content mismatch: %q", out)
+	}
+}
+
+func TestSetupLogger_UsesNookMuxLogPrefix(t *testing.T) {
+	origDir := Dir
+	origOut := gin.DefaultWriter
+	origErr := gin.DefaultErrorWriter
+	defer func() {
+		Dir = origDir
+		gin.DefaultWriter = origOut
+		gin.DefaultErrorWriter = origErr
+	}()
+
+	logDir := t.TempDir()
+	Dir = logDir
+	SetupLogger()
+
+	entries, err := os.ReadDir(logDir)
+	if err != nil {
+		t.Fatalf("ReadDir(%q) failed: %v", logDir, err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 log file in %q, got %d", logDir, len(entries))
+	}
+	name := entries[0].Name()
+	if !strings.HasPrefix(name, "nookmux-") || !strings.HasSuffix(name, ".log") {
+		t.Fatalf("unexpected log filename %q, want prefix %q and suffix %q", name, "nookmux-", ".log")
 	}
 }

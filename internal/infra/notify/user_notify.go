@@ -91,6 +91,71 @@ func sendEmailNotify(userEmail string, data shared.Notify) error {
 	return email.SendEmail(data.Title, userEmail, content)
 }
 
+const (
+	barkNotifyUserAgent   = "NookMux-Bark-Notify/1.0"
+	gotifyNotifyUserAgent = "NookMux-Gotify-Notify/1.0"
+)
+
+// notifyHeaders builds HTTP headers for outbound notification requests.
+func notifyHeaders(userAgent string, contentType string) map[string]string {
+	headers := map[string]string{
+		"User-Agent": userAgent,
+	}
+	if contentType != "" {
+		headers["Content-Type"] = contentType
+	}
+	return headers
+}
+
+// sendNotifyHTTPRequest sends a notification request via the configured worker or direct SSRF-validated HTTP client.
+func sendNotifyHTTPRequest(method, targetURL, channelLabel string, headers map[string]string, body []byte) error {
+	if system.EnableWorker() {
+		workerReq := &media.WorkerRequest{
+			URL:     targetURL,
+			Key:     system.WorkerValidKey,
+			Method:  method,
+			Headers: headers,
+			Body:    body,
+		}
+		resp, err := media.DoWorkerRequest(workerReq)
+		if err != nil {
+			return fmt.Errorf("failed to send %s request through worker: %v", channelLabel, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("%s request failed with status code: %d", channelLabel, resp.StatusCode)
+		}
+		return nil
+	}
+
+	var req *http.Request
+	var err error
+	if body != nil {
+		req, err = httpclient.NewSSRFValidatedRequest(method, targetURL, bytes.NewBuffer(body))
+	} else {
+		req, err = httpclient.NewSSRFValidatedRequest(method, targetURL, nil)
+	}
+	if err != nil {
+		return fmt.Errorf("request reject: %v", err)
+	}
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := httpclient.GetHttpClient().Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send %s request: %v", channelLabel, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("%s request failed with status code: %d", channelLabel, resp.StatusCode)
+	}
+	return nil
+}
+
 func sendBarkNotify(barkURL string, data shared.Notify) error {
 	// 处理占位符
 	content := data.Content
@@ -102,57 +167,13 @@ func sendBarkNotify(barkURL string, data shared.Notify) error {
 	finalURL := strings.ReplaceAll(barkURL, "{{title}}", url.QueryEscape(data.Title))
 	finalURL = strings.ReplaceAll(finalURL, "{{content}}", url.QueryEscape(content))
 
-	// 发送GET请求到Bark
-	var req *http.Request
-	var resp *http.Response
-	var err error
-
-	if system.EnableWorker() {
-		// 使用worker发送请求
-		workerReq := &media.WorkerRequest{
-			URL:    finalURL,
-			Key:    system.WorkerValidKey,
-			Method: http.MethodGet,
-			Headers: map[string]string{
-				"User-Agent": "OneAPI-Bark-Notify/1.0",
-			},
-		}
-
-		resp, err = media.DoWorkerRequest(workerReq)
-		if err != nil {
-			return fmt.Errorf("failed to send bark request through worker: %v", err)
-		}
-		defer resp.Body.Close()
-
-		// 检查响应状态
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("bark request failed with status code: %d", resp.StatusCode)
-		}
-	} else {
-		// SSRF防护：初始校验 + 连接时复查（非Worker模式，防 DNS rebinding）
-		req, err = httpclient.NewSSRFValidatedRequest(http.MethodGet, finalURL, nil)
-		if err != nil {
-			return fmt.Errorf("request reject: %v", err)
-		}
-
-		// 设置User-Agent
-		req.Header.Set("User-Agent", "OneAPI-Bark-Notify/1.0")
-
-		// 发送请求
-		client := httpclient.GetHttpClient()
-		resp, err = client.Do(req)
-		if err != nil {
-			return fmt.Errorf("failed to send bark request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		// 检查响应状态
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("bark request failed with status code: %d", resp.StatusCode)
-		}
-	}
-
-	return nil
+	return sendNotifyHTTPRequest(
+		http.MethodGet,
+		finalURL,
+		"bark",
+		notifyHeaders(barkNotifyUserAgent, ""),
+		nil,
+	)
 }
 
 func sendGotifyNotify(gotifyUrl string, gotifyToken string, priority int, data shared.Notify) error {
@@ -190,56 +211,11 @@ func sendGotifyNotify(gotifyUrl string, gotifyToken string, priority int, data s
 		return fmt.Errorf("failed to marshal gotify payload: %v", err)
 	}
 
-	var req *http.Request
-	var resp *http.Response
-
-	if system.EnableWorker() {
-		// 使用worker发送请求
-		workerReq := &media.WorkerRequest{
-			URL:    finalURL,
-			Key:    system.WorkerValidKey,
-			Method: http.MethodPost,
-			Headers: map[string]string{
-				"Content-Type": "application/json; charset=utf-8",
-				"User-Agent":   "OneAPI-Gotify-Notify/1.0",
-			},
-			Body: payloadBytes,
-		}
-
-		resp, err = media.DoWorkerRequest(workerReq)
-		if err != nil {
-			return fmt.Errorf("failed to send gotify request through worker: %v", err)
-		}
-		defer resp.Body.Close()
-
-		// 检查响应状态
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("gotify request failed with status code: %d", resp.StatusCode)
-		}
-	} else {
-		// SSRF防护：初始校验 + 连接时复查（非Worker模式，防 DNS rebinding）
-		req, err = httpclient.NewSSRFValidatedRequest(http.MethodPost, finalURL, bytes.NewBuffer(payloadBytes))
-		if err != nil {
-			return fmt.Errorf("request reject: %v", err)
-		}
-
-		// 设置请求头
-		req.Header.Set("Content-Type", "application/json; charset=utf-8")
-		req.Header.Set("User-Agent", "NookMux-Gotify-Notify/1.0")
-
-		// 发送请求
-		client := httpclient.GetHttpClient()
-		resp, err = client.Do(req)
-		if err != nil {
-			return fmt.Errorf("failed to send gotify request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		// 检查响应状态
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("gotify request failed with status code: %d", resp.StatusCode)
-		}
-	}
-
-	return nil
+	return sendNotifyHTTPRequest(
+		http.MethodPost,
+		finalURL,
+		"gotify",
+		notifyHeaders(gotifyNotifyUserAgent, "application/json; charset=utf-8"),
+		payloadBytes,
+	)
 }
