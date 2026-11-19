@@ -94,10 +94,6 @@ func resolveChannelTestUserID(c *gin.Context) (int, error) {
 	return rootUser.Id, nil
 }
 
-func testChannel(channel *channelstore.Channel, testUserID int, testModel string, endpointType string, isStream bool, isTool bool) testResult {
-	return testChannelWithLang(i18n.DefaultLang, channel, testUserID, testModel, endpointType, isStream, isTool)
-}
-
 func testChannelWithLang(lang string, channel *channelstore.Channel, testUserID int, testModel string, endpointType string, isStream bool, isTool bool) testResult {
 	tik := time.Now()
 	var unsupportedTestChannelTypes = []int{
