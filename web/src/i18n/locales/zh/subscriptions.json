@@ -1,10 +1,10 @@
 {
-  "subscriptions.status.active": "活跃",
+  "subscriptions.status.active": "生效中",
   "subscriptions.fields.end": "结束",
   "subscriptions.fields.minutes": "分钟",
   "subscriptions.status.paymentRequestFailed": "支付请求失败",
   "subscriptions.fields.plan": "套餐",
-  "subscriptions.status.redirectingToPaymentPage": "正在重定向到支付页面...",
+  "subscriptions.status.redirectingToPaymentPage": "正在跳转到支付页面...",
   "subscriptions.status.requestFailed": "请求失败",
   "subscriptions.actions.resetPeriod": "重置周期",
   "subscriptions.fields.source": "来源",

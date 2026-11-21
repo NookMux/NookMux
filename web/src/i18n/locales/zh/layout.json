@@ -25,7 +25,7 @@
   "layout.fields.operations": "运维",
   "layout.tips.pleaseSignInToViewModule": "请登录后查看 {{module}}。",
   "layout.tips.powerfulApiManagementPlatform": "强大的 API 管理平台",
-  "layout.tips.projectAttributionSuffix": "是一个由社区驱动的开源项目。",
+  "layout.tips.projectAttributionSuffix": "由社区驱动的开源项目。",
   "layout.fields.privacyPolicy": "隐私政策",
   "layout.titles.profile": "个人资料",
   "layout.status.redirectingToSignInInSecondsSeconds": "将在 {{seconds}} 秒后跳转到登录页。",

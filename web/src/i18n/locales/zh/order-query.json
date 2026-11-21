@@ -3,13 +3,13 @@
   "orderQuery.tips.sureYouWantToManuallyCompleteThisOrderThe": "确定要手动补单吗？用户将获得对应的额度。",
   "orderQuery.tips.confirmCheckOrderWithGateway": "确定要向支付网关核查该订单的支付状态吗？若网关确认已支付，订单将自动完成入账。",
   "orderQuery.fields.completeOrder": "补单",
-  "orderQuery.fields.checkOrder": "检查",
+  "orderQuery.fields.checkOrder": "核查",
   "orderQuery.actions.copyOrderNumber": "复制订单号",
   "orderQuery.fields.noOrdersFound": "未找到订单",
   "orderQuery.fields.number": "订单号",
   "orderQuery.titles.query": "历史订单",
-  "orderQuery.fields.payment": "支付",
-  "orderQuery.fields.paymentMethod": "付款方式",
+  "orderQuery.fields.payment": "实付金额",
+  "orderQuery.fields.paymentMethod": "支付方式",
   "orderQuery.actions.searchByOrderNumber": "按订单号搜索...",
   "orderQuery.fields.userId": "用户 ID"
 }

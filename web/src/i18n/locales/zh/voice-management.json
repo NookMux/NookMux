@@ -5,7 +5,7 @@
   "voiceManagement.errors.sureYouWantToDeleteVoiceVoiceIdThis": "确定要删除音色 {{voiceId}} 吗？此操作不可撤销。",
   "voiceManagement.actions.deleteVoice": "删除音色",
   "voiceManagement.actions.editVoice": "编辑音色",
-  "voiceManagement.actions.filterByVoiceIdNotRedirectId": "按音色 ID 筛选，不是重定向 ID",
+  "voiceManagement.actions.filterByVoiceIdNotRedirectId": "按音色 ID 筛选，而非重定向 ID",
   "voiceManagement.tips.leaveEmptyToSendVoiceIdUpstream": "留空则向上游发送音色 ID",
   "voiceManagement.fields.noVoicesFound": "未找到音色记录",
   "voiceManagement.fields.notAllowed": "未允许",

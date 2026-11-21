@@ -7,7 +7,7 @@
   "multimodal.tips.customizeVoiceConfigurations": "Customize voice configurations.",
   "multimodal.fields.emotionTags": "Emotion tags",
   "multimodal.fields.generatePreview": "Generate Preview",
-  "multimodal.errors.mustStartWithALetterOnlyLettersNumbersAnd": "Must start with a letter, only letters, numbers, - and _, length 8-256.",
+  "multimodal.errors.mustStartWithALetterOnlyLettersNumbersAnd": "Must start with a letter, contain only letters, numbers, '-', and '_', not end with '-' or '_', and be 8-256 characters long.",
   "multimodal.tips.noEmotionOrToneWordTagsConfigured": "No emotion or tone-word tags configured.",
   "multimodal.tips.noPreviewAudioReturned": "No preview audio returned.",
   "multimodal.fields.noiseReduction": "Noise Reduction",
@@ -21,12 +21,12 @@
   "multimodal.tips.supportsMp3M4aWavDuration10s5minMax20": "Supports mp3, m4a, wav. Duration 10s-5min, max 20MB.",
   "multimodal.tips.toneWordTagsWrapWithParentheses": "Tone-word tags (wrap with parentheses)",
   "multimodal.status.ttsEnhancementIsDisabled": "TTS enhancement is disabled.",
-  "multimodal.actions.uploadAnAudioSampleChooseATtsModelEnter": "Upload an audio sample, choose a TTS model, enter a voice ID, then generate a preview audio and confirm whether to customize.",
+  "multimodal.actions.uploadAnAudioSampleChooseATtsModelEnter": "Upload an audio sample, choose a TTS model, enter a voice ID, generate preview audio, and confirm customization.",
   "multimodal.fields.voiceCustomizationConfirmed": "Voice customization confirmed",
   "multimodal.fields.voiceIdIsInvalid": "Voice ID is invalid",
-  "multimodal.errors.failedToFetchPaymentPrice": "Failed to fetch payment price",
+  "multimodal.errors.failedToFetchPaymentPrice": "Failed to fetch customization fee",
   "multimodal.fields.volumeNormalization": "Volume Normalization",
-  "multimodal.status.loadingPaymentPrice": "Loading payment price...",
+  "multimodal.status.loadingPaymentPrice": "Loading customization fee...",
   "multimodal.tips.pleaseConfirmTheVoiceCustomizationDetailsAfterConfirmationTheFee": "Please confirm the voice customization details. After confirmation, the fee will be deducted and the voice will be activated.",
-  "multimodal.fields.paymentPrice": "Payment Price"
+  "multimodal.fields.paymentPrice": "Customization Fee"
 }

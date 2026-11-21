@@ -7,7 +7,7 @@
   "multimodal.tips.customizeVoiceConfigurations": "定制音色配置。",
   "multimodal.fields.emotionTags": "情绪标签",
   "multimodal.fields.generatePreview": "生成预览",
-  "multimodal.errors.mustStartWithALetterOnlyLettersNumbersAnd": "必须以字母开头，仅含字母、数字、- 和 _，长度 8-256。",
+  "multimodal.errors.mustStartWithALetterOnlyLettersNumbersAnd": "必须以字母开头，仅含字母、数字、- 和 _，不能以 - 或 _ 结尾，长度 8-256 个字符。",
   "multimodal.tips.noEmotionOrToneWordTagsConfigured": "未配置情绪或语气词标签。",
   "multimodal.tips.noPreviewAudioReturned": "未返回预览音频。",
   "multimodal.fields.noiseReduction": "降噪",
@@ -24,9 +24,9 @@
   "multimodal.actions.uploadAnAudioSampleChooseATtsModelEnter": "上传音频样本，选择 TTS 模型，填写音色 ID，生成预览音频并确认是否定制。",
   "multimodal.fields.voiceCustomizationConfirmed": "音色定制已确认",
   "multimodal.fields.voiceIdIsInvalid": "音色 ID 无效",
-  "multimodal.errors.failedToFetchPaymentPrice": "获取支付价格失败",
+  "multimodal.errors.failedToFetchPaymentPrice": "获取定制费用失败",
   "multimodal.fields.volumeNormalization": "音量归一化",
-  "multimodal.status.loadingPaymentPrice": "正在加载支付价格...",
+  "multimodal.status.loadingPaymentPrice": "正在加载定制费用...",
   "multimodal.tips.pleaseConfirmTheVoiceCustomizationDetailsAfterConfirmationTheFee": "请确认音色定制详情。确认后将扣除费用并激活音色。",
-  "multimodal.fields.paymentPrice": "支付价格"
+  "multimodal.fields.paymentPrice": "定制费用"
 }

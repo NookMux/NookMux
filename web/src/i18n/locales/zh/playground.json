@@ -1,6 +1,6 @@
 {
-  "playground.fields.askAnything": "随便问",
-  "playground.fields.attach": "附加",
+  "playground.fields.askAnything": "询问任何问题",
+  "playground.fields.attach": "添加附件",
   "playground.fields.featureInDevelopment": "功能开发中",
   "playground.fields.modelPriceNotConfigured": "模型价格未配置",
   "playground.actions.searchFeatureInDevelopment": "搜索功能开发中",

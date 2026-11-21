@@ -1,7 +1,7 @@
 {
   "tickets.fields.changedStatusTo": "将状态更改为",
   "tickets.actions.closeTicket": "关闭工单",
-  "tickets.tips.describeTheQuestionOrRequest": "描述问题或请求",
+  "tickets.tips.describeTheQuestionOrRequest": "描述问题或需求",
   "tickets.placeholders.enterAConciseTitle": "输入简洁的标题",
   "tickets.fields.newTicket": "新建工单",
   "tickets.fields.noMessages": "暂无消息",

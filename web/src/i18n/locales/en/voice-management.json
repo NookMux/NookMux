@@ -9,7 +9,7 @@
   "voiceManagement.tips.leaveEmptyToSendVoiceIdUpstream": "Leave empty to send voice ID upstream",
   "voiceManagement.fields.noVoicesFound": "No voices found",
   "voiceManagement.fields.notAllowed": "Not Allowed",
-  "voiceManagement.status.onlyPaidVoicesWithTtsEnabledCanPassThe": "Only paid voices with TTS enabled can pass the whitelist.",
+  "voiceManagement.status.onlyPaidVoicesWithTtsEnabledCanPassThe": "Only paid voices with TTS enabled can pass the whitelist check.",
   "voiceManagement.fields.operatorId": "Operator ID",
   "voiceManagement.errors.operatorIdMustBeAPositiveInteger": "Operator ID must be a positive integer",
   "voiceManagement.fields.redirectId": "Redirect ID",

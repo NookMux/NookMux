@@ -18,7 +18,7 @@
   "redemptionCodes.status.expired": "已过期",
   "redemptionCodes.actions.filterByNameOrId": "按名称或 ID 筛选...",
   "redemptionCodes.fields.fullCode": "完整兑换码",
-  "redemptionCodes.fields.leaveEmptyForNeverExpires": "留空表示永不失效",
+  "redemptionCodes.fields.leaveEmptyForNeverExpires": "留空表示永不过期",
   "redemptionCodes.tips.nameForThisRedemptionCode120Characters": "此兑换码的名称（1-20 个字符）",
   "redemptionCodes.tips.noRedemptionCodesAvailableCreateYourFirstRedemptionCode": "暂无可用的兑换码。创建您的第一个兑换码即可开始使用。",
   "redemptionCodes.fields.noRedemptionCodesFound": "未找到兑换码",
@@ -33,7 +33,7 @@
   "redemptionCodes.fields.updateRedemptionCode": "更新兑换码",
   "redemptionCodes.tips.updateTheRedemptionCodeByProvidingNecessaryInfo": "填写必要信息以更新兑换码。",
   "redemptionCodes.fields.userId": "用户 {{id}}",
-  "redemptionCodes.errors.failedToFetchKey": "获取兑换码完整码失败，请稍后重试",
-  "redemptionCodes.status.failedToFetchKeyFor": "获取兑换码 {{name}} 的完整码失败",
+  "redemptionCodes.errors.failedToFetchKey": "获取完整兑换码失败，请稍后重试",
+  "redemptionCodes.status.failedToFetchKeyFor": "获取 {{name}} 的完整兑换码失败",
   "redemptionCodes.tips.deleteInvalidDesc": "将删除所有<used>已使用</used>、<disabled>已禁用</disabled>和<expired>已过期</expired>的兑换码。"
 }

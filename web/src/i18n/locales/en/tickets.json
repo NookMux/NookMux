@@ -9,7 +9,7 @@
   "tickets.errors.pleaseEnterATicketTitle": "Please enter a ticket title",
   "tickets.errors.pleaseEnterTicketContent": "Please enter ticket content",
   "tickets.errors.failedToLoadTickets": "Failed to load tickets",
-  "tickets.errors.failedToLoadTicketDetail": "Failed to load ticket detail",
+  "tickets.errors.failedToLoadTicketDetail": "Failed to load ticket details",
   "tickets.errors.failedToCreateTicket": "Failed to create ticket",
   "tickets.errors.failedToSendReply": "Failed to send reply",
   "tickets.errors.failedToCloseTicket": "Failed to close ticket",
@@ -23,7 +23,7 @@
   "tickets.status.ticketStatusWillChangeToPending": "The ticket status will change to pending.",
   "tickets.fields.ticketClosed": "Ticket closed",
   "tickets.status.ticketCreated": "Ticket created",
-  "tickets.fields.ticketDetail": "Ticket detail",
+  "tickets.fields.ticketDetail": "Ticket details",
   "tickets.fields.ticketReopened": "Ticket reopened",
   "tickets.tips.typeAReply": "Type a reply...",
   "tickets.fields.title": "Title"
