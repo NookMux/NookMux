@@ -306,6 +306,7 @@ custom_voice.upload_audio_required: "Please upload an audio file"
 # Pricing messages
 pricing.reset_model_ratio_success: "Model ratios reset successfully"
 pricing.reset_tool_billing_rules_success: "Tool billing rules reset successfully"
+pricing.model_name_required: "Model name cannot be empty"
 
 # Quota messages
 quota.threshold_gt_zero: "Warning threshold must be greater than 0"

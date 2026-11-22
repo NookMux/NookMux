@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
 import type {
+  BuiltinModelPricingResponse,
   CleanLogsParams,
   CleanLogsResponse,
   DatabaseMigrationInfoResponse,
@@ -108,6 +109,14 @@ export async function resetModelRatios() {
 export async function resetToolBillingRules() {
   const res = await api.post<UpdateOptionResponse>(
     '/api/option/reset_tool_billing_rules'
+  )
+  return res.data
+}
+
+export async function getBuiltinModelPricing(model: string) {
+  const res = await api.get<BuiltinModelPricingResponse>(
+    '/api/option/builtin_model_pricing',
+    { params: { model } }
   )
   return res.data
 }

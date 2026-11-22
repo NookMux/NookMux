@@ -71,6 +71,41 @@ export type UpdateOptionResponse = {
   message: string
 }
 
+type BuiltinContextPricingTier = {
+  name?: string
+  min_tokens: number
+  max_tokens?: number
+  model_ratio: number
+  completion_ratio: number
+  cache_ratio: number
+  create_cache_ratio: number
+  audio_ratio: number
+  audio_completion_ratio: number
+}
+
+/** 模型在内置定价表中的原始条目，缺失的字段表示内置定价表没有对应条目。 */
+export type BuiltinModelPricing = {
+  model_name: string
+  available: boolean
+  model_price?: number
+  model_ratio?: number
+  completion_ratio?: number
+  cache_ratio?: number
+  create_cache_ratio?: number
+  audio_ratio?: number
+  audio_completion_ratio?: number
+  context_pricing?: {
+    enabled: boolean
+    tiers: BuiltinContextPricingTier[]
+  }
+}
+
+export type BuiltinModelPricingResponse = {
+  success: boolean
+  message: string
+  data: BuiltinModelPricing
+}
+
 export type CleanLogsParams = {
   start_timestamp?: number
   end_timestamp: number

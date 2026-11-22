@@ -18,12 +18,19 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, Trash2, Loader2 } from 'lucide-react'
+import { Import, Plus, Search, Trash2, Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -44,7 +51,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getEnabledModels } from '@/features/channels/api'
+import { getBuiltinModelPricing } from '../api'
 import { safeJsonParse } from '../utils/json-parser'
+import {
+  applyBuiltinPricing,
+  hasBuiltinPricing,
+  modelRatioFields,
+} from './builtin-pricing'
 import { formatPricingNumber } from './pricing-format'
 
 type ModelRatioVisualEditorProps = {
@@ -536,6 +549,21 @@ export function ModelRatioVisualEditor({
   const selectedRow =
     filteredRows.find((row) => row.name === selectedName) || pageRows[0] || null
 
+  // 「导入内置价格」针对右侧当前展示的模型，点击时手动读取一次；
+  // 请求失败由请求层统一提示，这里不重试。
+  const builtinPricingModel = selectedRow?.name
+  const builtinPricingQuery = useQuery({
+    queryKey: ['option', 'builtin-model-pricing', builtinPricingModel],
+    queryFn: () => {
+      if (!builtinPricingModel) {
+        throw new Error('builtin pricing requires a selected model')
+      }
+      return getBuiltinModelPricing(builtinPricingModel)
+    },
+    enabled: false,
+    retry: false,
+  })
+
   const selectModel = (name: string) => {
     setSelectedName(name)
     onValidityChange?.(true)
@@ -572,6 +600,36 @@ export function ModelRatioVisualEditor({
     writeMap('AudioRatio', nextAudio)
     writeMap('AudioCompletionRatio', nextAudioCompletion)
     writeMap('ContextPricing', nextContext)
+  }
+
+  const importBuiltinPricing = async (name: string) => {
+    selectModel(name)
+    const result = await builtinPricingQuery.refetch()
+    // HTTP 错误与业务失败都已由请求层弹出后端提示。
+    if (result.isError || !result.data?.success) return
+    const pricing = result.data.data
+    if (!hasBuiltinPricing(pricing)) {
+      toast.error(t('systemSettings.errors.modelHasNoBuiltinPricing'))
+      return
+    }
+    const nextMaps = applyBuiltinPricing(
+      {
+        ModelPrice: maps.price,
+        ModelRatio: maps.ratio,
+        CacheRatio: maps.cache,
+        CreateCacheRatio: maps.createCache,
+        CompletionRatio: maps.completion,
+        AudioRatio: maps.audio,
+        AudioCompletionRatio: maps.audioCompletion,
+        ContextPricing: maps.context,
+      },
+      name,
+      pricing
+    )
+    for (const field of modelRatioFields) {
+      writeMap(field, nextMaps[field])
+    }
+    toast.success(t('systemSettings.tips.builtinPricingImported'))
   }
 
   const setMode = (name: string, mode: PricingMode) => {
@@ -975,11 +1033,31 @@ export function ModelRatioVisualEditor({
           )}
         >
           <CardHeader className='border-b'>
-            <CardTitle className='truncate'>
+            <CardTitle className='self-center truncate'>
               {selectedRow
                 ? selectedRow.name
                 : t('systemSettings.titles.priceSettings')}
             </CardTitle>
+            <CardAction className='row-span-1 self-center'>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                disabled={!selectedRow || builtinPricingQuery.isFetching}
+                onClick={() => {
+                  if (selectedRow) {
+                    importBuiltinPricing(selectedRow.name)
+                  }
+                }}
+              >
+                {builtinPricingQuery.isFetching ? (
+                  <Loader2 data-icon='inline-start' className='animate-spin' />
+                ) : (
+                  <Import data-icon='inline-start' />
+                )}
+                {t('systemSettings.actions.importBuiltinPricing')}
+              </Button>
+            </CardAction>
           </CardHeader>
           <CardContent>
             {!selectedRow ? (

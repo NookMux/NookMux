@@ -307,6 +307,7 @@ custom_voice.upload_audio_required: "请上传音频文件"
 # Pricing messages
 pricing.reset_model_ratio_success: "重置模型倍率成功"
 pricing.reset_tool_billing_rules_success: "重置工具计费规则成功"
+pricing.model_name_required: "模型名称不能为空"
 
 # Quota messages
 quota.threshold_gt_zero: "告警阈值必须大于 0"

@@ -178,6 +178,7 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.DELETE("/channel_affinity_cache", channelcontroller.ClearChannelAffinityCache)
 			optionRoute.POST("/rest_model_ratio", billingcontroller.ResetModelRatio)
 			optionRoute.POST("/reset_tool_billing_rules", billingcontroller.ResetToolBillingRules)
+			optionRoute.GET("/builtin_model_pricing", billingcontroller.GetBuiltinModelPricing)
 			optionRoute.POST("/migrate_console_setting", optioncontroller.MigrateConsoleSetting) // 用于迁移检测的旧键，下个版本会删除
 		}
 

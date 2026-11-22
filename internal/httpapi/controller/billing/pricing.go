@@ -1,6 +1,8 @@
 package billingcontroller
 
 import (
+	"strings"
+
 	"github.com/NookMux/NookMux/internal/common"
 	"github.com/NookMux/NookMux/internal/config/operation"
 	"github.com/NookMux/NookMux/internal/config/ratio"
@@ -66,6 +68,16 @@ func GetPricing(c *gin.Context) {
 		"supported_endpoint": pricingstore.GetSupportedEndpointMap(),
 		"auto_groups":        domaingroup.GetUserAutoGroup(group),
 	})
+}
+
+// GetBuiltinModelPricing 返回模型在内置定价表中的原始条目，供模型定价可视化编辑器导入。
+func GetBuiltinModelPricing(c *gin.Context) {
+	model := strings.TrimSpace(c.Query("model"))
+	if model == "" {
+		httpapi.ApiErrorI18n(c, i18n.MsgPricingModelNameRequired)
+		return
+	}
+	httpapi.ApiSuccess(c, ratio.GetBuiltinModelPricing(model))
 }
 
 func ResetModelRatio(c *gin.Context) {
