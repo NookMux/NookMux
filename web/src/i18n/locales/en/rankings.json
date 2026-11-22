@@ -1,8 +1,8 @@
 {
   "rankings.fields.countMore": "+{{count}} more",
-  "rankings.fields.modelAuthor": "By model author",
+  "rankings.fields.modelAuthor": "By vendor",
   "rankings.tips.compareTheMostPopularModelsOnThePlatform": "Compare the most popular models on the platform",
-  "rankings.tips.compareTheMostPopularAgentsOnThePlatform": "Compare the most popular agent clients on the platform",
+  "rankings.tips.compareTheMostPopularAgentsOnThePlatform": "Compare the most popular agents on the platform",
   "rankings.status.discoverTheMostUsedModelsAndRisingVendorsOn": "Discover the most-used models and rising vendors on the platform, updated from live usage data.",
   "rankings.fields.leaderboards": "Leaderboards",
   "rankings.fields.llmLeaderboard": "LLM Leaderboard",
@@ -26,7 +26,7 @@
   "rankings.errors.unableToLoadRankings": "Unable to load rankings",
   "rankings.errors.unableToLoadRankingsData": "Unable to load rankings data",
   "rankings.tips.vendorsRankedByAggregatedTokenVolume": "Vendors ranked by aggregated token volume",
-  "rankings.fields.thisWeek": "Week",
-  "rankings.fields.thisMonth": "Month",
-  "rankings.fields.thisYear": "Year"
+  "rankings.fields.thisWeek": "This Week",
+  "rankings.fields.thisMonth": "This Month",
+  "rankings.fields.thisYear": "This Year"
 }

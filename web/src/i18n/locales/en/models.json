@@ -255,7 +255,7 @@
   "models.tips.thisVendorWillBeRemovedFromTheList": "This vendor will be removed from the list.",
   "models.tips.use0ForZeroRetentionLeaveEmptyWhenUnknown": "Use 0 for zero retention; leave empty when unknown.",
   "models.actions.enableWhenRequestsAreNotUsedForUpstreamTrainingBy": "Enable when requests are not used for upstream training by default.",
-  "models.tips.displayedInTheModelMarketplaceDetails": "Displayed in the model marketplace details.",
+  "models.tips.displayedInTheModelMarketplaceDetails": "Displayed in the Model Hub details.",
   "models.fields.modelMetadata": "Model metadata",
   "models.tips.maximumInputTokensSupportedByThisModel": "Maximum input tokens supported by this model.",
   "models.tips.maximumTokensPerResponse": "Maximum tokens per response.",

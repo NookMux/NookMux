@@ -110,7 +110,6 @@ const BRAND_AND_LITERAL_KEYS = new Set([
   'Responses',
   'Secret Key',
   'SentencePiece (Gemini)',
-  'SiliconFlow',
   'Site Key',
   'Stability AI',
   'Stripe',

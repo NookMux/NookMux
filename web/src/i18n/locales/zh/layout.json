@@ -33,7 +33,7 @@
   "layout.actions.signIn": "登录",
   "layout.actions.signInNow": "立即登录",
   "layout.actions.signInRequired": "需要登录",
-  "layout.actions.signOut": "登出",
+  "layout.actions.signOut": "退出登录",
   "layout.fields.siteBranding": "站点与品牌",
   "layout.titles.systemAdministration": "系统管理",
   "layout.fields.toggleNavigationMenu": "切换导航菜单",
