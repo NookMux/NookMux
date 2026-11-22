@@ -17,6 +17,18 @@ func TestDetectPlatform(t *testing.T) {
 		{"claude-cli case insensitive", "Claude-CLI/2.1.0 (external, cli)", "-", "-", PlatformClaudeCode},
 		{"claude-code mcp ua", "claude-code/1.0.0", "-", "-", PlatformClaudeCode},
 
+		// Claude Desktop：Electron 应用 UA，自报的 Claude/{version} 位于串中；
+		// 系统段随运行环境变化、三段版本号随发版变化，均不参与判定。
+		{"claude desktop linux", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Claude/6.28899.2 Chrome/156.0.8078.100 Electron/45.3.3 Safari/537.36", "-", "-", PlatformClaudeCode},
+		{"claude desktop windows", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Claude/1.26832.0 Chrome/148.0.7778.280 Electron/42.7.0 Safari/537.36", "-", "-", PlatformClaudeCode},
+		{"claude desktop macos", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Claude/1.17377.2 Chrome/148.0.7560.100 Electron/42.7.0 Safari/537.36", "-", "-", PlatformClaudeCode},
+		{"claude desktop leading product", "Claude/1.0", "-", "-", PlatformClaudeCode},
+		// Anthropic 网页抓取类 UA 的 product 与 claude 不同，不得误命中。
+		{"claude-user must not match", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +https://www.anthropic.com/claude-user) Chrome/131.0.6216.202 Safari/537.36", "-", "-", ""},
+		{"claude-web must not match", "Claude-Web/1.0 (external, anthropic)", "-", "-", ""},
+		{"claude path in comment must not match", "MyBot/1.0 (+https://example.com/claude/)", "-", "-", ""},
+		{"other electron app must not match", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) OtherStudio/1.6.0 Chrome/130.0.6723.58 Electron/33.0.2 Safari/537.36", "-", "-", ""},
+
 		// Codex：originator 家族的 UA 前缀。
 		{"codex default originator", "codex_cli_rs/0.114.0 (Windows 10.0.26200; x86_64) xterm-256color", "-", "-", PlatformCodex},
 		{"codex tui", "codex-tui/0.1.0 (Mac OS 15.0; arm64)", "-", "-", PlatformCodex},
@@ -65,6 +77,7 @@ func TestDetectPlatform(t *testing.T) {
 		// 优先级：UA 描述实际客户端进程，冲突时优先于 Referer。
 		{"ua wins over referer", "claude-cli/2.1.0 (external, cli)", "-", "https://cherry-ai.com", PlatformClaudeCode},
 		{"rikka ua wins over referer", "RikkaHub-Android/1.5.0", "-", "https://cherry-ai.com", PlatformRikkaHub},
+		{"claude desktop ua wins over referer", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Claude/6.28899.2 Chrome/156.0.8078.100 Electron/45.3.3 Safari/537.36", "-", "https://cherry-ai.com", PlatformClaudeCode},
 		{"x-title is not authoritative", "-", "Cherry Studio", "-", ""},
 		{"x-title is not authoritative for openclaw", "-", "OpenClaw", "-", ""},
 		{"x-title is not authoritative for rikkahub", "-", "RikkaHub", "-", ""},
@@ -86,6 +99,9 @@ func TestDetectPlatform(t *testing.T) {
 func TestAllPlatformIDs(t *testing.T) {
 	seen := make(map[string]struct{}, len(uaProductPrefixes))
 	for _, platform := range uaProductPrefixes {
+		seen[platform] = struct{}{}
+	}
+	for _, platform := range uaEmbeddedProducts {
 		seen[platform] = struct{}{}
 	}
 	for _, platform := range refererHostPlatforms {

@@ -156,6 +156,18 @@
   marker 由 `data_migration.log_platform.v1.done` 升级为
   `data_migration.log_platform.v2.done`，已部署实例升级后启动时自动对
   `platform` 为空的存量行增量重跑识别（已识别行不受影响），无需人工干预。
+- **使用平台识别扩展 Claude Desktop**：Claude Desktop（Electron）桌面端进程
+  发起的请求，UA 形如
+  `Mozilla/5.0 (<os>) AppleWebKit/537.36 (KHTML, like Gecko) Claude/{version} Chrome/{version} Electron/{version} Safari/537.36`，
+  应用自报的 `Claude/{version}` 位于串中而非串首，现按空白分隔 token 对 '/'
+  之前的 product 做精确匹配并归入 Claude Code（`claude-code`）；系统段与各段
+  版本号随运行环境与发版变化，均不参与判定，`Claude-User` / `Claude-Web` 等
+  product 不同的 UA 不受影响。历史日志回填迁移 marker 由
+  `data_migration.log_platform.v2.done` 升级为
+  `data_migration.log_platform.v3.done`，已部署实例升级后启动时自动对
+  `platform` 为空的存量行增量重跑识别（已识别行不受影响）；「热门 Agent」
+  图表如需覆盖存量 Claude Desktop 流量，对历史时间范围执行一次
+  `POST /api/data/recalculate`。
 - **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
   端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
   cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段

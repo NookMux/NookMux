@@ -71,6 +71,20 @@ var uaProductPrefixes = map[string]string{
 	"rikkahub": PlatformRikkaHub,
 }
 
+// uaEmbeddedProducts 定义 Chromium/Electron 系应用 UA 中位于串中的自报 product。
+// 该类 UA 形如（应用自身 product 位于串中，uaProductPrefixes 的串首锚定无法
+// 命中）：
+// `Mozilla/5.0 (<os>) AppleWebKit/537.36 (KHTML, like Gecko) <product>/<version>`
+// `Chrome/<version> Electron/<version> Safari/537.36`。
+// 匹配时按空白切分 token，对首个 '/' 之前的 product 做精确比较；版本号随
+// 发版变化，不参与判定。
+var uaEmbeddedProducts = map[string]string{
+	// Claude Desktop（Electron）桌面端进程发起的请求，归入 Claude Code。
+	// product 须精确为 claude：Claude-User / Claude-Web / Claude-Agent 等
+	// Anthropic 网页抓取 UA 的 product 不同，不受影响。
+	"claude": PlatformClaudeCode,
+}
+
 // refererHostPlatforms 定义 HTTP-Referer 的 host 精确匹配表（host 已小写、去端口）。
 var refererHostPlatforms = map[string]string{
 	"cherry-ai.com":                 PlatformCherryStudio,
@@ -86,9 +100,10 @@ var refererHostPlatforms = map[string]string{
 // 平台，返回受控平台 ID；无法识别时返回空串。输入为 extractClientHeaders 产出的
 // 已清洗值（空值统一为 "-"）。
 //
-// 优先级：UA product 前缀 > Referer host 精确匹配。X-Title 可由客户端任意填写，
-// 仅在其他信号缺席时作弱佐证，不参与判定。UA 描述实际客户端进程，Referer 可能是
-// 用户在 GUI 中填写的任意值，冲突时以 UA 为准。
+// 优先级：UA（串首 product 前缀 > 串中自报 product token）> Referer host 精确
+// 匹配。X-Title 可由客户端任意填写，仅在其他信号缺席时作弱佐证，不参与判定。
+// UA 描述实际客户端进程，Referer 可能是用户在 GUI 中填写的任意值，冲突时以
+// UA 为准。
 func DetectPlatform(ua, xTitle, httpReferer string) string {
 	if id := detectPlatformByUa(normalizePlatformSignal(ua)); id != "" {
 		return id
@@ -115,6 +130,21 @@ func detectPlatformByUa(ua string) string {
 		}
 		rest := ua[len(prefix):]
 		if rest == "" || strings.ContainsAny(rest[:1], "/- (") {
+			return platform
+		}
+	}
+	return detectPlatformByEmbeddedProduct(ua)
+}
+
+// detectPlatformByEmbeddedProduct 在 UA 的各空白分隔 token 中查找
+// `product/version` 形态的自报 product，命中 uaEmbeddedProducts 即返回对应平台。
+func detectPlatformByEmbeddedProduct(ua string) string {
+	for _, token := range strings.Fields(ua) {
+		product, _, found := strings.Cut(token, "/")
+		if !found {
+			continue
+		}
+		if platform, ok := uaEmbeddedProducts[product]; ok {
 			return platform
 		}
 	}

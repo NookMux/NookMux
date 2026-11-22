@@ -19,6 +19,7 @@ func TestBackfillLogPlatformsIdentifiesHistoricalRows(t *testing.T) {
 		{UserId: 1, CreatedAt: now, Type: logstore.LogTypeConsume, Ua: "claude-cli/2.1.0 (external, cli)", XTitle: "-", HttpReferer: "-"},
 		{UserId: 1, CreatedAt: now, Type: logstore.LogTypeConsume, Ua: "-", XTitle: "-", HttpReferer: "https://cherry-ai.com"},
 		{UserId: 1, CreatedAt: now, Type: logstore.LogTypeError, Ua: "Mozilla/5.0 (Windows NT 10.0)", XTitle: "-", HttpReferer: "-"},
+		{UserId: 1, CreatedAt: now, Type: logstore.LogTypeConsume, Ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Claude/6.28899.2 Chrome/156.0.8078.100 Electron/45.3.3 Safari/537.36", XTitle: "-", HttpReferer: "-"},
 		{UserId: 1, CreatedAt: now, Type: logstore.LogTypeConsume, Ua: "-", XTitle: "-", HttpReferer: "-", Platform: "opencode"},
 	}
 	for i := range rows {
@@ -45,9 +46,10 @@ func TestBackfillLogPlatformsIdentifiesHistoricalRows(t *testing.T) {
 	}
 	assertPlatform(rows[0].Id, "claude-code")
 	assertPlatform(rows[1].Id, "cherry-studio")
+	assertPlatform(rows[3].Id, "claude-code")
 	// 无法识别的行保持空值，已有值的行不被覆盖。
 	assertPlatform(rows[2].Id, "")
-	assertPlatform(rows[3].Id, "opencode")
+	assertPlatform(rows[4].Id, "opencode")
 
 	var count int64
 	if err := dbstore.DB.Model(&optionstore.Option{}).Where(&optionstore.Option{Key: logPlatformBackfillMarker}).Count(&count).Error; err != nil {
