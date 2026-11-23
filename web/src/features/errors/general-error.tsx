@@ -16,10 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useEffect } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  claimChunkReload,
+  resolveHeadingStatus,
+  type ReloadMarkerStorage,
+} from './lib/general-error'
 
 const FEEDBACK_URL = 'https://github.com/NookMux/NookMux/issues'
 
@@ -28,12 +34,13 @@ type GeneralErrorProps = React.HTMLAttributes<HTMLDivElement> & {
   error?: unknown
 }
 
-function getHttpStatus(error: unknown): number | undefined {
-  if (typeof error !== 'object' || error === null) return undefined
-  const response = (error as Record<string, unknown>).response
-  if (typeof response !== 'object' || response === null) return undefined
-  const status = (response as Record<string, unknown>).status
-  return typeof status === 'number' ? status : undefined
+// 浏览器禁用存储时读取会话存储会抛错，此时无法留下刷新标记。
+function sessionStorageOrNull(): ReloadMarkerStorage | undefined {
+  try {
+    return window.sessionStorage
+  } catch {
+    return undefined
+  }
 }
 
 export function GeneralError({
@@ -44,8 +51,17 @@ export function GeneralError({
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { history } = useRouter()
-  const status = getHttpStatus(error)
+  const status = resolveHeadingStatus(error)
   const isRateLimited = status === 429
+
+  // 路由分块加载失败多发于发版后旧分块被替换，当前页面无法原地恢复：同一失败在
+  // 标签页内首次出现时自动刷新一次以拉取新资源，再次出现则停留在本页。
+  useEffect(() => {
+    if (claimChunkReload(sessionStorageOrNull(), error)) {
+      window.location.reload()
+    }
+  }, [error])
+
   const title = isRateLimited
     ? t('common.fields.tooManyRequests')
     : `${t('common.tips.oopsSomethingWentWrong')} ${`:')`}`
@@ -56,10 +72,8 @@ export function GeneralError({
   return (
     <div className={cn('h-svh w-full', className)}>
       <div className='m-auto flex h-full w-full flex-col items-center justify-center gap-2'>
-        {!minimal && (
-          <h1 className='text-[7rem] leading-tight font-bold'>
-            {status ?? 500}
-          </h1>
+        {!minimal && status !== undefined && (
+          <h1 className='text-[7rem] leading-tight font-bold'>{status}</h1>
         )}
         <span className='font-medium'>{title}</span>
         <p className='text-muted-foreground text-center'>

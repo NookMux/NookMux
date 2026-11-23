@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"testing/fstest"
 
+	"github.com/NookMux/NookMux/internal/common"
+	"github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/gin-gonic/gin"
 )
 
@@ -137,5 +140,71 @@ func TestPrecompressedStaticAssetsFallsThrough(t *testing.T) {
 	}
 	if got := resp.Header().Get("Content-Encoding"); got != "" {
 		t.Fatalf("Content-Encoding = %q, want empty", got)
+	}
+}
+
+func TestSetWebRouterScopesWebRateLimitToFallbackChain(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	origRedisEnabled := redis.RedisEnabled
+	origWebEnable, origWebNum, origWebDuration := common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration
+	origStaticEnable := common.GlobalStaticRateLimitEnable
+	redis.RedisEnabled = false
+	common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration = true, 2, 90
+	common.GlobalStaticRateLimitEnable = false
+	t.Cleanup(func() {
+		redis.RedisEnabled = origRedisEnabled
+		common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration = origWebEnable, origWebNum, origWebDuration
+		common.GlobalStaticRateLimitEnable = origStaticEnable
+	})
+
+	buildFS := fstest.MapFS{"dist/static/js/app.js": &fstest.MapFile{Data: []byte("app")}}
+	indexPage := []byte("<!doctype html><title>spa</title>")
+	router := gin.New()
+	// API 路由先于 Web 静态路由注册
+	router.GET("/api/ping", func(c *gin.Context) {
+		c.String(http.StatusOK, "pong")
+	})
+	SetWebRouter(router, WebAssets{BuildFS: buildFS, IndexPage: indexPage})
+
+	// 限流计数按 IP 隔离：404 隔离检查与页面额度检查各用一个 IP
+	get := func(clientIP, target string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		req.RemoteAddr = clientIP + ":12345"
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		return resp
+	}
+	const clientIP = "192.0.2.20"
+	page := func(target string) *httptest.ResponseRecorder {
+		return get(clientIP, target)
+	}
+
+	// 未匹配的 /api 路径返回 JSON 404，不回退为前端页面
+	if resp := get("192.0.2.21", "/api/unknown"); resp.Code != http.StatusNotFound {
+		t.Fatalf("GET /api/unknown: code = %d, want %d", resp.Code, http.StatusNotFound)
+	}
+
+	// 页面额度：两次放行并返回 SPA 文档，第三次 429 并带 Retry-After
+	for i := 0; i < 2; i++ {
+		resp := page("/console/overview")
+		if resp.Code != http.StatusOK || !bytes.Equal(resp.Body.Bytes(), indexPage) {
+			t.Fatalf("GET /console/overview %d: code = %d, body = %q", i+1, resp.Code, resp.Body.String())
+		}
+	}
+	resp := page("/console/overview")
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("GET /console/overview 3: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if got, want := resp.Header().Get("Retry-After"), strconv.FormatInt(90, 10); got != want {
+		t.Fatalf("Retry-After = %q, want %q", got, want)
+	}
+
+	// 页面额度耗尽后：构建产物与已注册的 API 路由都不受影响
+	if resp := page("/static/js/app.js"); resp.Code != http.StatusOK || resp.Body.String() != "app" {
+		t.Fatalf("GET /static/js/app.js: code = %d, body = %q", resp.Code, resp.Body.String())
+	}
+	if resp := page("/api/ping"); resp.Code != http.StatusOK || resp.Body.String() != "pong" {
+		t.Fatalf("GET /api/ping: code = %d, body = %q", resp.Code, resp.Body.String())
 	}
 }

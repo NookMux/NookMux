@@ -135,6 +135,10 @@ func InitEnv() {
 	common.GlobalWebRateLimitNum = common.GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 60)
 	common.GlobalWebRateLimitDuration = int64(common.GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT_DURATION", 180))
 
+	common.GlobalStaticRateLimitEnable = common.GetEnvOrDefaultBool("GLOBAL_STATIC_RATE_LIMIT_ENABLE", false)
+	common.GlobalStaticRateLimitNum = common.GetEnvOrDefault("GLOBAL_STATIC_RATE_LIMIT", 1000)
+	common.GlobalStaticRateLimitDuration = int64(common.GetEnvOrDefault("GLOBAL_STATIC_RATE_LIMIT_DURATION", 180))
+
 	common.CriticalRateLimitEnable = common.GetEnvOrDefaultBool("CRITICAL_RATE_LIMIT_ENABLE", true)
 	common.CriticalRateLimitNum = common.GetEnvOrDefault("CRITICAL_RATE_LIMIT", 20)
 	common.CriticalRateLimitDuration = int64(common.GetEnvOrDefault("CRITICAL_RATE_LIMIT_DURATION", 20*60))

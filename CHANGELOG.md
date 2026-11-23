@@ -19,6 +19,10 @@
 
 ### Fixed
 
+- **控制台页面刷新返回 HTTP 429**：全局 Web 限流按 IP 只计页面与未匹配路径的请求，前端构建产物（入口脚本、懒加载分块等）不再占用页面额度，避免连续刷新或浏览较多页面后静态资源被限流、分块加载失败。
+  - 前端构建产物改由独立的静态限流器计数：`GLOBAL_STATIC_RATE_LIMIT_ENABLE`（默认关闭，关闭时构建产物不限流）、`GLOBAL_STATIC_RATE_LIMIT`（默认 1000）、`GLOBAL_STATIC_RATE_LIMIT_DURATION`（默认 180）；Web 限流与静态资源服务显式挂在 SPA 回退链上，不涉及 API 与 Relay 路由（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/web_router.go`、`internal/app/env.go`）。
+  - IP 级与用户级限流器（全局 API / Web / 静态 / 关键操作 / 搜索等）拒绝响应附带 `Retry-After` 响应头，取完整窗口时长；模型级限流与邮箱验证频控不受影响（`internal/httpapi/middleware/rate_limit.go`）。
+  - 错误页遇到路由分块加载失败时在同一标签页内自动刷新一次，再次失败停留在错误页；作为错误边界渲染时，状态码标题仅在错误携带真实 HTTP 状态码时展示，直接访问的 `/500` 页面仍固定显示 500（`web/src/features/errors/general-error.tsx`、`web/src/features/errors/lib/general-error.ts`）。
 - **统一遗留品牌标识为 NookMux**：
   - 将 Bark 与 Gotify 通知请求的 `User-Agent` 统一为 `NookMux-Bark-Notify/1.0` 与 `NookMux-Gotify-Notify/1.0`（`internal/infra/notify/user_notify.go`），收口请求发送逻辑并补充单元测试。
   - 将日志文件落盘命名格式调整为 `nookmux-%s.log`（`internal/infra/log/logger.go`）并补充单元测试。

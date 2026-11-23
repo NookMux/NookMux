@@ -26,20 +26,24 @@ type WebAssets struct {
 func SetWebRouter(router *gin.Engine, assets WebAssets) {
 	webFS := webdist.EmbedFolder(assets.BuildFS, "dist")
 
-	router.Use(middleware.GlobalWebRateLimit())
-	router.Use(middleware.Cache())
-	router.Use(staticAssetCache())
-	router.Use(precompressedStaticAssets(assets.BuildFS))
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
-	router.Use(static.Serve("/", webFS))
-	router.NoRoute(func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") || strings.HasPrefix(c.Request.RequestURI, "/assets") {
-			relaycontroller.RelayNotFound(c)
-			return
-		}
-		c.Header("Cache-Control", "no-cache")
-		c.Data(http.StatusOK, "text/html; charset=utf-8", assets.IndexPage)
-	})
+	// Web 限流、缓存头与静态资源服务只挂在 SPA 回退链上，作用于页面、构建产物与
+	// 未匹配路径；先于本函数注册的 API 与 Relay 路由不经过这条链。
+	router.NoRoute(
+		middleware.GlobalWebRateLimit(webFS),
+		middleware.Cache(),
+		staticAssetCache(),
+		precompressedStaticAssets(assets.BuildFS),
+		gzip.Gzip(gzip.DefaultCompression),
+		static.Serve("/", webFS),
+		func(c *gin.Context) {
+			if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") || strings.HasPrefix(c.Request.RequestURI, "/assets") {
+				relaycontroller.RelayNotFound(c)
+				return
+			}
+			c.Header("Cache-Control", "no-cache")
+			c.Data(http.StatusOK, "text/html; charset=utf-8", assets.IndexPage)
+		},
+	)
 }
 
 func staticAssetCache() gin.HandlerFunc {

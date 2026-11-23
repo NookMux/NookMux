@@ -5,6 +5,7 @@
 ## Web 静态路由
 
 - `SetWebRouter` 结合 `internal/app/webdist` 提供的 `WebAssets` 和 `EmbedFolder` 提供前端 SPA 静态资产服务。
+- `SetWebRouter` 只向 `router.NoRoute` 挂载 SPA 回退链（`GlobalWebRateLimit` → 缓存头 → 预压缩与 gzip → `static.Serve` → index 或 JSON 404），先注册的 API 与 Relay 路由不经过该链。Web 限流按请求路径是否为内嵌 `dist` 中实际存在的文件分桶：页面与未匹配路径计入 `GW`，构建产物计入独立的 `GS`（默认关闭）。
 - **404 隔离防护**：在 `NoRoute` 处理中，`/v1`、`/api`、`/assets` 必须返回标准 JSON 404 错误响应，严禁错误回退为前端 HTML 页面。
 - 分析脚本注入位于 `internal/app/analytics.go`，处理的是 `internal/app/webdist` 提供的 index 字节副本。
 - `FRONTEND_BASE_URL` 仅在独立前端分离部署模式下生效，保持现有 302 重定向语义。
