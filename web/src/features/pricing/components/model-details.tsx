@@ -1032,7 +1032,7 @@ function GroupPricingSection(props: {
   )
 }
 
-const TAB_VALUES = ['overview', 'api', 'performance'] as const
+const TAB_VALUES = ['overview', 'performance', 'api'] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
 const TAB_META: Record<
@@ -1040,8 +1040,8 @@ const TAB_META: Record<
   { icon: React.ComponentType<{ className?: string }>; labelKey: string }
 > = {
   overview: { icon: Info, labelKey: 'common.titles.overview' },
-  api: { icon: Code2, labelKey: 'common.fields.api' },
   performance: { icon: Gauge, labelKey: 'pricing.titles.performance' },
+  api: { icon: Code2, labelKey: 'common.fields.api' },
 }
 
 interface ModelDetailsContentProps {
@@ -1124,15 +1124,15 @@ function ModelDetailsContent(props: ModelDetailsContentProps) {
           <ModelDetailsProviderInfo model={props.model} />
         </TabsContent>
 
+        <TabsContent value='performance' className='outline-none'>
+          <ModelDetailsPerformance modelName={props.model.model_name || ''} />
+        </TabsContent>
+
         <TabsContent value='api' className='outline-none'>
           <ModelDetailsApi
             model={props.model}
             endpointMap={props.endpointMap}
           />
-        </TabsContent>
-
-        <TabsContent value='performance' className='outline-none'>
-          <ModelDetailsPerformance modelName={props.model.model_name || ''} />
         </TabsContent>
       </Tabs>
     </div>
