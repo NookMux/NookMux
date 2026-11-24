@@ -74,6 +74,13 @@ func TestDetectPlatform(t *testing.T) {
 		{"rikka referer with path", "-", "-", "https://rikka-ai.com/docs", PlatformRikkaHub},
 		{"rikkahubite must not match", "rikkahubite/1.0", "-", "-", ""},
 
+		// WorkBuddy：UA 为 WorkBuddy/{version} WorkBuddy/{version} CLI/{version}
+		// 形态，串首 workbuddy 前缀锚定。
+		{"workbuddy ua", "WorkBuddy/5.11.3 WorkBuddy/5.11.3 CLI/2.176.0", "-", "-", PlatformWorkBuddy},
+		{"workbuddy case insensitive", "workbuddy/5.11.3 workbuddy/5.11.3 cli/2.176.0", "-", "-", PlatformWorkBuddy},
+		{"workbuddy bare ua", "WorkBuddy", "-", "-", PlatformWorkBuddy},
+		{"workbuddyite must not match", "workbuddyite/1.0", "-", "-", ""},
+
 		// 优先级：UA 描述实际客户端进程，冲突时优先于 Referer。
 		{"ua wins over referer", "claude-cli/2.1.0 (external, cli)", "-", "https://cherry-ai.com", PlatformClaudeCode},
 		{"rikka ua wins over referer", "RikkaHub-Android/1.5.0", "-", "https://cherry-ai.com", PlatformRikkaHub},

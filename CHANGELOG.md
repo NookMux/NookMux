@@ -19,6 +19,7 @@
 
 ### Fixed
 
+- **模型广场模型详情页签顺序（#458）**：模型详情页与模型列表右侧详情抽屉的页签统一按「概览、性能、API」排列（`web/src/features/pricing/components/model-details.tsx`）。
 - **控制台页面刷新返回 HTTP 429**：全局 Web 限流按 IP 只计页面与未匹配路径的请求，前端构建产物（入口脚本、懒加载分块等）不再占用页面额度，避免连续刷新或浏览较多页面后静态资源被限流、分块加载失败。
   - 前端构建产物改由独立的静态限流器计数：`GLOBAL_STATIC_RATE_LIMIT_ENABLE`（默认关闭，关闭时构建产物不限流）、`GLOBAL_STATIC_RATE_LIMIT`（默认 1000）、`GLOBAL_STATIC_RATE_LIMIT_DURATION`（默认 180）；Web 限流与静态资源服务显式挂在 SPA 回退链上，不涉及 API 与 Relay 路由（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/web_router.go`、`internal/app/env.go`）。
   - IP 级与用户级限流器（全局 API / Web / 静态 / 关键操作 / 搜索等）拒绝响应附带 `Retry-After` 响应头，取完整窗口时长；模型级限流与邮箱验证频控不受影响（`internal/httpapi/middleware/rate_limit.go`）。
@@ -172,6 +173,14 @@
   `platform` 为空的存量行增量重跑识别（已识别行不受影响）；「热门 Agent」
   图表如需覆盖存量 Claude Desktop 流量，对历史时间范围执行一次
   `POST /api/data/recalculate`。
+- **使用平台识别新增 WorkBuddy**：WorkBuddy（腾讯云桌面 AI Agent）发起请求
+  的 UA 形如 `WorkBuddy/{version} WorkBuddy/{version} CLI/{version}`（如
+  `WorkBuddy/5.11.3 WorkBuddy/5.11.3 CLI/2.176.0`），串首 `workbuddy` 前缀
+  锚定命中，大小写不敏感，且不误报 `workbuddyite/1.0` 之类近似前缀；
+  `X-Title: WorkBuddy` 按既有设计仅作弱佐证不参与判定。历史日志回填迁移
+  marker 由 `data_migration.log_platform.v3.done` 升级为
+  `data_migration.log_platform.v4.done`，已部署实例升级后启动时自动对
+  `platform` 为空的存量行增量重跑识别（已识别行不受影响），无需人工干预。
 - **管理接口 API 参考文档全量补全**（Mintlify 中英）：管理接口下全部 137 个
   端点页面由「仅 URL 占位」补全为完整参考——含鉴权要求（以路由中间件为准）、
   cURL 请求示例、路径/查询/请求体参数（`ParamField`）与响应示例及字段

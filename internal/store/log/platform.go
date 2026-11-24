@@ -18,6 +18,7 @@ const (
 	PlatformNewAPI          = "new-api"
 	PlatformCherryStudio    = "cherry-studio"
 	PlatformRikkaHub        = "rikkahub"
+	PlatformWorkBuddy       = "workbuddy"
 )
 
 // AllPlatformIDs 返回全部受支持的平台 ID，供测试与维护检查使用。
@@ -33,6 +34,7 @@ func AllPlatformIDs() []string {
 		PlatformNewAPI,
 		PlatformCherryStudio,
 		PlatformRikkaHub,
+		PlatformWorkBuddy,
 	}
 }
 
@@ -69,6 +71,10 @@ var uaProductPrefixes = map[string]string{
 	// 出站请求注入，用户可自定义覆盖），rikkahub 前缀锚定后同样命中
 	// RikkaHub/{version} 等变体。
 	"rikkahub": PlatformRikkaHub,
+	// WorkBuddy（腾讯云桌面 AI Agent）UA 形如
+	// WorkBuddy/{version} WorkBuddy/{version} CLI/{version}，串首 workbuddy
+	// 前缀锚定命中。
+	"workbuddy": PlatformWorkBuddy,
 }
 
 // uaEmbeddedProducts 定义 Chromium/Electron 系应用 UA 中位于串中的自报 product。

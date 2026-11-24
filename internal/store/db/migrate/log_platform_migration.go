@@ -12,7 +12,7 @@ import (
 // 版本号跟随平台识别规则集：新增或扩展识别规则时递增，已部署实例启动后对
 // 存量日志增量重跑识别（仅覆盖 platform 仍为空的行，已识别行不受影响）。
 // 删除该 options 行同样可强制重新执行回填（迁移本身幂等）。
-const logPlatformBackfillMarker = "data_migration.log_platform.v3.done"
+const logPlatformBackfillMarker = "data_migration.log_platform.v4.done"
 
 // backfillLogPlatforms 是一次性数据迁移：
 // 用历史日志已落库的 ua / x_title / http_referer 三列识别客户端平台，
