@@ -276,7 +276,7 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		usageRoute := apiRouter.Group("/usage")
-		usageRoute.Use(middleware.CORS(), middleware.CriticalRateLimit())
+		usageRoute.Use(middleware.CORS(), middleware.ApiKeyQueryRateLimit())
 		{
 			tokenUsageRoute := usageRoute.Group("/token")
 			tokenUsageRoute.Use(middleware.TokenAuthReadOnly())
@@ -322,7 +322,7 @@ func SetApiRouter(router *gin.Engine) {
 			dashboardRoute.POST("/config/reset", optioncontroller.ResetDashboardConfig)
 		}
 
-		logRoute.Use(middleware.CORS(), middleware.CriticalRateLimit())
+		logRoute.Use(middleware.CORS(), middleware.ApiKeyQueryRateLimit())
 		{
 			logRoute.GET("/token", middleware.TokenAuthReadOnly(), logcontroller.GetLogByKey)
 			logRoute.GET("/token/usage_log_fields", middleware.TokenAuthReadOnly(), misccontroller.GetUsageLogFieldsVisible)

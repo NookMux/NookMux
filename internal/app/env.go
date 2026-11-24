@@ -147,6 +147,10 @@ func InitEnv() {
 	common.SearchRateLimitNum = common.GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
 	common.SearchRateLimitDuration = int64(common.GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
 
+	common.ApiKeyQueryRateLimitEnable = common.GetEnvOrDefaultBool("API_KEY_QUERY_RATE_LIMIT_ENABLE", true)
+	common.ApiKeyQueryRateLimitNum = common.GetEnvOrDefault("API_KEY_QUERY_RATE_LIMIT", 60)
+	common.ApiKeyQueryRateLimitDuration = int64(common.GetEnvOrDefault("API_KEY_QUERY_RATE_LIMIT_DURATION", 180))
+
 	initConstantEnv()
 }
 

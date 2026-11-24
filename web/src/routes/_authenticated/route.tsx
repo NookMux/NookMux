@@ -20,6 +20,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSelf } from '@/lib/api'
 import { isPhoneUA } from '@/lib/is-phone'
+import { getHttpStatusCode } from '@/lib/request-error'
 import { AuthenticatedLayout } from '@/components/layout'
 
 // 内存中的验证标记，避免同一会话中重复验证
@@ -45,13 +46,24 @@ export const Route = createFileRoute('/_authenticated')({
 
     // 本地有用户信息，但需要验证 session 是否有效（每个会话只验证一次）
     if (!sessionVerified) {
-      const res = await getSelf().catch(() => null)
+      const res = await getSelf().catch((error: unknown) => {
+        // 只有服务端明确判定未登录才清除登录态；限流、服务端故障等失败保留登录态，
+        // 交由错误边界按状态码展示，刷新后重新验证
+        if (getHttpStatusCode(error) === 401) {
+          auth.reset()
+          throw redirect({
+            to: '/sign-in',
+            search: { redirect: location.href },
+          })
+        }
+        throw error
+      })
       if (res?.success && res.data) {
         // 验证成功，更新用户信息（可能有变化）
         auth.setUser(res.data)
         sessionVerified = true
       } else {
-        // 验证失败或 API 调用失败，清除本地缓存并跳转登录页
+        // 服务端正常响应但未通过校验（如账号被封禁），按未登录处理
         auth.reset()
         throw redirect({
           to: '/sign-in',

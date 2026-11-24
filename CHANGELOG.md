@@ -19,6 +19,10 @@
 
 ### Fixed
 
+- **发版后旧标签页进入新页面直接显示 500**：内嵌 `dist` 中不存在的构建产物路径（`/static/*`）不再回退为首页 HTML，改为返回 JSON 404；旧标签页请求已删除的分块时由前端据此在同一标签页内自动刷新拉取新版本，刷新生效前不显示错误内容，也不再把首页 HTML 当脚本执行后报错。不回退为前端页面的路径（`/v1`、`/api`、`/assets`、`/static`）的 JSON 404 统一声明 `Cache-Control: no-store`，避免发版切换期间的 404 被浏览器或中间缓存留存（`internal/httpapi/router/web_router.go`、`web/src/features/errors/general-error.tsx`）。
+- **接口返回 500 后页面一直停留在 500 错误页**：接口 500 不再把地址栏替换为 `/500` 路由，改为停留在当前页面并提示；刷新即重新加载当前地址，后端恢复后可以直接回来（`web/src/main.tsx`）。
+- **密钥用量查询与登录共用关键限流额度**：凭 API Key 匿名查询用量与日志的接口（`/api/usage/token/`、`/api/log/token*`）改由独立的限流器计数，默认每 IP 180 秒 60 次，新增 `API_KEY_QUERY_RATE_LIMIT_ENABLE`、`API_KEY_QUERY_RATE_LIMIT`、`API_KEY_QUERY_RATE_LIMIT_DURATION`；查询密钥不再占用登录、注册等关键操作的额度，也不会连带把登录拒掉（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/api_router.go`、`internal/app/env.go`、`internal/common/constants.go`）。
+- **接口 429 被当作普通失败处理**：查询遇到 429 不再自动重试（401、403、429 均直接失败）；会话验证遇到 429、5xx 或网络错误时保留登录态并按状态码进入错误边界，只有服务端明确返回 401 才清除登录态并跳转登录页；接口 429 的提示统一为「请求过于频繁，请稍候再试。」，密钥用量查询页遇到 429 不再误报为网络错误（`web/src/lib/request-error.ts`、`web/src/routes/_authenticated/route.tsx`、`web/src/lib/api.ts`、`web/src/lib/handle-server-error.ts`、`web/src/features/key-query/api.ts`）。
 - **模型广场模型详情页签顺序（#458）**：模型详情页与模型列表右侧详情抽屉的页签统一按「概览、性能、API」排列（`web/src/features/pricing/components/model-details.tsx`）。
 - **控制台页面刷新返回 HTTP 429**：全局 Web 限流按 IP 只计页面与未匹配路径的请求，前端构建产物（入口脚本、懒加载分块等）不再占用页面额度，避免连续刷新或浏览较多页面后静态资源被限流、分块加载失败。
   - 前端构建产物改由独立的静态限流器计数：`GLOBAL_STATIC_RATE_LIMIT_ENABLE`（默认关闭，关闭时构建产物不限流）、`GLOBAL_STATIC_RATE_LIMIT`（默认 1000）、`GLOBAL_STATIC_RATE_LIMIT_DURATION`（默认 180）；Web 限流与静态资源服务显式挂在 SPA 回退链上，不涉及 API 与 Relay 路由（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/web_router.go`、`internal/app/env.go`）。

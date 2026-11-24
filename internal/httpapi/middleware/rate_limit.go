@@ -236,3 +236,12 @@ func SearchRateLimit() func(c *gin.Context) {
 	}
 	return defNext
 }
+
+// ApiKeyQueryRateLimit 按客户端 IP 限制凭 API Key 匿名查询用量与日志的接口。这类查询与
+// 登录、注册等凭证操作目的不同，独立计数，避免查询密钥用完额度后连登录也被拒。
+func ApiKeyQueryRateLimit() func(c *gin.Context) {
+	if common.ApiKeyQueryRateLimitEnable {
+		return rateLimitFactory(common.ApiKeyQueryRateLimitNum, common.ApiKeyQueryRateLimitDuration, "KQ")
+	}
+	return defNext
+}

@@ -185,6 +185,11 @@ var (
 	SearchRateLimitEnable   bool
 	SearchRateLimitNum            = 10
 	SearchRateLimitDuration int64 = 60
+
+	// Per-IP rate limit for anonymous API key usage/log queries, counted separately from critical operations
+	ApiKeyQueryRateLimitEnable   bool
+	ApiKeyQueryRateLimitNum            = 60
+	ApiKeyQueryRateLimitDuration int64 = 180
 )
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute

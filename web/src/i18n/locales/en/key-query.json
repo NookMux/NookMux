@@ -29,6 +29,7 @@
   "keyQuery.tips.detailsNotAvailable": "Details not available",
   "keyQuery.errors.invalidKeyFormat": "Invalid key format",
   "keyQuery.errors.networkError": "Network error, please try again later",
+  "keyQuery.errors.tooManyRequests": "Too many requests. Please wait a moment before trying again.",
   "keyQuery.errors.keyInvalidOrExpired": "The key is invalid or expired",
   "keyQuery.errors.failedToLoadLogs": "Failed to load logs",
   "keyQuery.errors.failedToLoadFieldVisibility": "Failed to load field visibility config"

@@ -16,17 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { getHttpStatusCode } from '@/lib/request-error'
+
 /** 记录「本标签页已因该失败自动刷新过」的 sessionStorage 键前缀 */
 const RELOAD_MARKER_PREFIX = 'tanstack_router_reload:'
-
-/** 按错误对象上的 HTTP 响应取状态码；不是 HTTP 错误时返回 undefined。 */
-function getHttpStatus(error: unknown): number | undefined {
-  if (typeof error !== 'object' || error === null) return undefined
-  const response = (error as Record<string, unknown>).response
-  if (typeof response !== 'object' || response === null) return undefined
-  const status = (response as Record<string, unknown>).status
-  return typeof status === 'number' ? status : undefined
-}
 
 /**
  * 错误页大号标题展示的状态码。直接渲染的 /500 页面固定为 500；作为错误边界渲染时
@@ -34,7 +27,7 @@ function getHttpStatus(error: unknown): number | undefined {
  * undefined。
  */
 export function resolveHeadingStatus(error: unknown): number | undefined {
-  return error === undefined ? 500 : getHttpStatus(error)
+  return error === undefined ? 500 : getHttpStatusCode(error)
 }
 
 /** 判断错误是否为路由分块（JS / CSS chunk）加载失败。 */

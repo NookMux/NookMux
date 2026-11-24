@@ -35,15 +35,28 @@ func SetWebRouter(router *gin.Engine, assets WebAssets) {
 		precompressedStaticAssets(assets.BuildFS),
 		gzip.Gzip(gzip.DefaultCompression),
 		static.Serve("/", webFS),
-		func(c *gin.Context) {
-			if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") || strings.HasPrefix(c.Request.RequestURI, "/assets") {
+		spaFallback(assets.IndexPage),
+	)
+}
+
+// nonPagePrefixes 下的路径绝不回退为前端页面：接口与中继路径未匹配、构建产物在当前版本中
+// 不存在时，一律返回 JSON 404。发版后旧标签页请求已删除的分块由此得到明确的「文件不存在」，
+// 由前端刷新拉取新版本，而不是把首页 HTML 当作脚本执行后报错。
+var nonPagePrefixes = []string{"/v1", "/api", "/assets", "/static"}
+
+func spaFallback(indexPage []byte) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for _, prefix := range nonPagePrefixes {
+			if strings.HasPrefix(c.Request.RequestURI, prefix) {
+				// 404 可能只是发版切换期间的暂时状态（新旧实例并存），不允许浏览器与中间缓存留存
+				c.Header("Cache-Control", "no-store")
 				relaycontroller.RelayNotFound(c)
 				return
 			}
-			c.Header("Cache-Control", "no-cache")
-			c.Data(http.StatusOK, "text/html; charset=utf-8", assets.IndexPage)
-		},
-	)
+		}
+		c.Header("Cache-Control", "no-cache")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", indexPage)
+	}
 }
 
 func staticAssetCache() gin.HandlerFunc {

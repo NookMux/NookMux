@@ -53,6 +53,10 @@ async function fetchJson<T>(url: string, key: string): Promise<T> {
   const res = await fetch(url, {
     headers: getTokenHeaders(key),
   })
+  // 限流拒绝的响应没有消息体，按状态码给出提示
+  if (res.status === 429) {
+    throw new KeyQueryError('keyQuery.errors.tooManyRequests')
+  }
   let data: unknown
   try {
     data = await res.json()

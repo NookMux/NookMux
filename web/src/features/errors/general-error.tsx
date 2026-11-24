@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -55,12 +55,19 @@ export function GeneralError({
   const isRateLimited = status === 429
 
   // 路由分块加载失败多发于发版后旧分块被替换，当前页面无法原地恢复：同一失败在
-  // 标签页内首次出现时自动刷新一次以拉取新资源，再次出现则停留在本页。
-  useEffect(() => {
+  // 标签页内首次出现时自动刷新以拉取新资源，再次出现则停留在错误页。判定在首帧
+  // 提交前完成，等待刷新期间不渲染错误内容。
+  const [showError, setShowError] = useState(false)
+
+  useLayoutEffect(() => {
     if (claimChunkReload(sessionStorageOrNull(), error)) {
       window.location.reload()
+      return
     }
+    setShowError(true)
   }, [error])
+
+  if (!showError) return null
 
   const title = isRateLimited
     ? t('common.fields.tooManyRequests')

@@ -29,6 +29,7 @@
   "keyQuery.tips.detailsNotAvailable": "详情不可用",
   "keyQuery.errors.invalidKeyFormat": "密钥格式无效",
   "keyQuery.errors.networkError": "网络错误，请稍后重试",
+  "keyQuery.errors.tooManyRequests": "查询过于频繁，请稍候再试",
   "keyQuery.errors.keyInvalidOrExpired": "密钥无效或已过期",
   "keyQuery.errors.failedToLoadLogs": "加载日志失败",
   "keyQuery.errors.failedToLoadFieldVisibility": "加载字段可见性配置失败"

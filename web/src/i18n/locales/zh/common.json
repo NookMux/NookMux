@@ -569,6 +569,7 @@
   "common.tips.pleaseTryAgainLater": "请稍后再试。",
   "common.tips.pleaseTypeTheFollowingTextToConfirm": "请输入以下文本进行确认：",
   "common.errors.pleaseWaitAMomentBeforeTryingAgain": "请稍候再试。",
+  "common.errors.tooManyRequests": "请求过于频繁，请稍候再试。",
   "common.fields.poor": "较差",
   "common.tips.postgreSqlOffersAdvancedReliabilityAndDataIntegrityFor": "PostgreSQL 为生产工作负载提供高可靠性和数据完整性。",
   "common.tips.openGaussIsAPostgresCompatibleEnterprise": "openGauss 是兼容 PostgreSQL 的企业级数据库，适用于生产工作负载。",

@@ -105,6 +105,9 @@ api.interceptors.response.use(
         } catch {
           /* empty */
         }
+      } else if (status === 429) {
+        // Rate limited: the server rejects without a message body
+        toast.error(i18next.t('common.errors.tooManyRequests'))
       } else {
         // Other errors: show error message from response or default
         const msg =

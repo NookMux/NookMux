@@ -208,3 +208,66 @@ func TestSetWebRouterScopesWebRateLimitToFallbackChain(t *testing.T) {
 		t.Fatalf("GET /api/ping: code = %d, body = %q", resp.Code, resp.Body.String())
 	}
 }
+
+func TestSetWebRouterReturnsNotFoundForNonPagePaths(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	origRedisEnabled := redis.RedisEnabled
+	origWebEnable := common.GlobalWebRateLimitEnable
+	redis.RedisEnabled = false
+	common.GlobalWebRateLimitEnable = false
+	t.Cleanup(func() {
+		redis.RedisEnabled = origRedisEnabled
+		common.GlobalWebRateLimitEnable = origWebEnable
+	})
+
+	buildFS := fstest.MapFS{"dist/static/js/app.js": &fstest.MapFile{Data: []byte("app")}}
+	indexPage := []byte("<!doctype html><title>spa</title>")
+	router := gin.New()
+	SetWebRouter(router, WebAssets{BuildFS: buildFS, IndexPage: indexPage})
+
+	get := func(target string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		return resp
+	}
+
+	// 未匹配的接口、中继路径与不存在的构建产物返回不可缓存的 JSON 404，不回退为前端页面：
+	// 发版后旧标签页请求已删除的分块属于这一类
+	nonPage := []struct {
+		target     string
+		wantInBody string
+	}{
+		{"/api/unknown", "Invalid URL (GET /api/unknown)"},
+		{"/v1/unknown", "Invalid URL (GET /v1/unknown)"},
+		{"/assets/missing.js", "Invalid URL (GET /assets/missing.js)"},
+		{"/static/js/async/0000.deadbeef.js", "Invalid URL (GET /static/js/async/0000.deadbeef.js)"},
+	}
+	for _, tt := range nonPage {
+		resp := get(tt.target)
+		if resp.Code != http.StatusNotFound {
+			t.Fatalf("GET %s: code = %d, want %d", tt.target, resp.Code, http.StatusNotFound)
+		}
+		if body := resp.Body.String(); !bytes.Contains(resp.Body.Bytes(), []byte(tt.wantInBody)) {
+			t.Fatalf("GET %s: body = %q, want JSON error mentioning %q", tt.target, body, tt.wantInBody)
+		}
+		if got := resp.Header().Get("Cache-Control"); got != "no-store" {
+			t.Fatalf("GET %s: Cache-Control = %q, want no-store", tt.target, got)
+		}
+	}
+
+	// 存在的构建产物照常返回并保持长期缓存
+	resp := get("/static/js/app.js")
+	if resp.Code != http.StatusOK || resp.Body.String() != "app" {
+		t.Fatalf("GET /static/js/app.js: code = %d, body = %q", resp.Code, resp.Body.String())
+	}
+	if got := resp.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
+		t.Fatalf("GET /static/js/app.js: Cache-Control = %q, want immutable static asset cache", got)
+	}
+
+	// 页面路径仍返回 SPA 文档
+	if resp := get("/console/overview"); resp.Code != http.StatusOK || !bytes.Equal(resp.Body.Bytes(), indexPage) {
+		t.Fatalf("GET /console/overview: code = %d, body = %q", resp.Code, resp.Body.String())
+	}
+}

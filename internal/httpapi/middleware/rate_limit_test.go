@@ -329,3 +329,71 @@ func TestSearchRateLimitRetryAfter(t *testing.T) {
 		t.Fatalf("Retry-After = %q, want %q", got, want)
 	}
 }
+
+func TestApiKeyQueryRateLimitCountsSeparatelyFromCriticalOperations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	origRedisEnabled := redis.RedisEnabled
+	origKeyQueryEnable, origKeyQueryNum, origKeyQueryDuration := common.ApiKeyQueryRateLimitEnable, common.ApiKeyQueryRateLimitNum, common.ApiKeyQueryRateLimitDuration
+	origCriticalEnable, origCriticalNum := common.CriticalRateLimitEnable, common.CriticalRateLimitNum
+	redis.RedisEnabled = false
+	common.ApiKeyQueryRateLimitEnable, common.ApiKeyQueryRateLimitNum, common.ApiKeyQueryRateLimitDuration = true, 2, 53
+	common.CriticalRateLimitEnable, common.CriticalRateLimitNum = true, 1
+	inMemoryRateLimiter.Init(common.RateLimitKeyExpirationDuration)
+	t.Cleanup(func() {
+		redis.RedisEnabled = origRedisEnabled
+		common.ApiKeyQueryRateLimitEnable, common.ApiKeyQueryRateLimitNum, common.ApiKeyQueryRateLimitDuration = origKeyQueryEnable, origKeyQueryNum, origKeyQueryDuration
+		common.CriticalRateLimitEnable, common.CriticalRateLimitNum = origCriticalEnable, origCriticalNum
+	})
+
+	router := gin.New()
+	router.GET("/usage/token/", ApiKeyQueryRateLimit(), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	router.GET("/user/login", CriticalRateLimit(), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	const clientIP = "192.0.2.13"
+
+	for i := 0; i < 2; i++ {
+		if resp := serveFromClient(router, clientIP, "/usage/token/"); resp.Code != http.StatusNoContent {
+			t.Fatalf("key query request %d: code = %d, want %d", i+1, resp.Code, http.StatusNoContent)
+		}
+	}
+	resp := serveFromClient(router, clientIP, "/usage/token/")
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("key query request 3: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if got, want := resp.Header().Get("Retry-After"), strconv.FormatInt(53, 10); got != want {
+		t.Fatalf("Retry-After = %q, want %q", got, want)
+	}
+
+	// 密钥查询额度用尽后，同一 IP 的关键操作额度没有被占用，登录照常放行；
+	// 关键操作自身的额度仍是 1 次，第二次登录才被拒
+	if resp := serveFromClient(router, clientIP, "/user/login"); resp.Code != http.StatusNoContent {
+		t.Fatalf("login after key queries exhausted: code = %d, want %d", resp.Code, http.StatusNoContent)
+	}
+	if resp := serveFromClient(router, clientIP, "/user/login"); resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("second login: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+}
+
+func TestApiKeyQueryRateLimitDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	origEnabled := common.ApiKeyQueryRateLimitEnable
+	common.ApiKeyQueryRateLimitEnable = false
+	t.Cleanup(func() { common.ApiKeyQueryRateLimitEnable = origEnabled })
+
+	router := gin.New()
+	router.GET("/usage/token/", ApiKeyQueryRateLimit(), func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	const clientIP = "192.0.2.14"
+
+	for i := 0; i < 5; i++ {
+		if resp := serveFromClient(router, clientIP, "/usage/token/"); resp.Code != http.StatusOK {
+			t.Fatalf("expected 200 with key query rate limit disabled, request %d got %d", i+1, resp.Code)
+		}
+	}
+}

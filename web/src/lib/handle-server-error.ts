@@ -36,7 +36,10 @@ export function handleServerError(error: unknown) {
   }
 
   if (error instanceof AxiosError) {
-    errMsg = error.response?.data.title
+    errMsg =
+      error.response?.status === 429
+        ? i18next.t('common.errors.tooManyRequests')
+        : error.response?.data.title
   }
 
   toast.error(errMsg)
