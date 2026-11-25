@@ -15,6 +15,11 @@
   - **长上下文阶梯计费**：补充 Claude Sonnet 4.5（超过 200K tokens）与 Haiku 5.5（超过 100K tokens）、OpenAI GPT-5.4 及之后的模型（超过 272K tokens）、MiniMax M3（超过 512K tokens）、豆包 Seed 2.0 / 2.1（超过 128K tokens）、Qwen Plus / Flash / Coder / VL（超过 32K、128K 或 256K tokens）的分段价格，单个型号最多四档（`internal/config/ratio/context_pricing.go`）。
   - 新增按厂商官方价核对内置表、按档位边界核对阶梯价格的单元测试（`internal/config/ratio/builtin_pricing_test.go`）。
   - Mintlify 中英文档同步：内置定价接口参考页与定价接口页注明档位数量不固定（内置规则两到四档）、内置档位的命名顺序与档位上下界的开闭区间。
+- **渠道默认模型列表同步厂商在售型号**：按 OpenAI、Claude、Gemini、智谱 GLM、DeepSeek、Kimi、豆包、MiniMax 八家厂商官方文档的在售型号，把内置价格表已配价的型号补进各渠道适配器的默认模型列表；该列表是渠道「获取模型列表」不可用时控制台的型号来源（`internal/relay/channel/*/constant*.go`）。
+  - **新增型号**：OpenAI 25 个（`chat-latest`、GPT-5.4 mini 与 GPT-5.5 系列快照、GPT-6 全系、GPT-Image 2.5 / 2.6、RealTime 1.5 / 2 / 2.1、Audio 1.5、审核与文本向量模型），Claude 9 个（Fable 5.1 / 5.2、Mythos 5 系列、Opus 5 / 5.5、Sonnet 5.5、Haiku 5.5），Gemini 6 个（3.7 Flash、4 carbon / hydrogen / neon、Robotics ER 2 两个预览版），智谱 GLM 10 个（GLM 5.3 系列、`glm-ocr`、`glm-4.7-flashx`、`glm-4.6v-flash`、`glm-4.6v-flashx`、`glm-4.5-airx`、`glm-4.5-flash`），DeepSeek `deepseek-flash`，Kimi `kimi-k3.1-pro`、`kimi-k3.1-pro-highspeed`，MiniMax `MiniMax-M3`、`MiniMax-M3.1-Flash`、`minimax-m3.1-flash`。
+  - **豆包渠道默认列表**：由空列表改为 BytePlus ModelArk（国际站）在售且已配价的 Seed 2.0 / 2.1 型号 ID（5 个）；按账号创建的推理端点 ID、国内站 Model ID 与其他厂商模型仍由管理员在渠道上手动填写。
+  - Vertex AI 渠道的默认列表由 Vertex、Claude、Gemini 三份默认列表合并而成，随以上新增同步扩大。
+  - 新增单元测试，逐个渠道核对厂商在售型号同时存在于默认模型列表与内置价格表。
 - **全量国际化（i18n）深度校对、术语对齐与双语润色**：
   - **产品术语口径收敛**：统一前后端中英文核心产品术语与命名，包括模型广场（`Model Hub`）、预设组合、厂商（模型研发方）与供应商（上游渠道方）区分、排行榜 `Agent` 与 `This Week / This Month / This Year`、英文充值统一 `Top-up`、兑换码体系替代 CDK、钱包推广体系、账户剩余余额、阶梯计费与档位、上下文分段计费、缓存写入倍率（`5m / 1h`）、2FA 恢复码、退出登录、系统公告、完整布局、常见问题、SSRF 防护、`Fix Channel Abilities`、`OpenAI 协议格式`、Claude beta 查询参数、渠道代理协议列表（HTTP/HTTPS/SOCKS5/SOCKS5H）、系统初始化向导、定制音色已创建状态、`Vocal expression tags`、支持的图像生成模型及硅基流动中文品牌名。
   - **后端多语言字典（`internal/i18n/locales/{zh,en}.yaml`）**：逐条校对全部 713 项中英文 API 响应与任务日志消息，修复语义偏差与歧义（邮箱域名白名单提示、Responses API 请求类型、工具调用测试、分发器无可用渠道、渠道亲和性规则缓存提示、数据库迁移强制覆盖开关名称对齐前端实际标签等），修正中式英语与中英文标点排版（47 处中文半角冒号、括号、空格及未译标签），统一术语（「额度」「封禁」「分组」「密钥」「告警」「身份验证器」等）。
