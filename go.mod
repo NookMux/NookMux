@@ -48,7 +48,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/stripe/stripe-go/v87 v87.1.0
 	github.com/tcolgate/mp3 v0.0.0-20170426193717-e79c5a46d300
-	github.com/thanhpk/randstr v1.0.6
+	github.com/thanhpk/randstr v1.0.7
 	github.com/tidwall/gjson v1.20.5
 	github.com/tidwall/sjson v1.2.11
 	github.com/tiktoken-go/tokenizer v0.8.1
