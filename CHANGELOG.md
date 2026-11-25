@@ -14,6 +14,7 @@
   - **同步厂商现行价**：`gpt-5.6-terra`、`gpt-5.6-terra-pro` 输入价 $2 / 1M tokens，`gpt-5.6-luna`、`gpt-5.6-luna-pro` 输入价 $0.20；`glm-4.7-flash`、`glm-4.6v-flash`、`glm-4.5-flash` 为免费模型；`gpt-audio-mini` 系列音频输入 / 输出价 $10 / $20；豆包 `seed-2.0-lite`、`seed-2.0-mini` 缓存命中按输入价的 20% 计价；GLM、DeepSeek、Kimi、Gemini、Qwen 其余在售型号一并按现行价更新。
   - **长上下文阶梯计费**：补充 Claude Sonnet 4.5（超过 200K tokens）与 Haiku 5.5（超过 100K tokens）、OpenAI GPT-5.4 及之后的模型（超过 272K tokens）、MiniMax M3（超过 512K tokens）、豆包 Seed 2.0 / 2.1（超过 128K tokens）、Qwen Plus / Flash / Coder / VL（超过 32K、128K 或 256K tokens）的分段价格，单个型号最多四档（`internal/config/ratio/context_pricing.go`）。
   - 新增按厂商官方价核对内置表、按档位边界核对阶梯价格的单元测试（`internal/config/ratio/builtin_pricing_test.go`）。
+  - Mintlify 中英文档同步：内置定价接口参考页与定价接口页注明档位数量不固定（内置规则两到四档）、内置档位的命名顺序与档位上下界的开闭区间。
 - **全量国际化（i18n）深度校对、术语对齐与双语润色**：
   - **产品术语口径收敛**：统一前后端中英文核心产品术语与命名，包括模型广场（`Model Hub`）、预设组合、厂商（模型研发方）与供应商（上游渠道方）区分、排行榜 `Agent` 与 `This Week / This Month / This Year`、英文充值统一 `Top-up`、兑换码体系替代 CDK、钱包推广体系、账户剩余余额、阶梯计费与档位、上下文分段计费、缓存写入倍率（`5m / 1h`）、2FA 恢复码、退出登录、系统公告、完整布局、常见问题、SSRF 防护、`Fix Channel Abilities`、`OpenAI 协议格式`、Claude beta 查询参数、渠道代理协议列表（HTTP/HTTPS/SOCKS5/SOCKS5H）、系统初始化向导、定制音色已创建状态、`Vocal expression tags`、支持的图像生成模型及硅基流动中文品牌名。
   - **后端多语言字典（`internal/i18n/locales/{zh,en}.yaml`）**：逐条校对全部 713 项中英文 API 响应与任务日志消息，修复语义偏差与歧义（邮箱域名白名单提示、Responses API 请求类型、工具调用测试、分发器无可用渠道、渠道亲和性规则缓存提示、数据库迁移强制覆盖开关名称对齐前端实际标签等），修正中式英语与中英文标点排版（47 处中文半角冒号、括号、空格及未译标签），统一术语（「额度」「封禁」「分组」「密钥」「告警」「身份验证器」等）。
