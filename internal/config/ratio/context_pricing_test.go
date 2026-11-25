@@ -136,8 +136,8 @@ func TestDefaultContextPricingLoaded(t *testing.T) {
 	}{
 		{model: "claude-sonnet-4.5", contextTokens: 100_000, wantEnabled: true, wantTier: "base", wantMR: 1.5},
 		{model: "claude-sonnet-4.5", contextTokens: 250_000, wantEnabled: true, wantTier: "tier_1", wantMR: 3},
-		{model: "gpt-5.6-luna", contextTokens: 100_000, wantEnabled: true, wantTier: "base", wantMR: 0.5},
-		{model: "gpt-5.6-luna", contextTokens: 300_000, wantEnabled: true, wantTier: "tier_1", wantMR: 1},
+		{model: "gpt-5.6-luna", contextTokens: 100_000, wantEnabled: true, wantTier: "base", wantMR: 0.1},
+		{model: "gpt-5.6-luna", contextTokens: 300_000, wantEnabled: true, wantTier: "tier_1", wantMR: 0.2},
 		{model: "seed-1.6", contextTokens: 64_000, wantEnabled: true, wantTier: "base", wantMR: 0.125},
 		{model: "seed-1.6", contextTokens: 200_000, wantEnabled: true, wantTier: "tier_1", wantMR: 0.25},
 	}

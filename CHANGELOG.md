@@ -9,6 +9,11 @@
 
 ### Changed
 
+- **内置模型价格按厂商官方价补齐**：按 OpenAI、Claude、智谱 GLM、DeepSeek、Kimi、豆包、Gemini、阿里云百炼 Qwen、MiniMax 九家厂商的第一方官方标准美元价更新内置倍率表，并用 OpenRouter 第一方端点价交叉核对；Batch、Fast、Flex 等服务档价与缓存存储费等平台不保存的价格维度不导入，厂商不收缓存写入费的型号不设缓存写入倍率（`internal/config/ratio/model_ratio.go`、`internal/config/ratio/cache_ratio.go`）。
+  - **新增在售型号**：Claude Fable / Mythos / Opus / Sonnet / Haiku 5 系列，智谱 GLM 5 至 5.3 系列（含 `glm-5v-turbo`、`glm-ocr`），DeepSeek `deepseek-flash`、`deepseek-v4-flash`、`deepseek-v4-pro`，Gemini 3.7 / 3.8 Flash、Gemini 4 系列、Embedding 2 与 Robotics ER 2，Kimi K3、K3.1-pro、K2.7-code，MiniMax M3 与 M3.1-Flash，豆包 Seed 2.0 / 2.1（ModelArk 国际站型号 ID），OpenAI GPT-5.4 快照、GPT-5.5、GPT-5.6、GPT-6 全系、GPT-Image 2.x、RealTime、Audio 1.5、文本向量与审核模型，以及 Qwen 的百炼型号（`qwen4-max`、`qwen3.8-max`、`qwen3.7-plus`、`qwen3.7-flash`、`qwen3-coder-flash` 等，取百炼国际站新加坡地域牌价）与 `qwen/` 前缀的 OpenRouter 型号。
+  - **同步厂商现行价**：`gpt-5.6-terra`、`gpt-5.6-terra-pro` 输入价 $2 / 1M tokens，`gpt-5.6-luna`、`gpt-5.6-luna-pro` 输入价 $0.20；`glm-4.7-flash`、`glm-4.6v-flash`、`glm-4.5-flash` 为免费模型；`gpt-audio-mini` 系列音频输入 / 输出价 $10 / $20；豆包 `seed-2.0-lite`、`seed-2.0-mini` 缓存命中按输入价的 20% 计价；GLM、DeepSeek、Kimi、Gemini、Qwen 其余在售型号一并按现行价更新。
+  - **长上下文阶梯计费**：补充 Claude Sonnet 4.5（超过 200K tokens）与 Haiku 5.5（超过 100K tokens）、OpenAI GPT-5.4 及之后的模型（超过 272K tokens）、MiniMax M3（超过 512K tokens）、豆包 Seed 2.0 / 2.1（超过 128K tokens）、Qwen Plus / Flash / Coder / VL（超过 32K、128K 或 256K tokens）的分段价格，单个型号最多四档（`internal/config/ratio/context_pricing.go`）。
+  - 新增按厂商官方价核对内置表、按档位边界核对阶梯价格的单元测试（`internal/config/ratio/builtin_pricing_test.go`）。
 - **全量国际化（i18n）深度校对、术语对齐与双语润色**：
   - **产品术语口径收敛**：统一前后端中英文核心产品术语与命名，包括模型广场（`Model Hub`）、预设组合、厂商（模型研发方）与供应商（上游渠道方）区分、排行榜 `Agent` 与 `This Week / This Month / This Year`、英文充值统一 `Top-up`、兑换码体系替代 CDK、钱包推广体系、账户剩余余额、阶梯计费与档位、上下文分段计费、缓存写入倍率（`5m / 1h`）、2FA 恢复码、退出登录、系统公告、完整布局、常见问题、SSRF 防护、`Fix Channel Abilities`、`OpenAI 协议格式`、Claude beta 查询参数、渠道代理协议列表（HTTP/HTTPS/SOCKS5/SOCKS5H）、系统初始化向导、定制音色已创建状态、`Vocal expression tags`、支持的图像生成模型及硅基流动中文品牌名。
   - **后端多语言字典（`internal/i18n/locales/{zh,en}.yaml`）**：逐条校对全部 713 项中英文 API 响应与任务日志消息，修复语义偏差与歧义（邮箱域名白名单提示、Responses API 请求类型、工具调用测试、分发器无可用渠道、渠道亲和性规则缓存提示、数据库迁移强制覆盖开关名称对齐前端实际标签等），修正中式英语与中英文标点排版（47 处中文半角冒号、括号、空格及未译标签），统一术语（「额度」「封禁」「分组」「密钥」「告警」「身份验证器」等）。
@@ -19,6 +24,7 @@
 
 ### Fixed
 
+- **gpt-5.4 及之后型号的补全倍率表条目不生效**：补全倍率对 `gpt-5` 前缀的型号恒定按输入价的 8 倍推导并跳过倍率表，表中 `gpt-5.4-mini`、`gpt-5.4-nano`、`gpt-5.5-pro` 等型号写明的输出价不参与计费。现在表里有该型号的精确条目时以条目为准，没有条目时才按输入价的 8 倍推导（`internal/config/ratio/model_ratio.go`）。
 - **发版后旧标签页进入新页面直接显示 500**：内嵌 `dist` 中不存在的构建产物路径（`/static/*`）不再回退为首页 HTML，改为返回 JSON 404；旧标签页请求已删除的分块时由前端据此在同一标签页内自动刷新拉取新版本，刷新生效前不显示错误内容，也不再把首页 HTML 当脚本执行后报错。不回退为前端页面的路径（`/v1`、`/api`、`/assets`、`/static`）的 JSON 404 统一声明 `Cache-Control: no-store`，避免发版切换期间的 404 被浏览器或中间缓存留存（`internal/httpapi/router/web_router.go`、`web/src/features/errors/general-error.tsx`）。
 - **接口返回 500 后页面一直停留在 500 错误页**：接口 500 不再把地址栏替换为 `/500` 路由，改为停留在当前页面并提示；刷新即重新加载当前地址，后端恢复后可以直接回来（`web/src/main.tsx`）。
 - **密钥用量查询与登录共用关键限流额度**：凭 API Key 匿名查询用量与日志的接口（`/api/usage/token/`、`/api/log/token*`）改由独立的限流器计数，默认每 IP 180 秒 60 次，新增 `API_KEY_QUERY_RATE_LIMIT_ENABLE`、`API_KEY_QUERY_RATE_LIMIT`、`API_KEY_QUERY_RATE_LIMIT_DURATION`；查询密钥不再占用登录、注册等关键操作的额度，也不会连带把登录拒掉（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/api_router.go`、`internal/app/env.go`、`internal/common/constants.go`）。
