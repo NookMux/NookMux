@@ -19,8 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SectionPageLayout } from '@/components/layout'
-import { SettingsPageProvider } from '../components/settings-page-context'
 import { DashboardLimitsSection } from '../dashboard/components/dashboard-limits-section'
 import { DashboardMetricsSection } from '../dashboard/components/dashboard-metrics-section'
 import { DashboardPanelsSection } from '../dashboard/components/dashboard-panels-section'
@@ -35,54 +33,32 @@ const TABS: { id: DashboardTab; titleKey: string }[] = [
   { id: 'limits', titleKey: 'systemSettings.fields.dataLimits' },
 ]
 
-// DashboardConfigSection 在 Console Content 下作为单个 section 渲染。
-// 内部子分类（metrics/panels/refresh/limits）通过本地 Tabs 切换，
-// 不依赖嵌套路由的 useParams，避免 TanStack Router invariant 失败。
-//
-// 保留 SettingsPageProvider 以提供 actionsContainer portal 容器：
-// DashboardRefreshSection / DashboardLimitsSection 通过 SettingsPageFormActions
-// 将保存按钮 portal 到 SectionPageLayout.Actions 区域。
+// 在「控制台内容」分组下作为单个分区渲染，页面标题与页头操作栏由系统设置的页面框架提供。
+// 四个页签用本地状态切换，不依赖嵌套路由的 useParams，避免 TanStack Router invariant 失败。
+// 「数据指标」「数据看板面板」的开关切换后立即生效；「刷新间隔」「数据限制」是表单，
+// 两者的「重置」「保存」通过 SettingsPageFormActions 挂到页面框架的页头操作栏。
 export function DashboardConfigSection() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<DashboardTab>('metrics')
-  const [actionsContainer, setActionsContainer] =
-    useState<HTMLDivElement | null>(null)
 
   return (
-    <SettingsPageProvider actionsContainer={actionsContainer}>
-      <SectionPageLayout>
-        <SectionPageLayout.Title>
-          <span className='truncate'>
-            {t('systemSettings.titles.dashboardConfiguration')}
-          </span>
-        </SectionPageLayout.Title>
-        <SectionPageLayout.Actions>
-          <div
-            ref={setActionsContainer}
-            className='flex flex-wrap items-center justify-end gap-2'
-          />
-        </SectionPageLayout.Actions>
-        <SectionPageLayout.Content>
-          <div className='flex w-full flex-col gap-4'>
-            <Tabs
-              value={activeTab}
-              onValueChange={(v) => setActiveTab(v as DashboardTab)}
-            >
-              <TabsList className='w-fit'>
-                {TABS.map((tab) => (
-                  <TabsTrigger key={tab.id} value={tab.id}>
-                    {t(tab.titleKey)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-            {activeTab === 'metrics' && <DashboardMetricsSection />}
-            {activeTab === 'panels' && <DashboardPanelsSection />}
-            {activeTab === 'refresh' && <DashboardRefreshSection />}
-            {activeTab === 'limits' && <DashboardLimitsSection />}
-          </div>
-        </SectionPageLayout.Content>
-      </SectionPageLayout>
-    </SettingsPageProvider>
+    <div className='flex w-full min-w-0 flex-col gap-4'>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as DashboardTab)}
+      >
+        <TabsList variant='line'>
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id}>
+              {t(tab.titleKey)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+      {activeTab === 'metrics' && <DashboardMetricsSection />}
+      {activeTab === 'panels' && <DashboardPanelsSection />}
+      {activeTab === 'refresh' && <DashboardRefreshSection />}
+      {activeTab === 'limits' && <DashboardLimitsSection />}
+    </div>
   )
 }

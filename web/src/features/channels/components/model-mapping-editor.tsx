@@ -16,13 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Code, Plus, Save, Table, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -62,6 +70,14 @@ type ModelMappingEditorProps = {
   optionKey?: string
   /** 服务端分页模式下，切换到 JSON 模式后回传完整原始值。 */
   onFullValueLoaded?: (value: string) => void
+  /**
+   * 自行安排「JSON / 可视」切换按钮：拿到当前模式与切换函数，返回要渲染的节点。
+   * 不传时按钮显示在编辑器工具栏里。
+   */
+  renderModeToggle?: (controls: {
+    visualMode: boolean
+    toggle: () => void
+  }) => ReactNode
 }
 
 type MappingRow = {
@@ -102,6 +118,7 @@ export function ModelMappingEditor({
   emptyText,
   optionKey,
   onFullValueLoaded,
+  renderModeToggle,
 }: ModelMappingEditorProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -464,25 +481,32 @@ export function ModelMappingEditor({
     <div className='space-y-2'>
       <div className='flex flex-wrap items-center justify-between gap-2'>
         <div className='flex gap-2'>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={toggleMode}
-            disabled={disabled}
-          >
-            {mode === 'visual' ? (
-              <>
-                <Code className='mr-2 h-4 w-4' />
-                {t('common.fields.jsonMode')}
-              </>
-            ) : (
-              <>
-                <Table className='mr-2 h-4 w-4' />
-                {t('common.fields.visualMode')}
-              </>
-            )}
-          </Button>
+          {renderModeToggle ? (
+            renderModeToggle({
+              visualMode: mode === 'visual',
+              toggle: toggleMode,
+            })
+          ) : (
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={toggleMode}
+              disabled={disabled}
+            >
+              {mode === 'visual' ? (
+                <>
+                  <Code className='mr-2 h-4 w-4' />
+                  {t('common.fields.jsonMode')}
+                </>
+              ) : (
+                <>
+                  <Table className='mr-2 h-4 w-4' />
+                  {t('common.fields.visualMode')}
+                </>
+              )}
+            </Button>
+          )}
           {!isServerPaginated || mode === 'json' ? (
             <Button
               type='button'
@@ -526,9 +550,13 @@ export function ModelMappingEditor({
                 <div className={isServerPaginated ? 'w-20' : 'w-10'}></div>
               </div>
               {isLoadingRows ? (
-                <div className='text-muted-foreground flex h-24 items-center justify-center rounded-md border border-dashed text-sm'>
-                  {t('common.tips.loading')}
-                </div>
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyDescription>
+                      {t('common.tips.loading')}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               ) : null}
               {visibleRows.map((row) => (
                 <div
@@ -587,13 +615,17 @@ export function ModelMappingEditor({
               ))}
             </div>
           ) : (
-            <div className='text-muted-foreground flex h-24 items-center justify-center rounded-md border border-dashed text-sm'>
-              {emptyText
-                ? t(emptyText)
-                : t(
-                    'common.tips.noModelMappingsConfiguredClickAddMappingToGet'
-                  )}
-            </div>
+            <Empty>
+              <EmptyHeader>
+                <EmptyDescription>
+                  {emptyText
+                    ? t(emptyText)
+                    : t(
+                        'common.tips.noModelMappingsConfiguredClickAddMappingToGet'
+                      )}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
           {totalRows > 0 ? (
             <div className='flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between'>

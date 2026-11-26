@@ -22,14 +22,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -38,13 +31,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -163,6 +156,10 @@ export function PerfMetricsSection(props: Props) {
   }
 
   const enabled = form.watch('perf_metrics_setting.enabled')
+  const bucketTimeItems = BUCKET_TIME_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(option.labelKey),
+  }))
 
   return (
     <SettingsSection title={t('systemSettings.titles.perfMetricsSettings')}>
@@ -171,51 +168,27 @@ export function PerfMetricsSection(props: Props) {
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
-            saveLabel='common.actions.saveChanges'
-            savingLabel='common.tips.saving'
           />
 
-          <div>
-            <h4 className='font-medium'>
-              {t('systemSettings.titles.perfMetricsSettings')}
-            </h4>
-            <p className='text-muted-foreground mt-1 text-xs'>
-              {t('systemSettings.tips.perfMetricsDesc')}
-            </p>
-          </div>
-
-          <DisabledSettingsNotice enabled={enabled} />
-
-          <div data-settings-form-span='full' className='space-y-4'>
+          <SettingsGroup
+            title={t('systemSettings.actions.enablePerfMetrics')}
+            description={t('systemSettings.tips.perfMetricsDesc')}
+            control={
+              <SettingsGroupSwitch name='perf_metrics_setting.enabled' />
+            }
+            enabled={enabled}
+          >
             <FormField
               control={form.control}
-              name='perf_metrics_setting.enabled'
+              name='perf_metrics_setting.flush_interval'
               render={({ field }) => (
-                <SettingsSwitchItem className='border-b-2 pb-3'>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.actions.enablePerfMetrics')}
-                    </FormLabel>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
-
-            <div className='border-border/40 grid grid-cols-1 gap-4 border-l pl-4 md:grid-cols-3'>
-              <FormField
-                control={form.control}
-                name='perf_metrics_setting.flush_interval'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.perfMetricsFlushInterval')}
-                    </FormLabel>
+                <SettingsRow
+                  label={t('systemSettings.fields.perfMetricsFlushInterval')}
+                  description={t(
+                    'systemSettings.tips.perfMetricsFlushIntervalTip'
+                  )}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -233,31 +206,37 @@ export function PerfMetricsSection(props: Props) {
                         name={field.name}
                         onBlur={field.onBlur}
                         ref={field.ref}
-                        disabled={!enabled}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.tips.perfMetricsFlushIntervalTip')}
-                    </FormDescription>
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='perf_metrics_setting.bucket_time'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.perfMetricsBucketTime')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='perf_metrics_setting.bucket_time'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.perfMetricsBucketTime')}
+                >
+                  <SettingsControl size='sm'>
                     <Select
+                      items={bucketTimeItems}
                       value={field.value}
-                      onValueChange={(value) => field.onChange(value)}
-                      disabled={!enabled}
+                      onValueChange={(value) => {
+                        if (value !== null) {
+                          field.onChange(value)
+                        }
+                      }}
                     >
                       <FormControl>
-                        <SelectTrigger className='w-full'>
+                        <SelectTrigger
+                          className='w-full'
+                          aria-label={t(
+                            'systemSettings.fields.perfMetricsBucketTime'
+                          )}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
@@ -269,18 +248,22 @@ export function PerfMetricsSection(props: Props) {
                         ))}
                       </SelectContent>
                     </Select>
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='perf_metrics_setting.retention_days'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.perfMetricsRetentionDays')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='perf_metrics_setting.retention_days'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.perfMetricsRetentionDays')}
+                  description={t(
+                    'systemSettings.tips.perfMetricsRetentionDaysTip'
+                  )}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -298,17 +281,13 @@ export function PerfMetricsSection(props: Props) {
                         name={field.name}
                         onBlur={field.onBlur}
                         ref={field.ref}
-                        disabled={!enabled}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.tips.perfMetricsRetentionDaysTip')}
-                    </FormDescription>
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

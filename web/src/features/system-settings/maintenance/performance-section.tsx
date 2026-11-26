@@ -20,10 +20,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Copy, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,26 +37,24 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
-import { StatusBadge } from '@/components/status-badge'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { Skeleton } from '@/components/ui/skeleton'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
+import { SettingsNotice } from '../components/settings-notice'
 import { SettingsPageFormActions } from '../components/settings-page-context'
+import {
+  SettingsMeter,
+  SettingsPanel,
+  SettingsStat,
+  SettingsStatGrid,
+} from '../components/settings-panel'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -227,10 +226,13 @@ type PerformanceStats = {
   }
 }
 
+const STAT_SKELETON_KEYS = ['disk', 'memory', 'files', 'buffers']
+
 export function PerformanceSection(props: Props) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
   const [stats, setStats] = useState<PerformanceStats | null>(null)
+  const [cleanConfirmOpen, setCleanConfirmOpen] = useState(false)
 
   const formDefaults = useMemo(
     () => buildFormDefaults(props.defaultValues),
@@ -331,22 +333,32 @@ export function PerformanceSection(props: Props) {
     typeof maxCacheSizeMbRaw === 'number' && Number.isFinite(maxCacheSizeMbRaw)
       ? maxCacheSizeMbRaw
       : 0
-  const lowDiskSpace =
+  const diskSpace = stats?.disk_space_info
+  const lowDiskSpace = Boolean(
     diskEnabled &&
-    stats?.disk_space_info &&
-    stats.disk_space_info.free > 0 &&
+    diskSpace !== undefined &&
+    diskSpace.free > 0 &&
     maxCacheSizeMb > 0 &&
-    stats.disk_space_info.free < maxCacheSizeMb * 1024 * 1024
+    diskSpace.free < maxCacheSizeMb * 1024 * 1024
+  )
 
-  const diskCachePercent =
-    stats?.cache_stats?.disk_cache_max_bytes &&
-    stats.cache_stats.disk_cache_max_bytes > 0
-      ? Math.round(
-          (stats.cache_stats.current_disk_usage_bytes /
-            stats.cache_stats.disk_cache_max_bytes) *
-            100
-        )
-      : 0
+  const monitorThresholdFields = [
+    {
+      name: 'monitor_cpu_threshold',
+      label: t('systemSettings.fields.cpuThreshold'),
+      max: undefined,
+    },
+    {
+      name: 'monitor_memory_threshold',
+      label: t('systemSettings.fields.memoryThreshold'),
+      max: 100,
+    },
+    {
+      name: 'monitor_disk_threshold',
+      label: t('systemSettings.fields.diskThreshold'),
+      max: 100,
+    },
+  ] as const
 
   return (
     <SettingsSection title={t('systemSettings.titles.performanceSettings')}>
@@ -355,483 +367,406 @@ export function PerformanceSection(props: Props) {
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
-            saveLabel='common.actions.saveChanges'
-            savingLabel='common.tips.saving'
           />
-          {/* Disk Cache Settings */}
-          <div>
-            <h4 className='font-medium'>
-              {t('systemSettings.titles.diskCacheSettings')}
-            </h4>
-            <p className='text-muted-foreground mt-1 text-xs'>
-              {t(
-                'systemSettings.status.enabledLargeRequestBodiesAreTemporarilyStoredOnDisk'
-              )}
-            </p>
-          </div>
 
-          <DisabledSettingsNotice enabled={diskEnabled} />
-
-          <div data-settings-form-span='full' className='space-y-4'>
+          <SettingsGroup
+            title={t('systemSettings.titles.diskCacheSettings')}
+            description={t(
+              'systemSettings.status.enabledLargeRequestBodiesAreTemporarilyStoredOnDisk'
+            )}
+            control={
+              <SettingsGroupSwitch name='performance_setting.disk_cache_enabled' />
+            }
+            enabled={diskEnabled}
+          >
             <FormField
               control={form.control}
-              name='performance_setting.disk_cache_enabled'
+              name='performance_setting.disk_cache_threshold_mb'
               render={({ field }) => (
-                <SettingsSwitchItem className='border-b-2 pb-3'>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.actions.enableDiskCache')}
-                    </FormLabel>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.diskCacheThresholdMb')}
+                  description={t(
+                    'systemSettings.actions.useDiskCacheWhenRequestBodyExceedsThisSize'
+                  )}
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        value={
+                          typeof field.value === 'number' &&
+                          Number.isFinite(field.value)
+                            ? field.value
+                            : ''
+                        }
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
-
-            <div className='border-border/40 space-y-4 border-l pl-4'>
-              <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-                <FormField
-                  control={form.control}
-                  name='performance_setting.disk_cache_threshold_mb'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('systemSettings.fields.diskCacheThresholdMb')}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          min={1}
-                          value={
-                            typeof field.value === 'number' &&
-                            Number.isFinite(field.value)
-                              ? field.value
-                              : ''
-                          }
-                          onChange={(event) =>
-                            field.onChange(event.target.valueAsNumber)
-                          }
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          disabled={!diskEnabled}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t(
-                          'systemSettings.actions.useDiskCacheWhenRequestBodyExceedsThisSize'
-                        )}
-                      </FormDescription>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='performance_setting.disk_cache_max_size_mb'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('systemSettings.fields.maxDiskCacheSizeMb')}
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          min={100}
-                          value={
-                            typeof field.value === 'number' &&
-                            Number.isFinite(field.value)
-                              ? field.value
-                              : ''
-                          }
-                          onChange={(event) =>
-                            field.onChange(event.target.valueAsNumber)
-                          }
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          disabled={!diskEnabled}
-                        />
-                      </FormControl>
-                      {stats?.disk_space_info &&
-                        stats.disk_space_info.total > 0 && (
-                          <FormDescription>
-                            {t('systemSettings.tips.freeFreeTotalTotal', {
-                              free: formatBytes(stats.disk_space_info.free),
-                              total: formatBytes(stats.disk_space_info.total),
-                            })}
-                          </FormDescription>
-                        )}
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {lowDiskSpace && (
-                <Alert variant='destructive'>
-                  <AlertDescription>
-                    {`${t('systemSettings.tips.warning')}: ${t('systemSettings.fields.availableDiskSpace')} (${formatBytes(stats?.disk_space_info?.free ?? 0)}) ${t('systemSettings.tips.lessThanTheConfiguredMaximumCacheSize')} (${maxCacheSizeMb} MB). ${t('systemSettings.tips.mayCauseCacheFailures')}`}
-                  </AlertDescription>
-                </Alert>
+            <FormField
+              control={form.control}
+              name='performance_setting.disk_cache_max_size_mb'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.maxDiskCacheSizeMb')}
+                  hint={
+                    diskSpace !== undefined && diskSpace.total > 0
+                      ? t('systemSettings.tips.freeFreeTotalTotal', {
+                          free: formatBytes(diskSpace.free),
+                          total: formatBytes(diskSpace.total),
+                        })
+                      : undefined
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={100}
+                        value={
+                          typeof field.value === 'number' &&
+                          Number.isFinite(field.value)
+                            ? field.value
+                            : ''
+                        }
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
-
-              {!stats?.config?.is_running_in_container && (
-                <FormField
-                  control={form.control}
-                  name='performance_setting.disk_cache_path'
-                  render={({ field }) => (
-                    <FormItem className='max-w-md'>
-                      <FormLabel>
-                        {t('systemSettings.fields.cacheDirectory')}
-                      </FormLabel>
+            />
+            {!stats?.config?.is_running_in_container && (
+              <FormField
+                control={form.control}
+                name='performance_setting.disk_cache_path'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.cacheDirectory')}
+                    hint={t(
+                      'systemSettings.tips.leaveEmptyToUseSystemTempDirectory'
+                    )}
+                  >
+                    <SettingsControl size='lg'>
                       <FormControl>
                         <Input
-                          placeholder={t(
-                            'systemSettings.tips.leaveEmptyToUseSystemTempDirectory'
-                          )}
                           {...field}
                           value={field.value ?? ''}
-                          disabled={!diskEnabled}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
                         />
                       </FormControl>
-                    </FormItem>
-                  )}
-                />
+                    </SettingsControl>
+                  </SettingsRow>
+                )}
+              />
+            )}
+            {lowDiskSpace && diskSpace !== undefined && (
+              <SettingsNotice
+                tone='warning'
+                title={t('systemSettings.tips.warning')}
+              >
+                {t('systemSettings.fields.availableDiskSpace')} (
+                {formatBytes(diskSpace.free)}){' '}
+                {t('systemSettings.tips.lessThanTheConfiguredMaximumCacheSize')}{' '}
+                ({maxCacheSizeMb} MB).{' '}
+                {t('systemSettings.tips.mayCauseCacheFailures')}
+              </SettingsNotice>
+            )}
+          </SettingsGroup>
+
+          <SettingsGroup
+            title={t('systemSettings.titles.performanceMonitoring')}
+            description={t(
+              'systemSettings.status.performanceMonitoringIsEnabledAndSystemResourceUsageExceeds'
+            )}
+            control={
+              <SettingsGroupSwitch name='performance_setting.monitor_enabled' />
+            }
+            enabled={monitorEnabled}
+          >
+            {monitorThresholdFields.map(({ name, label, max }) => (
+              <FormField
+                key={name}
+                control={form.control}
+                name={`performance_setting.${name}`}
+                render={({ field }) => (
+                  <SettingsRow label={label}>
+                    <SettingsControl size='xs'>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          max={max}
+                          value={
+                            typeof field.value === 'number' &&
+                            Number.isFinite(field.value)
+                              ? field.value
+                              : ''
+                          }
+                          onChange={(event) =>
+                            field.onChange(event.target.valueAsNumber)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
+                )}
+              />
+            ))}
+          </SettingsGroup>
+
+          <SettingsPanel
+            title={t('systemSettings.fields.performanceMonitor')}
+            actions={
+              <>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={fetchStats}
+                >
+                  <RefreshCw data-icon='inline-start' />
+                  {t('systemSettings.actions.refreshStats')}
+                </Button>
+                <AlertDialog
+                  open={cleanConfirmOpen}
+                  onOpenChange={setCleanConfirmOpen}
+                >
+                  <AlertDialogTrigger
+                    render={
+                      <Button type='button' variant='outline' size='sm' />
+                    }
+                  >
+                    {t('systemSettings.actions.cleanUpInactiveCache')}
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {t(
+                          'systemSettings.actions.confirmCleanupOfInactiveDiskCache'
+                        )}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t(
+                          'systemSettings.status.deleteTemporaryCacheFilesThatHaveNotBeenUsed'
+                        )}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        {t('common.actions.cancel')}
+                      </AlertDialogCancel>
+                      <AlertDialogAction onClick={clearDiskCache}>
+                        {t('common.actions.confirm')}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={resetStats}
+                >
+                  {t('systemSettings.actions.resetStats')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={forceGC}
+                >
+                  {t('systemSettings.actions.runGc')}
+                </Button>
+              </>
+            }
+          >
+            <div className='py-2'>
+              {stats === null ? (
+                <SettingsStatGrid aria-busy='true'>
+                  {STAT_SKELETON_KEYS.map((key) => (
+                    <div key={key} className='flex flex-col gap-2'>
+                      <Skeleton className='h-3 w-20' />
+                      <Skeleton className='h-5 w-28' />
+                    </div>
+                  ))}
+                </SettingsStatGrid>
+              ) : (
+                <PerformanceStatsBody stats={stats} />
               )}
             </div>
-          </div>
-
-          <Separator />
-
-          {/* System Performance Monitor */}
-          <div>
-            <h4 className='font-medium'>
-              {t('systemSettings.titles.performanceMonitoring')}
-            </h4>
-            <p className='text-muted-foreground mt-1 text-xs'>
-              {t(
-                'systemSettings.status.performanceMonitoringIsEnabledAndSystemResourceUsageExceeds'
-              )}
-            </p>
-          </div>
-
-          <DisabledSettingsNotice enabled={monitorEnabled} />
-
-          <div data-settings-form-span='full' className='space-y-4'>
-            <FormField
-              control={form.control}
-              name='performance_setting.monitor_enabled'
-              render={({ field }) => (
-                <SettingsSwitchItem className='border-b-2 pb-3'>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.actions.enablePerformanceMonitoring')}
-                    </FormLabel>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
-
-            <div className='border-border/40 grid grid-cols-1 gap-4 border-l pl-4 md:grid-cols-3'>
-              <FormField
-                control={form.control}
-                name='performance_setting.monitor_cpu_threshold'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.cpuThreshold')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        value={
-                          typeof field.value === 'number' &&
-                          Number.isFinite(field.value)
-                            ? field.value
-                            : ''
-                        }
-                        onChange={(event) =>
-                          field.onChange(event.target.valueAsNumber)
-                        }
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        ref={field.ref}
-                        disabled={!monitorEnabled}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='performance_setting.monitor_memory_threshold'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.memoryThreshold')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        max={100}
-                        value={
-                          typeof field.value === 'number' &&
-                          Number.isFinite(field.value)
-                            ? field.value
-                            : ''
-                        }
-                        onChange={(event) =>
-                          field.onChange(event.target.valueAsNumber)
-                        }
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        ref={field.ref}
-                        disabled={!monitorEnabled}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='performance_setting.monitor_disk_threshold'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.diskThreshold')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        max={100}
-                        value={
-                          typeof field.value === 'number' &&
-                          Number.isFinite(field.value)
-                            ? field.value
-                            : ''
-                        }
-                        onChange={(event) =>
-                          field.onChange(event.target.valueAsNumber)
-                        }
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        ref={field.ref}
-                        disabled={!monitorEnabled}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
+          </SettingsPanel>
         </SettingsForm>
       </Form>
+    </SettingsSection>
+  )
+}
 
-      <Separator />
+function StatDetail({ label, value }: { label: string; value: number }) {
+  return (
+    <span className='inline-flex gap-1.5'>
+      <span>{label}</span>
+      <span className='text-foreground font-medium tabular-nums'>{value}</span>
+    </span>
+  )
+}
 
-      {/* Performance Stats Dashboard */}
-      <div className='space-y-4'>
-        <div className='flex items-center gap-2'>
-          <h4 className='font-medium'>
-            {t('systemSettings.fields.performanceMonitor')}
-          </h4>
-          <Button variant='outline' size='sm' onClick={fetchStats}>
-            {t('systemSettings.actions.refreshStats')}
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger render={<Button variant='outline' size='sm' />}>
-              {t('systemSettings.actions.cleanUpInactiveCache')}
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t(
-                    'systemSettings.actions.confirmCleanupOfInactiveDiskCache'
-                  )}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t(
-                    'systemSettings.status.deleteTemporaryCacheFilesThatHaveNotBeenUsed'
-                  )}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  {t('common.actions.cancel')}
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={clearDiskCache}>
-                  {t('common.actions.confirm')}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button variant='outline' size='sm' onClick={resetStats}>
-            {t('systemSettings.actions.resetStats')}
-          </Button>
-          <Button variant='outline' size='sm' onClick={forceGC}>
-            {t('systemSettings.actions.runGc')}
-          </Button>
-        </div>
+function PerformanceStatsBody({ stats }: { stats: PerformanceStats }) {
+  const { t } = useTranslation()
+  const { copyToClipboard } = useCopyToClipboard()
+  const cache = stats.cache_stats
+  const memory = stats.memory_stats
+  const diskSpace = stats.disk_space_info
+  const diskCache = stats.disk_cache_info
 
-        {stats && (
-          <>
-            <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-              <div className='space-y-2 rounded-lg border p-4'>
-                <p className='text-sm font-medium'>
-                  {t('systemSettings.fields.requestBodyDiskCache')}
-                </p>
-                <Progress value={diskCachePercent} />
-                <div className='text-muted-foreground flex justify-between text-xs'>
-                  <span>
-                    {formatBytes(
-                      stats.cache_stats?.current_disk_usage_bytes ?? 0
-                    )}{' '}
-                    /{' '}
-                    {formatBytes(stats.cache_stats?.disk_cache_max_bytes ?? 0)}
-                  </span>
-                  <span>
-                    {t('systemSettings.status.activeFiles')}:{' '}
-                    {stats.cache_stats?.active_disk_files ?? 0}
-                  </span>
-                </div>
-                <StatusBadge variant='neutral' copyable={false}>
-                  {t('systemSettings.fields.diskHits')}:{' '}
-                  {stats.cache_stats?.disk_cache_hits ?? 0}
-                </StatusBadge>
-              </div>
-              <div className='space-y-2 rounded-lg border p-4'>
-                <p className='text-sm font-medium'>
-                  {t('systemSettings.fields.requestBodyMemoryCache')}
-                </p>
-                <div className='text-muted-foreground flex justify-between text-xs'>
-                  <span>
-                    {t('systemSettings.fields.currentCacheSize')}:{' '}
-                    {formatBytes(
-                      stats.cache_stats?.current_memory_usage_bytes ?? 0
-                    )}
-                  </span>
-                  <span>
-                    {t('systemSettings.status.activeCacheCount')}:{' '}
-                    {stats.cache_stats?.active_memory_buffers ?? 0}
-                  </span>
-                </div>
-                <StatusBadge variant='neutral' copyable={false}>
-                  {t('systemSettings.fields.memoryHits')}:{' '}
-                  {stats.cache_stats?.memory_cache_hits ?? 0}
-                </StatusBadge>
-              </div>
-            </div>
+  const diskCacheUsed = cache?.current_disk_usage_bytes ?? 0
+  const diskCacheMax = cache?.disk_cache_max_bytes ?? 0
+  const diskCachePercent =
+    diskCacheMax > 0 ? (diskCacheUsed / diskCacheMax) * 100 : 0
 
-            {stats.disk_space_info && stats.disk_space_info.total > 0 && (
-              <div className='rounded-lg border p-4'>
-                <p className='mb-2 text-sm font-medium'>
-                  {t('systemSettings.fields.cacheDirectoryDiskSpace')}
-                </p>
-                <Progress
-                  value={Math.round(stats.disk_space_info.used_percent)}
-                />
-                <div className='text-muted-foreground mt-2 flex justify-between text-xs'>
-                  <span>
-                    {t('common.status.used')}:{' '}
-                    {formatBytes(stats.disk_space_info.used)}
-                  </span>
-                  <span>
-                    {t('channels.fields.available')}:{' '}
-                    {formatBytes(stats.disk_space_info.free)}
-                  </span>
-                  <span>
-                    {t('dashboard.fields.total')}:{' '}
-                    {formatBytes(stats.disk_space_info.total)}
-                  </span>
-                </div>
-              </div>
-            )}
+  return (
+    <div className='flex flex-col gap-5'>
+      <SettingsStatGrid columns={4}>
+        <SettingsStat
+          label={t('systemSettings.fields.requestBodyDiskCache')}
+          value={`${formatBytes(diskCacheUsed)} / ${formatBytes(diskCacheMax)}`}
+          detail={
+            cache && (
+              <StatDetail
+                label={t('systemSettings.fields.diskHits')}
+                value={cache.disk_cache_hits}
+              />
+            )
+          }
+        />
+        <SettingsStat
+          label={t('systemSettings.fields.requestBodyMemoryCache')}
+          value={formatBytes(cache?.current_memory_usage_bytes ?? 0)}
+          detail={
+            cache && (
+              <StatDetail
+                label={t('systemSettings.fields.memoryHits')}
+                value={cache.memory_cache_hits}
+              />
+            )
+          }
+        />
+        <SettingsStat
+          label={t('systemSettings.status.activeFiles')}
+          value={cache?.active_disk_files ?? 0}
+        />
+        <SettingsStat
+          label={t('systemSettings.status.activeCacheCount')}
+          value={cache?.active_memory_buffers ?? 0}
+        />
+      </SettingsStatGrid>
 
-            {stats.memory_stats && (
-              <div className='rounded-lg border p-4'>
-                <p className='mb-2 text-sm font-medium'>
-                  {t('systemSettings.titles.memoryStats')}
-                </p>
-                <div className='grid grid-cols-2 gap-2 text-xs md:grid-cols-5'>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.fields.allocatedMemory')}:
-                    </span>{' '}
-                    {formatBytes(stats.memory_stats.alloc)}
-                  </div>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.fields.totalAllocated')}:
-                    </span>{' '}
-                    {formatBytes(stats.memory_stats.total_alloc)}
-                  </div>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.titles.memory')}:
-                    </span>{' '}
-                    {formatBytes(stats.memory_stats.sys)}
-                  </div>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.fields.gcCount')}:
-                    </span>{' '}
-                    {stats.memory_stats.num_gc}
-                  </div>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.fields.goroutines')}:
-                    </span>{' '}
-                    {stats.memory_stats.num_goroutine}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {stats.disk_cache_info && (
-              <div className='rounded-lg border p-4'>
-                <p className='mb-2 text-sm font-medium'>
-                  {t('systemSettings.fields.cacheDirectoryInfo')}
-                </p>
-                <div className='grid grid-cols-3 gap-2 text-xs'>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.fields.cacheDirectory')}:
-                    </span>{' '}
-                    <span className='font-mono'>
-                      {stats.disk_cache_info.path}
-                    </span>
-                  </div>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.fields.directoryFileCount')}:
-                    </span>{' '}
-                    {stats.disk_cache_info.file_count}
-                  </div>
-                  <div>
-                    <span className='text-muted-foreground'>
-                      {t('systemSettings.fields.directoryTotalSize')}:
-                    </span>{' '}
-                    {formatBytes(stats.disk_cache_info.total_size)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
+      <div className='grid gap-5 lg:grid-cols-2'>
+        {diskSpace !== undefined && diskSpace.total > 0 && (
+          <SettingsMeter
+            label={t('systemSettings.fields.cacheDirectoryDiskSpace')}
+            valueText={t('systemSettings.tips.freeFreeTotalTotal', {
+              free: formatBytes(diskSpace.free),
+              total: formatBytes(diskSpace.total),
+            })}
+            percent={diskSpace.used_percent}
+          />
+        )}
+        {cache && (
+          <SettingsMeter
+            label={t('systemSettings.fields.requestBodyDiskCache')}
+            valueText={`${formatBytes(diskCacheUsed)} / ${formatBytes(diskCacheMax)}`}
+            percent={diskCachePercent}
+          />
         )}
       </div>
-    </SettingsSection>
+
+      {memory && (
+        <div className='flex flex-col gap-3'>
+          <h4 className='text-sm leading-snug font-medium'>
+            {t('systemSettings.titles.memoryStats')}
+          </h4>
+          <SettingsStatGrid columns={5}>
+            <SettingsStat
+              label={t('systemSettings.fields.allocatedMemory')}
+              value={formatBytes(memory.alloc)}
+            />
+            <SettingsStat
+              label={t('systemSettings.fields.totalAllocated')}
+              value={formatBytes(memory.total_alloc)}
+            />
+            <SettingsStat
+              label={t('systemSettings.titles.memory')}
+              value={formatBytes(memory.sys)}
+            />
+            <SettingsStat
+              label={t('systemSettings.fields.gcCount')}
+              value={memory.num_gc}
+            />
+            <SettingsStat
+              label={t('systemSettings.fields.goroutines')}
+              value={memory.num_goroutine}
+            />
+          </SettingsStatGrid>
+        </div>
+      )}
+
+      {diskCache && (
+        <div className='flex flex-col gap-3'>
+          <h4 className='text-sm leading-snug font-medium'>
+            {t('systemSettings.fields.cacheDirectoryInfo')}
+          </h4>
+          <div className='text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm'>
+            <span className='flex min-w-0 items-center gap-1'>
+              <span className='text-xs'>
+                {t('systemSettings.fields.cacheDirectory')}
+              </span>
+              <code className='truncate font-mono text-sm'>
+                {diskCache.path}
+              </code>
+              <Button
+                variant='ghost'
+                size='icon-sm'
+                aria-label={t('common.actions.copyToClipboard')}
+                onClick={() => void copyToClipboard(diskCache.path)}
+              >
+                <Copy />
+              </Button>
+            </span>
+            <span className='inline-flex gap-1.5 text-xs'>
+              <span>{t('systemSettings.fields.directoryFileCount')}</span>
+              <span className='text-foreground text-sm font-medium tabular-nums'>
+                {diskCache.file_count}
+              </span>
+            </span>
+            <span className='inline-flex gap-1.5 text-xs'>
+              <span>{t('systemSettings.fields.directoryTotalSize')}</span>
+              <span className='text-foreground text-sm font-medium tabular-nums'>
+                {formatBytes(diskCache.total_size)}
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

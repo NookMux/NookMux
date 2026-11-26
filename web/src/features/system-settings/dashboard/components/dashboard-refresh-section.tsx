@@ -19,21 +19,15 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SettingsForm } from '../../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsFormGrid,
-  SettingsFormGridItem,
-} from '../../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsRow,
+} from '../../components/settings-group'
 import { SettingsPageFormActions } from '../../components/settings-page-context'
 import { SettingsSection } from '../../components/settings-section'
 import { useSettingsForm } from '../../hooks/use-settings-form'
@@ -68,7 +62,7 @@ export function DashboardRefreshSection() {
   const { data: config, isLoading } = useDashboardConfig()
   const updateConfig = useUpdateDashboardConfig()
 
-  const { form, handleSubmit, handleReset, isDirty } =
+  const { form, handleSubmit, handleReset } =
     useSettingsForm<RefreshIntervalFormData>({
       resolver: zodResolver(refreshIntervalSchema),
       defaultValues: config
@@ -100,125 +94,117 @@ export function DashboardRefreshSection() {
 
   return (
     <SettingsSection title={t('systemSettings.actions.refreshIntervals')}>
-      <p className='text-muted-foreground mb-4 text-sm'>
-        {t(
-          'systemSettings.tips.configureHowOftenDashboardDataIsRefreshedLowerIntervals'
-        )}
-      </p>
       <Form {...form}>
         <SettingsForm onSubmit={handleSubmit}>
-          <SettingsFormGrid>
-            <SettingsFormGridItem>
-              <FormField
-                control={form.control}
-                name='quota_data_refresh_interval'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.tips.quotaDataIntervalSeconds')}
-                    </FormLabel>
+          <SettingsPageFormActions
+            onSave={handleSubmit}
+            onReset={handleReset}
+            isSaving={updateConfig.isPending}
+          />
+
+          <SettingsGroup
+            description={t(
+              'systemSettings.tips.configureHowOftenDashboardDataIsRefreshedLowerIntervals'
+            )}
+          >
+            <FormField
+              control={form.control}
+              name='quota_data_refresh_interval'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.tips.quotaDataIntervalSeconds')}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
                         min={60}
                         max={86400}
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(Number.parseInt(e.target.value))
+                        onChange={(event) =>
+                          field.onChange(Number.parseInt(event.target.value))
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </SettingsFormGridItem>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-            <SettingsFormGridItem>
-              <FormField
-                control={form.control}
-                name='user_analytics_refresh_interval'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.tips.userAnalyticsIntervalSeconds')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='user_analytics_refresh_interval'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.tips.userAnalyticsIntervalSeconds')}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
                         min={60}
                         max={86400}
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(Number.parseInt(e.target.value))
+                        onChange={(event) =>
+                          field.onChange(Number.parseInt(event.target.value))
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </SettingsFormGridItem>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-            <SettingsFormGridItem>
-              <FormField
-                control={form.control}
-                name='rankings_refresh_interval'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.tips.rankingsIntervalSeconds')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='rankings_refresh_interval'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.tips.rankingsIntervalSeconds')}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
                         min={60}
                         max={86400}
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(Number.parseInt(e.target.value))
+                        onChange={(event) =>
+                          field.onChange(Number.parseInt(event.target.value))
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </SettingsFormGridItem>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-            <SettingsFormGridItem>
-              <FormField
-                control={form.control}
-                name='uptime_kuma_refresh_interval'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.tips.uptimeMonitoringIntervalSeconds')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='uptime_kuma_refresh_interval'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t(
+                    'systemSettings.tips.uptimeMonitoringIntervalSeconds'
+                  )}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
                         min={30}
                         max={3600}
                         {...field}
-                        onChange={(e) =>
-                          field.onChange(Number.parseInt(e.target.value))
+                        onChange={(event) =>
+                          field.onChange(Number.parseInt(event.target.value))
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </SettingsFormGridItem>
-          </SettingsFormGrid>
-
-          <SettingsPageFormActions
-            onSave={handleSubmit}
-            onReset={handleReset}
-            isSaving={updateConfig.isPending}
-            isResetDisabled={!isDirty}
-          />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

@@ -30,16 +30,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { SettingsControl, SettingsRow } from '../components/settings-group'
 
 const rateLimitDialogSchema = z.object({
   groupName: z.string().min(1, 'common.errors.groupNameIsRequired'),
@@ -123,32 +116,34 @@ export function RateLimitDialog({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
-            className='space-y-4'
+            className='@container space-y-4'
           >
             <FormField
               control={form.control}
               name='groupName'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('models.fields.groupName')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={t(
-                        'systemSettings.placeholders.eGDefaultVipPremium'
-                      )}
-                      {...field}
-                      disabled={isEditMode}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {isEditMode
+                <SettingsRow
+                  label={t('models.fields.groupName')}
+                  description={
+                    isEditMode
                       ? t(
                           'systemSettings.errors.groupNameCannotBeChangedWhenEditing'
                         )
-                      : t('systemSettings.tips.uniqueIdentifierForThisGroup')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                      : t('systemSettings.tips.uniqueIdentifierForThisGroup')
+                  }
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        placeholder={t(
+                          'systemSettings.placeholders.eGDefaultVipPremium'
+                        )}
+                        {...field}
+                        disabled={isEditMode}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -156,34 +151,32 @@ export function RateLimitDialog({
               control={form.control}
               name='maxRequests'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.maxRequestsIncludingFailures')}
-                  </FormLabel>
-                  <FormControl>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        type='number'
-                        min={0}
-                        max={2147483647}
-                        step={1}
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 0)
-                        }
-                      />
-                      <span className='text-muted-foreground text-sm'>
-                        {t('systemSettings.fields.times')}
-                      </span>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.totalRequestsAllowedPerPeriod0Unlimited'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.tips.maxRequestsIncludingFailures')}
+                  description={t(
+                    'systemSettings.tips.totalRequestsAllowedPerPeriod0Unlimited'
+                  )}
+                >
+                  <div className='flex items-center gap-2'>
+                    <SettingsControl size='xs'>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          max={2147483647}
+                          step={1}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(parseInt(e.target.value) || 0)
+                          }
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
+                      {t('systemSettings.fields.times')}
+                    </span>
+                  </div>
+                </SettingsRow>
               )}
             />
 
@@ -191,34 +184,32 @@ export function RateLimitDialog({
               control={form.control}
               name='maxSuccess'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.status.maxSuccessfulRequests')}
-                  </FormLabel>
-                  <FormControl>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        type='number'
-                        min={1}
-                        max={2147483647}
-                        step={1}
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 1)
-                        }
-                      />
-                      <span className='text-muted-foreground text-sm'>
-                        {t('systemSettings.fields.times')}
-                      </span>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.status.onlySuccessfulRequestsCountTowardThisLimit'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.status.maxSuccessfulRequests')}
+                  description={t(
+                    'systemSettings.status.onlySuccessfulRequestsCountTowardThisLimit'
+                  )}
+                >
+                  <div className='flex items-center gap-2'>
+                    <SettingsControl size='xs'>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={1}
+                          max={2147483647}
+                          step={1}
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(parseInt(e.target.value) || 1)
+                          }
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
+                      {t('systemSettings.fields.times')}
+                    </span>
+                  </div>
+                </SettingsRow>
               )}
             />
 

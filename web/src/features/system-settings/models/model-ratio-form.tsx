@@ -22,7 +22,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { SettingsForm } from '../components/settings-form-layout'
-import { SettingsPageActionsPortal } from '../components/settings-page-context'
+import { SettingsPageFormActions } from '../components/settings-page-context'
+import { SettingsPanel } from '../components/settings-panel'
 import {
   ModelRatioVisualEditor,
   type ModelRatioField,
@@ -42,17 +43,21 @@ type ModelFormValues = {
 type ModelRatioFormProps = {
   form: UseFormReturn<ModelFormValues>
   onSave: (values: ModelFormValues) => Promise<void>
-  onReset: () => void
+  /** 恢复为上游默认价格，操作立即生效。 */
+  onRestoreDefaults: () => void
   isSaving: boolean
   isResetting: boolean
+  /** 所在页签是否为当前页签；页头操作栏只在当前页签渲染。 */
+  active: boolean
 }
 
 export const ModelRatioForm = memo(function ModelRatioForm({
   form,
   onSave,
-  onReset,
+  onRestoreDefaults,
   isSaving,
   isResetting,
+  active,
 }: ModelRatioFormProps) {
   const { t } = useTranslation()
   const [isEditorValid, setIsEditorValid] = useState(true)
@@ -84,28 +89,17 @@ export const ModelRatioForm = memo(function ModelRatioForm({
 
   return (
     <Form {...form}>
-      <SettingsPageActionsPortal>
-        <Button
-          type='button'
-          variant='destructive'
-          size='sm'
-          onClick={onReset}
-          disabled={isResetting}
-        >
-          {t('systemSettings.actions.resetModelRatios')}
-        </Button>
-        <Button
-          type='button'
-          size='sm'
-          onClick={form.handleSubmit(onSave)}
-          disabled={isSaving || !isEditorValid}
-        >
-          {isSaving
-            ? t('channels.tips.saving')
-            : t('systemSettings.actions.saveModelPrices')}
-        </Button>
-      </SettingsPageActionsPortal>
-      <SettingsForm onSubmit={form.handleSubmit(onSave)}>
+      {active && (
+        <SettingsPageFormActions
+          onSave={form.handleSubmit(onSave)}
+          isSaving={isSaving}
+          isSaveDisabled={!isEditorValid}
+        />
+      )}
+      <SettingsForm
+        onSubmit={form.handleSubmit(onSave)}
+        className='lg:min-h-0 lg:flex-1'
+      >
         <ModelRatioVisualEditor
           modelPrice={values.ModelPrice}
           modelRatio={values.ModelRatio}
@@ -120,6 +114,26 @@ export const ModelRatioForm = memo(function ModelRatioForm({
           isSaving={isSaving}
         />
       </SettingsForm>
+
+      <SettingsPanel
+        tone='destructive'
+        className='shrink-0'
+        title={t('systemSettings.actions.resetModelRatios')}
+        description={t(
+          'systemSettings.tips.clearCustomPricingRatiosAndRevertToUpstreamDefaults'
+        )}
+        footer={
+          <Button
+            type='button'
+            variant='destructive'
+            size='sm'
+            onClick={onRestoreDefaults}
+            disabled={isResetting}
+          >
+            {t('common.actions.resetToDefault')}
+          </Button>
+        }
+      />
     </Form>
   )
 })

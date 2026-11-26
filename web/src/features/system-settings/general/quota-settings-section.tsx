@@ -23,22 +23,15 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { getLocalizedCurrencyLabel } from '@/lib/currency'
 import { parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsFormGrid,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useSettingsForm } from '../hooks/use-settings-form'
@@ -100,7 +93,7 @@ export function QuotaSettingsSection({
       )
     }
 
-  const { form, handleSubmit, isDirty, isSubmitting } =
+  const { form, handleSubmit, handleReset, isDirty, isSubmitting } =
     useSettingsForm<QuotaFormValues>({
       resolver: zodResolver(quotaSchema) as Resolver<
         QuotaFormValues,
@@ -137,38 +130,41 @@ export function QuotaSettingsSection({
         <SettingsForm onSubmit={handleSubmit}>
           <SettingsPageFormActions
             onSave={handleSubmit}
+            onReset={handleReset}
             isSaving={updateOption.isPending || isSubmitting}
           />
-          <FormDirtyIndicator isDirty={isDirty} />
-          <SettingsFormGrid>
+
+          <SettingsGroup>
             <FormField
               control={form.control}
               name='QuotaForNewUser'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.newUserQuota')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      step='any'
-                      value={field.value ?? ''}
-                      onChange={handleNumberChange(field.onChange)}
-                      name={field.name}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.tips.initialQuotaGivenToNewUsers')}
-                    {' · '}
-                    {t('systemSettings.fields.displayedInUnit', {
-                      unit: quotaUnitLabel,
-                    })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.newUserQuota')}
+                  description={
+                    <>
+                      {t('systemSettings.tips.initialQuotaGivenToNewUsers')}
+                      {' · '}
+                      {t('systemSettings.fields.displayedInUnit', {
+                        unit: quotaUnitLabel,
+                      })}
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='any'
+                        value={field.value ?? ''}
+                        onChange={handleNumberChange(field.onChange)}
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -176,30 +172,34 @@ export function QuotaSettingsSection({
               control={form.control}
               name='PreConsumedQuota'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.preConsumedQuota')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      step='any'
-                      value={field.value ?? ''}
-                      onChange={handleNumberChange(field.onChange)}
-                      name={field.name}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.tips.quotaConsumedBeforeChargingUsers')}
-                    {' · '}
-                    {t('systemSettings.fields.displayedInUnit', {
-                      unit: quotaUnitLabel,
-                    })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.preConsumedQuota')}
+                  description={
+                    <>
+                      {t(
+                        'systemSettings.tips.quotaConsumedBeforeChargingUsers'
+                      )}
+                      {' · '}
+                      {t('systemSettings.fields.displayedInUnit', {
+                        unit: quotaUnitLabel,
+                      })}
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='any'
+                        value={field.value ?? ''}
+                        onChange={handleNumberChange(field.onChange)}
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -207,30 +207,34 @@ export function QuotaSettingsSection({
               control={form.control}
               name='QuotaForInviter'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.inviterReward')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      step='any'
-                      value={field.value ?? ''}
-                      onChange={handleNumberChange(field.onChange)}
-                      name={field.name}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.tips.quotaGivenToUsersWhoInviteOthers')}
-                    {' · '}
-                    {t('systemSettings.fields.displayedInUnit', {
-                      unit: quotaUnitLabel,
-                    })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.inviterReward')}
+                  description={
+                    <>
+                      {t(
+                        'systemSettings.tips.quotaGivenToUsersWhoInviteOthers'
+                      )}
+                      {' · '}
+                      {t('systemSettings.fields.displayedInUnit', {
+                        unit: quotaUnitLabel,
+                      })}
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='any'
+                        value={field.value ?? ''}
+                        onChange={handleNumberChange(field.onChange)}
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -238,30 +242,32 @@ export function QuotaSettingsSection({
               control={form.control}
               name='QuotaForInvitee'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.inviteeReward')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      step='any'
-                      value={field.value ?? ''}
-                      onChange={handleNumberChange(field.onChange)}
-                      name={field.name}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.titles.quotaGivenToInvitedUsers')}
-                    {' · '}
-                    {t('systemSettings.fields.displayedInUnit', {
-                      unit: quotaUnitLabel,
-                    })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.inviteeReward')}
+                  description={
+                    <>
+                      {t('systemSettings.titles.quotaGivenToInvitedUsers')}
+                      {' · '}
+                      {t('systemSettings.fields.displayedInUnit', {
+                        unit: quotaUnitLabel,
+                      })}
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='any'
+                        value={field.value ?? ''}
+                        onChange={handleNumberChange(field.onChange)}
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -269,35 +275,37 @@ export function QuotaSettingsSection({
               control={form.control}
               name='quota_setting.free_model_pre_consumed_quota'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.titles.preConsumeForFreeModels')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      step='any'
-                      value={field.value ?? ''}
-                      onChange={handleNumberChange(field.onChange)}
-                      name={field.name}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.quotaPreConsumedForZeroCostModelsSet0'
-                    )}
-                    {' · '}
-                    {t('systemSettings.fields.displayedInUnit', {
-                      unit: quotaUnitLabel,
-                    })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.titles.preConsumeForFreeModels')}
+                  description={
+                    <>
+                      {t(
+                        'systemSettings.tips.quotaPreConsumedForZeroCostModelsSet0'
+                      )}
+                      {' · '}
+                      {t('systemSettings.fields.displayedInUnit', {
+                        unit: quotaUnitLabel,
+                      })}
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='any'
+                        value={field.value ?? ''}
+                        onChange={handleNumberChange(field.onChange)}
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
-          </SettingsFormGrid>
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

@@ -22,22 +22,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+import { SettingsForm } from '../components/settings-form-layout'
+import { SettingsGroup, SettingsRow } from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -172,71 +161,66 @@ export function ClaudeSettingsCard({ defaultValues }: ClaudeSettingsCardProps) {
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <FormField
-            control={form.control}
-            name='claude.model_headers_settings'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('channels.fields.requestHeaderOverride')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea rows={8} {...field} />
-                </FormControl>
-                <FormDescription>
-                  {t(
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='claude.model_headers_settings'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('channels.fields.requestHeaderOverride')}
+                  description={t(
                     'systemSettings.tips.providePerModelHeaderOverridesAsJsonUsefulFor'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea rows={8} {...field} />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='claude.default_max_tokens'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.defaultMaxTokens')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea rows={8} {...field} />
-                </FormControl>
-                <FormDescription>
-                  {t('channels.placeholders.example')}{' '}
-                  {`{ "default": 8192, "claude-3-haiku-20240307": 4096, "claude-3-opus-20240229": 4096, "claude-3-7-sonnet-20250219-thinking": 8192 }`}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='claude.default_max_tokens'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.defaultMaxTokens')}
+                  description={
+                    <>
+                      {t('channels.placeholders.example')}{' '}
+                      {`{ "default": 8192, "claude-3-haiku-20240307": 4096, "claude-3-opus-20240229": 4096, "claude-3-7-sonnet-20250219-thinking": 8192 }`}
+                    </>
+                  }
+                >
+                  <FormControl>
+                    <Textarea rows={8} {...field} />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='claude.remove_claude_code_billing_header_enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.removeClaudeCodeBillingHeader')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.removeClaudeCodeBillingHeaderForApiCompatibility'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='claude.remove_claude_code_billing_header_enabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t(
+                    'systemSettings.actions.removeClaudeCodeBillingHeader'
+                  )}
+                  description={t(
+                    'systemSettings.tips.removeClaudeCodeBillingHeaderForApiCompatibility'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

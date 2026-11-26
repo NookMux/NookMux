@@ -21,22 +21,14 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsControlChildren,
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsControlGroup,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -191,7 +183,7 @@ export function HeaderNavigationSection({
   const accessModules: Array<{
     enabledKey: keyof HeaderNavFormValues
     requireAuthKey: keyof HeaderNavFormValues
-    requireAuthDependsOn: 'pricingEnabled' | 'rankingsEnabled'
+    enabled: boolean
     title: string
     description: string
     requireAuthTitle: string
@@ -200,7 +192,7 @@ export function HeaderNavigationSection({
     {
       enabledKey: 'pricingEnabled',
       requireAuthKey: 'pricingRequireAuth',
-      requireAuthDependsOn: 'pricingEnabled',
+      enabled: Boolean(form.watch('pricingEnabled')),
       title: t('pricing.fields.modelSquare'),
       description: t('systemSettings.tips.publicModelCatalogAndPricingPage'),
       requireAuthTitle: t('systemSettings.tips.requireLoginToViewModels'),
@@ -211,7 +203,7 @@ export function HeaderNavigationSection({
     {
       enabledKey: 'rankingsEnabled',
       requireAuthKey: 'rankingsRequireAuth',
-      requireAuthDependsOn: 'rankingsEnabled',
+      enabled: Boolean(form.watch('rankingsEnabled')),
       title: t('rankings.titles.value'),
       description: t(
         'systemSettings.tips.publicRankingsPageBasedOnLiveUsageData'
@@ -231,84 +223,60 @@ export function HeaderNavigationSection({
             onSave={form.handleSubmit(onSubmit)}
             onReset={resetToDefault}
             isSaving={updateOption.isPending}
+            resettableWhenClean
             resetLabel='common.actions.resetToDefault'
             saveLabel='common.actions.saveNavigation'
           />
-          <div className='grid gap-4 md:grid-cols-2'>
+          <SettingsGroup>
             {simpleModules.map((module) => (
               <FormField
                 key={module.key}
                 control={form.control}
                 name={module.key}
                 render={({ field }) => (
-                  <SettingsSwitchItem>
-                    <SettingsSwitchContent>
-                      <FormLabel>{module.title}</FormLabel>
-                      <FormDescription>{module.description}</FormDescription>
-                    </SettingsSwitchContent>
+                  <SettingsRow
+                    label={module.title}
+                    description={module.description}
+                  >
                     <FormControl>
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <FormMessage />
-                  </SettingsSwitchItem>
+                  </SettingsRow>
                 )}
               />
             ))}
-          </div>
+          </SettingsGroup>
 
-          <div className='grid gap-4 lg:grid-cols-2'>
-            {accessModules.map((module) => (
-              <SettingsControlGroup key={module.enabledKey}>
-                <FormField
-                  control={form.control}
-                  name={module.enabledKey}
-                  render={({ field }) => (
-                    <SettingsSwitchItem>
-                      <SettingsSwitchContent>
-                        <FormLabel>{module.title}</FormLabel>
-                        <FormDescription>{module.description}</FormDescription>
-                      </SettingsSwitchContent>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </SettingsSwitchItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name={module.requireAuthKey}
-                  render={({ field }) => (
-                    <SettingsControlChildren>
-                      <SettingsSwitchItem className='border-b-0 py-2'>
-                        <SettingsSwitchContent>
-                          <FormLabel>{module.requireAuthTitle}</FormLabel>
-                          <FormDescription>
-                            {module.requireAuthDescription}
-                          </FormDescription>
-                        </SettingsSwitchContent>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            disabled={!form.watch(module.requireAuthDependsOn)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </SettingsSwitchItem>
-                    </SettingsControlChildren>
-                  )}
-                />
-              </SettingsControlGroup>
-            ))}
-          </div>
+          {accessModules.map((module) => (
+            <SettingsGroup
+              key={module.enabledKey}
+              title={module.title}
+              description={module.description}
+              control={<SettingsGroupSwitch name={module.enabledKey} />}
+              enabled={module.enabled}
+            >
+              <FormField
+                control={form.control}
+                name={module.requireAuthKey}
+                render={({ field }) => (
+                  <SettingsRow
+                    label={module.requireAuthTitle}
+                    description={module.requireAuthDescription}
+                  >
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
+            </SettingsGroup>
+          ))}
         </SettingsForm>
       </Form>
     </SettingsSection>

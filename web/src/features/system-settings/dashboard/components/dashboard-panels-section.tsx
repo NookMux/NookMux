@@ -18,8 +18,9 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SettingsSwitchField } from '../../components/settings-form-layout'
-import { SettingsSection } from '../../components/settings-section'
+import { Switch } from '@/components/ui/switch'
+import { SettingsRow } from '../../components/settings-group'
+import { SettingsPanel } from '../../components/settings-panel'
 import {
   useDashboardConfig,
   useUpdateDashboardConfig,
@@ -30,16 +31,18 @@ export function DashboardPanelsSection() {
   const { data: config, isLoading } = useDashboardConfig()
   const updateConfig = useUpdateDashboardConfig()
 
+  const title = t('systemSettings.titles.dashboardPanels')
+
   if (isLoading) {
     return (
-      <SettingsSection title={t('systemSettings.titles.dashboardPanels')}>
-        <div className='space-y-4'>
-          <Skeleton className='h-16 w-full' />
-          <Skeleton className='h-16 w-full' />
-          <Skeleton className='h-16 w-full' />
-          <Skeleton className='h-16 w-full' />
+      <SettingsPanel title={title}>
+        <div className='flex flex-col gap-4 py-2'>
+          <Skeleton className='h-10 w-full' />
+          <Skeleton className='h-10 w-full' />
+          <Skeleton className='h-10 w-full' />
+          <Skeleton className='h-10 w-full' />
         </div>
-      </SettingsSection>
+      </SettingsPanel>
     )
   }
 
@@ -50,53 +53,71 @@ export function DashboardPanelsSection() {
   }
 
   return (
-    <SettingsSection title={t('systemSettings.titles.dashboardPanels')}>
-      <p className='text-muted-foreground mb-4 text-sm'>
-        {t(
-          'systemSettings.tips.controlWhichPanelsAreDisplayedInTheOverviewSectionOf'
+    <SettingsPanel
+      title={title}
+      description={
+        <>
+          <span className='block'>
+            {t(
+              'systemSettings.tips.controlWhichPanelsAreDisplayedInTheOverviewSectionOf'
+            )}
+          </span>
+          <span className='block'>
+            {t('systemSettings.tips.togglesTakeEffectImmediately')}
+          </span>
+        </>
+      }
+      divided
+    >
+      <SettingsRow
+        label={t('systemSettings.fields.apiInformationPanel')}
+        description={t(
+          'systemSettings.tips.displayApiEndpointInformationAndDocumentationLinks'
         )}
-      </p>
-      <div className='space-y-4'>
-        <SettingsSwitchField
+      >
+        <Switch
           checked={config.api_info_enabled}
           onCheckedChange={(checked) =>
             handleToggle('api_info_enabled', checked)
           }
-          label={t('systemSettings.fields.apiInformationPanel')}
-          description={t(
-            'systemSettings.tips.displayApiEndpointInformationAndDocumentationLinks'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.tips.uptimeMonitoringPanel')}
+        description={t(
+          'systemSettings.tips.displayUptimeKumaServiceMonitoringStatusRequiresExternalApiCalls'
+        )}
+      >
+        <Switch
           checked={config.uptime_kuma_enabled}
           onCheckedChange={(checked) =>
             handleToggle('uptime_kuma_enabled', checked)
           }
-          label={t('systemSettings.tips.uptimeMonitoringPanel')}
-          description={t(
-            'systemSettings.tips.displayUptimeKumaServiceMonitoringStatusRequiresExternalApiCalls'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.fields.announcementsPanel')}
+        description={t('systemSettings.tips.displaySystemAnnouncementsToUsers')}
+      >
+        <Switch
           checked={config.announcements_enabled}
           onCheckedChange={(checked) =>
             handleToggle('announcements_enabled', checked)
           }
-          label={t('systemSettings.fields.announcementsPanel')}
-          description={t(
-            'systemSettings.tips.displaySystemAnnouncementsToUsers'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.fields.faqPanel')}
+        description={t('systemSettings.tips.displayFrequentlyAskedQuestions')}
+      >
+        <Switch
           checked={config.faq_enabled}
           onCheckedChange={(checked) => handleToggle('faq_enabled', checked)}
-          label={t('systemSettings.fields.faqPanel')}
-          description={t('systemSettings.tips.displayFrequentlyAskedQuestions')}
         />
-      </div>
-    </SettingsSection>
+      </SettingsRow>
+    </SettingsPanel>
   )
 }

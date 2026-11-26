@@ -22,25 +22,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { parseHttpStatusCodeRules } from '@/lib/http-status-code-rules'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsControlChildren,
-  SettingsControlGroup,
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -169,42 +159,25 @@ export function SystemBehaviorSection({
             isSaving={updateOption.isPending}
           />
 
-          <SettingsControlGroup>
-            <DisabledSettingsNotice enabled={retryEnabled} />
+          <SettingsGroup
+            title={t('systemSettings.fields.automaticRetry')}
+            description={t(
+              'systemSettings.actions.retryFailedRequestsOnAlternateChannelsBeforeReturningAn'
+            )}
+            control={<SettingsGroupSwitch name='AutomaticRetryEnabled' />}
+            enabled={retryEnabled}
+          >
             <FormField
               control={form.control}
-              name='AutomaticRetryEnabled'
+              name='RetryTimes'
               render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.fields.automaticRetry')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.actions.retryFailedRequestsOnAlternateChannelsBeforeReturningAn'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
-
-            <SettingsControlChildren>
-              <FormField
-                control={form.control}
-                name='RetryTimes'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.actions.retryTimes')}
-                    </FormLabel>
+                <SettingsRow
+                  label={t('systemSettings.actions.retryTimes')}
+                  description={t(
+                    'systemSettings.tips.numberOfRetryAttemptsBeyondTheFirstRequest0'
+                  )}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -221,27 +194,34 @@ export function SystemBehaviorSection({
                         name={field.name}
                         onBlur={field.onBlur}
                         ref={field.ref}
-                        disabled={!retryEnabled}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.numberOfRetryAttemptsBeyondTheFirstRequest0'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='AutomaticRetryStatusCodes'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.autoRetryStatusCodes')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='AutomaticRetryStatusCodes'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.autoRetryStatusCodes')}
+                  description={t(
+                    'systemSettings.tips.acceptsCommaSeparatedStatusCodesAndInclusiveRanges'
+                  )}
+                  hint={
+                    autoRetryParsed.ok &&
+                    autoRetryParsed.normalized &&
+                    autoRetryParsed.normalized !== field.value.trim() ? (
+                      <>
+                        {t('systemSettings.fields.normalized')}{' '}
+                        {autoRetryParsed.normalized}
+                      </>
+                    ) : undefined
+                  }
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         placeholder={t(
@@ -249,28 +229,13 @@ export function SystemBehaviorSection({
                         )}
                         value={field.value}
                         onChange={(event) => field.onChange(event.target.value)}
-                        disabled={!retryEnabled}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.acceptsCommaSeparatedStatusCodesAndInclusiveRanges'
-                      )}{' '}
-                      {autoRetryParsed.ok &&
-                        autoRetryParsed.normalized &&
-                        autoRetryParsed.normalized !== field.value.trim() && (
-                          <span className='text-muted-foreground'>
-                            {t('systemSettings.fields.normalized')}{' '}
-                            {autoRetryParsed.normalized}
-                          </span>
-                        )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </SettingsControlChildren>
-          </SettingsControlGroup>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

@@ -20,6 +20,7 @@ import { useState, useMemo } from 'react'
 import { Lightbulb, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import {
   Popover,
@@ -220,7 +221,7 @@ export function PaymentMethodsVisualEditor({
   return (
     <div className='space-y-4'>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
-        <div className='relative flex-1'>
+        <div className='relative w-full sm:max-w-xs'>
           <Search className='text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4' />
           <Input
             placeholder={t('systemSettings.actions.searchPaymentMethods')}
@@ -229,14 +230,18 @@ export function PaymentMethodsVisualEditor({
             className='pl-9'
           />
         </div>
-        <div className='flex gap-2'>
+        <div className='flex gap-2 sm:ml-auto'>
           <Popover>
             <PopoverTrigger
               render={
-                <Button variant='outline' className='flex-1 sm:flex-none' />
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='flex-1 sm:flex-none'
+                />
               }
             >
-              <Lightbulb className='h-4 w-4 sm:mr-2' />
+              <Lightbulb data-icon='inline-start' />
               <span className='sm:inline'>
                 {t('systemSettings.fields.templates')}
               </span>
@@ -273,6 +278,8 @@ export function PaymentMethodsVisualEditor({
           </Popover>
           <Button
             type='button'
+            variant='outline'
+            size='sm'
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -280,7 +287,7 @@ export function PaymentMethodsVisualEditor({
             }}
             className='flex-1 sm:flex-none'
           >
-            <Plus className='h-4 w-4 sm:mr-2' />
+            <Plus data-icon='inline-start' />
             <span className='sm:inline'>
               {t('systemSettings.actions.addMethod')}
             </span>
@@ -289,16 +296,22 @@ export function PaymentMethodsVisualEditor({
       </div>
 
       {filteredMethods.length === 0 ? (
-        <div className='text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm'>
-          {searchText
-            ? t('systemSettings.tips.noPaymentMethodsMatchYourSearch')
-            : t('common.tips.noPaymentMethodsConfiguredClickAddMethodOrUse')}
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyDescription>
+              {searchText
+                ? t('systemSettings.tips.noPaymentMethodsMatchYourSearch')
+                : t(
+                    'common.tips.noPaymentMethodsConfiguredClickAddMethodOrUse'
+                  )}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className='rounded-md border'>
+        <div>
           {/* Desktop table view */}
           <div className='hidden md:block'>
-            <Table>
+            <Table className='[&_td:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:first-child]:pl-0 [&_th:last-child]:pr-0'>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('channels.fields.name')}</TableHead>
@@ -323,8 +336,8 @@ export function PaymentMethodsVisualEditor({
                           {method.type}
                         </code>
                       </TableCell>
-                      <TableCell>
-                        <div className='flex items-center gap-2'>
+                      <TableCell className='max-w-[9rem]' title={method.color}>
+                        <div className='flex min-w-0 items-center gap-2'>
                           {colorPreview && (
                             <div
                               className='size-5 shrink-0 rounded border'
@@ -358,6 +371,7 @@ export function PaymentMethodsVisualEditor({
                               e.stopPropagation()
                               handleEdit(method)
                             }}
+                            aria-label={t('channels.actions.edit')}
                           >
                             <Pencil className='h-4 w-4' />
                           </Button>
@@ -370,6 +384,7 @@ export function PaymentMethodsVisualEditor({
                               e.stopPropagation()
                               handleDelete(method)
                             }}
+                            aria-label={t('common.actions.delete')}
                           >
                             <Trash2 className='h-4 w-4' />
                           </Button>
@@ -387,7 +402,7 @@ export function PaymentMethodsVisualEditor({
             {filteredMethods.map((method, index) => {
               const colorPreview = getColorPreview(method.color)
               return (
-                <div key={`${method.type}-${index}`} className='p-4'>
+                <div key={`${method.type}-${index}`} className='py-3'>
                   <div className='mb-3 flex items-start justify-between'>
                     <div className='flex-1'>
                       <div className='mb-1 font-medium'>{method.name}</div>
@@ -405,6 +420,7 @@ export function PaymentMethodsVisualEditor({
                           e.stopPropagation()
                           handleEdit(method)
                         }}
+                        aria-label={t('channels.actions.edit')}
                       >
                         <Pencil className='h-4 w-4' />
                       </Button>
@@ -417,6 +433,7 @@ export function PaymentMethodsVisualEditor({
                           e.stopPropagation()
                           handleDelete(method)
                         }}
+                        aria-label={t('common.actions.delete')}
                       >
                         <Trash2 className='h-4 w-4' />
                       </Button>

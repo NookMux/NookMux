@@ -20,22 +20,15 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -113,87 +106,82 @@ export function WorkerSettingsSection({
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveWorkerSettings'
           />
-          <FormField
-            control={form.control}
-            name='WorkerUrl'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('systemSettings.fields.workerUrl')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='url'
-                    inputMode='url'
-                    placeholder={t(
-                      'systemSettings.placeholders.urlWorkerExampleWorkersDev'
-                    )}
-                    autoComplete='off'
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='WorkerUrl'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.workerUrl')}
+                  description={t(
                     'systemSettings.status.requestsWillBeForwardedToThisWorkerTrailingSlashes'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        type='url'
+                        inputMode='url'
+                        placeholder={t(
+                          'systemSettings.placeholders.urlWorkerExampleWorkersDev'
+                        )}
+                        autoComplete='off'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='WorkerValidKey'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.workerAccessKey')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='password'
-                    placeholder={t(
-                      'systemSettings.placeholders.enterNewKeyToUpdate'
-                    )}
-                    autoComplete='new-password'
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='WorkerValidKey'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.workerAccessKey')}
+                  description={t(
                     'systemSettings.status.usedToAuthenticateWithTheWorkerLeaveBlankTo'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        type='password'
+                        placeholder={t(
+                          'systemSettings.placeholders.enterNewKeyToUpdate'
+                        )}
+                        autoComplete='new-password'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='WorkerAllowHttpImageRequestEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.allowHttpImageRequests')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.actions.enableWhenProxyingWorkersThatFetchImagesOverHttp'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='WorkerAllowHttpImageRequestEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.allowHttpImageRequests')}
+                  description={t(
+                    'systemSettings.actions.enableWhenProxyingWorkersThatFetchImagesOverHttp'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

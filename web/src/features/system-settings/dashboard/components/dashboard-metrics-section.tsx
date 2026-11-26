@@ -18,8 +18,9 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SettingsSwitchField } from '../../components/settings-form-layout'
-import { SettingsSection } from '../../components/settings-section'
+import { Switch } from '@/components/ui/switch'
+import { SettingsRow } from '../../components/settings-group'
+import { SettingsPanel } from '../../components/settings-panel'
 import {
   useDashboardConfig,
   useUpdateDashboardConfig,
@@ -30,16 +31,17 @@ export function DashboardMetricsSection() {
   const { data: config, isLoading } = useDashboardConfig()
   const updateConfig = useUpdateDashboardConfig()
 
+  const title = t('systemSettings.fields.dataMetrics')
+
   if (isLoading) {
     return (
-      <SettingsSection title={t('systemSettings.fields.dataMetrics')}>
-        <div className='space-y-4'>
-          <Skeleton className='h-16 w-full' />
-          <Skeleton className='h-16 w-full' />
-          <Skeleton className='h-16 w-full' />
-          <Skeleton className='h-16 w-full' />
+      <SettingsPanel title={title}>
+        <div className='flex flex-col gap-4 py-2'>
+          <Skeleton className='h-10 w-full' />
+          <Skeleton className='h-10 w-full' />
+          <Skeleton className='h-10 w-full' />
         </div>
-      </SettingsSection>
+      </SettingsPanel>
     )
   }
 
@@ -50,90 +52,119 @@ export function DashboardMetricsSection() {
   }
 
   return (
-    <SettingsSection title={t('systemSettings.fields.dataMetrics')}>
-      <p className='text-muted-foreground mb-4 text-sm'>
-        {t(
-          'systemSettings.tips.controlWhichDataMetricsAreCalculatedAndDisplayedInThe'
+    <SettingsPanel
+      title={title}
+      description={
+        <>
+          <span className='block'>
+            {t(
+              'systemSettings.tips.controlWhichDataMetricsAreCalculatedAndDisplayedInThe'
+            )}
+          </span>
+          <span className='block'>
+            {t('systemSettings.tips.togglesTakeEffectImmediately')}
+          </span>
+        </>
+      }
+      divided
+    >
+      <SettingsRow
+        label={t('systemSettings.fields.quotaData')}
+        description={t(
+          'systemSettings.actions.enableTimeSeriesQuotaDataDisplayDisablingWillHideModel'
         )}
-      </p>
-      <div className='space-y-4'>
-        <SettingsSwitchField
+      >
+        <Switch
           checked={config.quota_data_enabled}
           onCheckedChange={(checked) =>
             handleToggle('quota_data_enabled', checked)
           }
-          label={t('systemSettings.fields.quotaData')}
-          description={t(
-            'systemSettings.actions.enableTimeSeriesQuotaDataDisplayDisablingWillHideModel'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.titles.userAnalytics')}
+        description={t(
+          'systemSettings.actions.enableUserConsumptionRankingsAndTrendsDisablingWillReduceDatabase'
+        )}
+      >
+        <Switch
           checked={config.user_analytics_enabled}
           onCheckedChange={(checked) =>
             handleToggle('user_analytics_enabled', checked)
           }
-          label={t('systemSettings.titles.userAnalytics')}
-          description={t(
-            'systemSettings.actions.enableUserConsumptionRankingsAndTrendsDisablingWillReduceDatabase'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('rankings.titles.value')}
+        description={t(
+          'systemSettings.actions.enableModelAndVendorRankingsThisIsAHighCost'
+        )}
+      >
+        <Switch
           checked={config.rankings_enabled}
           onCheckedChange={(checked) =>
             handleToggle('rankings_enabled', checked)
           }
-          label={t('rankings.titles.value')}
-          description={t(
-            'systemSettings.actions.enableModelAndVendorRankingsThisIsAHighCost'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.fields.mediaConversionStats')}
+        description={t(
+          'systemSettings.actions.enableImageVideoToUrlConversionStatisticsDisplay'
+        )}
+      >
+        <Switch
           checked={config.media_convert_stats_enabled}
           onCheckedChange={(checked) =>
             handleToggle('media_convert_stats_enabled', checked)
           }
-          label={t('systemSettings.fields.mediaConversionStats')}
-          description={t(
-            'systemSettings.actions.enableImageVideoToUrlConversionStatisticsDisplay'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.fields.trackTokenUsage')}
+        description={t(
+          'systemSettings.tips.recordTokenUsedInQuotaDataDisablingReducesWriteCost'
+        )}
+      >
+        <Switch
           checked={config.quota_data_track_tokens}
           onCheckedChange={(checked) =>
             handleToggle('quota_data_track_tokens', checked)
           }
-          label={t('systemSettings.fields.trackTokenUsage')}
-          description={t(
-            'systemSettings.tips.recordTokenUsedInQuotaDataDisablingReducesWriteCost'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.tips.aggregateByModel')}
+        description={t(
+          'systemSettings.tips.aggregateQuotaDataPerModelDisablingCollapsesAllModelsInto'
+        )}
+      >
+        <Switch
           checked={config.quota_data_track_by_model}
           onCheckedChange={(checked) =>
             handleToggle('quota_data_track_by_model', checked)
           }
-          label={t('systemSettings.tips.aggregateByModel')}
-          description={t(
-            'systemSettings.tips.aggregateQuotaDataPerModelDisablingCollapsesAllModelsInto'
-          )}
         />
+      </SettingsRow>
 
-        <SettingsSwitchField
+      <SettingsRow
+        label={t('systemSettings.tips.aggregateByUser')}
+        description={t(
+          'systemSettings.tips.aggregateQuotaDataPerUserDisablingCollapsesAllUsersInto'
+        )}
+      >
+        <Switch
           checked={config.quota_data_track_by_user}
           onCheckedChange={(checked) =>
             handleToggle('quota_data_track_by_user', checked)
           }
-          label={t('systemSettings.tips.aggregateByUser')}
-          description={t(
-            'systemSettings.tips.aggregateQuotaDataPerUserDisablingCollapsesAllUsersInto'
-          )}
         />
-      </div>
-    </SettingsSection>
+      </SettingsRow>
+    </SettingsPanel>
   )
 }

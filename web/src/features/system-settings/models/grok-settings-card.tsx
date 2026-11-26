@@ -22,22 +22,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -138,66 +131,48 @@ export function GrokSettingsCard({ defaultValues }: GrokSettingsCardProps) {
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <DisabledSettingsNotice enabled={enabled} />
 
-          <FormField
-            control={form.control}
-            name='grok.violation_deduction_enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.enableViolationDeduction')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.status.enabledViolationRequestsWillIncurAdditionalCharges'
-                    )}{' '}
-                    <a
-                      href={XAI_VIOLATION_FEE_DOC_URL}
-                      target='_blank'
-                      rel='noreferrer'
-                      className='underline'
-                    >
-                      {t('systemSettings.fields.officialDocumentation')}
-                    </a>
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='grok.violation_deduction_amount'
-            render={({ field }) => (
-              <FormItem className='max-w-xs'>
-                <FormLabel>
-                  {t('systemSettings.fields.violationDeductionAmount')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    step={0.01}
-                    min={0}
-                    {...field}
-                    disabled={!enabled}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+          <SettingsGroup
+            title={t('systemSettings.actions.enableViolationDeduction')}
+            description={
+              <>
+                {t(
+                  'systemSettings.status.enabledViolationRequestsWillIncurAdditionalCharges'
+                )}{' '}
+                <a
+                  href={XAI_VIOLATION_FEE_DOC_URL}
+                  target='_blank'
+                  rel='noreferrer'
+                  className='underline'
+                >
+                  {t('systemSettings.fields.officialDocumentation')}
+                </a>
+              </>
+            }
+            control={
+              <SettingsGroupSwitch name='grok.violation_deduction_enabled' />
+            }
+            enabled={enabled}
+          >
+            <FormField
+              control={form.control}
+              name='grok.violation_deduction_amount'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.violationDeductionAmount')}
+                  description={t(
                     'systemSettings.tips.baseAmountActualDeductionBaseAmountSystemGroupRate'
                   )}
-                </FormDescription>
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input type='number' step={0.01} min={0} {...field} />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

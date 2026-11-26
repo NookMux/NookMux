@@ -168,7 +168,6 @@
   "channels.fields.appended": "追加",
   "channels.fields.autoBan": "自动封禁",
   "channels.fields.autoDetectDefault": "自动检测（默认）",
-  "channels.fields.available": "可用",
   "channels.fields.availableBalance": "可用余额",
   "channels.fields.awsKeyFormat": "AWS 密钥格式",
   "channels.fields.azureOpenAiEndpointUrl": "您的 Azure OpenAI 端点 URL",

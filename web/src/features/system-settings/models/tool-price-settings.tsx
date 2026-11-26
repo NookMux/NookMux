@@ -28,7 +28,6 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -40,10 +39,22 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { SettingsPageActionsPortal } from '../components/settings-page-context'
+import {
+  SettingsPageActionsPortal,
+  SettingsPageFormActions,
+} from '../components/settings-page-context'
+import { SettingsPanel } from '../components/settings-panel'
 import { useUpdateOption } from '../hooks/use-update-option'
 
 const OPTION_KEY = 'tool_billing_setting.rules'
+
+const TOOL_TYPES = [
+  { value: 'web_search', label: 'common.fields.webSearch' },
+  { value: 'image_generation', label: 'common.fields.imageGeneration' },
+] as const
+
+/** 相邻的兄弟元素之间画一条横线，首尾不留线。 */
+const RULED = '[&>*+*]:border-t'
 
 // --- 条件模式定义（与后端 common/condition.go 保持一致） ---
 const CONDITION_MODES = [
@@ -143,7 +154,7 @@ function validateRules(
         id: rule.id,
       })
     }
-    if (!['web_search', 'image_generation'].includes(rule.tool_type)) {
+    if (!TOOL_TYPES.some((type) => type.value === rule.tool_type)) {
       return t('systemSettings.errors.toolRuleUnsupportedType', {
         index,
         id: rule.id,
@@ -197,14 +208,18 @@ function parseInitialRules(
 
 type ToolPriceSettingsProps = {
   defaultValue: string
-  onReset: () => void
+  /** 恢复为系统默认的工具计费规则，操作立即生效。 */
+  onRestoreDefaults: () => void
   isResetting: boolean
+  /** 所在页签是否为当前页签；页头操作栏只在当前页签渲染。 */
+  active: boolean
 }
 
 export const ToolPriceSettings = memo(function ToolPriceSettings({
   defaultValue,
-  onReset,
+  onRestoreDefaults,
   isResetting,
+  active,
 }: ToolPriceSettingsProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
@@ -213,8 +228,13 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
   const [jsonText, setJsonText] = useState('[]')
   const [jsonError, setJsonError] = useState('')
   const [nextRowId, setNextRowId] = useState(1)
+  /** 已保存规则序列化后的样子，用来判断当前有没有未保存的改动。 */
+  const [savedSnapshot, setSavedSnapshot] = useState<{
+    rules: string
+    json: string
+  } | null>(null)
 
-  useEffect(() => {
+  const loadSavedRules = useCallback(() => {
     try {
       const rules = parseInitialRules(defaultValue, t)
       const initialRows = rules.map((rule, index) => ({
@@ -222,13 +242,17 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
         rowId: index + 1,
         conditionsExpanded: false,
       }))
+      const prettyJson = JSON.stringify(rules, null, 2)
       setRows(initialRows)
-      setJsonText(JSON.stringify(rules, null, 2))
+      setJsonText(prettyJson)
+      setSavedSnapshot({ rules: JSON.stringify(rules), json: prettyJson })
       setJsonError('')
       setNextRowId(initialRows.length + 1)
     } catch (error) {
+      const rawJson = defaultValue || '[]'
       setRows([])
-      setJsonText(defaultValue || '[]')
+      setJsonText(rawJson)
+      setSavedSnapshot({ rules: JSON.stringify([]), json: rawJson })
       setJsonError(
         error instanceof Error
           ? error.message
@@ -237,7 +261,15 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
     }
   }, [defaultValue, t])
 
+  useEffect(() => {
+    loadSavedRules()
+  }, [loadSavedRules])
+
   const currentRules = useMemo(() => rowsToRules(rows), [rows])
+  const isDirty =
+    savedSnapshot !== null &&
+    (savedSnapshot.rules !== JSON.stringify(currentRules) ||
+      savedSnapshot.json !== jsonText)
 
   const syncFromRows = useCallback(
     (nextRows: ToolBillingRow[]) => {
@@ -404,6 +436,11 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
     }
   }, [jsonText, t])
 
+  const handleDiscard = useCallback(() => {
+    loadSavedRules()
+    toast.success(t('systemSettings.status.formResetToSavedValues'))
+  }, [loadSavedRules, t])
+
   const handleSave = useCallback(async () => {
     const validationError = validateRules(currentRules, t)
     if (validationError || jsonError) {
@@ -420,67 +457,102 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
     setEditMode((prev) => (prev === 'visual' ? 'json' : 'visual'))
   }, [])
 
+  const toolTypeItems: Array<{ value: string; label: string }> = TOOL_TYPES.map(
+    (option) => ({ value: option.value, label: t(option.label) })
+  )
+  const logicItems: Array<{ value: string; label: string }> =
+    CONDITION_LOGICS.map((option) => ({
+      value: option.value,
+      label: t(option.label),
+    }))
+  const modeItems: Array<{ value: string; label: string }> =
+    CONDITION_MODES.map((option) => ({
+      value: option.value,
+      label: t(option.label),
+    }))
+
   return (
-    <div className='space-y-4'>
-      <Alert>
-        <AlertDescription className='space-y-1 text-sm'>
-          <div>
+    <div className='flex min-w-0 flex-col gap-8 lg:min-h-0 lg:flex-1'>
+      {active && (
+        <>
+          <SettingsPageActionsPortal>
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={toggleEditMode}
+            >
+              {editMode === 'visual' ? (
+                <>
+                  <Code2 data-icon='inline-start' />
+                  {t('systemSettings.actions.switchToJson')}
+                </>
+              ) : (
+                <>
+                  <Eye data-icon='inline-start' />
+                  {t('systemSettings.actions.switchToVisual')}
+                </>
+              )}
+            </Button>
+          </SettingsPageActionsPortal>
+          <SettingsPageFormActions
+            onSave={() => void handleSave()}
+            onReset={handleDiscard}
+            isSaving={updateOption.isPending || isResetting}
+            isDirty={isDirty}
+            isSaveDisabled={editMode === 'json' && jsonError !== ''}
+          />
+        </>
+      )}
+
+      <SettingsPanel
+        title={t('systemSettings.fields.toolBillingRules')}
+        description={
+          <>
             {t(
               'systemSettings.actions.configureToolBillingRulesPricesAreUsdPerCall'
-            )}
-          </div>
-          <div>
+            )}{' '}
             <code className='bg-muted rounded px-1 py-0.5 text-xs'>
-              tool_billing_setting.rules
+              {OPTION_KEY}
             </code>
-          </div>
-        </AlertDescription>
-      </Alert>
-
-      <div className='flex flex-wrap items-center justify-between gap-2'>
-        <div className='flex flex-wrap items-center gap-2'>
-          {editMode === 'visual' ? (
-            <Button variant='outline' size='sm' onClick={addRow}>
-              <Plus className='mr-2 h-4 w-4' />
+          </>
+        }
+        actions={
+          editMode === 'visual' ? (
+            <Button type='button' size='sm' onClick={addRow}>
+              <Plus data-icon='inline-start' />
               {t('channels.actions.add')}
             </Button>
           ) : (
-            <Button variant='ghost' size='sm' onClick={handleCopyJson}>
-              <Copy className='mr-2 h-4 w-4' />
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={handleCopyJson}
+            >
+              <Copy data-icon='inline-start' />
               {t('channels.actions.copy')}
             </Button>
-          )}
-        </div>
-        <Button variant='outline' size='sm' onClick={toggleEditMode}>
-          {editMode === 'visual' ? (
-            <>
-              <Code2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.switchToJson')}
-            </>
-          ) : (
-            <>
-              <Eye className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.switchToVisual')}
-            </>
-          )}
-        </Button>
-      </div>
-
-      {editMode === 'visual' ? (
-        <div className='space-y-3'>
-          {rows.length === 0 ? (
-            <div className='text-muted-foreground rounded-md border py-8 text-center text-sm'>
+          )
+        }
+        className='lg:min-h-0 lg:flex-1'
+        divided={editMode === 'visual'}
+        scroll
+      >
+        {editMode === 'visual' ? (
+          rows.length === 0 ? (
+            <p className='text-muted-foreground py-8 text-center text-sm'>
               {t('systemSettings.errors.noRulesConfigured')}
-            </div>
+            </p>
           ) : (
             rows.map((row) => (
-              <div key={row.rowId} className='rounded-md border'>
+              <div key={row.rowId} className='py-3'>
                 {/* 主行 */}
-                <div className='flex flex-wrap items-center gap-2 border-b p-3'>
-                  <div className='min-w-[140px] flex-1'>
-                    <label className='text-muted-foreground mb-1 block text-xs'>
+                <div className='flex flex-wrap items-end gap-3'>
+                  <div className='min-w-[150px] flex-1'>
+                    <span className='text-muted-foreground mb-1 block text-xs'>
                       ID
-                    </label>
+                    </span>
                     <Input
                       value={row.id}
                       placeholder='web_search_openai'
@@ -490,10 +562,10 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                       }
                     />
                   </div>
-                  <div className='min-w-[140px] flex-1'>
-                    <label className='text-muted-foreground mb-1 block text-xs'>
+                  <div className='min-w-[150px] flex-1'>
+                    <span className='text-muted-foreground mb-1 block text-xs'>
                       {t('channels.fields.name')}
-                    </label>
+                    </span>
                     <Input
                       value={row.name}
                       placeholder='OpenAI Web Search'
@@ -503,33 +575,33 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                       }
                     />
                   </div>
-                  <div className='min-w-[120px]'>
-                    <label className='text-muted-foreground mb-1 block text-xs'>
+                  <div className='min-w-[130px]'>
+                    <span className='text-muted-foreground mb-1 block text-xs'>
                       {t('systemSettings.fields.toolType')}
-                    </label>
+                    </span>
                     <Select
+                      items={toolTypeItems}
                       value={row.tool_type}
                       onValueChange={(v) =>
                         updateRow(row.rowId, 'tool_type', v ?? '')
                       }
                     >
-                      <SelectTrigger className='h-8'>
+                      <SelectTrigger className='h-8 w-full'>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value='web_search'>
-                          {t('common.fields.webSearch')}
-                        </SelectItem>
-                        <SelectItem value='image_generation'>
-                          {t('common.fields.imageGeneration')}
-                        </SelectItem>
+                      <SelectContent alignItemWithTrigger={false}>
+                        {TOOL_TYPES.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {t(option.label)}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className='min-w-[100px]'>
-                    <label className='text-muted-foreground mb-1 block text-xs'>
+                  <div className='min-w-[110px]'>
+                    <span className='text-muted-foreground mb-1 block text-xs'>
                       {t('pricing.fields.price')}
-                    </label>
+                    </span>
                     <Input
                       type='number'
                       min={0}
@@ -545,57 +617,53 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                       }
                     />
                   </div>
-                  <div className='flex items-end gap-2'>
-                    <label className='text-muted-foreground flex items-center gap-1 text-xs'>
-                      <Switch
-                        checked={row.enabled}
-                        onCheckedChange={(checked) =>
-                          updateRow(row.rowId, 'enabled', checked)
-                        }
-                      />
-                      {t('channels.status.enabled')}
-                    </label>
-                  </div>
-                  <div className='flex items-end gap-1'>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      className='h-8'
-                      onClick={() => toggleConditionsExpanded(row.rowId)}
-                    >
-                      {row.conditionsExpanded ? (
-                        <ChevronDown className='h-4 w-4' />
-                      ) : (
-                        <ChevronRight className='h-4 w-4' />
-                      )}
-                      <span className='ml-1 text-xs'>
-                        {t('channels.fields.conditions')} (
-                        {row.conditions?.length ?? 0})
-                      </span>
-                    </Button>
-                  </div>
-                  <div className='flex items-end'>
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      className='h-8'
-                      onClick={() => removeRow(row.rowId)}
-                      aria-label={t('common.actions.delete')}
-                    >
-                      <Trash2 className='text-destructive h-4 w-4' />
-                    </Button>
-                  </div>
+                  <label className='text-muted-foreground flex h-8 items-center gap-1 text-xs'>
+                    <Switch
+                      checked={row.enabled}
+                      onCheckedChange={(checked) =>
+                        updateRow(row.rowId, 'enabled', checked)
+                      }
+                    />
+                    {t('channels.status.enabled')}
+                  </label>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='sm'
+                    className='h-8'
+                    onClick={() => toggleConditionsExpanded(row.rowId)}
+                  >
+                    {row.conditionsExpanded ? (
+                      <ChevronDown className='h-4 w-4' />
+                    ) : (
+                      <ChevronRight className='h-4 w-4' />
+                    )}
+                    <span className='ml-1 text-xs'>
+                      {t('channels.fields.conditions')} (
+                      {row.conditions?.length ?? 0})
+                    </span>
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='h-8'
+                    onClick={() => removeRow(row.rowId)}
+                    aria-label={t('common.actions.delete')}
+                  >
+                    <Trash2 className='text-destructive h-4 w-4' />
+                  </Button>
                 </div>
 
                 {/* 条件展开区 */}
                 {row.conditionsExpanded && (
-                  <div className='space-y-2 p-3'>
-                    {/* Logic 选择器 */}
-                    <div className='flex items-center gap-2'>
+                  <div className='mt-3 border-t pt-3'>
+                    <div className='flex flex-wrap items-center gap-2'>
                       <span className='text-muted-foreground text-xs'>
                         {t('systemSettings.actions.match')}:
                       </span>
                       <Select
+                        items={logicItems}
                         value={row.logic || 'AND'}
                         onValueChange={(v) =>
                           updateRow(row.rowId, 'logic', v ?? 'AND')
@@ -604,10 +672,10 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                         <SelectTrigger className='h-7 w-[140px]'>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          {CONDITION_LOGICS.map((l) => (
-                            <SelectItem key={l.value} value={l.value}>
-                              {t(l.label)}
+                        <SelectContent alignItemWithTrigger={false}>
+                          {CONDITION_LOGICS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {t(option.label)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -617,140 +685,153 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                       </span>
                     </div>
 
-                    {/* 条件列表 */}
-                    {(row.conditions ?? []).map((cond, ci) => (
-                      <div
-                        key={ci}
-                        className='flex flex-wrap items-center gap-2 rounded border p-2'
-                      >
-                        <div className='flex items-center'>
-                          <span className='text-muted-foreground mr-1 font-mono text-xs'>
-                            {ci === 0
-                              ? 'IF'
-                              : (row.logic || 'AND') === 'AND'
-                                ? 'AND'
-                                : 'OR'}
-                          </span>
-                        </div>
-                        <Input
-                          value={cond.field}
-                          placeholder='model / provider / quality / size'
-                          className='h-7 min-w-[160px] flex-1'
-                          onChange={(e) =>
-                            updateCondition(
-                              row.rowId,
-                              ci,
-                              'field',
-                              e.target.value
-                            )
-                          }
-                        />
-                        <Select
-                          value={cond.mode}
-                          onValueChange={(v) =>
-                            updateCondition(row.rowId, ci, 'mode', v ?? 'eq')
-                          }
-                        >
-                          <SelectTrigger className='h-7 w-[150px]'>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CONDITION_MODES.map((m) => (
-                              <SelectItem key={m.value} value={m.value}>
-                                {t(m.label)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          value={String(cond.value ?? '')}
-                          placeholder={t(
-                            'systemSettings.placeholders.conditionValue'
-                          )}
-                          className='h-7 min-w-[120px] flex-1'
-                          onChange={(e) =>
-                            updateCondition(
-                              row.rowId,
-                              ci,
-                              'value',
-                              e.target.value
-                            )
-                          }
-                        />
-                        <label className='text-muted-foreground flex items-center gap-1 text-xs'>
-                          <Switch
-                            checked={cond.invert ?? false}
-                            onCheckedChange={(checked) =>
-                              updateCondition(row.rowId, ci, 'invert', checked)
-                            }
-                          />
-                          {t('systemSettings.actions.invert')}
-                        </label>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          className='h-7'
-                          onClick={() => removeCondition(row.rowId, ci)}
-                          aria-label={t('common.actions.delete')}
-                        >
-                          <Trash2 className='text-destructive h-3.5 w-3.5' />
-                        </Button>
+                    {(row.conditions ?? []).length > 0 && (
+                      <div className={RULED}>
+                        {(row.conditions ?? []).map((cond, ci) => (
+                          <div
+                            key={ci}
+                            className='flex flex-wrap items-center gap-2 py-2'
+                          >
+                            <span className='text-muted-foreground w-10 shrink-0 font-mono text-xs'>
+                              {ci === 0
+                                ? 'IF'
+                                : (row.logic || 'AND') === 'AND'
+                                  ? 'AND'
+                                  : 'OR'}
+                            </span>
+                            <Input
+                              value={cond.field}
+                              placeholder='model / provider / quality / size'
+                              className='h-7 min-w-[160px] flex-1'
+                              onChange={(e) =>
+                                updateCondition(
+                                  row.rowId,
+                                  ci,
+                                  'field',
+                                  e.target.value
+                                )
+                              }
+                            />
+                            <Select
+                              items={modeItems}
+                              value={cond.mode}
+                              onValueChange={(v) =>
+                                updateCondition(
+                                  row.rowId,
+                                  ci,
+                                  'mode',
+                                  v ?? 'eq'
+                                )
+                              }
+                            >
+                              <SelectTrigger className='h-7 w-[150px]'>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent alignItemWithTrigger={false}>
+                                {CONDITION_MODES.map((option) => (
+                                  <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {t(option.label)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              value={String(cond.value ?? '')}
+                              placeholder={t(
+                                'systemSettings.placeholders.conditionValue'
+                              )}
+                              className='h-7 min-w-[120px] flex-1'
+                              onChange={(e) =>
+                                updateCondition(
+                                  row.rowId,
+                                  ci,
+                                  'value',
+                                  e.target.value
+                                )
+                              }
+                            />
+                            <label className='text-muted-foreground flex items-center gap-1 text-xs'>
+                              <Switch
+                                checked={cond.invert ?? false}
+                                onCheckedChange={(checked) =>
+                                  updateCondition(
+                                    row.rowId,
+                                    ci,
+                                    'invert',
+                                    checked
+                                  )
+                                }
+                              />
+                              {t('systemSettings.actions.invert')}
+                            </label>
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='icon'
+                              className='h-7'
+                              onClick={() => removeCondition(row.rowId, ci)}
+                              aria-label={t('common.actions.delete')}
+                            >
+                              <Trash2 className='text-destructive h-3.5 w-3.5' />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
 
                     <Button
+                      type='button'
                       variant='outline'
                       size='sm'
-                      className='h-7'
+                      className='mt-2 h-7'
                       onClick={() => addCondition(row.rowId)}
                     >
-                      <Plus className='mr-1 h-3.5 w-3.5' />
+                      <Plus data-icon='inline-start' className='h-3.5 w-3.5' />
                       {t('systemSettings.actions.addCondition')}
                     </Button>
                   </div>
                 )}
               </div>
             ))
-          )}
-        </div>
-      ) : (
-        <div className='space-y-2'>
-          <Textarea
-            value={jsonText}
-            onChange={(event) => handleJsonChange(event.target.value)}
-            className='font-mono text-sm'
-            rows={16}
-            spellCheck={false}
-          />
-          {jsonError && <p className='text-destructive text-sm'>{jsonError}</p>}
-        </div>
-      )}
+          )
+        ) : (
+          <div className='flex flex-col gap-2 py-2'>
+            <Textarea
+              value={jsonText}
+              onChange={(event) => handleJsonChange(event.target.value)}
+              className='font-mono text-sm'
+              rows={16}
+              spellCheck={false}
+            />
+            {jsonError !== '' && (
+              <p className='text-destructive text-sm'>{jsonError}</p>
+            )}
+          </div>
+        )}
+      </SettingsPanel>
 
-      <SettingsPageActionsPortal>
-        <Button
-          type='button'
-          variant='destructive'
-          size='sm'
-          onClick={onReset}
-          disabled={isResetting || updateOption.isPending}
-        >
-          {t('systemSettings.actions.resetToolBillingRules')}
-        </Button>
-        <Button
-          type='button'
-          size='sm'
-          onClick={handleSave}
-          disabled={
-            updateOption.isPending ||
-            isResetting ||
-            (editMode === 'json' && !!jsonError)
-          }
-        >
-          {updateOption.isPending
-            ? t('channels.tips.saving')
-            : t('systemSettings.actions.saveToolBillingRules')}
-        </Button>
-      </SettingsPageActionsPortal>
+      <SettingsPanel
+        tone='destructive'
+        className='shrink-0'
+        title={t('systemSettings.actions.resetToolBillingRules')}
+        description={t(
+          'systemSettings.tips.clearToolBillingRulesAndRestoreDefaults'
+        )}
+        footer={
+          <Button
+            type='button'
+            variant='destructive'
+            size='sm'
+            onClick={onRestoreDefaults}
+            disabled={isResetting || updateOption.isPending}
+          >
+            {t('common.actions.resetToDefault')}
+          </Button>
+        }
+      />
     </div>
   )
 })

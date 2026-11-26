@@ -20,6 +20,7 @@ import { useState, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StatusBadge } from '@/components/status-badge'
@@ -93,16 +94,16 @@ export function AmountOptionsVisualEditor({
   return (
     <div className='space-y-4'>
       <div>
-        <p className='text-muted-foreground mb-3 text-sm'>
-          {t('systemSettings.tips.presetRechargeAmountsDisplayedToUsers')}
-        </p>
-
         {amounts.length === 0 ? (
-          <div className='text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm'>
-            {t(
-              'systemSettings.tips.noAmountOptionsConfiguredAddAmountsBelowToGet'
-            )}
-          </div>
+          <Empty>
+            <EmptyHeader>
+              <EmptyDescription>
+                {t(
+                  'systemSettings.tips.noAmountOptionsConfiguredAddAmountsBelowToGet'
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className='flex flex-wrap gap-2'>
             {amounts.map((amount) => (
@@ -136,7 +137,7 @@ export function AmountOptionsVisualEditor({
       </div>
 
       <div className='flex flex-col gap-2 sm:flex-row sm:items-end'>
-        <div className='flex-1'>
+        <div className='w-full sm:max-w-56'>
           <Label htmlFor='new-amount' className='mb-2 block'>
             {t('systemSettings.actions.addNewAmount')}
           </Label>
@@ -153,6 +154,8 @@ export function AmountOptionsVisualEditor({
         </div>
         <Button
           type='button'
+          variant='outline'
+          size='sm'
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
@@ -161,7 +164,7 @@ export function AmountOptionsVisualEditor({
           disabled={!newAmount || parseFloat(newAmount) <= 0}
           className='w-full sm:w-auto'
         >
-          <Plus className='h-4 w-4 sm:mr-2' />
+          <Plus data-icon='inline-start' />
           <span className='sm:inline'>{t('channels.actions.add')}</span>
         </Button>
       </div>

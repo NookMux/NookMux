@@ -24,13 +24,6 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -52,6 +45,7 @@ import {
 } from '@/components/ui/table'
 import { getEnabledModels } from '@/features/channels/api'
 import { getBuiltinModelPricing } from '../api'
+import { SettingsPanel } from '../components/settings-panel'
 import { safeJsonParse } from '../utils/json-parser'
 import {
   applyBuiltinPricing,
@@ -549,6 +543,20 @@ export function ModelRatioVisualEditor({
   const selectedRow =
     filteredRows.find((row) => row.name === selectedName) || pageRows[0] || null
 
+  const selectedRowRef = useRef<HTMLTableRowElement | null>(null)
+
+  // 列表在面板内部滚动：选中行落到可视区之外时，把它滚回可视区。
+  useEffect(() => {
+    const row = selectedRowRef.current
+    const container = row?.closest('[data-slot="table-container"]')
+    if (!row || !container) return
+    const rowBox = row.getBoundingClientRect()
+    const containerBox = container.getBoundingClientRect()
+    if (rowBox.top < containerBox.top || rowBox.bottom > containerBox.bottom) {
+      row.scrollIntoView({ block: 'nearest' })
+    }
+  }, [safePageIndex, pageSize, selectedRow?.name])
+
   // 「导入内置价格」针对右侧当前展示的模型，点击时手动读取一次；
   // 请求失败由请求层统一提示，这里不重试。
   const builtinPricingModel = selectedRow?.name
@@ -842,549 +850,525 @@ export function ModelRatioVisualEditor({
   }
 
   return (
-    <div className='grid min-h-[560px] gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]'>
-      <div className='relative'>
-        <Card
-          className={cn(
-            'min-w-0',
-            isSaving &&
-              'pointer-events-none opacity-60 transition-opacity duration-150'
-          )}
-        >
-          <CardHeader className='border-b'>
-            <CardTitle>{t('channels.titles.models')}</CardTitle>
-            <div className='flex flex-col gap-2 sm:flex-row'>
-              <div className='relative min-w-0 flex-1'>
-                <Search className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
-                <Input
-                  className='pl-9'
-                  value={searchText}
-                  placeholder={t('systemSettings.actions.searchModelName')}
-                  onChange={(event) => {
-                    setSearchText(event.target.value)
-                    setPageIndex(0)
-                  }}
-                />
-              </div>
-              <div className='flex gap-2'>
-                <Input
-                  value={customModelName}
-                  placeholder={t('systemSettings.fields.customModelName')}
-                  onChange={(event) => setCustomModelName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault()
-                      addCustomModel()
-                    }
-                  }}
-                />
-                <Button
-                  type='button'
-                  variant='outline'
-                  onClick={addCustomModel}
-                >
-                  <Plus className='h-4 w-4' />
-                  {t('channels.actions.add')}
-                </Button>
-              </div>
+    <div
+      className={cn(
+        'grid min-h-[560px] gap-4 lg:min-h-0 lg:flex-1 @4xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]',
+        isSaving &&
+          'pointer-events-none opacity-60 transition-opacity duration-150'
+      )}
+    >
+      <SettingsPanel
+        title={t('channels.titles.models')}
+        className='@4xl:min-h-0'
+        actions={
+          <>
+            <div className='relative min-w-[180px] flex-1'>
+              <Search className='text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
+              <Input
+                className='pl-9'
+                value={searchText}
+                placeholder={t('systemSettings.actions.searchModelName')}
+                onChange={(event) => {
+                  setSearchText(event.target.value)
+                  setPageIndex(0)
+                }}
+              />
             </div>
-          </CardHeader>
-          <CardContent className='min-h-0 px-0'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className='pl-4'>
-                    {t('models.fields.modelName')}
-                  </TableHead>
-                  <TableHead>
-                    {t('systemSettings.fields.billingType')}
-                  </TableHead>
-                  <TableHead>
-                    {t('systemSettings.fields.priceSummary')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={3}
-                      className='text-muted-foreground h-32 text-center'
-                    >
-                      {isLoadingEnabledModels
-                        ? t('common.tips.loading')
-                        : t('common.titles.noModelsFound')}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  pageRows.map((row) => (
-                    <TableRow
-                      key={row.name}
-                      className={cn(
-                        'cursor-pointer',
-                        row.name === selectedRow?.name && 'bg-muted/70'
-                      )}
-                      onClick={() => selectModel(row.name)}
-                    >
-                      <TableCell className='max-w-[260px] truncate pl-4 font-medium'>
-                        {row.name}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            row.mode === 'unconfigured'
-                              ? 'destructive'
-                              : row.mode === 'per-request'
-                                ? 'secondary'
-                                : row.mode === 'per-token-length'
-                                  ? 'default'
-                                  : 'outline'
-                          }
-                        >
-                          {row.mode === 'unconfigured'
-                            ? t('systemSettings.errors.notConfigured')
-                            : row.mode === 'per-request'
-                              ? t('pricing.fields.perRequest')
-                              : row.mode === 'per-token-length'
-                                ? t('systemSettings.fields.tiered')
-                                : t('systemSettings.fields.perToken')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className='max-w-[240px] truncate text-xs'>
-                        {getRowSummary(row, t)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            <div className='flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between'>
-              <div className='text-muted-foreground text-xs'>
-                {t('keys.titles.countModels', { count: filteredRows.length })}
-              </div>
-              <div className='flex flex-wrap items-center gap-2'>
-                <span className='text-muted-foreground text-xs whitespace-nowrap'>
-                  {t('common.fields.rowsPerPage')}
-                </span>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    setPageSize(Number(value))
-                    setPageIndex(0)
-                  }}
-                >
-                  <SelectTrigger className='h-8 w-[70px]'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false}>
-                    <SelectGroup>
-                      {PAGE_SIZE_OPTIONS.map((size) => (
-                        <SelectItem key={size} value={String(size)}>
-                          {size}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  disabled={safePageIndex === 0}
-                  onClick={() =>
-                    setPageIndex(() => Math.max(0, safePageIndex - 1))
-                  }
-                >
-                  {t('common.actions.previous')}
-                </Button>
-                <span className='text-muted-foreground text-xs'>
-                  {safePageIndex + 1} / {pageCount}
-                </span>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  disabled={safePageIndex >= pageCount - 1}
-                  onClick={() =>
-                    setPageIndex(() =>
-                      Math.min(pageCount - 1, safePageIndex + 1)
-                    )
-                  }
-                >
-                  {t('common.actions.next')}
-                </Button>
-              </div>
+            <Input
+              className='w-44'
+              value={customModelName}
+              placeholder={t('systemSettings.fields.customModelName')}
+              onChange={(event) => setCustomModelName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  addCustomModel()
+                }
+              }}
+            />
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={addCustomModel}
+            >
+              <Plus data-icon='inline-start' />
+              {t('channels.actions.add')}
+            </Button>
+          </>
+        }
+        flush
+        footer={
+          <div className='flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='text-muted-foreground text-xs'>
+              {t('keys.titles.countModels', { count: filteredRows.length })}
             </div>
-          </CardContent>
-        </Card>
-        {isSaving && (
-          <div className='bg-background/40 absolute inset-0 z-10 flex items-center justify-center rounded-lg'>
-            <Loader2 className='text-muted-foreground size-8 animate-spin' />
-          </div>
-        )}
-      </div>
-
-      <div className='relative'>
-        <Card
-          className={cn(
-            'min-w-0',
-            isSaving &&
-              'pointer-events-none opacity-60 transition-opacity duration-150'
-          )}
-        >
-          <CardHeader className='border-b'>
-            <CardTitle className='self-center truncate'>
-              {selectedRow
-                ? selectedRow.name
-                : t('systemSettings.titles.priceSettings')}
-            </CardTitle>
-            <CardAction className='row-span-1 self-center'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <span className='text-muted-foreground text-xs whitespace-nowrap'>
+                {t('common.fields.rowsPerPage')}
+              </span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value))
+                  setPageIndex(0)
+                }}
+              >
+                <SelectTrigger
+                  className='h-8 w-[70px]'
+                  aria-label={t('common.fields.rowsPerPage')}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false}>
+                  <SelectGroup>
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
               <Button
                 type='button'
                 variant='outline'
                 size='sm'
-                disabled={!selectedRow || builtinPricingQuery.isFetching}
-                onClick={() => {
-                  if (selectedRow) {
-                    importBuiltinPricing(selectedRow.name)
-                  }
-                }}
+                disabled={safePageIndex === 0}
+                onClick={() =>
+                  setPageIndex(() => Math.max(0, safePageIndex - 1))
+                }
               >
-                {builtinPricingQuery.isFetching ? (
-                  <Loader2 data-icon='inline-start' className='animate-spin' />
-                ) : (
-                  <Import data-icon='inline-start' />
-                )}
-                {t('systemSettings.actions.importBuiltinPricing')}
+                {t('common.actions.previous')}
               </Button>
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            {!selectedRow ? (
-              <div className='text-muted-foreground py-10 text-center text-sm'>
-                {t('systemSettings.placeholders.selectAModelToEditPricing')}
-              </div>
-            ) : (
-              <div className='space-y-5' key={selectedRow.name}>
-                {selectedRow.mode === 'unconfigured' && (
-                  <div className='bg-destructive/10 text-destructive rounded-md px-3 py-2 text-sm'>
-                    {t(
-                      'systemSettings.tips.modelHasNoPricingConfiguredPleaseSelectABilling'
-                    )}
-                  </div>
-                )}
-                <div className='space-y-2'>
-                  <Label>{t('systemSettings.fields.billingType')}</Label>
-                  <RadioGroup
-                    value={selectedRow.mode}
-                    onValueChange={(value) =>
-                      setMode(selectedRow.name, value as PricingMode)
-                    }
-                    className='grid gap-2 sm:grid-cols-3'
-                  >
-                    {[
-                      ['per-request', t('pricing.fields.perRequest')],
-                      ['per-token', t('systemSettings.fields.perToken')],
-                      [
-                        'per-token-length',
-                        t('systemSettings.fields.tieredPricing'),
-                      ],
-                    ].map(([value, label]) => (
-                      <Label
-                        key={value}
-                        htmlFor={`billing-type-${value}`}
-                        className='border-input bg-background hover:border-primary/40 focus-within:border-primary/50 has-data-checked:border-primary has-data-checked:ring-primary/20 flex cursor-pointer items-center gap-2 rounded-md border p-3 text-sm font-normal transition-colors has-data-checked:ring-2'
-                      >
-                        <RadioGroupItem
-                          id={`billing-type-${value}`}
-                          value={value}
-                        />
-                        {label}
-                      </Label>
-                    ))}
-                  </RadioGroup>
-                </div>
-
-                {selectedRow.mode === 'per-request' && (
-                  <PriceInput
-                    label={t('systemSettings.fields.fixedPricePerRequest')}
-                    value={toPricingInputValue(selectedRow.fixedPrice)}
-                    placeholder='0.01'
-                    onChange={(value) => setFixedPrice(selectedRow.name, value)}
-                  />
-                )}
-
-                {selectedRow.mode === 'per-token' && (
-                  <div className='space-y-4'>
-                    <div className='grid gap-3 sm:grid-cols-2'>
-                      <PriceInput
-                        label={t('systemSettings.fields.inputPricePer1MTokens')}
-                        value={toPricingInputValue(selectedRow.inputPrice)}
-                        placeholder='2'
-                        onChange={(value) =>
-                          setInputPrice(selectedRow.name, value)
-                        }
-                      />
-                      <PriceInput
-                        label={t(
-                          'systemSettings.fields.completionPricePer1MTokens'
-                        )}
-                        value={toPricingInputValue(selectedRow.completionPrice)}
-                        placeholder='4'
-                        disabled={!selectedRow.inputPrice}
-                        onChange={(value) =>
-                          setRelativePrice(
-                            'CompletionRatio',
-                            maps.completion,
-                            selectedRow.name,
-                            value,
-                            selectedRow.inputPrice
-                          )
-                        }
-                      />
-                    </div>
-                    <div className='grid gap-3 sm:grid-cols-2'>
-                      <PriceInput
-                        label={t(
-                          'systemSettings.fields.cacheReadPricePer1MTokens'
-                        )}
-                        value={toPricingInputValue(selectedRow.cachePrice)}
-                        placeholder='0.2'
-                        disabled={!selectedRow.inputPrice}
-                        onChange={(value) =>
-                          setRelativePrice(
-                            'CacheRatio',
-                            maps.cache,
-                            selectedRow.name,
-                            value,
-                            selectedRow.inputPrice
-                          )
-                        }
-                      />
-                      <PriceInput
-                        label={t(
-                          'systemSettings.fields.cacheWritePricePer1MTokens'
-                        )}
-                        value={toPricingInputValue(
-                          selectedRow.createCachePrice
-                        )}
-                        placeholder='1'
-                        disabled={!selectedRow.inputPrice}
-                        onChange={(value) =>
-                          setRelativePrice(
-                            'CreateCacheRatio',
-                            maps.createCache,
-                            selectedRow.name,
-                            value,
-                            selectedRow.inputPrice
-                          )
-                        }
-                      />
-                    </div>
-                    <div className='grid gap-3 sm:grid-cols-2'>
-                      <PriceInput
-                        label={t(
-                          'systemSettings.fields.audioInputPricePer1MTokens'
-                        )}
-                        value={toPricingInputValue(selectedRow.audioInputPrice)}
-                        placeholder='8'
-                        disabled={!selectedRow.inputPrice}
-                        onChange={(value) =>
-                          setRelativePrice(
-                            'AudioRatio',
-                            maps.audio,
-                            selectedRow.name,
-                            value,
-                            selectedRow.inputPrice
-                          )
-                        }
-                      />
-                      <PriceInput
-                        label={t(
-                          'systemSettings.tips.audioOutputPricePer1MTokens'
-                        )}
-                        value={toPricingInputValue(
-                          selectedRow.audioOutputPrice
-                        )}
-                        placeholder='16'
-                        disabled={!selectedRow.audioInputPrice}
-                        onChange={(value) =>
-                          setAudioOutputPrice(
-                            selectedRow.name,
-                            value,
-                            selectedRow.audioInputPrice
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {selectedRow.mode === 'per-token-length' && (
-                  <div className='space-y-4'>
-                    <div className='flex items-center justify-between gap-2'>
-                      <div>
-                        <Label className='text-sm font-semibold'>
-                          {t('systemSettings.fields.tieredPricing')}
-                        </Label>
-                        <p className='text-muted-foreground text-xs'>
-                          {t(
-                            'systemSettings.tips.pricingVariesByInputContextTokenRange'
-                          )}
-                        </p>
-                      </div>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        onClick={() => addContextTier(selectedRow.name)}
-                      >
-                        <Plus className='mr-1 h-3 w-3' />
-                        {t('systemSettings.actions.addTier')}
-                      </Button>
-                    </div>
-
-                    {(selectedRow.contextTiers || []).length > 0 ? (
-                      <div className='space-y-3'>
-                        {(selectedRow.contextTiers || []).map(
-                          (tier, tierIdx) => {
-                            const maxTokensStr =
-                              tier.max_tokens === null
-                                ? ''
-                                : String(tier.max_tokens)
-                            return (
-                              <div
-                                key={tierIdx}
-                                className='bg-muted/20 rounded-md border p-3'
-                              >
-                                <div className='mb-3 flex items-center gap-2'>
-                                  <div className='min-w-0 flex-1 space-y-1.5'>
-                                    <Label className='text-xs'>
-                                      {t('channels.fields.name')}
-                                    </Label>
-                                    <Input
-                                      className='h-8'
-                                      value={tier.name ?? ''}
-                                      placeholder={`${t('systemSettings.fields.tierName')} ${tierIdx + 1}`}
-                                      onChange={(e) =>
-                                        updateContextTier(
-                                          selectedRow.name,
-                                          tierIdx,
-                                          'name',
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                  <Button
-                                    type='button'
-                                    variant='ghost'
-                                    size='icon'
-                                    className='mt-5 h-8 w-8 shrink-0'
-                                    disabled={
-                                      (selectedRow.contextTiers || []).length <=
-                                      1
-                                    }
-                                    onClick={() =>
-                                      removeContextTier(
-                                        selectedRow.name,
-                                        tierIdx
-                                      )
-                                    }
-                                  >
-                                    <Trash2 className='text-destructive h-4 w-4' />
-                                  </Button>
-                                </div>
-
-                                <div className='mb-3 grid gap-3 sm:grid-cols-2'>
-                                  <div className='space-y-1.5 sm:col-span-2'>
-                                    <Label className='text-xs'>
-                                      {t('models.fields.contextWindow')}
-                                    </Label>
-                                    <div className='grid gap-2 sm:grid-cols-2'>
-                                      <Input
-                                        className='h-8'
-                                        type='number'
-                                        value={tier.min_tokens}
-                                        placeholder={t(
-                                          'systemSettings.actions.startWindow'
-                                        )}
-                                        onChange={(e) =>
-                                          updateContextTier(
-                                            selectedRow.name,
-                                            tierIdx,
-                                            'min_tokens',
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                      <Input
-                                        className='h-8'
-                                        type='number'
-                                        placeholder={t(
-                                          'systemSettings.fields.endWindow'
-                                        )}
-                                        value={maxTokensStr}
-                                        onChange={(e) =>
-                                          updateContextTier(
-                                            selectedRow.name,
-                                            tierIdx,
-                                            'max_tokens',
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {contextTierPriceFields.map((field) => (
-                                    <PriceInput
-                                      key={field}
-                                      label={`${getContextTierPriceLabel(field, t)} ($/1M)`}
-                                      value={tier[field]}
-                                      onChange={(value) =>
-                                        updateContextTier(
-                                          selectedRow.name,
-                                          tierIdx,
-                                          field,
-                                          value
-                                        )
-                                      }
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          }
-                        )}
-                      </div>
-                    ) : (
-                      <div className='text-muted-foreground rounded-md border border-dashed p-4 text-sm'>
-                        {t('common.tips.noTiersConfiguredClickAddTierToStart')}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <Button
-                  type='button'
-                  variant='outline'
-                  className='w-full'
-                  onClick={() => clearModel(selectedRow.name)}
+              <span className='text-muted-foreground text-xs'>
+                {safePageIndex + 1} / {pageCount}
+              </span>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                disabled={safePageIndex >= pageCount - 1}
+                onClick={() =>
+                  setPageIndex(() => Math.min(pageCount - 1, safePageIndex + 1))
+                }
+              >
+                {t('common.actions.next')}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <Table containerClassName='max-h-[70vh] overflow-y-auto @4xl:max-h-none @4xl:h-full'>
+          <TableHeader className='bg-card sticky top-0 z-10'>
+            <TableRow>
+              <TableHead className='pl-4'>
+                {t('models.fields.modelName')}
+              </TableHead>
+              <TableHead>{t('systemSettings.fields.billingType')}</TableHead>
+              <TableHead className='pr-4'>
+                {t('systemSettings.fields.priceSummary')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pageRows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  className='text-muted-foreground h-32 text-center'
                 >
-                  <Trash2 className='h-4 w-4' />
-                  {t('systemSettings.actions.clearThisModelPricing')}
-                </Button>
+                  {isLoadingEnabledModels
+                    ? t('common.tips.loading')
+                    : t('common.titles.noModelsFound')}
+                </TableCell>
+              </TableRow>
+            ) : (
+              pageRows.map((row) => (
+                <TableRow
+                  key={row.name}
+                  ref={
+                    row.name === selectedRow?.name ? selectedRowRef : undefined
+                  }
+                  className={cn(
+                    'cursor-pointer',
+                    row.name === selectedRow?.name && 'bg-muted/70'
+                  )}
+                  onClick={() => selectModel(row.name)}
+                >
+                  <TableCell className='w-full max-w-0 min-w-[9rem] truncate pl-4 font-medium'>
+                    {row.name}
+                  </TableCell>
+                  <TableCell>
+                    {row.mode === 'unconfigured' ? (
+                      <Badge
+                        variant='outline'
+                        className='border-warning/40 bg-warning/10 text-warning'
+                      >
+                        {t('systemSettings.errors.notConfigured')}
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant={
+                          row.mode === 'per-request'
+                            ? 'secondary'
+                            : row.mode === 'per-token-length'
+                              ? 'default'
+                              : 'outline'
+                        }
+                      >
+                        {row.mode === 'per-request'
+                          ? t('pricing.fields.perRequest')
+                          : row.mode === 'per-token-length'
+                            ? t('systemSettings.fields.tiered')
+                            : t('systemSettings.fields.perToken')}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className='max-w-[240px] truncate pr-4 text-xs'>
+                    {getRowSummary(row, t)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </SettingsPanel>
+
+      <SettingsPanel
+        title={
+          selectedRow ? (
+            <span className='break-all'>{selectedRow.name}</span>
+          ) : (
+            t('systemSettings.titles.priceSettings')
+          )
+        }
+        className='@4xl:max-h-full @4xl:self-start'
+        actions={
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            disabled={!selectedRow || builtinPricingQuery.isFetching}
+            onClick={() => {
+              if (selectedRow) {
+                importBuiltinPricing(selectedRow.name)
+              }
+            }}
+          >
+            {builtinPricingQuery.isFetching ? (
+              <Loader2 data-icon='inline-start' className='animate-spin' />
+            ) : (
+              <Import data-icon='inline-start' />
+            )}
+            {t('systemSettings.actions.importBuiltinPricing')}
+          </Button>
+        }
+        scroll
+        footer={
+          selectedRow ? (
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={() => clearModel(selectedRow.name)}
+            >
+              <Trash2 data-icon='inline-start' className='text-destructive' />
+              {t('systemSettings.actions.clearThisModelPricing')}
+            </Button>
+          ) : undefined
+        }
+      >
+        {!selectedRow ? (
+          <div className='text-muted-foreground py-16 text-center text-sm'>
+            {t('systemSettings.placeholders.selectAModelToEditPricing')}
+          </div>
+        ) : (
+          <div className='flex flex-col gap-5 py-3' key={selectedRow.name}>
+            {selectedRow.mode === 'unconfigured' && (
+              <div className='bg-warning/10 text-warning rounded-md px-3 py-2 text-sm'>
+                {t(
+                  'systemSettings.tips.modelHasNoPricingConfiguredPleaseSelectABilling'
+                )}
               </div>
             )}
-          </CardContent>
-        </Card>
-        {isSaving && (
-          <div className='bg-background/40 absolute inset-0 z-10 flex items-center justify-center rounded-lg'>
-            <Loader2 className='text-muted-foreground size-8 animate-spin' />
+            <div className='space-y-2'>
+              <Label>{t('systemSettings.fields.billingType')}</Label>
+              <RadioGroup
+                value={selectedRow.mode}
+                onValueChange={(value) =>
+                  setMode(selectedRow.name, value as PricingMode)
+                }
+                className='grid gap-2 sm:grid-cols-3'
+              >
+                {[
+                  ['per-request', t('pricing.fields.perRequest')],
+                  ['per-token', t('systemSettings.fields.perToken')],
+                  [
+                    'per-token-length',
+                    t('systemSettings.fields.tieredPricing'),
+                  ],
+                ].map(([value, label]) => (
+                  <Label
+                    key={value}
+                    htmlFor={`billing-type-${value}`}
+                    className='border-input bg-background hover:border-primary/40 focus-within:border-primary/50 has-data-checked:border-primary has-data-checked:ring-primary/20 flex cursor-pointer items-center gap-2 rounded-md border p-3 text-sm font-normal transition-colors has-data-checked:ring-2'
+                  >
+                    <RadioGroupItem
+                      id={`billing-type-${value}`}
+                      value={value}
+                    />
+                    {label}
+                  </Label>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {selectedRow.mode === 'per-request' && (
+              <PriceInput
+                label={t('systemSettings.fields.fixedPricePerRequest')}
+                value={toPricingInputValue(selectedRow.fixedPrice)}
+                placeholder='0.01'
+                onChange={(value) => setFixedPrice(selectedRow.name, value)}
+              />
+            )}
+
+            {selectedRow.mode === 'per-token' && (
+              <div className='space-y-4'>
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <PriceInput
+                    label={t('systemSettings.fields.inputPricePer1MTokens')}
+                    value={toPricingInputValue(selectedRow.inputPrice)}
+                    placeholder='2'
+                    onChange={(value) => setInputPrice(selectedRow.name, value)}
+                  />
+                  <PriceInput
+                    label={t(
+                      'systemSettings.fields.completionPricePer1MTokens'
+                    )}
+                    value={toPricingInputValue(selectedRow.completionPrice)}
+                    placeholder='4'
+                    disabled={!selectedRow.inputPrice}
+                    onChange={(value) =>
+                      setRelativePrice(
+                        'CompletionRatio',
+                        maps.completion,
+                        selectedRow.name,
+                        value,
+                        selectedRow.inputPrice
+                      )
+                    }
+                  />
+                </div>
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <PriceInput
+                    label={t('systemSettings.fields.cacheReadPricePer1MTokens')}
+                    value={toPricingInputValue(selectedRow.cachePrice)}
+                    placeholder='0.2'
+                    disabled={!selectedRow.inputPrice}
+                    onChange={(value) =>
+                      setRelativePrice(
+                        'CacheRatio',
+                        maps.cache,
+                        selectedRow.name,
+                        value,
+                        selectedRow.inputPrice
+                      )
+                    }
+                  />
+                  <PriceInput
+                    label={t(
+                      'systemSettings.fields.cacheWritePricePer1MTokens'
+                    )}
+                    value={toPricingInputValue(selectedRow.createCachePrice)}
+                    placeholder='1'
+                    disabled={!selectedRow.inputPrice}
+                    onChange={(value) =>
+                      setRelativePrice(
+                        'CreateCacheRatio',
+                        maps.createCache,
+                        selectedRow.name,
+                        value,
+                        selectedRow.inputPrice
+                      )
+                    }
+                  />
+                </div>
+                <div className='grid gap-3 sm:grid-cols-2'>
+                  <PriceInput
+                    label={t(
+                      'systemSettings.fields.audioInputPricePer1MTokens'
+                    )}
+                    value={toPricingInputValue(selectedRow.audioInputPrice)}
+                    placeholder='8'
+                    disabled={!selectedRow.inputPrice}
+                    onChange={(value) =>
+                      setRelativePrice(
+                        'AudioRatio',
+                        maps.audio,
+                        selectedRow.name,
+                        value,
+                        selectedRow.inputPrice
+                      )
+                    }
+                  />
+                  <PriceInput
+                    label={t('systemSettings.tips.audioOutputPricePer1MTokens')}
+                    value={toPricingInputValue(selectedRow.audioOutputPrice)}
+                    placeholder='16'
+                    disabled={!selectedRow.audioInputPrice}
+                    onChange={(value) =>
+                      setAudioOutputPrice(
+                        selectedRow.name,
+                        value,
+                        selectedRow.audioInputPrice
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {selectedRow.mode === 'per-token-length' && (
+              <div className='space-y-4'>
+                <div className='flex items-center justify-between gap-2'>
+                  <div>
+                    <Label className='text-sm font-semibold'>
+                      {t('systemSettings.fields.tieredPricing')}
+                    </Label>
+                    <p className='text-muted-foreground text-xs'>
+                      {t(
+                        'systemSettings.tips.pricingVariesByInputContextTokenRange'
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={() => addContextTier(selectedRow.name)}
+                  >
+                    <Plus className='mr-1 h-3 w-3' />
+                    {t('systemSettings.actions.addTier')}
+                  </Button>
+                </div>
+
+                {(selectedRow.contextTiers || []).length > 0 ? (
+                  <div className='[&>*+*]:border-t'>
+                    {(selectedRow.contextTiers || []).map((tier, tierIdx) => {
+                      const maxTokensStr =
+                        tier.max_tokens === null ? '' : String(tier.max_tokens)
+                      return (
+                        <div
+                          key={tierIdx}
+                          className='py-4 first:pt-0 last:pb-0'
+                        >
+                          <div className='mb-3 flex items-center gap-2'>
+                            <div className='min-w-0 flex-1 space-y-1.5'>
+                              <Label className='text-xs'>
+                                {t('channels.fields.name')}
+                              </Label>
+                              <Input
+                                className='h-8'
+                                value={tier.name ?? ''}
+                                placeholder={`${t('systemSettings.fields.tierName')} ${tierIdx + 1}`}
+                                onChange={(e) =>
+                                  updateContextTier(
+                                    selectedRow.name,
+                                    tierIdx,
+                                    'name',
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='icon'
+                              className='mt-5 h-8 w-8 shrink-0'
+                              disabled={
+                                (selectedRow.contextTiers || []).length <= 1
+                              }
+                              onClick={() =>
+                                removeContextTier(selectedRow.name, tierIdx)
+                              }
+                            >
+                              <Trash2 className='text-destructive h-4 w-4' />
+                            </Button>
+                          </div>
+
+                          <div className='mb-3 grid gap-3 sm:grid-cols-2'>
+                            <div className='space-y-1.5 sm:col-span-2'>
+                              <Label className='text-xs'>
+                                {t('models.fields.contextWindow')}
+                              </Label>
+                              <div className='grid gap-2 sm:grid-cols-2'>
+                                <Input
+                                  className='h-8'
+                                  type='number'
+                                  value={tier.min_tokens}
+                                  placeholder={t(
+                                    'systemSettings.actions.startWindow'
+                                  )}
+                                  onChange={(e) =>
+                                    updateContextTier(
+                                      selectedRow.name,
+                                      tierIdx,
+                                      'min_tokens',
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                                <Input
+                                  className='h-8'
+                                  type='number'
+                                  placeholder={t(
+                                    'systemSettings.fields.endWindow'
+                                  )}
+                                  value={maxTokensStr}
+                                  onChange={(e) =>
+                                    updateContextTier(
+                                      selectedRow.name,
+                                      tierIdx,
+                                      'max_tokens',
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
+
+                            {contextTierPriceFields.map((field) => (
+                              <PriceInput
+                                key={field}
+                                label={`${getContextTierPriceLabel(field, t)} ($/1M)`}
+                                value={tier[field]}
+                                onChange={(value) =>
+                                  updateContextTier(
+                                    selectedRow.name,
+                                    tierIdx,
+                                    field,
+                                    value
+                                  )
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className='text-muted-foreground py-6 text-center text-sm'>
+                    {t('common.tips.noTiersConfiguredClickAddTierToStart')}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
-      </div>
+      </SettingsPanel>
     </div>
   )
 }

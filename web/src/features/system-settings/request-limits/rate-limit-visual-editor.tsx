@@ -20,6 +20,7 @@ import { useState, useMemo } from 'react'
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -126,8 +127,8 @@ export function RateLimitVisualEditor({
 
   return (
     <div className='space-y-4'>
-      <div className='flex items-center gap-4'>
-        <div className='relative flex-1'>
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
+        <div className='relative w-full sm:max-w-xs'>
           <Search className='text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4' />
           <Input
             placeholder={t('systemSettings.actions.searchGroupNames')}
@@ -136,21 +137,33 @@ export function RateLimitVisualEditor({
             className='pl-9'
           />
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className='mr-2 h-4 w-4' />
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={handleAdd}
+          className='sm:ml-auto'
+        >
+          <Plus data-icon='inline-start' />
           {t('systemSettings.actions.addGroup')}
         </Button>
       </div>
 
       {filteredRateLimits.length === 0 ? (
-        <div className='text-muted-foreground rounded-lg border border-dashed p-8 text-center'>
-          {searchText
-            ? t('systemSettings.fields.noGroupsMatchYourSearch')
-            : t('common.tips.noGroupBasedRateLimitsConfiguredClickAddGroup')}
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyDescription>
+              {searchText
+                ? t('systemSettings.fields.noGroupsMatchYourSearch')
+                : t(
+                    'common.tips.noGroupBasedRateLimitsConfiguredClickAddGroup'
+                  )}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className='rounded-md border'>
-          <Table>
+        <div>
+          <Table className='[&_td:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:first-child]:pl-0 [&_th:last-child]:pr-0'>
             <TableHeader>
               <TableRow>
                 <TableHead>{t('models.fields.groupName')}</TableHead>
@@ -189,6 +202,7 @@ export function RateLimitVisualEditor({
                         variant='ghost'
                         size='sm'
                         onClick={() => handleEdit(limit)}
+                        aria-label={t('channels.actions.edit')}
                       >
                         <Pencil className='h-4 w-4' />
                       </Button>
@@ -196,6 +210,7 @@ export function RateLimitVisualEditor({
                         variant='ghost'
                         size='sm'
                         onClick={() => handleDelete(limit.groupName)}
+                        aria-label={t('common.actions.delete')}
                       >
                         <Trash2 className='h-4 w-4' />
                       </Button>

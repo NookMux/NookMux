@@ -20,24 +20,16 @@ import * as z from 'zod'
 import type { Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsFormGrid,
-  SettingsFormGridItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useSettingsForm } from '../hooks/use-settings-form'
@@ -166,29 +158,27 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
               onSave={handleSubmit}
               onReset={handleReset}
               isSaving={isSubmitting || updateOption.isPending}
-              isResetDisabled={!isDirty}
             />
-            <FormDirtyIndicator isDirty={isDirty} />
-            <SettingsFormGrid>
+            <SettingsGroup>
               <FormField
                 control={form.control}
                 name='SystemName'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('systemSettings.titles.name')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t('layout.fields.newApi')}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.nameDisplayedAcrossTheApplication'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow
+                    label={t('systemSettings.titles.name')}
+                    description={t(
+                      'systemSettings.tips.nameDisplayedAcrossTheApplication'
+                    )}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t('layout.fields.newApi')}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
 
@@ -196,20 +186,21 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 control={form.control}
                 name='ServerAddress'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.serverAddress')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder='https://yourdomain.com' {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.status.publicUrlOfYourServerUsedForOauthCallbacks'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow
+                    label={t('systemSettings.fields.serverAddress')}
+                    description={t(
+                      'systemSettings.status.publicUrlOfYourServerUsedForOauthCallbacks'
+                    )}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder='https://yourdomain.com'
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
 
@@ -217,23 +208,23 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 control={form.control}
                 name='general_setting.docs_link'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.documentationLink')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t(
-                          'systemSettings.placeholders.urlDocsExampleCom'
-                        )}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.fields.linkToYourDocumentationSite')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow
+                    label={t('systemSettings.fields.documentationLink')}
+                    description={t(
+                      'systemSettings.fields.linkToYourDocumentationSite'
+                    )}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t(
+                            'systemSettings.placeholders.urlDocsExampleCom'
+                          )}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
 
@@ -241,23 +232,21 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 control={form.control}
                 name='general_setting.token_key_prefix'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.apiKeyPrefix')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t(
-                          'systemSettings.placeholders.apiKeyPrefix'
-                        )}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.tips.apiKeyPrefixDesc')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow
+                    label={t('systemSettings.fields.apiKeyPrefix')}
+                    description={t('systemSettings.tips.apiKeyPrefixDesc')}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t(
+                            'systemSettings.placeholders.apiKeyPrefix'
+                          )}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
 
@@ -265,21 +254,23 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 control={form.control}
                 name='Logo'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('systemSettings.fields.logoUrl')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t(
-                          'systemSettings.placeholders.urlExampleComLogoPng'
-                        )}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.tips.urlToYourLogoImageOptional')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow
+                    label={t('systemSettings.fields.logoUrl')}
+                    description={t(
+                      'systemSettings.tips.urlToYourLogoImageOptional'
+                    )}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t(
+                            'systemSettings.placeholders.urlExampleComLogoPng'
+                          )}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
 
@@ -287,8 +278,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 control={form.control}
                 name='Footer'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('systemSettings.fields.footer')}</FormLabel>
+                  <SettingsRow
+                    label={t('systemSettings.fields.footer')}
+                    description={t(
+                      'systemSettings.tips.footerTextDisplayedAtTheBottomOfPages'
+                    )}
+                  >
                     <FormControl>
                       <Textarea
                         placeholder={t(
@@ -298,13 +293,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.footerTextDisplayedAtTheBottomOfPages'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  </SettingsRow>
                 )}
               />
 
@@ -312,8 +301,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 control={form.control}
                 name='About'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('about.titles.value')}</FormLabel>
+                  <SettingsRow
+                    label={t('about.titles.value')}
+                    description={t(
+                      'systemSettings.tips.supportsHtmlMarkupOrIframeEmbeddingEnterHtmlCode'
+                    )}
+                  >
                     <FormControl>
                       <Textarea
                         placeholder={t(
@@ -323,51 +316,43 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.supportsHtmlMarkupOrIframeEmbeddingEnterHtmlCode'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  </SettingsRow>
                 )}
               />
 
-              <SettingsFormGridItem span='full'>
-                <FormField
-                  control={form.control}
-                  name='HomePageContent'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('systemSettings.fields.homePageContent')}
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder={t(
-                            'systemSettings.tips.welcomeToOurNewApi'
-                          )}
-                          rows={6}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t(
-                          'systemSettings.tips.contentDisplayedOnTheHomePageSupportsMarkdown'
+              <FormField
+                control={form.control}
+                name='HomePageContent'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.homePageContent')}
+                    description={t(
+                      'systemSettings.tips.contentDisplayedOnTheHomePageSupportsMarkdown'
+                    )}
+                  >
+                    <FormControl>
+                      <Textarea
+                        placeholder={t(
+                          'systemSettings.tips.welcomeToOurNewApi'
                         )}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </SettingsFormGridItem>
+                        rows={6}
+                        {...field}
+                      />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
 
               <FormField
                 control={form.control}
                 name='legal.user_agreement'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('layout.fields.userAgreement')}</FormLabel>
+                  <SettingsRow
+                    label={t('layout.fields.userAgreement')}
+                    description={t(
+                      'systemSettings.tips.leaveEmptyToDisableTheAgreementRequirementSupportsMarkdown'
+                    )}
+                  >
                     <FormControl>
                       <Textarea
                         placeholder={t(
@@ -377,13 +362,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.leaveEmptyToDisableTheAgreementRequirementSupportsMarkdown'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  </SettingsRow>
                 )}
               />
 
@@ -391,8 +370,12 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 control={form.control}
                 name='legal.privacy_policy'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('layout.fields.privacyPolicy')}</FormLabel>
+                  <SettingsRow
+                    label={t('layout.fields.privacyPolicy')}
+                    description={t(
+                      'systemSettings.tips.leaveEmptyToDisableThePrivacyPolicyRequirementSupports'
+                    )}
+                  >
                     <FormControl>
                       <Textarea
                         placeholder={t(
@@ -402,16 +385,10 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.leaveEmptyToDisableThePrivacyPolicyRequirementSupports'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  </SettingsRow>
                 )}
               />
-            </SettingsFormGrid>
+            </SettingsGroup>
           </SettingsForm>
         </Form>
       </SettingsSection>

@@ -20,27 +20,18 @@ import { useEffect, useState } from 'react'
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Code2, Palette } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@/components/ui/button'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { EditorModeButton } from '../components/editor-mode-button'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -133,63 +124,46 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveRateLimits'
           />
-          <DisabledSettingsNotice enabled={enabled} />
 
-          <FormField
-            control={form.control}
-            name='ModelRequestRateLimitEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.enableRateLimiting')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.controlsModelRequestRateLimitingWebApiRouteThrottling'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('systemSettings.actions.enableRateLimiting')}
+            description={t(
+              'systemSettings.tips.controlsModelRequestRateLimitingWebApiRouteThrottling'
             )}
-          />
-
-          <div className='grid gap-4 md:grid-cols-3'>
+            control={
+              <SettingsGroupSwitch name='ModelRequestRateLimitEnabled' />
+            }
+            enabled={enabled}
+          >
             <FormField
               control={form.control}
               name='ModelRequestRateLimitDurationMinutes'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.limitPeriod')}
-                  </FormLabel>
-                  <FormControl>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        type='number'
-                        min={0}
-                        step={1}
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 0)
-                        }
-                      />
-                      <span className='text-muted-foreground text-sm'>
-                        {t('subscriptions.fields.minutes')}
-                      </span>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.fields.timeWindowForRateLimiting')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.limitPeriod')}
+                  description={t(
+                    'systemSettings.fields.timeWindowForRateLimiting'
+                  )}
+                >
+                  <div className='flex items-center gap-2'>
+                    <SettingsControl size='xs'>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          step={1}
+                          {...field}
+                          onChange={(event) =>
+                            field.onChange(parseInt(event.target.value) || 0)
+                          }
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
+                      {t('subscriptions.fields.minutes')}
+                    </span>
+                  </div>
+                </SettingsRow>
               )}
             />
 
@@ -197,34 +171,32 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
               control={form.control}
               name='ModelRequestRateLimitCount'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.maxRequestsPerPeriod')}
-                  </FormLabel>
-                  <FormControl>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        type='number'
-                        min={0}
-                        max={100000000}
-                        step={1}
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 0)
-                        }
-                      />
-                      <span className='text-muted-foreground text-sm'>
-                        {t('systemSettings.fields.times')}
-                      </span>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.status.includingFailedRequests0Unlimited'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.maxRequestsPerPeriod')}
+                  description={t(
+                    'systemSettings.status.includingFailedRequests0Unlimited'
+                  )}
+                >
+                  <div className='flex items-center gap-2'>
+                    <SettingsControl size='xs'>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          max={100000000}
+                          step={1}
+                          {...field}
+                          onChange={(event) =>
+                            field.onChange(parseInt(event.target.value) || 0)
+                          }
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
+                      {t('systemSettings.fields.times')}
+                    </span>
+                  </div>
+                </SettingsRow>
               )}
             />
 
@@ -232,116 +204,104 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
               control={form.control}
               name='ModelRequestRateLimitSuccessCount'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.status.maxSuccessfulRequests')}
-                  </FormLabel>
-                  <FormControl>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        type='number'
-                        min={1}
-                        max={100000000}
-                        step={1}
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 1)
-                        }
-                      />
-                      <span className='text-muted-foreground text-sm'>
-                        {t('systemSettings.fields.times')}
-                      </span>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.status.onlySuccessfulRequests')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.status.maxSuccessfulRequests')}
+                  description={t(
+                    'systemSettings.status.onlySuccessfulRequests'
+                  )}
+                >
+                  <div className='flex items-center gap-2'>
+                    <SettingsControl size='xs'>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={1}
+                          max={100000000}
+                          step={1}
+                          {...field}
+                          onChange={(event) =>
+                            field.onChange(parseInt(event.target.value) || 1)
+                          }
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
+                      {t('systemSettings.fields.times')}
+                    </span>
+                  </div>
+                </SettingsRow>
               )}
             />
-          </div>
 
-          <FormField
-            control={form.control}
-            name='ModelRequestRateLimitGroup'
-            render={({ field }) => (
-              <FormItem>
-                <div className='flex items-center justify-between'>
-                  <FormLabel>
-                    {t('systemSettings.fields.groupBasedRateLimits')}
-                  </FormLabel>
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    onClick={() => setUseVisualEditor(!useVisualEditor)}
-                  >
-                    {useVisualEditor ? (
-                      <>
-                        <Code2 className='mr-2 h-4 w-4' />
-                        {t('common.fields.jsonMode')}
-                      </>
-                    ) : (
-                      <>
-                        <Palette className='mr-2 h-4 w-4' />
-                        {t('common.fields.visualMode')}
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <FormControl>
-                  {useVisualEditor ? (
-                    <RateLimitVisualEditor
-                      value={field.value || ''}
-                      onChange={field.onChange}
+            <FormField
+              control={form.control}
+              name='ModelRequestRateLimitGroup'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.groupBasedRateLimits')}
+                  stacked
+                  actions={
+                    <EditorModeButton
+                      visualMode={useVisualEditor}
+                      onToggle={() => setUseVisualEditor((current) => !current)}
                     />
-                  ) : (
-                    <Textarea
-                      rows={8}
-                      placeholder={`{\n  "default": [200, 100],\n  "vip": [0, 1000]\n}`}
-                      className='font-mono text-sm'
-                      {...field}
-                    />
-                  )}
-                </FormControl>
-                {!useVisualEditor && (
-                  <FormDescription>
-                    <div className='space-y-1 text-xs'>
-                      <p className='font-semibold'>
-                        {t('channels.fields.labelWithColon', {
-                          label: t('channels.fields.format'),
-                        })}
-                      </p>
-                      <ul className='list-inside list-disc space-y-0.5 pl-2'>
-                        <li>
-                          {t('systemSettings.fields.jsonObject')}{' '}
-                          {`{"groupName": [maxRequests, maxSuccess]}`}
-                        </li>
-                        <li>
+                  }
+                  hint={
+                    !useVisualEditor && (
+                      <div className='space-y-1'>
+                        <p className='font-semibold'>
                           {t('channels.fields.labelWithColon', {
-                            label: t('channels.placeholders.example'),
-                          })}{' '}
-                          {`{"default": [200, 100], "vip": [0, 1000]}`}
-                        </li>
-                        <li>
-                          {t(
-                            'systemSettings.tips.maxRequests0MaxSuccess1Both2147'
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            'systemSettings.tips.groupConfigOverridesGlobalLimitsSharesTheSamePeriod'
-                          )}
-                        </li>
-                      </ul>
-                    </div>
-                  </FormDescription>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                            label: t('channels.fields.format'),
+                          })}
+                        </p>
+                        <ul className='list-inside list-disc space-y-0.5 pl-2'>
+                          <li>
+                            {t('systemSettings.fields.jsonObject')}{' '}
+                            {`{"groupName": [maxRequests, maxSuccess]}`}
+                          </li>
+                          <li>
+                            {t('channels.fields.labelWithColon', {
+                              label: t('channels.placeholders.example'),
+                            })}{' '}
+                            {`{"default": [200, 100], "vip": [0, 1000]}`}
+                          </li>
+                          <li>
+                            {t(
+                              'systemSettings.tips.maxRequests0MaxSuccess1Both2147'
+                            )}
+                          </li>
+                          <li>
+                            {t(
+                              'systemSettings.tips.groupConfigOverridesGlobalLimitsSharesTheSamePeriod'
+                            )}
+                          </li>
+                        </ul>
+                      </div>
+                    )
+                  }
+                >
+                  <FormControl>
+                    {useVisualEditor ? (
+                      <RateLimitVisualEditor
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                      />
+                    ) : (
+                      <Textarea
+                        rows={8}
+                        placeholder={`{
+  "default": [200, 100],
+  "vip": [0, 1000]
+}`}
+                        className='font-mono text-sm'
+                        {...field}
+                      />
+                    )}
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

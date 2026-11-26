@@ -22,23 +22,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsFormGrid,
-  SettingsFormGridItem,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsChoiceGrid,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -172,6 +164,7 @@ export function AuditSection({ defaultValues }: AuditSectionProps) {
     defaultValues: formDefaults,
   })
   const enabled = form.watch('enabled')
+  const modules = form.watch('modules')
 
   useEffect(() => {
     baselineRef.current = normalizeDefaults(defaultValues)
@@ -199,6 +192,14 @@ export function AuditSection({ defaultValues }: AuditSectionProps) {
     baselineRef.current = normalized
   }
 
+  const moduleOptions = AUDIT_SETTING_MODULES.map((moduleKey) => ({
+    value: moduleKey,
+    label: t(AUDIT_MODULE_LABEL_KEYS[moduleKey]),
+  }))
+  const enabledModules = AUDIT_SETTING_MODULES.filter(
+    (moduleKey) => modules?.[moduleKey] !== false
+  )
+
   return (
     <SettingsSection title={t('systemSettings.fields.auditLog')}>
       <Form {...form}>
@@ -208,115 +209,80 @@ export function AuditSection({ defaultValues }: AuditSectionProps) {
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveAuditSettings'
           />
-          <DisabledSettingsNotice enabled={enabled} />
 
-          <FormField
-            control={form.control}
-            name='enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.enableAuditLog')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.recordAdministratorOperationsOnSystemResourcesForTraceability'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('systemSettings.actions.enableAuditLog')}
+            description={t(
+              'systemSettings.tips.recordAdministratorOperationsOnSystemResourcesForTraceability'
             )}
-          />
+            control={<SettingsGroupSwitch name='enabled' />}
+            enabled={enabled}
+          >
+            <SettingsRow
+              label={t('systemSettings.fields.recordedModules')}
+              description={t(
+                'systemSettings.placeholders.selectWhichModulesToRecordInTheAuditLog'
+              )}
+            >
+              <SettingsChoiceGrid
+                aria-label={t('systemSettings.fields.recordedModules')}
+                columns={3}
+                options={moduleOptions}
+                value={enabledModules}
+                onValueChange={(next) => {
+                  const nextModules = Object.fromEntries(
+                    AUDIT_SETTING_MODULES.map((moduleKey) => [
+                      moduleKey,
+                      next.includes(moduleKey),
+                    ])
+                  )
+                  form.setValue('modules', nextModules, { shouldDirty: true })
+                }}
+              />
+            </SettingsRow>
+          </SettingsGroup>
 
-          <SettingsFormGridItem span='full'>
-            <FormItem>
-              <FormLabel>
-                {t('systemSettings.fields.recordedModules')}
-              </FormLabel>
-              <FormDescription>
-                {t(
-                  'systemSettings.placeholders.selectWhichModulesToRecordInTheAuditLog'
-                )}
-              </FormDescription>
-              <SettingsFormGrid className='pt-2'>
-                {AUDIT_SETTING_MODULES.map((moduleKey) => (
-                  <FormField
-                    key={moduleKey}
-                    control={form.control}
-                    name={`modules.${moduleKey}`}
-                    render={({ field }) => (
-                      <SettingsSwitchItem>
-                        <SettingsSwitchContent>
-                          <FormLabel>
-                            {t(AUDIT_MODULE_LABEL_KEYS[moduleKey])}
-                          </FormLabel>
-                        </SettingsSwitchContent>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </SettingsSwitchItem>
-                    )}
-                  />
-                ))}
-              </SettingsFormGrid>
-            </FormItem>
-          </SettingsFormGridItem>
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='record_ip'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.recordIp')}
+                  description={t(
+                    'systemSettings.tips.whetherToRecordTheOperatorIpAddress'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='record_ip'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>{t('systemSettings.fields.recordIp')}</FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.whetherToRecordTheOperatorIpAddress'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='record_diff'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>{t('systemSettings.fields.recordDiff')}</FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.whetherToRecordBeforeAfterDataDiff'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='record_diff'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.recordDiff')}
+                  description={t(
+                    'systemSettings.tips.whetherToRecordBeforeAfterDataDiff'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

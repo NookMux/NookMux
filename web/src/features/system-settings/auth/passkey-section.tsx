@@ -21,15 +21,7 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -41,12 +33,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -175,278 +168,254 @@ export function PasskeySection({ defaultValues }: PasskeySectionProps) {
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <DisabledSettingsNotice enabled={enabled} />
-
-          <FormField
-            control={form.control}
-            name='passkey.enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>{t('profile.actions.enablePasskey')}</FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.allowUsersToRegisterAndSignInWithPasskey'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('profile.actions.enablePasskey')}
+            description={t(
+              'systemSettings.tips.allowUsersToRegisterAndSignInWithPasskey'
             )}
-          />
-
-          <FormField
-            control={form.control}
-            name='passkey.rp_display_name'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.relyingPartyDisplayName')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t(
-                      'systemSettings.placeholders.eGNewApiConsole'
-                    )}
-                    {...field}
-                    value={field.value ?? ''}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            control={<SettingsGroupSwitch name='passkey.enabled' />}
+            enabled={enabled}
+          >
+            <FormField
+              control={form.control}
+              name='passkey.rp_display_name'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.relyingPartyDisplayName')}
+                  description={t(
                     'systemSettings.tips.humanReadableNameShownToUsersDuringPasskeyPrompts'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        placeholder={t(
+                          'systemSettings.placeholders.eGNewApiConsole'
+                        )}
+                        {...field}
+                        value={field.value ?? ''}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='passkey.rp_id'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.relyingPartyId')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t('systemSettings.placeholders.eGExampleCom')}
-                    {...field}
-                    value={field.value ?? ''}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='passkey.rp_id'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.relyingPartyId')}
+                  description={t(
                     'systemSettings.errors.effectiveDomainForPasskeyRegistrationMustMatchTheCurrent'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='passkey.user_verification'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.userVerification')}
-                </FormLabel>
-                <FormControl>
-                  <Select
-                    items={[
-                      {
-                        value: 'required',
-                        label: t(
-                          'systemSettings.fields.userVerificationRequired'
-                        ),
-                      },
-                      {
-                        value: 'preferred',
-                        label: t('systemSettings.tips.recommended'),
-                      },
-                      {
-                        value: 'discouraged',
-                        label: t('systemSettings.fields.discouraged'),
-                      },
-                    ]}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
                         placeholder={t(
-                          'systemSettings.placeholders.selectRequirement'
+                          'systemSettings.placeholders.eGExampleCom'
                         )}
+                        {...field}
+                        value={field.value ?? ''}
                       />
-                    </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false}>
-                      <SelectGroup>
-                        <SelectItem value='required'>
-                          {t('systemSettings.fields.userVerificationRequired')}
-                        </SelectItem>
-                        <SelectItem value='preferred'>
-                          {t('systemSettings.tips.recommended')}
-                        </SelectItem>
-                        <SelectItem value='discouraged'>
-                          {t('systemSettings.fields.discouraged')}
-                        </SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormDescription>
-                  {t(
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='passkey.user_verification'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.userVerification')}
+                  description={t(
                     'systemSettings.errors.controlsWhetherUserVerificationBiometricsPinIsRequiredDuring'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl size='sm'>
+                    <FormControl>
+                      <Select
+                        items={[
+                          {
+                            value: 'required',
+                            label: t(
+                              'systemSettings.fields.userVerificationRequired'
+                            ),
+                          },
+                          {
+                            value: 'preferred',
+                            label: t('systemSettings.tips.recommended'),
+                          },
+                          {
+                            value: 'discouraged',
+                            label: t('systemSettings.fields.discouraged'),
+                          },
+                        ]}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t(
+                              'systemSettings.placeholders.selectRequirement'
+                            )}
+                          />
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            <SelectItem value='required'>
+                              {t(
+                                'systemSettings.fields.userVerificationRequired'
+                              )}
+                            </SelectItem>
+                            <SelectItem value='preferred'>
+                              {t('systemSettings.tips.recommended')}
+                            </SelectItem>
+                            <SelectItem value='discouraged'>
+                              {t('systemSettings.fields.discouraged')}
+                            </SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='passkey.attachment_preference'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.deviceTypePreference')}
-                </FormLabel>
-                <FormControl>
-                  <Select
-                    items={[
-                      { value: 'none', label: t('keyQuery.fields.unlimited') },
-                      {
-                        value: 'platform',
-                        label: t('systemSettings.fields.builtInDevice'),
-                      },
-                      {
-                        value: 'cross-platform',
-                        label: t('systemSettings.fields.externalDevice'),
-                      },
-                    ]}
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={t('systemSettings.fields.noPreference')}
-                      />
-                    </SelectTrigger>
-                    <SelectContent alignItemWithTrigger={false}>
-                      <SelectGroup>
-                        <SelectItem value='none'>
-                          {t('keyQuery.fields.unlimited')}
-                        </SelectItem>
-                        <SelectItem value='platform'>
-                          {t('systemSettings.fields.builtInDevice')}
-                        </SelectItem>
-                        <SelectItem value='cross-platform'>
-                          {t('systemSettings.fields.externalDevice')}
-                        </SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='passkey.attachment_preference'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.deviceTypePreference')}
+                  description={t(
                     'systemSettings.tips.builtInPhoneFingerprintFaceOrWindowsHelloExternal'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl size='sm'>
+                    <FormControl>
+                      <Select
+                        items={[
+                          {
+                            value: 'none',
+                            label: t('keyQuery.fields.unlimited'),
+                          },
+                          {
+                            value: 'platform',
+                            label: t('systemSettings.fields.builtInDevice'),
+                          },
+                          {
+                            value: 'cross-platform',
+                            label: t('systemSettings.fields.externalDevice'),
+                          },
+                        ]}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t(
+                              'systemSettings.fields.noPreference'
+                            )}
+                          />
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            <SelectItem value='none'>
+                              {t('keyQuery.fields.unlimited')}
+                            </SelectItem>
+                            <SelectItem value='platform'>
+                              {t('systemSettings.fields.builtInDevice')}
+                            </SelectItem>
+                            <SelectItem value='cross-platform'>
+                              {t('systemSettings.fields.externalDevice')}
+                            </SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='passkey.allow_insecure_origin'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.allowInsecureOrigins')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.permitPasskeyRegistrationOnNonHttpsOriginsOnlyRecommended'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='passkey.allow_insecure_origin'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.allowInsecureOrigins')}
+                  description={t(
+                    'systemSettings.tips.permitPasskeyRegistrationOnNonHttpsOriginsOnlyRecommended'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='passkey.max_passkeys_per_user'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.maxPasskeysPerUser')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    min={1}
-                    max={20}
-                    {...field}
-                    value={field.value ?? 1}
-                    onChange={(e) =>
-                      field.onChange(parseInt(e.target.value) || 1)
-                    }
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='passkey.max_passkeys_per_user'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.maxPasskeysPerUser')}
+                  description={t(
                     'systemSettings.tips.maximumNumberOfPasskeysEachUserCanRegister1'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        max={20}
+                        {...field}
+                        value={field.value ?? 1}
+                        onChange={(e) =>
+                          field.onChange(parseInt(e.target.value) || 1)
+                        }
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='passkey.origins'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.allowedOrigins')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={4}
-                    placeholder={t('systemSettings.placeholders.urlExampleCom')}
-                    {...field}
-                    value={field.value ?? ''}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='passkey.origins'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.allowedOrigins')}
+                  description={t(
                     'systemSettings.tips.listOfOriginsOnePerLineAllowedForPasskey'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea
+                      rows={4}
+                      placeholder={t(
+                        'systemSettings.placeholders.urlExampleCom'
+                      )}
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

@@ -21,13 +21,6 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -42,13 +35,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/status-badge'
+import { SettingsPanel } from '../components/settings-panel'
 
 const OP_ADD = 'add' as const
 const OP_REMOVE = 'remove' as const
 const OP_APPEND = 'append' as const
-const sectionCardClassName =
-  'relative shadow-sm ring-0 before:pointer-events-none before:absolute before:inset-0 before:rounded-xl before:border before:border-border/90'
-const sectionHeaderClassName = 'border-b bg-muted/20'
+
+/** 相邻的兄弟元素之间画一条横线，首尾不留线。 */
+const RULED = '[&>*+*]:border-t'
 
 type OpType = typeof OP_ADD | typeof OP_REMOVE | typeof OP_APPEND
 
@@ -152,8 +146,8 @@ function GroupSection(props: GroupSectionProps) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className='rounded-lg border'>
-        <div className='flex items-center justify-between p-3'>
+      <div>
+        <div className='flex items-center justify-between py-2'>
           <div className='flex items-center gap-2'>
             <CollapsibleTrigger
               render={
@@ -166,7 +160,9 @@ function GroupSection(props: GroupSectionProps) {
                 <ChevronDown className='h-4 w-4' />
               )}
             </CollapsibleTrigger>
-            <span className='font-semibold'>{props.groupName}</span>
+            <span className='text-sm leading-snug font-medium'>
+              {props.groupName}
+            </span>
             <StatusBadge variant='neutral' copyable={false}>
               {props.items.length} {t('channels.fields.rules')}
             </StatusBadge>
@@ -191,9 +187,9 @@ function GroupSection(props: GroupSectionProps) {
           </div>
         </div>
         <CollapsibleContent>
-          <div className='space-y-2 border-t p-3'>
+          <div className='ml-3 space-y-2 border-l py-1 pl-5 [&>*+*]:border-t'>
             {props.items.map((rule) => (
-              <div key={rule._id} className='flex items-center gap-2'>
+              <div key={rule._id} className='flex items-center gap-2 py-2'>
                 <Select
                   items={[
                     {
@@ -400,55 +396,55 @@ export function GroupSpecialUsableRulesEditor(
   }, [rules])
 
   return (
-    <Card className={sectionCardClassName}>
-      <CardHeader className={sectionHeaderClassName}>
-        <CardTitle>
-          {t('systemSettings.fields.specialUsableGroupRules')}
-        </CardTitle>
-        <CardDescription>
-          {t('systemSettings.tips.definePerGroupRulesToAddRemoveOrAppend')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className='space-y-3'>
-          {grouped.length === 0 ? (
-            <p className='text-muted-foreground py-4 text-center text-sm'>
-              {t('systemSettings.tips.noRulesYetAddAGroupBelowToGet')}
-            </p>
-          ) : (
-            grouped.map((group) => (
-              <GroupSection
-                key={group.name}
-                groupName={group.name}
-                items={group.items}
-                onUpdate={updateRule}
-                onRemove={removeRule}
-                onAdd={addRuleToGroup}
-                onRemoveGroup={removeGroup}
-              />
-            ))
-          )}
-
-          <div className='flex items-center justify-center gap-2 pt-2'>
-            <Input
-              className='w-[200px]'
-              value={newGroupName}
-              placeholder={t('systemSettings.fields.userGroupName')}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addNewGroup()
-                }
-              }}
+    <SettingsPanel
+      title={t('systemSettings.fields.specialUsableGroupRules')}
+      description={t(
+        'systemSettings.tips.definePerGroupRulesToAddRemoveOrAppend'
+      )}
+    >
+      <div className={RULED}>
+        {grouped.length === 0 ? (
+          <p className='text-muted-foreground py-6 text-center text-sm'>
+            {t('systemSettings.tips.noRulesYetAddAGroupBelowToGet')}
+          </p>
+        ) : (
+          grouped.map((group) => (
+            <GroupSection
+              key={group.name}
+              groupName={group.name}
+              items={group.items}
+              onUpdate={updateRule}
+              onRemove={removeRule}
+              onAdd={addRuleToGroup}
+              onRemoveGroup={removeGroup}
             />
-            <Button variant='outline' size='sm' onClick={addNewGroup}>
-              <Plus className='mr-1 h-4 w-4' />
-              {t('systemSettings.actions.addGroupRules')}
-            </Button>
-          </div>
+          ))
+        )}
+
+        <div className='flex flex-wrap items-center justify-center gap-2 pt-3'>
+          <Input
+            className='w-[200px]'
+            value={newGroupName}
+            placeholder={t('systemSettings.fields.userGroupName')}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addNewGroup()
+              }
+            }}
+          />
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={addNewGroup}
+          >
+            <Plus data-icon='inline-start' />
+            {t('systemSettings.actions.addGroupRules')}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsPanel>
   )
 }

@@ -16,11 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Edit, Trash2, Save } from 'lucide-react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
@@ -43,18 +43,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -62,6 +53,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import { SettingsControl, SettingsRow } from '../components/settings-group'
+import { SettingsListPanel } from '../components/settings-list-panel'
+import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
@@ -107,7 +101,8 @@ export function FAQSection({ data }: FAQSectionProps) {
     },
   })
 
-  useEffect(() => {
+  // 从已保存的值载入列表；「重置」放弃未保存的改动时也走这里。
+  const loadSavedList = useCallback(() => {
     try {
       const parsed = JSON.parse(data || '[]')
       if (Array.isArray(parsed)) {
@@ -122,6 +117,10 @@ export function FAQSection({ data }: FAQSectionProps) {
       setFaqList([])
     }
   }, [data])
+
+  useEffect(() => {
+    loadSavedList()
+  }, [loadSavedList])
 
   const handleAdd = () => {
     setEditingFaq(null)
@@ -207,6 +206,12 @@ export function FAQSection({ data }: FAQSectionProps) {
     }
   }
 
+  const handleDiscard = () => {
+    loadSavedList()
+    setSelectedIds([])
+    setHasChanges(false)
+  }
+
   const toggleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? faqList.map((item) => item.id) : [])
   }
@@ -219,113 +224,112 @@ export function FAQSection({ data }: FAQSectionProps) {
 
   return (
     <SettingsSection title={t('dashboard.fields.faq')}>
-      <div className='space-y-4'>
-        <div className='flex flex-wrap items-center justify-between gap-2'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <Button onClick={handleAdd} size='sm'>
-              <Plus className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.addFaq')}
-            </Button>
-            <Button
-              onClick={handleBatchDelete}
-              size='sm'
-              variant='destructive'
-              disabled={selectedIds.length === 0}
-            >
-              <Trash2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.deleteCount', {
-                count: selectedIds.length,
-              })}
-            </Button>
-            <Button
-              onClick={handleSaveAll}
-              size='sm'
-              variant='secondary'
-              disabled={!hasChanges || updateOption.isPending}
-            >
-              <Save className='mr-2 h-4 w-4' />
-              {updateOption.isPending
-                ? t('channels.tips.saving')
-                : t('profile.actions.saveSettings')}
-            </Button>
-          </div>
-        </div>
-
-        <div className='rounded-md border'>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className='w-12'>
+      <SettingsPageFormActions
+        onSave={handleSaveAll}
+        onReset={handleDiscard}
+        isSaving={updateOption.isPending}
+        isDirty={hasChanges}
+        saveLabel='profile.actions.saveSettings'
+      />
+      <SettingsListPanel
+        actions={
+          <Button type='button' variant='outline' size='sm' onClick={handleAdd}>
+            <Plus data-icon='inline-start' />
+            {t('systemSettings.actions.addFaq')}
+          </Button>
+        }
+        selectedCount={selectedIds.length}
+        bulkActions={
+          <Button
+            type='button'
+            variant='destructive'
+            size='sm'
+            onClick={handleBatchDelete}
+          >
+            <Trash2 data-icon='inline-start' />
+            {t('systemSettings.actions.deleteSelected')}
+          </Button>
+        }
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead className='w-12'>
+              <Checkbox
+                checked={
+                  selectedIds.length === faqList.length && faqList.length > 0
+                }
+                onCheckedChange={toggleSelectAll}
+                aria-label={t('channels.placeholders.selectAll')}
+              />
+            </TableHead>
+            <TableHead>{t('systemSettings.fields.question')}</TableHead>
+            <TableHead>{t('systemSettings.fields.answer')}</TableHead>
+            <TableHead className='w-32'>
+              {t('channels.fields.actions')}
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {faqList.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={4}
+                className='text-muted-foreground h-24 text-center'
+              >
+                {t('common.tips.noFaqEntriesYetClickAddFaqToCreate')}
+              </TableCell>
+            </TableRow>
+          ) : (
+            faqList.map((faq) => (
+              <TableRow key={faq.id}>
+                <TableCell>
                   <Checkbox
-                    checked={
-                      selectedIds.length === faqList.length &&
-                      faqList.length > 0
+                    checked={selectedIds.includes(faq.id)}
+                    onCheckedChange={(checked) =>
+                      toggleSelectOne(faq.id, checked as boolean)
                     }
-                    onCheckedChange={toggleSelectAll}
+                    aria-label={t('systemSettings.actions.selectRow')}
                   />
-                </TableHead>
-                <TableHead>{t('systemSettings.fields.question')}</TableHead>
-                <TableHead>{t('systemSettings.fields.answer')}</TableHead>
-                <TableHead className='w-32'>
-                  {t('channels.fields.actions')}
-                </TableHead>
+                </TableCell>
+                <TableCell
+                  className='max-w-xs truncate font-medium'
+                  title={faq.question}
+                >
+                  {faq.question}
+                </TableCell>
+                <TableCell
+                  className='text-muted-foreground max-w-md truncate'
+                  title={faq.answer}
+                >
+                  {faq.answer}
+                </TableCell>
+                <TableCell>
+                  <div className='flex gap-2'>
+                    <Button
+                      type='button'
+                      onClick={() => handleEdit(faq)}
+                      size='sm'
+                      variant='ghost'
+                      aria-label={t('channels.actions.edit')}
+                    >
+                      <Edit className='h-4 w-4' />
+                    </Button>
+                    <Button
+                      type='button'
+                      onClick={() => handleDelete(faq)}
+                      size='sm'
+                      variant='ghost'
+                      aria-label={t('common.actions.delete')}
+                    >
+                      <Trash2 className='h-4 w-4' />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {faqList.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className='h-24 text-center'>
-                    {t('common.tips.noFaqEntriesYetClickAddFaqToCreate')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                faqList.map((faq) => (
-                  <TableRow key={faq.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIds.includes(faq.id)}
-                        onCheckedChange={(checked) =>
-                          toggleSelectOne(faq.id, checked as boolean)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell
-                      className='max-w-xs truncate font-medium'
-                      title={faq.question}
-                    >
-                      {faq.question}
-                    </TableCell>
-                    <TableCell
-                      className='text-muted-foreground max-w-md truncate'
-                      title={faq.answer}
-                    >
-                      {faq.answer}
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex gap-2'>
-                        <Button
-                          onClick={() => handleEdit(faq)}
-                          size='sm'
-                          variant='ghost'
-                        >
-                          <Edit className='h-4 w-4' />
-                        </Button>
-                        <Button
-                          onClick={() => handleDelete(faq)}
-                          size='sm'
-                          variant='ghost'
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+            ))
+          )}
+        </TableBody>
+      </SettingsListPanel>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className='max-w-2xl'>
@@ -344,33 +348,41 @@ export function FAQSection({ data }: FAQSectionProps) {
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmitForm)}
-              className='space-y-4'
+              className='@container space-y-4'
             >
               <FormField
                 control={form.control}
                 name='question'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('systemSettings.fields.question')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t('systemSettings.tips.howToResetMyQuota')}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.fields.maximum200Characters')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow
+                    label={t('systemSettings.fields.question')}
+                    description={t(
+                      'systemSettings.fields.maximum200Characters'
+                    )}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t(
+                            'systemSettings.tips.howToResetMyQuota'
+                          )}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
               <FormField
                 control={form.control}
                 name='answer'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('systemSettings.fields.answer')}</FormLabel>
+                  <SettingsRow
+                    label={t('systemSettings.fields.answer')}
+                    description={t(
+                      'systemSettings.tips.maximum1000CharactersSupportsMarkdownAndHtml'
+                    )}
+                  >
                     <FormControl>
                       <Textarea
                         placeholder={t(
@@ -380,13 +392,7 @@ export function FAQSection({ data }: FAQSectionProps) {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.maximum1000CharactersSupportsMarkdownAndHtml'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  </SettingsRow>
                 )}
               />
               <DialogFooter>

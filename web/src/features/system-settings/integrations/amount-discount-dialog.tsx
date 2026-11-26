@@ -30,16 +30,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { SettingsControl, SettingsRow } from '../components/settings-group'
 
 const createAmountDiscountDialogSchema = (t: (key: string) => string) =>
   z.object({
@@ -133,40 +126,40 @@ export function AmountDiscountDialog({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
-            className='space-y-4'
+            className='@container space-y-4'
           >
             <FormField
               control={form.control}
               name='amount'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.rechargeAmountUsd')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      step='1'
-                      min='1'
-                      placeholder={t('systemSettings.placeholders.eG100')}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(parseInt(e.target.value) || 0)
-                      }
-                      disabled={isEditMode}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {isEditMode
+                <SettingsRow
+                  label={t('systemSettings.fields.rechargeAmountUsd')}
+                  description={
+                    isEditMode
                       ? t(
                           'systemSettings.errors.amountCannotBeChangedWhenEditing'
                         )
                       : t(
                           'systemSettings.tips.minimumRechargeAmountToQualifyForThisDiscount'
-                        )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                        )
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='1'
+                        min='1'
+                        placeholder={t('systemSettings.placeholders.eG100')}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(parseInt(e.target.value) || 0)
+                        }
+                        disabled={isEditMode}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -174,34 +167,38 @@ export function AmountDiscountDialog({
               control={form.control}
               name='discountRate'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.discountRate')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      step='0.01'
-                      min='0.01'
-                      max='1'
-                      placeholder={t('systemSettings.placeholders.eG095')}
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(parseFloat(e.target.value) || 0)
-                      }
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.tips.finalPriceMultiplier0955Discount')}
-                    {discountPercentage > 0 && (
-                      <span className='ml-1 font-medium text-green-600 dark:text-green-400'>
-                        ({discountPercentage}
-                        {t('systemSettings.fields.off')})
-                      </span>
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.discountRate')}
+                  description={
+                    <>
+                      {t(
+                        'systemSettings.tips.finalPriceMultiplier0955Discount'
+                      )}
+                      {discountPercentage > 0 && (
+                        <span className='text-success font-medium'>
+                          ({discountPercentage}
+                          {t('systemSettings.fields.off')})
+                        </span>
+                      )}
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='0.01'
+                        min='0.01'
+                        max='1'
+                        placeholder={t('systemSettings.placeholders.eG095')}
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value) || 0)
+                        }
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 

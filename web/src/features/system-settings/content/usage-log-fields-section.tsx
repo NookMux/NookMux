@@ -17,10 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useEffect, useMemo, useState } from 'react'
-import { Save, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import {
   Table,
@@ -38,8 +36,9 @@ import {
   type UsageLogFieldGroup,
   type UsageLogFieldKey,
 } from '@/features/usage-logs/lib/field-visibility'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
-import { SettingsSwitchField } from '../components/settings-form-layout'
+import { SettingsRow } from '../components/settings-group'
+import { SettingsPageFormActions } from '../components/settings-page-context'
+import { SettingsPanel } from '../components/settings-panel'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
@@ -142,90 +141,77 @@ export function UsageLogFieldsSection({
 
   return (
     <SettingsSection title={t('systemSettings.fields.usageLogFieldVisibility')}>
-      <div className='space-y-4'>
-        {/* 总开关 */}
-        <div className='space-y-1 rounded-md border p-3'>
-          <DisabledSettingsNotice enabled={isAdminEnabled} />
-          <SettingsSwitchField
+      <SettingsPageFormActions
+        onSave={handleSaveAll}
+        onReset={handleReset}
+        isSaving={updateOption.isPending}
+        isDirty={hasChanges}
+        resettableWhenClean
+        resetLabel='common.actions.resetToDefault'
+      />
+
+      <SettingsPanel
+        title={t('systemSettings.titles.logDetailsAccess')}
+        description={t('systemSettings.tips.togglesTakeEffectImmediately')}
+        divided
+      >
+        <SettingsRow
+          label={t('systemSettings.titles.adminDetailsAccess')}
+          description={t(
+            'systemSettings.status.enabledAdminsCanAccessUsageLogDetailsDialog'
+          )}
+        >
+          <Switch
             checked={isAdminEnabled}
             onCheckedChange={handleToggleAdminEnabled}
-            label={t('systemSettings.titles.adminDetailsAccess')}
-            description={t(
-              'systemSettings.status.enabledAdminsCanAccessUsageLogDetailsDialog'
-            )}
-            className='border-b-0 py-0'
           />
-          <DisabledSettingsNotice enabled={isUserEnabled} />
-          <SettingsSwitchField
+        </SettingsRow>
+        <SettingsRow
+          label={t('systemSettings.titles.userDetailsAccess')}
+          description={t(
+            'systemSettings.status.enabledRegularUsersCanAccessUsageLogDetailsDialog'
+          )}
+        >
+          <Switch
             checked={isUserEnabled}
             onCheckedChange={handleToggleUserEnabled}
-            label={t('systemSettings.titles.userDetailsAccess')}
-            description={t(
-              'systemSettings.status.enabledRegularUsersCanAccessUsageLogDetailsDialog'
-            )}
-            className='border-b-0 py-0'
           />
-        </div>
+        </SettingsRow>
+      </SettingsPanel>
 
-        {/* 操作按钮 */}
-        <div className='flex flex-wrap items-center gap-2'>
-          <Button
-            onClick={handleSaveAll}
-            size='sm'
-            variant='secondary'
-            disabled={!hasChanges || updateOption.isPending}
-          >
-            <Save className='mr-2 h-4 w-4' />
-            {updateOption.isPending
-              ? t('channels.tips.saving')
-              : t('profile.actions.saveSettings')}
-          </Button>
-          <Button
-            onClick={handleReset}
-            size='sm'
-            variant='outline'
-            disabled={updateOption.isPending}
-          >
-            <RotateCcw className='mr-2 h-4 w-4' />
-            {t('common.actions.reset')}
-          </Button>
-        </div>
-
-        {/* 字段可见性表格 */}
-        <div className='overflow-x-auto rounded-md border'>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className='min-w-[200px]'>
-                  {t('systemSettings.tips.fieldDescription')}
-                </TableHead>
-                <TableHead className='w-32 text-center'>
-                  {t('systemSettings.fields.admin')}
-                </TableHead>
-                <TableHead className='w-32 text-center'>
-                  {t('systemSettings.fields.user')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {USAGE_LOG_FIELD_GROUPS.map((group) => {
-                const fields = groupedFields[group.value] ?? []
-                if (fields.length === 0) return null
-                return (
-                  <FieldGroupRows
-                    key={group.value}
-                    groupLabel={t(group.labelKey)}
-                    fields={fields}
-                    config={config}
-                    onToggle={toggleField}
-                    t={t}
-                  />
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <SettingsPanel flush>
+        <Table className='[&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4'>
+          <TableHeader>
+            <TableRow>
+              <TableHead className='min-w-[200px]'>
+                {t('systemSettings.tips.fieldDescription')}
+              </TableHead>
+              <TableHead className='w-32 text-center'>
+                {t('systemSettings.fields.admin')}
+              </TableHead>
+              <TableHead className='w-32 text-center'>
+                {t('systemSettings.fields.user')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {USAGE_LOG_FIELD_GROUPS.map((group) => {
+              const fields = groupedFields[group.value] ?? []
+              if (fields.length === 0) return null
+              return (
+                <FieldGroupRows
+                  key={group.value}
+                  groupLabel={t(group.labelKey)}
+                  fields={fields}
+                  config={config}
+                  onToggle={toggleField}
+                  t={t}
+                />
+              )
+            })}
+          </TableBody>
+        </Table>
+      </SettingsPanel>
     </SettingsSection>
   )
 }
@@ -261,7 +247,7 @@ function FieldGroupRows({
         }
         return (
           <TableRow key={field.key}>
-            <TableCell>
+            <TableCell className='whitespace-normal'>
               <div className='flex flex-col gap-0.5'>
                 <span className='text-sm font-medium'>{t(field.nameKey)}</span>
                 <span className='text-muted-foreground text-xs'>
@@ -272,13 +258,15 @@ function FieldGroupRows({
             <TableCell className='text-center'>
               <Switch
                 checked={cfg.admin}
-                onCheckedChange={(v) => onToggle(field.key, 'admin', v)}
+                onCheckedChange={(value) => onToggle(field.key, 'admin', value)}
+                aria-label={`${t(field.nameKey)}: ${t('systemSettings.fields.admin')}`}
               />
             </TableCell>
             <TableCell className='text-center'>
               <Switch
                 checked={cfg.user}
-                onCheckedChange={(v) => onToggle(field.key, 'user', v)}
+                onCheckedChange={(value) => onToggle(field.key, 'user', value)}
+                aria-label={`${t(field.nameKey)}: ${t('systemSettings.fields.user')}`}
               />
             </TableCell>
           </TableRow>

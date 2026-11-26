@@ -21,22 +21,15 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -63,6 +56,7 @@ export function BotProtectionSection({
     resolver: zodResolver(botProtectionSchema),
     defaultValues,
   })
+  const turnstileEnabled = form.watch('TurnstileCheckEnabled')
 
   useEffect(() => {
     form.reset(defaultValues)
@@ -87,67 +81,55 @@ export function BotProtectionSection({
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <FormField
-            control={form.control}
-            name='TurnstileCheckEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.enableTurnstile')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.fields.protectLoginAndRegistrationWithCloudflareTurnstile'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('systemSettings.actions.enableTurnstile')}
+            description={t(
+              'systemSettings.fields.protectLoginAndRegistrationWithCloudflareTurnstile'
             )}
-          />
+            control={<SettingsGroupSwitch name='TurnstileCheckEnabled' />}
+            enabled={turnstileEnabled}
+          >
+            <FormField
+              control={form.control}
+              name='TurnstileSiteKey'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.siteKey')}>
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        placeholder={t(
+                          'systemSettings.fields.turnstileSiteKey'
+                        )}
+                        autoComplete='off'
+                        {...field}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='TurnstileSiteKey'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('systemSettings.fields.siteKey')}</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t('systemSettings.fields.turnstileSiteKey')}
-                    autoComplete='off'
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='TurnstileSecretKey'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('systemSettings.fields.secretKey')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='password'
-                    placeholder={t('systemSettings.fields.turnstileSecretKey')}
-                    autoComplete='new-password'
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='TurnstileSecretKey'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.secretKey')}>
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        type='password'
+                        placeholder={t(
+                          'systemSettings.fields.turnstileSecretKey'
+                        )}
+                        autoComplete='new-password'
+                        {...field}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

@@ -24,23 +24,15 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { getLocalizedCurrencyLabel } from '@/lib/currency'
 import { parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -79,7 +71,7 @@ export function CheckinSettingsSection({
     defaultValues: displayDefaults,
   })
 
-  const { isDirty, isSubmitting } = form.formState
+  const { isSubmitting } = form.formState
   const enabled = form.watch('enabled')
 
   async function onSubmit(values: Values) {
@@ -125,47 +117,36 @@ export function CheckinSettingsSection({
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending || isSubmitting}
-            isSaveDisabled={!isDirty}
             saveLabel='common.actions.saveCheckInSettings'
           />
-          <DisabledSettingsNotice enabled={enabled} />
 
-          <FormField
-            control={form.control}
-            name='enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.enableCheckInFeature')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.allowUsersToCheckInDailyForRandomQuota'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={updateOption.isPending || isSubmitting}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('systemSettings.actions.enableCheckInFeature')}
+            description={t(
+              'systemSettings.tips.allowUsersToCheckInDailyForRandomQuota'
             )}
-          />
-
-          {enabled && (
-            <div className='grid gap-6 sm:grid-cols-2'>
-              <FormField
-                control={form.control}
-                name='minQuota'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.minimumCheckInQuota')}
-                    </FormLabel>
+            control={<SettingsGroupSwitch name='enabled' />}
+            enabled={enabled}
+          >
+            <FormField
+              control={form.control}
+              name='minQuota'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.minimumCheckInQuota')}
+                  description={
+                    <>
+                      {t(
+                        'systemSettings.tips.minimumQuotaAmountAwardedForCheckIn'
+                      )}
+                      {' · '}
+                      {t('systemSettings.fields.displayedInUnit', {
+                        unit: quotaUnitLabel,
+                      })}
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -175,28 +156,30 @@ export function CheckinSettingsSection({
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='maxQuota'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.maximumCheckInQuota')}
+                  description={
+                    <>
                       {t(
-                        'systemSettings.tips.minimumQuotaAmountAwardedForCheckIn'
+                        'systemSettings.tips.maximumQuotaAmountAwardedForCheckIn'
                       )}
                       {' · '}
                       {t('systemSettings.fields.displayedInUnit', {
                         unit: quotaUnitLabel,
                       })}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='maxQuota'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.maximumCheckInQuota')}
-                    </FormLabel>
+                    </>
+                  }
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -208,21 +191,11 @@ export function CheckinSettingsSection({
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.maximumQuotaAmountAwardedForCheckIn'
-                      )}
-                      {' · '}
-                      {t('systemSettings.fields.displayedInUnit', {
-                        unit: quotaUnitLabel,
-                      })}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          )}
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

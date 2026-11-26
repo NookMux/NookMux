@@ -16,11 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Edit, Trash2, Save } from 'lucide-react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { getBgColorClass } from '@/lib/colors'
@@ -44,15 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -63,7 +55,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -71,6 +62,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/status-badge'
+import { SettingsControl, SettingsRow } from '../components/settings-group'
+import { SettingsListPanel } from '../components/settings-list-panel'
+import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
@@ -137,7 +131,8 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
     },
   })
 
-  useEffect(() => {
+  // 从已保存的值载入列表；「重置」放弃未保存的改动时也走这里。
+  const loadSavedList = useCallback(() => {
     try {
       const parsed = JSON.parse(data || '[]')
       if (Array.isArray(parsed)) {
@@ -152,6 +147,10 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
       setApiInfoList([])
     }
   }, [data])
+
+  useEffect(() => {
+    loadSavedList()
+  }, [loadSavedList])
 
   const handleAdd = () => {
     setEditingApiInfo(null)
@@ -247,6 +246,12 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
     }
   }
 
+  const handleDiscard = () => {
+    loadSavedList()
+    setSelectedIds([])
+    setHasChanges(false)
+  }
+
   const toggleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? apiInfoList.map((item) => item.id) : [])
   }
@@ -261,136 +266,134 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
 
   return (
     <SettingsSection title={t('systemSettings.fields.apiAddresses')}>
-      <div className='space-y-4'>
-        <div className='flex flex-wrap items-center justify-between gap-2'>
-          <div className='flex flex-wrap items-center gap-2'>
-            <Button onClick={handleAdd} size='sm'>
-              <Plus className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.addApi')}
-            </Button>
-            <Button
-              onClick={handleBatchDelete}
-              size='sm'
-              variant='destructive'
-              disabled={selectedIds.length === 0}
-            >
-              <Trash2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.deleteCount', {
-                count: selectedIds.length,
-              })}
-            </Button>
-            <Button
-              onClick={handleSaveAll}
-              size='sm'
-              variant='secondary'
-              disabled={!hasChanges || updateOption.isPending}
-            >
-              <Save className='mr-2 h-4 w-4' />
-              {updateOption.isPending
-                ? t('channels.tips.saving')
-                : t('profile.actions.saveSettings')}
-            </Button>
-          </div>
-        </div>
-
-        <div className='rounded-md border'>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className='w-12'>
+      <SettingsPageFormActions
+        onSave={handleSaveAll}
+        onReset={handleDiscard}
+        isSaving={updateOption.isPending}
+        isDirty={hasChanges}
+        saveLabel='profile.actions.saveSettings'
+      />
+      <SettingsListPanel
+        actions={
+          <Button type='button' variant='outline' size='sm' onClick={handleAdd}>
+            <Plus data-icon='inline-start' />
+            {t('systemSettings.actions.addApi')}
+          </Button>
+        }
+        selectedCount={selectedIds.length}
+        bulkActions={
+          <Button
+            type='button'
+            variant='destructive'
+            size='sm'
+            onClick={handleBatchDelete}
+          >
+            <Trash2 data-icon='inline-start' />
+            {t('systemSettings.actions.deleteSelected')}
+          </Button>
+        }
+      >
+        <TableHeader>
+          <TableRow>
+            <TableHead className='w-12'>
+              <Checkbox
+                checked={
+                  selectedIds.length === apiInfoList.length &&
+                  apiInfoList.length > 0
+                }
+                onCheckedChange={toggleSelectAll}
+                aria-label={t('channels.placeholders.selectAll')}
+              />
+            </TableHead>
+            <TableHead>{t('systemSettings.fields.url')}</TableHead>
+            <TableHead>{t('systemSettings.fields.route')}</TableHead>
+            <TableHead>{t('auditLogs.tips.description')}</TableHead>
+            <TableHead>{t('systemSettings.fields.color')}</TableHead>
+            <TableHead className='w-32'>
+              {t('channels.fields.actions')}
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {apiInfoList.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={6}
+                className='text-muted-foreground h-24 text-center'
+              >
+                {t('common.tips.noApiDomainsYetClickAddApiToCreate')}
+              </TableCell>
+            </TableRow>
+          ) : (
+            apiInfoList.map((apiInfo) => (
+              <TableRow key={apiInfo.id}>
+                <TableCell>
                   <Checkbox
-                    checked={
-                      selectedIds.length === apiInfoList.length &&
-                      apiInfoList.length > 0
+                    checked={selectedIds.includes(apiInfo.id)}
+                    onCheckedChange={(checked) =>
+                      toggleSelectOne(apiInfo.id, checked as boolean)
                     }
-                    onCheckedChange={toggleSelectAll}
+                    aria-label={t('systemSettings.actions.selectRow')}
                   />
-                </TableHead>
-                <TableHead>{t('systemSettings.fields.url')}</TableHead>
-                <TableHead>{t('systemSettings.fields.route')}</TableHead>
-                <TableHead>{t('auditLogs.tips.description')}</TableHead>
-                <TableHead>{t('systemSettings.fields.color')}</TableHead>
-                <TableHead className='w-32'>
-                  {t('channels.fields.actions')}
-                </TableHead>
+                </TableCell>
+                <TableCell
+                  className='max-w-xs truncate font-mono text-sm'
+                  title={apiInfo.url}
+                >
+                  <StatusBadge
+                    label={apiInfo.url}
+                    variant='neutral'
+                    copyable={false}
+                  />
+                </TableCell>
+                <TableCell>
+                  <StatusBadge
+                    label={apiInfo.route}
+                    variant='neutral'
+                    copyable={false}
+                  />
+                </TableCell>
+                <TableCell
+                  className='max-w-xs truncate'
+                  title={apiInfo.description}
+                >
+                  {apiInfo.description}
+                </TableCell>
+                <TableCell>
+                  <div className='flex items-center gap-2'>
+                    <div
+                      className={`h-4 w-4 rounded-full ${getColorClass(apiInfo.color)}`}
+                    />
+                    <span className='text-sm capitalize'>{apiInfo.color}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className='flex gap-2'>
+                    <Button
+                      type='button'
+                      onClick={() => handleEdit(apiInfo)}
+                      size='sm'
+                      variant='ghost'
+                      aria-label={t('channels.actions.edit')}
+                    >
+                      <Edit className='h-4 w-4' />
+                    </Button>
+                    <Button
+                      type='button'
+                      onClick={() => handleDelete(apiInfo)}
+                      size='sm'
+                      variant='ghost'
+                      aria-label={t('common.actions.delete')}
+                    >
+                      <Trash2 className='h-4 w-4' />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {apiInfoList.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className='h-24 text-center'>
-                    {t('common.tips.noApiDomainsYetClickAddApiToCreate')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                apiInfoList.map((apiInfo) => (
-                  <TableRow key={apiInfo.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIds.includes(apiInfo.id)}
-                        onCheckedChange={(checked) =>
-                          toggleSelectOne(apiInfo.id, checked as boolean)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell
-                      className='max-w-xs truncate font-mono text-sm'
-                      title={apiInfo.url}
-                    >
-                      <StatusBadge
-                        label={apiInfo.url}
-                        variant='neutral'
-                        copyable={false}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={apiInfo.route}
-                        variant='neutral'
-                        copyable={false}
-                      />
-                    </TableCell>
-                    <TableCell
-                      className='max-w-xs truncate'
-                      title={apiInfo.description}
-                    >
-                      {apiInfo.description}
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex items-center gap-2'>
-                        <div
-                          className={`h-4 w-4 rounded-full ${getColorClass(apiInfo.color)}`}
-                        />
-                        <span className='text-sm capitalize'>
-                          {apiInfo.color}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex gap-2'>
-                        <Button
-                          onClick={() => handleEdit(apiInfo)}
-                          size='sm'
-                          variant='ghost'
-                        >
-                          <Edit className='h-4 w-4' />
-                        </Button>
-                        <Button
-                          onClick={() => handleDelete(apiInfo)}
-                          size='sm'
-                          variant='ghost'
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+            ))
+          )}
+        </TableBody>
+      </SettingsListPanel>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
@@ -409,118 +412,121 @@ export function ApiInfoSection({ data }: ApiInfoSectionProps) {
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmitForm)}
-              className='space-y-4'
+              className='@container space-y-4'
             >
               <FormField
                 control={form.control}
                 name='url'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('systemSettings.fields.apiUrl')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t(
-                          'systemSettings.placeholders.urlApiExampleCom'
-                        )}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow label={t('systemSettings.fields.apiUrl')}>
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t(
+                            'systemSettings.placeholders.urlApiExampleCom'
+                          )}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
               <FormField
                 control={form.control}
                 name='route'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.tips.routeDescription')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t('systemSettings.placeholders.eGCn2Gia')}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow
+                    label={t('systemSettings.tips.routeDescription')}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t(
+                            'systemSettings.placeholders.eGCn2Gia'
+                          )}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
               <FormField
                 control={form.control}
                 name='description'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('auditLogs.tips.description')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t(
-                          'systemSettings.placeholders.eGRecommendedForChinaMainlandUsers'
-                        )}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <SettingsRow label={t('auditLogs.tips.description')}>
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          placeholder={t(
+                            'systemSettings.placeholders.eGRecommendedForChinaMainlandUsers'
+                          )}
+                          {...field}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
               <FormField
                 control={form.control}
                 name='color'
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.badgeColor')}
-                    </FormLabel>
-                    <Select
-                      items={[
-                        ...colorOptions.map((option) => ({
-                          value: option.value,
-                          label: (
-                            <div className='flex items-center gap-2'>
-                              <div
-                                className={`h-4 w-4 rounded-full ${getBgColorClass(option.value)}`}
-                              />
-                              {t(option.label)}
-                            </div>
-                          ),
-                        })),
-                      ]}
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={t(
-                              'systemSettings.placeholders.selectAColor'
-                            )}
-                          />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent alignItemWithTrigger={false}>
-                        <SelectGroup>
-                          {colorOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
+                  <SettingsRow
+                    label={t('systemSettings.fields.badgeColor')}
+                    description={t(
+                      'systemSettings.tips.visualIndicatorColorForTheApiCard'
+                    )}
+                  >
+                    <SettingsControl size='sm'>
+                      <Select
+                        items={[
+                          ...colorOptions.map((option) => ({
+                            value: option.value,
+                            label: (
                               <div className='flex items-center gap-2'>
                                 <div
                                   className={`h-4 w-4 rounded-full ${getBgColorClass(option.value)}`}
                                 />
                                 {t(option.label)}
                               </div>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.visualIndicatorColorForTheApiCard'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                            ),
+                          })),
+                        ]}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={t(
+                                'systemSettings.placeholders.selectAColor'
+                              )}
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent alignItemWithTrigger={false}>
+                          <SelectGroup>
+                            {colorOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                <div className='flex items-center gap-2'>
+                                  <div
+                                    className={`h-4 w-4 rounded-full ${getBgColorClass(option.value)}`}
+                                  />
+                                  {t(option.label)}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               />
               <DialogFooter>

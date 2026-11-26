@@ -22,17 +22,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { SettingsForm } from '../components/settings-form-layout'
+import { SettingsGroup, SettingsRow } from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -187,72 +180,62 @@ export function GeminiSettingsCard({ defaultValues }: GeminiSettingsCardProps) {
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <FormField
-            control={form.control}
-            name='gemini.safety_settings'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.titles.safetySettings')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea rows={8} {...field} />
-                </FormControl>
-                <FormDescription>
-                  {t(
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='gemini.safety_settings'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.titles.safetySettings')}
+                  description={t(
                     'common.tips.providePerCategorySafetyOverridesAsJsonUseDefault'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea rows={8} {...field} />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='gemini.version_settings'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.versionOverrides')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea rows={8} {...field} />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='gemini.version_settings'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.versionOverrides')}
+                  description={t(
                     'common.tips.mapModelIdentifiersToGeminiApiVersionsADefault'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea rows={8} {...field} />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='gemini.supported_imagine_models'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.titles.supportedImagineModels')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={6}
-                    placeholder={imaginePlaceholder}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='gemini.supported_imagine_models'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.titles.supportedImagineModels')}
+                  description={t(
                     'systemSettings.tips.acceptsAJsonArrayOfModelIdentifiersThatSupport'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea
+                      rows={6}
+                      placeholder={imaginePlaceholder}
+                      {...field}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

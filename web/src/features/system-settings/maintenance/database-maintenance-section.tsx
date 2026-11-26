@@ -17,11 +17,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Database, Loader2, RefreshCw } from 'lucide-react'
+import { Database, Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,15 +34,29 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import {
   getDatabaseMigrationInfo,
   getDatabaseMigrationJob,
   startDatabaseMigration,
 } from '../api'
+import { SettingsControl, SettingsRow } from '../components/settings-group'
+import { SettingsNotice } from '../components/settings-notice'
+import {
+  SettingsPanel,
+  SettingsStat,
+  SettingsStatGrid,
+} from '../components/settings-panel'
 import { SettingsSection } from '../components/settings-section'
 import type {
   DatabaseMigrationInfo,
@@ -52,7 +65,7 @@ import type {
   DatabaseMigrationStartRequest,
 } from '../types'
 
-type MigrationCardConfig = {
+type MigrationPanelConfig = {
   mode: DatabaseMigrationMode
   title: string
   description: string
@@ -116,7 +129,7 @@ function getJobStatusLabel(status: string, t: (key: string) => string): string {
 export function DatabaseMaintenanceSection() {
   const { t } = useTranslation()
 
-  const configs = useMemo<MigrationCardConfig[]>(
+  const configs = useMemo<MigrationPanelConfig[]>(
     () => [
       {
         mode: 'pre_migrate',
@@ -150,24 +163,24 @@ export function DatabaseMaintenanceSection() {
 
   return (
     <SettingsSection title={t('systemSettings.fields.databaseMaintenance')}>
-      <Alert variant='danger'>
-        <AlertTriangle className='size-4' />
-        <AlertTitle>{t('systemSettings.fields.highRiskOperation')}</AlertTitle>
-        <AlertDescription>
-          {t('systemSettings.tips.databaseMigrationAndSyncRunOnTheServerAnd')}
-        </AlertDescription>
-      </Alert>
+      <SettingsNotice
+        tone='danger'
+        title={t('systemSettings.fields.highRiskOperation')}
+        className='pt-0'
+      >
+        {t('systemSettings.tips.databaseMigrationAndSyncRunOnTheServerAnd')}
+      </SettingsNotice>
 
-      <div className='grid gap-4 xl:grid-cols-2'>
+      <div className='flex flex-col gap-8'>
         {configs.map((config) => (
-          <DatabaseMigrationCard key={config.mode} config={config} />
+          <DatabaseMigrationPanel key={config.mode} config={config} />
         ))}
       </div>
     </SettingsSection>
   )
 }
 
-function DatabaseMigrationCard({ config }: { config: MigrationCardConfig }) {
+function DatabaseMigrationPanel({ config }: { config: MigrationPanelConfig }) {
   const { t } = useTranslation()
   const [info, setInfo] = useState<DatabaseMigrationInfo | null>(null)
   const [job, setJob] = useState<DatabaseMigrationJob | null>(null)
@@ -287,137 +300,151 @@ function DatabaseMigrationCard({ config }: { config: MigrationCardConfig }) {
   }
 
   return (
-    <div className='flex min-w-0 flex-col gap-4 rounded-xl border p-4'>
-      <div className='flex items-start justify-between gap-4'>
-        <div className='min-w-0 space-y-1'>
-          <div className='flex items-center gap-2'>
-            <Database className='text-muted-foreground size-4' />
-            <h4 className='font-medium'>{config.title}</h4>
-          </div>
-          <p className='text-muted-foreground text-sm'>{config.description}</p>
-        </div>
-        {job ? (
-          <Badge variant={statusVariant(job.status)}>
-            {getJobStatusLabel(job.status, t)}
-          </Badge>
-        ) : null}
-      </div>
-
-      <p className='text-muted-foreground text-xs'>{config.help}</p>
-
-      <div className='bg-muted/30 grid gap-3 rounded-lg p-3 text-sm sm:grid-cols-3'>
-        <InfoItem
-          label={t('systemSettings.fields.mainDatabase')}
-          value={
-            isLoadingInfo
-              ? t('common.tips.loading')
-              : formatDbType(info?.main_db_type)
-          }
-        />
-        <InfoItem
-          label={t('systemSettings.fields.logDatabase')}
-          value={
-            isLoadingInfo
-              ? t('common.tips.loading')
-              : formatDbType(info?.log_db_type)
-          }
-        />
-        <InfoItem
-          label={t('systemSettings.fields.separatedLogDatabase')}
-          value={
-            info?.log_db_is_separated
-              ? t('systemSettings.actions.yes')
-              : t('systemSettings.actions.no')
-          }
-        />
-      </div>
-
-      <div className='space-y-3'>
-        <div className='space-y-1.5'>
-          <Label htmlFor={`${config.mode}-target-dsn`}>
-            {t('systemSettings.fields.targetDatabaseDsn')}
-          </Label>
-          <Input
-            id={`${config.mode}-target-dsn`}
-            type='password'
-            autoComplete='off'
-            value={formState.targetDsn}
-            onChange={(event) =>
-              setFormState((prev) => ({
-                ...prev,
-                targetDsn: event.target.value,
-              }))
-            }
-            placeholder={t('systemSettings.placeholders.enterTargetSqlDsn')}
-            disabled={isRunning}
-          />
-        </div>
-
-        <div className='space-y-1.5'>
-          <Label htmlFor={`${config.mode}-target-log-dsn`}>
-            {t('systemSettings.fields.targetLogDatabaseDsn')}
-          </Label>
-          <Input
-            id={`${config.mode}-target-log-dsn`}
-            type='password'
-            autoComplete='off'
-            value={formState.targetLogDsn}
-            onChange={(event) =>
-              setFormState((prev) => ({
-                ...prev,
-                targetLogDsn: event.target.value,
-              }))
-            }
-            placeholder={t(
-              'systemSettings.tips.optionalLeaveEmptyToUseTargetDatabaseDsn'
-            )}
-            disabled={isRunning || !formState.includeLogs}
-          />
+    <>
+      <SettingsPanel
+        title={config.title}
+        description={config.description}
+        icon={Database}
+        divided
+        actions={
+          job ? (
+            <Badge variant={statusVariant(job.status)}>
+              {getJobStatusLabel(job.status, t)}
+            </Badge>
+          ) : undefined
+        }
+        footer={
+          <>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => refreshJob()}
+              disabled={!job?.id || isRefreshingJob}
+            >
+              <RefreshCw
+                className={cn('size-4', isRefreshingJob && 'animate-spin')}
+              />
+              {t('systemSettings.actions.refreshTask')}
+            </Button>
+            <Button
+              type='button'
+              onClick={handleOpenConfirm}
+              disabled={!canStart}
+            >
+              {isStarting ? <Loader2 className='size-4 animate-spin' /> : null}
+              {config.startLabel}
+            </Button>
+          </>
+        }
+      >
+        <div className='py-2'>
+          <SettingsStatGrid columns={3}>
+            <SettingsStat
+              label={t('systemSettings.fields.mainDatabase')}
+              value={
+                isLoadingInfo
+                  ? t('common.tips.loading')
+                  : formatDbType(info?.main_db_type)
+              }
+            />
+            <SettingsStat
+              label={t('systemSettings.fields.logDatabase')}
+              value={
+                isLoadingInfo
+                  ? t('common.tips.loading')
+                  : formatDbType(info?.log_db_type)
+              }
+            />
+            <SettingsStat
+              label={t('systemSettings.fields.separatedLogDatabase')}
+              value={
+                info?.log_db_is_separated
+                  ? t('systemSettings.actions.yes')
+                  : t('systemSettings.actions.no')
+              }
+            />
+          </SettingsStatGrid>
         </div>
 
-        <SwitchRow
+        <SettingsRow
+          label={t('systemSettings.fields.targetDatabaseDsn')}
+          description={config.help}
+          htmlFor={`${config.mode}-target-dsn`}
+        >
+          <SettingsControl size='lg'>
+            <Input
+              id={`${config.mode}-target-dsn`}
+              type='password'
+              autoComplete='off'
+              value={formState.targetDsn}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  targetDsn: event.target.value,
+                }))
+              }
+              placeholder={t('systemSettings.placeholders.enterTargetSqlDsn')}
+              disabled={isRunning}
+            />
+          </SettingsControl>
+        </SettingsRow>
+
+        <SettingsRow
+          label={t('systemSettings.fields.targetLogDatabaseDsn')}
+          description={t(
+            'systemSettings.tips.optionalLeaveEmptyToUseTargetDatabaseDsn'
+          )}
+          htmlFor={`${config.mode}-target-log-dsn`}
+        >
+          <SettingsControl size='lg'>
+            <Input
+              id={`${config.mode}-target-log-dsn`}
+              type='password'
+              autoComplete='off'
+              value={formState.targetLogDsn}
+              onChange={(event) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  targetLogDsn: event.target.value,
+                }))
+              }
+              disabled={isRunning || !formState.includeLogs}
+            />
+          </SettingsControl>
+        </SettingsRow>
+
+        <SettingsRow
           label={t('systemSettings.titles.includeUsageLogs')}
           description={t(
             'systemSettings.actions.copyTheLogDatabaseTableInAdditionToMain'
           )}
-          checked={formState.includeLogs}
-          disabled={isRunning}
-          onCheckedChange={(checked) =>
-            setFormState((prev) => ({ ...prev, includeLogs: checked }))
-          }
-        />
-        <SwitchRow
+        >
+          <Switch
+            checked={formState.includeLogs}
+            onCheckedChange={(checked) =>
+              setFormState((prev) => ({ ...prev, includeLogs: checked }))
+            }
+            disabled={isRunning}
+          />
+        </SettingsRow>
+
+        <SettingsRow
           label={t('systemSettings.fields.forceOverwriteTargetDatabase')}
           description={t(
             'systemSettings.tips.allowMigrationWhenTargetTablesAlreadyContainDataUse'
           )}
-          checked={formState.force}
-          disabled={isRunning}
-          onCheckedChange={(checked) =>
-            setFormState((prev) => ({ ...prev, force: checked }))
-          }
-        />
-      </div>
-
-      <div className='flex flex-wrap gap-2'>
-        <Button onClick={handleOpenConfirm} disabled={!canStart}>
-          {isStarting ? <Loader2 className='size-4 animate-spin' /> : null}
-          {config.startLabel}
-        </Button>
-        <Button
-          type='button'
-          variant='outline'
-          onClick={() => refreshJob()}
-          disabled={!job?.id || isRefreshingJob}
         >
-          <RefreshCw
-            className={cn('size-4', isRefreshingJob && 'animate-spin')}
+          <Switch
+            checked={formState.force}
+            onCheckedChange={(checked) =>
+              setFormState((prev) => ({ ...prev, force: checked }))
+            }
+            disabled={isRunning}
           />
-          {t('systemSettings.actions.refreshTask')}
-        </Button>
-      </div>
+        </SettingsRow>
 
-      <JobPanel job={job} progress={progress} />
+        <JobDetails job={job} progress={progress} />
+      </SettingsPanel>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
@@ -446,48 +473,11 @@ function DatabaseMigrationCard({ config }: { config: MigrationCardConfig }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className='min-w-0'>
-      <div className='text-muted-foreground text-xs'>{label}</div>
-      <div className='truncate font-medium'>{value}</div>
-    </div>
-  )
-}
-
-function SwitchRow({
-  label,
-  description,
-  checked,
-  disabled,
-  onCheckedChange,
-}: {
-  label: string
-  description: string
-  checked: boolean
-  disabled?: boolean
-  onCheckedChange: (checked: boolean) => void
-}) {
-  return (
-    <div className='flex items-center justify-between gap-4 rounded-lg border px-3 py-2.5'>
-      <div className='min-w-0 space-y-0.5'>
-        <Label className='text-sm font-medium'>{label}</Label>
-        <p className='text-muted-foreground text-xs'>{description}</p>
-      </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        disabled={disabled}
-      />
-    </div>
-  )
-}
-
-function JobPanel({
+function JobDetails({
   job,
   progress,
 }: {
@@ -498,102 +488,105 @@ function JobPanel({
 
   if (!job) {
     return (
-      <div className='text-muted-foreground rounded-lg border border-dashed p-4 text-sm'>
+      <p className='text-muted-foreground py-6 text-center text-sm'>
         {t('systemSettings.tips.noMigrationTaskHasBeenStartedInThisSession')}
-      </div>
+      </p>
     )
   }
 
   return (
-    <div className='space-y-3 rounded-lg border p-3'>
-      <div className='flex flex-wrap items-center justify-between gap-2'>
-        <div className='min-w-0'>
-          <div className='text-sm font-medium'>
-            {t('systemSettings.fields.taskProgress')}
-          </div>
-          <div className='text-muted-foreground text-xs break-all'>
-            {t('systemSettings.fields.taskId')}: {job.id}
+    <>
+      <SettingsRow
+        label={t('systemSettings.fields.taskProgress')}
+        description={`${t('systemSettings.fields.taskId')}: ${job.id}`}
+        stacked
+      >
+        <div className='flex flex-col gap-2'>
+          <Progress
+            value={progress}
+            aria-label={t('systemSettings.fields.taskProgress')}
+          />
+          <div className='text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs'>
+            <span>
+              {t('systemSettings.fields.progress')}: {progress}%
+            </span>
+            <span>
+              {t('systemSettings.fields.currentStep')}:{' '}
+              {job.current_step || '-'}
+            </span>
+            <span>
+              {t('subscriptions.fields.source')}:{' '}
+              {formatDbType(job.source_db_type)}
+            </span>
+            <span>
+              {t('systemSettings.fields.target')}:{' '}
+              {formatDbType(job.target_db_type)}
+            </span>
+            <span>
+              {t('systemSettings.fields.startedAt')}:{' '}
+              {formatTimestamp(job.started_at)}
+            </span>
+            {job.finished_at ? (
+              <span>
+                {t('systemSettings.fields.finishedAt')}:{' '}
+                {formatTimestamp(job.finished_at)}
+              </span>
+            ) : null}
           </div>
         </div>
-        <Badge variant={statusVariant(job.status)}>
-          {getJobStatusLabel(job.status, t)}
-        </Badge>
-      </div>
-
-      <Progress value={progress} />
-      <div className='text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs'>
-        <span>
-          {t('systemSettings.fields.progress')}: {progress}%
-        </span>
-        <span>
-          {t('systemSettings.fields.currentStep')}: {job.current_step || '-'}
-        </span>
-        <span>
-          {t('subscriptions.fields.source')}: {formatDbType(job.source_db_type)}
-        </span>
-        <span>
-          {t('systemSettings.fields.target')}:{' '}
-          {formatDbType(job.target_db_type)}
-        </span>
-        <span>
-          {t('systemSettings.fields.startedAt')}:{' '}
-          {formatTimestamp(job.started_at)}
-        </span>
-        {job.finished_at ? (
-          <span>
-            {t('systemSettings.fields.finishedAt')}:{' '}
-            {formatTimestamp(job.finished_at)}
-          </span>
-        ) : null}
-      </div>
+      </SettingsRow>
 
       {job.error ? (
-        <Alert variant='destructive'>
-          <AlertTitle>{t('systemSettings.status.taskFailed')}</AlertTitle>
-          <AlertDescription>{job.error}</AlertDescription>
-        </Alert>
+        <SettingsNotice
+          tone='danger'
+          title={t('systemSettings.status.taskFailed')}
+        >
+          {job.error}
+        </SettingsNotice>
       ) : null}
 
       {job.tables.length > 0 ? (
-        <div className='overflow-x-auto rounded-md border'>
-          <table className='w-full text-sm'>
-            <thead className='bg-muted/50 text-muted-foreground'>
-              <tr>
-                <th className='px-3 py-2 text-left font-medium'>
-                  {t('systemSettings.fields.table')}
-                </th>
-                <th className='px-3 py-2 text-right font-medium'>
+        <SettingsRow label={t('systemSettings.fields.table')} stacked>
+          <Table className='[&_td:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:first-child]:pl-0 [&_th:last-child]:pr-0'>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('systemSettings.fields.table')}</TableHead>
+                <TableHead className='text-right'>
                   {t('common.status.copied')}
-                </th>
-                <th className='px-3 py-2 text-right font-medium'>
+                </TableHead>
+                <TableHead className='text-right'>
                   {t('dashboard.fields.total')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {job.tables.map((table) => (
-                <tr key={table.name} className='border-t'>
-                  <td className='px-3 py-2 font-mono text-xs'>{table.name}</td>
-                  <td className='px-3 py-2 text-right tabular-nums'>
+                <TableRow key={table.name} className='hover:bg-transparent'>
+                  <TableCell className='font-mono text-xs'>
+                    {table.name}
+                  </TableCell>
+                  <TableCell className='text-right tabular-nums'>
                     {table.copied}
-                  </td>
-                  <td className='px-3 py-2 text-right tabular-nums'>
+                  </TableCell>
+                  <TableCell className='text-right tabular-nums'>
                     {table.total}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </SettingsRow>
       ) : null}
 
       {job.logs.length > 0 ? (
-        <Textarea
-          readOnly
-          value={job.logs.join('\n')}
-          className='min-h-40 resize-y font-mono text-xs'
-        />
+        <SettingsRow label={t('common.titles.taskLogs')} stacked>
+          <Textarea
+            readOnly
+            value={job.logs.join('\n')}
+            className='min-h-40 resize-y font-mono text-xs'
+          />
+        </SettingsRow>
       ) : null}
-    </div>
+    </>
   )
 }

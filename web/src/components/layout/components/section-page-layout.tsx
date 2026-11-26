@@ -23,6 +23,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
+import { cn } from '@/lib/utils'
 import { Main } from './main'
 import { PageFooterProvider } from './page-footer'
 
@@ -50,9 +51,17 @@ SectionPageLayoutBreadcrumb.displayName = 'SectionPageLayout.Breadcrumb'
 
 export type SectionPageLayoutProps = {
   children: ReactNode
+  /**
+   * 标题至少保留 12rem 宽；标题与操作栏放不下同一行时，操作栏整体换到标题下一行。
+   * 默认关闭：标题可被操作栏挤压到只剩省略号，两者始终同行。
+   */
+  wrapActionsUnderTitle?: boolean
 }
 
-export function SectionPageLayout(props: SectionPageLayoutProps) {
+export function SectionPageLayout({
+  children,
+  wrapActionsUnderTitle = false,
+}: SectionPageLayoutProps) {
   const [footerContainer, setFooterContainer] = useState<HTMLDivElement | null>(
     null
   )
@@ -62,7 +71,7 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
   let content: ReactNode = null
   let breadcrumb: ReactNode = null
 
-  Children.forEach(props.children, (node) => {
+  Children.forEach(children, (node) => {
     if (!isValidElement(node)) return
     const child = node as ReactElement<SlotProps>
     if (child.type === SectionPageLayoutTitle) title = child.props.children
@@ -82,7 +91,12 @@ export function SectionPageLayout(props: SectionPageLayoutProps) {
             <div className='mb-2 sm:mb-3'>{breadcrumb}</div>
           )}
           <div className='flex flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:gap-x-4'>
-            <div className='min-w-0 flex-1'>
+            <div
+              className={cn(
+                'flex-1',
+                wrapActionsUnderTitle ? 'min-w-[12rem]' : 'min-w-0'
+              )}
+            >
               <h2 className='truncate text-base font-bold tracking-tight sm:text-lg'>
                 {title}
               </h2>

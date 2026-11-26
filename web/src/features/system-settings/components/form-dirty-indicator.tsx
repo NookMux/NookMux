@@ -16,8 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useContext } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { SettingsPageTitleStatusPortal } from './settings-page-context'
+import { SettingsPageContext } from './settings-page-context-value'
 
 type FormDirtyIndicatorProps = {
   isDirty: boolean
@@ -25,7 +27,7 @@ type FormDirtyIndicatorProps = {
 }
 
 /**
- * Compact page-title status indicator for unsaved form changes.
+ * 页头标题旁的「未保存的更改」标记，表单有未保存改动时出现。
  *
  * @example
  * ```tsx
@@ -36,15 +38,16 @@ export function FormDirtyIndicator({
   isDirty,
   message,
 }: FormDirtyIndicatorProps) {
+  const { titleStatusContainer } = useContext(SettingsPageContext)
   const { t } = useTranslation()
-  if (!isDirty) return null
 
-  return (
-    <SettingsPageTitleStatusPortal>
-      <span className='inline-flex h-5 items-center gap-1.5 rounded-full bg-amber-500/10 px-2 text-[11px] font-medium whitespace-nowrap text-amber-700 ring-1 ring-amber-500/20 ring-inset dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/20'>
-        <span className='size-1.5 rounded-full bg-amber-500 dark:bg-amber-300' />
-        {message ? t(message) : t('systemSettings.fields.unsavedChanges')}
-      </span>
-    </SettingsPageTitleStatusPortal>
+  if (!isDirty || !titleStatusContainer) return null
+
+  return createPortal(
+    <span className='bg-warning/10 text-foreground ring-warning/30 inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap ring-1'>
+      <span className='bg-warning size-1.5 rounded-full' />
+      {message ? t(message) : t('systemSettings.fields.unsavedChanges')}
+    </span>,
+    titleStatusContainer
   )
 }

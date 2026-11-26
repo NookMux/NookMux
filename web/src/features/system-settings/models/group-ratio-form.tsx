@@ -27,15 +27,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import {
   Sheet,
   SheetContent,
@@ -50,12 +42,12 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import { SettingsForm } from '../components/settings-form-layout'
+import { SettingsGroup, SettingsRow } from '../components/settings-group'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
-import { SettingsPageActionsPortal } from '../components/settings-page-context'
+  SettingsPageActionsPortal,
+  SettingsPageFormActions,
+} from '../components/settings-page-context'
 import { GroupRatioVisualEditor } from './group-ratio-visual-editor'
 import { GroupSpecialUsableRulesEditor } from './group-special-usable-editor'
 
@@ -99,44 +91,45 @@ export const GroupRatioForm = memo(function GroupRatioForm({
   }, [])
 
   return (
-    <div className='space-y-6'>
-      <div className='flex flex-wrap justify-end gap-2'>
-        <Button variant='outline' size='sm' onClick={() => setGuideOpen(true)}>
-          <HelpCircle className='mr-2 h-4 w-4' />
-          {t('systemSettings.fields.usageGuide')}
-        </Button>
-        <Button variant='outline' size='sm' onClick={toggleEditMode}>
-          {editMode === 'visual' ? (
-            <>
-              <Code2 className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.switchToJson')}
-            </>
-          ) : (
-            <>
-              <Eye className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.switchToVisual')}
-            </>
-          )}
-        </Button>
-      </div>
-
+    <>
       <GroupPricingGuide open={guideOpen} onOpenChange={setGuideOpen} />
 
       <Form {...form}>
         <SettingsPageActionsPortal>
           <Button
             type='button'
+            variant='outline'
             size='sm'
-            onClick={form.handleSubmit(onSave)}
-            disabled={isSaving}
+            onClick={() => setGuideOpen(true)}
           >
-            {isSaving
-              ? t('channels.tips.saving')
-              : t('systemSettings.actions.saveGroupRatios')}
+            <HelpCircle data-icon='inline-start' />
+            {t('systemSettings.fields.usageGuide')}
+          </Button>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={toggleEditMode}
+          >
+            {editMode === 'visual' ? (
+              <>
+                <Code2 data-icon='inline-start' />
+                {t('systemSettings.actions.switchToJson')}
+              </>
+            ) : (
+              <>
+                <Eye data-icon='inline-start' />
+                {t('systemSettings.actions.switchToVisual')}
+              </>
+            )}
           </Button>
         </SettingsPageActionsPortal>
+        <SettingsPageFormActions
+          onSave={form.handleSubmit(onSave)}
+          isSaving={isSaving}
+        />
         {editMode === 'visual' ? (
-          <div className='space-y-6'>
+          <div className='flex min-w-0 flex-col gap-8'>
             <GroupRatioVisualEditor
               groupRatio={form.watch('GroupRatio')}
               topupGroupRatio={form.watch('TopupGroupRatio')}
@@ -155,190 +148,168 @@ export const GroupRatioForm = memo(function GroupRatioForm({
               }
             />
 
-            <FormField
-              control={form.control}
-              name='DefaultUseAutoGroup'
-              render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.fields.defaultToAutoGroups')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.status.enabledNewlyCreatedTokensStartInTheFirstAuto'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
+            <SettingsGroup>
+              <FormField
+                control={form.control}
+                name='DefaultUseAutoGroup'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.defaultToAutoGroups')}
+                    description={t(
+                      'systemSettings.status.enabledNewlyCreatedTokensStartInTheFirstAuto'
+                    )}
+                  >
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
+            </SettingsGroup>
           </div>
         ) : (
           <SettingsForm onSubmit={form.handleSubmit(onSave)}>
-            <FormField
-              control={form.control}
-              name='GroupRatio'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.groupRatios')}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea rows={8} {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
+            <SettingsGroup>
+              <FormField
+                control={form.control}
+                name='GroupRatio'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.groupRatios')}
+                    description={t(
                       'systemSettings.tips.jsonMapOfGroupRatioAppliedWhenTheUser'
                     )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  >
+                    <FormControl>
+                      <Textarea rows={8} {...field} />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name='TopupGroupRatio'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.topUpGroupRatios')}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea rows={6} {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.status.optionalMultiplierPerUserGroupUsedWhenCalculatingRecharge'
-                    )}
-                    {` { "default": 1, "vip": 1.2 }`}.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name='TopupGroupRatio'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.topUpGroupRatios')}
+                    description={
+                      <>
+                        {t(
+                          'systemSettings.status.optionalMultiplierPerUserGroupUsedWhenCalculatingRecharge'
+                        )}
+                        {` { "default": 1, "vip": 1.2 }`}.
+                      </>
+                    }
+                  >
+                    <FormControl>
+                      <Textarea rows={6} {...field} />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name='UserUsableGroups'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.placeholders.selectableGroups')}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea rows={6} {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
+              <FormField
+                control={form.control}
+                name='UserUsableGroups'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.placeholders.selectableGroups')}
+                    description={t(
                       'systemSettings.tips.jsonMapOfGroupDescriptionExposedWhenUsersCreate'
                     )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  >
+                    <FormControl>
+                      <Textarea rows={6} {...field} />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name='GroupGroupRatio'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.interGroupOverrides')}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea rows={8} {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.fields.nestedJsonSourceGroup')}{' '}
-                    {`{ targetGroup: ratio }`}{' '}
-                    {t(
-                      'systemSettings.tips.overrideBillingWhenAUserInOneGroupUses'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name='GroupGroupRatio'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.interGroupOverrides')}
+                    description={
+                      <>
+                        {t('systemSettings.fields.nestedJsonSourceGroup')}{' '}
+                        {`{ targetGroup: ratio }`}{' '}
+                        {t(
+                          'systemSettings.tips.overrideBillingWhenAUserInOneGroupUses'
+                        )}
+                      </>
+                    }
+                  >
+                    <FormControl>
+                      <Textarea rows={8} {...field} />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name='AutoGroups'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.autoAssignmentOrder')}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea rows={6} {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
+              <FormField
+                control={form.control}
+                name='AutoGroups'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.autoAssignmentOrder')}
+                    description={t(
                       'systemSettings.status.jsonArrayOfGroupIdentifiersWhenEnabledBelowNew'
                     )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  >
+                    <FormControl>
+                      <Textarea rows={6} {...field} />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name='GroupSpecialUsableGroup'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.specialUsableGroupRules')}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea rows={8} {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
+              <FormField
+                control={form.control}
+                name='GroupSpecialUsableGroup'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.specialUsableGroupRules')}
+                    description={t(
                       'systemSettings.tips.nestedJsonDefiningPerGroupRulesForAddingRemoving'
                     )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  >
+                    <FormControl>
+                      <Textarea rows={8} {...field} />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name='DefaultUseAutoGroup'
-              render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.fields.defaultToAutoGroups')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.status.enabledNewlyCreatedTokensStartInTheFirstAuto'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name='DefaultUseAutoGroup'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.defaultToAutoGroups')}
+                    description={t(
+                      'systemSettings.status.enabledNewlyCreatedTokensStartInTheFirstAuto'
+                    )}
+                  >
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </SettingsRow>
+                )}
+              />
+            </SettingsGroup>
           </SettingsForm>
         )}
       </Form>
-    </div>
+    </>
   )
 })
 

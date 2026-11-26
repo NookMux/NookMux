@@ -168,7 +168,6 @@
   "channels.fields.appended": "appended",
   "channels.fields.autoBan": "Auto Ban",
   "channels.fields.autoDetectDefault": "Auto detect (default)",
-  "channels.fields.available": "Available",
   "channels.fields.availableBalance": "Available Balance",
   "channels.fields.awsKeyFormat": "AWS Key Format",
   "channels.fields.azureOpenAiEndpointUrl": "Your Azure OpenAI endpoint URL",

@@ -20,6 +20,7 @@ import { useState, useMemo } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import {
   Table,
   TableBody,
@@ -119,38 +120,36 @@ export function AmountDiscountVisualEditor({
 
   return (
     <div className='space-y-4'>
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-        <p className='text-muted-foreground text-sm'>
-          {t(
-            'systemSettings.tips.configureDiscountRatesBasedOnRechargeAmounts'
-          )}
-        </p>
+      <div className='flex sm:justify-end'>
         <Button
           type='button'
+          variant='outline'
+          size='sm'
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
             handleAdd()
           }}
-          size='sm'
           className='w-full sm:w-auto'
         >
-          <Plus className='h-4 w-4 sm:mr-2' />
-          <span className='sm:inline'>
-            {t('systemSettings.actions.addDiscountTier')}
-          </span>
+          <Plus data-icon='inline-start' />
+          {t('systemSettings.actions.addDiscountTier')}
         </Button>
       </div>
 
       {discounts.length === 0 ? (
-        <div className='text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm'>
-          {t('common.tips.noDiscountTiersConfiguredClickAddDiscountTierTo')}
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyDescription>
+              {t('common.tips.noDiscountTiersConfiguredClickAddDiscountTierTo')}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className='rounded-md border'>
+        <div>
           {/* Desktop table view */}
           <div className='hidden sm:block'>
-            <Table>
+            <Table className='[&_td:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:first-child]:pl-0 [&_th:last-child]:pr-0'>
               <TableHeader>
                 <TableRow>
                   <TableHead>
@@ -199,6 +198,7 @@ export function AmountDiscountVisualEditor({
                             e.stopPropagation()
                             handleEdit(discount)
                           }}
+                          aria-label={t('channels.actions.edit')}
                         >
                           <Pencil className='h-4 w-4' />
                         </Button>
@@ -211,6 +211,7 @@ export function AmountDiscountVisualEditor({
                             e.stopPropagation()
                             handleDelete(discount.amount)
                           }}
+                          aria-label={t('common.actions.delete')}
                         >
                           <Trash2 className='h-4 w-4' />
                         </Button>
@@ -225,7 +226,7 @@ export function AmountDiscountVisualEditor({
           {/* Mobile card view */}
           <div className='divide-y sm:hidden'>
             {discounts.map((discount) => (
-              <div key={discount.amount} className='p-4'>
+              <div key={discount.amount} className='py-3'>
                 <div className='mb-3 flex items-start justify-between'>
                   <div className='flex-1'>
                     <div className='mb-2 font-mono text-base font-medium'>
@@ -250,6 +251,7 @@ export function AmountDiscountVisualEditor({
                         e.stopPropagation()
                         handleEdit(discount)
                       }}
+                      aria-label={t('channels.actions.edit')}
                     >
                       <Pencil className='h-4 w-4' />
                     </Button>
@@ -262,6 +264,7 @@ export function AmountDiscountVisualEditor({
                         e.stopPropagation()
                         handleDelete(discount.amount)
                       }}
+                      aria-label={t('common.actions.delete')}
                     >
                       <Trash2 className='h-4 w-4' />
                     </Button>

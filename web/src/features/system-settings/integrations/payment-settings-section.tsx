@@ -20,29 +20,20 @@ import * as React from 'react'
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Code2, Eye } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { CopyButton } from '@/components/copy-button'
+import { EditorModeButton } from '../components/editor-mode-button'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -177,6 +168,7 @@ export function PaymentSettingsSection({
     const initial = {
       PayAddress: removeTrailingSlash(initialRef.current.PayAddress),
       EpayId: initialRef.current.EpayId.trim(),
+      EpayKey: initialRef.current.EpayKey.trim(),
       Price: initialRef.current.Price,
       MinTopUp: initialRef.current.MinTopUp,
       CustomCallbackAddress: removeTrailingSlash(
@@ -281,7 +273,8 @@ export function PaymentSettingsSection({
     }
   }
 
-  const stripeWebhookUrl = serverAddress.trim()
+  const hasServerAddress = serverAddress.trim() !== ''
+  const stripeWebhookUrl = hasServerAddress
     ? `${removeTrailingSlash(serverAddress)}/api/stripe/webhook`
     : '<ServerAddress>/api/stripe/webhook'
 
@@ -290,7 +283,6 @@ export function PaymentSettingsSection({
       <Form {...form}>
         <SettingsForm
           onSubmit={form.handleSubmit(onSubmit)}
-          className='gap-y-8'
           data-no-autosubmit='true'
         >
           <SettingsPageFormActions
@@ -299,25 +291,23 @@ export function PaymentSettingsSection({
             saveLabel='systemSettings.actions.savePaymentSettings'
           />
 
-          <div className='space-y-4'>
-            <div>
-              <h3 className='text-lg font-medium'>
-                {t('systemSettings.fields.epayGateway')}
-              </h3>
-              <p className='text-muted-foreground text-sm'>
-                {t('systemSettings.tips.classicPaymentGatewayConfiguration')}
-              </p>
-            </div>
-
-            <div className='grid gap-6 md:grid-cols-2'>
-              <FormField
-                control={form.control}
-                name='PayAddress'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.paymentAddress')}
-                    </FormLabel>
+          <SettingsGroup
+            title={t('systemSettings.fields.epayGateway')}
+            description={t(
+              'systemSettings.tips.classicPaymentGatewayConfiguration'
+            )}
+          >
+            <FormField
+              control={form.control}
+              name='PayAddress'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.paymentAddress')}
+                  description={t(
+                    'systemSettings.fields.epayServiceBaseAddress'
+                  )}
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         placeholder={t(
@@ -327,22 +317,22 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.fields.epayServiceBaseAddress')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='CustomCallbackAddress'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.callbackAddress')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='CustomCallbackAddress'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.callbackAddress')}
+                  description={t(
+                    'systemSettings.fields.optionalCallbackOverride'
+                  )}
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         placeholder={t(
@@ -352,24 +342,17 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t('systemSettings.fields.optionalCallbackOverride')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-            <div className='grid gap-6 md:grid-cols-2'>
-              <FormField
-                control={form.control}
-                name='EpayId'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.epayMerchantId')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='EpayId'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.epayMerchantId')}>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         placeholder='10001'
@@ -378,19 +361,22 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='EpayKey'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.epayMerchantKey')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='EpayKey'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.epayMerchantKey')}
+                  description={t(
+                    'systemSettings.tips.leaveBlankUnlessRotatingTheSecret'
+                  )}
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='password'
@@ -402,26 +388,19 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.leaveBlankUnlessRotatingTheSecret'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-            <div className='grid gap-6 md:grid-cols-2'>
-              <FormField
-                control={form.control}
-                name='Price'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.topUpPriceLocalUsd')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='Price'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.topUpPriceLocalUsd')}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -433,19 +412,17 @@ export function PaymentSettingsSection({
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='MinTopUp'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.minimumTopUpUsd')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='MinTopUp'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.minimumTopUpUsd')}>
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -457,43 +434,34 @@ export function PaymentSettingsSection({
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
             <FormField
               control={form.control}
               name='PayMethods'
               render={({ field }) => (
-                <FormItem>
-                  <div className='mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-                    <FormLabel>
-                      {t('orderQuery.fields.paymentMethod')}
-                    </FormLabel>
-                    <Button
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      onClick={() =>
-                        setPayMethodsVisualMode(!payMethodsVisualMode)
+                <SettingsRow
+                  label={t('orderQuery.fields.paymentMethod')}
+                  description={
+                    payMethodsVisualMode
+                      ? t('systemSettings.tips.paymentMethodsDisplayedToUsers')
+                      : t(
+                          'systemSettings.tips.rechargeMethodConfigurationAsJson'
+                        )
+                  }
+                  stacked
+                  actions={
+                    <EditorModeButton
+                      visualMode={payMethodsVisualMode}
+                      onToggle={() =>
+                        setPayMethodsVisualMode((current) => !current)
                       }
-                      className='w-full sm:w-auto'
-                    >
-                      {payMethodsVisualMode ? (
-                        <>
-                          <Code2 className='mr-2 h-3 w-3' />
-                          {t('systemSettings.fields.jsonEditor')}
-                        </>
-                      ) : (
-                        <>
-                          <Eye className='mr-2 h-3 w-3' />
-                          {t('systemSettings.fields.visualEditor')}
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                    />
+                  }
+                >
                   <FormControl>
                     {payMethodsVisualMode ? (
                       <PaymentMethodsVisualEditor
@@ -509,172 +477,152 @@ export function PaymentSettingsSection({
                       />
                     )}
                   </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.tips.rechargeMethodConfigurationAsJson')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                </SettingsRow>
               )}
             />
 
-            <div className='grid gap-6 md:grid-cols-2 md:items-start'>
-              <FormField
-                control={form.control}
-                name='AmountOptions'
-                render={({ field }) => (
-                  <FormItem>
-                    <div className='mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-                      <FormLabel>
-                        {t('systemSettings.fields.topUpAmountOptions')}
-                      </FormLabel>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        onClick={() =>
-                          setAmountOptionsVisualMode(!amountOptionsVisualMode)
-                        }
-                        className='w-full sm:w-auto'
-                      >
-                        {amountOptionsVisualMode ? (
-                          <>
-                            <Code2 className='mr-2 h-3 w-3' />
-                            {t('systemSettings.fields.jsonEditor')}
-                          </>
-                        ) : (
-                          <>
-                            <Eye className='mr-2 h-3 w-3' />
-                            {t('systemSettings.fields.visualEditor')}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    <FormControl>
-                      {amountOptionsVisualMode ? (
-                        <AmountOptionsVisualEditor
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      ) : (
-                        <Textarea
-                          rows={4}
-                          placeholder='[10, 20, 50, 100, 200, 500]'
-                          {...field}
-                          onChange={(event) =>
-                            field.onChange(event.target.value)
-                          }
-                        />
-                      )}
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.presetRechargeAmountsAsAJsonArray'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name='AmountOptions'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.topUpAmountOptions')}
+                  description={
+                    amountOptionsVisualMode
+                      ? t(
+                          'systemSettings.tips.presetRechargeAmountsDisplayedToUsers'
+                        )
+                      : t(
+                          'systemSettings.tips.presetRechargeAmountsAsAJsonArray'
+                        )
+                  }
+                  stacked
+                  actions={
+                    <EditorModeButton
+                      visualMode={amountOptionsVisualMode}
+                      onToggle={() =>
+                        setAmountOptionsVisualMode((current) => !current)
+                      }
+                    />
+                  }
+                >
+                  <FormControl>
+                    {amountOptionsVisualMode ? (
+                      <AmountOptionsVisualEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    ) : (
+                      <Textarea
+                        rows={4}
+                        placeholder='[10, 20, 50, 100, 200, 500]'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    )}
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='AmountDiscount'
-                render={({ field }) => (
-                  <FormItem>
-                    <div className='mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-                      <FormLabel>
-                        {t('systemSettings.fields.amountDiscount')}
-                      </FormLabel>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        onClick={() =>
-                          setAmountDiscountVisualMode(!amountDiscountVisualMode)
-                        }
-                        className='w-full sm:w-auto'
-                      >
-                        {amountDiscountVisualMode ? (
-                          <>
-                            <Code2 className='mr-2 h-3 w-3' />
-                            {t('systemSettings.fields.jsonEditor')}
-                          </>
-                        ) : (
-                          <>
-                            <Eye className='mr-2 h-3 w-3' />
-                            {t('systemSettings.fields.visualEditor')}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    <FormControl>
-                      {amountDiscountVisualMode ? (
-                        <AmountDiscountVisualEditor
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      ) : (
-                        <Textarea
-                          rows={4}
-                          placeholder='{"100":0.95,"200":0.9,"500":0.85}'
-                          {...field}
-                          onChange={(event) =>
-                            field.onChange(event.target.value)
-                          }
-                        />
-                      )}
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.discountMapByRechargeAmountAsAJsonObject'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
+            <FormField
+              control={form.control}
+              name='AmountDiscount'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.amountDiscount')}
+                  description={
+                    amountDiscountVisualMode
+                      ? t(
+                          'systemSettings.tips.configureDiscountRatesBasedOnRechargeAmounts'
+                        )
+                      : t(
+                          'systemSettings.tips.discountMapByRechargeAmountAsAJsonObject'
+                        )
+                  }
+                  stacked
+                  actions={
+                    <EditorModeButton
+                      visualMode={amountDiscountVisualMode}
+                      onToggle={() =>
+                        setAmountDiscountVisualMode((current) => !current)
+                      }
+                    />
+                  }
+                >
+                  <FormControl>
+                    {amountDiscountVisualMode ? (
+                      <AmountDiscountVisualEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    ) : (
+                      <Textarea
+                        rows={4}
+                        placeholder='{"100":0.95,"200":0.9,"500":0.85}'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    )}
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
 
-          <Separator />
-
-          <div className='space-y-4'>
-            <div>
-              <h3 className='text-lg font-medium'>
-                {t('systemSettings.fields.stripeGateway')}
-              </h3>
-              <p className='text-muted-foreground text-sm'>
-                {t('systemSettings.tips.stripePaymentGatewayConfiguration')}
-              </p>
-            </div>
-
-            <Alert>
-              <AlertTitle>
-                {t('systemSettings.titles.webhookConfiguration')}
-              </AlertTitle>
-              <AlertDescription>
-                <div className='space-y-1 text-sm'>
-                  <div>
-                    {t('profile.fields.webhookUrl')}:{' '}
-                    <code>{stripeWebhookUrl}</code>
-                  </div>
-                  <div>
-                    {t('systemSettings.errors.requiredEvents')}:
-                    checkout.session.completed, checkout.session.expired
-                  </div>
+          <SettingsGroup
+            title={t('systemSettings.fields.stripeGateway')}
+            description={t(
+              'systemSettings.tips.stripePaymentGatewayConfiguration'
+            )}
+          >
+            <SettingsRow
+              label={t('systemSettings.titles.webhookConfiguration')}
+              hint={
+                <div className='space-y-1'>
+                  <p className='font-semibold'>
+                    {t('systemSettings.errors.requiredEvents')}
+                  </p>
+                  <ul className='list-inside list-disc space-y-0.5 pl-2'>
+                    <li>
+                      <code>checkout.session.completed</code>
+                    </li>
+                    <li>
+                      <code>checkout.session.expired</code>
+                    </li>
+                  </ul>
                 </div>
-              </AlertDescription>
-            </Alert>
+              }
+            >
+              <SettingsControl size='lg'>
+                <div className='flex min-w-0 items-center gap-2'>
+                  <span className='text-muted-foreground shrink-0 text-sm'>
+                    {t('profile.fields.webhookUrl')}
+                  </span>
+                  <code
+                    className='bg-muted min-w-0 truncate rounded-md px-2 py-1'
+                    title={stripeWebhookUrl}
+                  >
+                    {stripeWebhookUrl}
+                  </code>
+                  {hasServerAddress && (
+                    <CopyButton value={stripeWebhookUrl} size='sm' />
+                  )}
+                </div>
+              </SettingsControl>
+            </SettingsRow>
 
-            <div className='grid gap-6 md:grid-cols-3'>
-              <FormField
-                control={form.control}
-                name='StripeApiSecret'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.apiSecret')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='StripeApiSecret'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.apiSecret')}
+                  description={t(
+                    'systemSettings.tips.leaveBlankUnlessRotatingTheSecret'
+                  )}
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='password'
@@ -686,22 +634,22 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.leaveBlankUnlessRotatingTheSecret'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='StripeWebhookSecret'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('profile.fields.webhookSecret')}</FormLabel>
+            <FormField
+              control={form.control}
+              name='StripeWebhookSecret'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('profile.fields.webhookSecret')}
+                  description={t(
+                    'systemSettings.tips.leaveBlankUnlessRotatingTheSecret'
+                  )}
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='password'
@@ -711,22 +659,17 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.leaveBlankUnlessRotatingTheSecret'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='StripePriceId'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('systemSettings.fields.priceId')}</FormLabel>
+            <FormField
+              control={form.control}
+              name='StripePriceId'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.priceId')}>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         placeholder='price_xxx'
@@ -734,21 +677,19 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-            <div className='grid gap-6 md:grid-cols-3'>
-              <FormField
-                control={form.control}
-                name='StripeUnitPrice'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.topUpPriceLocalUsd')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='StripeUnitPrice'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.topUpPriceLocalUsd')}
+                >
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -760,19 +701,17 @@ export function PaymentSettingsSection({
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='StripeMinTopUp'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.minimumTopUpUsd')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='StripeMinTopUp'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.minimumTopUpUsd')}>
+                  <SettingsControl size='xs'>
                     <FormControl>
                       <Input
                         type='number'
@@ -784,56 +723,39 @@ export function PaymentSettingsSection({
                         }
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='StripePromotionCodesEnabled'
-                render={({ field }) => (
-                  <SettingsSwitchItem>
-                    <SettingsSwitchContent>
-                      <FormLabel>
-                        {t('systemSettings.fields.promotionCodes')}
-                      </FormLabel>
-                      <FormDescription>
-                        {t(
-                          'systemSettings.tips.allowUsersToEnterStripePromotionCodes'
-                        )}
-                      </FormDescription>
-                    </SettingsSwitchContent>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </SettingsSwitchItem>
-                )}
-              />
-            </div>
-          </div>
+            <FormField
+              control={form.control}
+              name='StripePromotionCodesEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.promotionCodes')}
+                  description={t(
+                    'systemSettings.tips.allowUsersToEnterStripePromotionCodes'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
 
-          <Separator />
-
-          <div className='space-y-4'>
-            <div>
-              <h3 className='text-lg font-medium'>
-                {t('systemSettings.fields.cdkRedemption')}
-              </h3>
-            </div>
-
-            <div className='grid gap-6 md:grid-cols-3'>
-              <FormField
-                control={form.control}
-                name='TopUpLink'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.topUpLink')}
-                    </FormLabel>
+          <SettingsGroup title={t('systemSettings.fields.cdkRedemption')}>
+            <FormField
+              control={form.control}
+              name='TopUpLink'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.topUpLink')}>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         placeholder={t(
@@ -843,12 +765,11 @@ export function PaymentSettingsSection({
                         onChange={(event) => field.onChange(event.target.value)}
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

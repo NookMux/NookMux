@@ -21,23 +21,16 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -74,6 +67,8 @@ export function OAuthSection({ defaultValues }: OAuthSectionProps) {
   })
 
   useResetForm(form, defaultValues)
+  const githubEnabled = form.watch('GitHubOAuthEnabled')
+  const linuxDoEnabled = form.watch('LinuxDOOAuthEnabled')
 
   const onSubmit = async (values: OAuthFormValues) => {
     const updates = (
@@ -115,8 +110,8 @@ export function OAuthSection({ defaultValues }: OAuthSectionProps) {
             isSaving={updateOption.isPending}
           />
 
-          <Tabs defaultValue='github' className='space-y-6'>
-            <TabsList className='grid w-full grid-cols-2'>
+          <Tabs defaultValue='github' className='flex flex-col gap-4'>
+            <TabsList variant='line'>
               <TabsTrigger value='github'>
                 {t('profile.fields.gitHub')}
               </TabsTrigger>
@@ -125,162 +120,132 @@ export function OAuthSection({ defaultValues }: OAuthSectionProps) {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value='github' className='space-y-6'>
-              <FormField
-                control={form.control}
-                name='GitHubOAuthEnabled'
-                render={({ field }) => (
-                  <SettingsSwitchItem>
-                    <SettingsSwitchContent>
-                      <FormLabel>
-                        {t('systemSettings.actions.enableGitHubOauth')}
-                      </FormLabel>
-                      <FormDescription>
-                        {t(
-                          'systemSettings.actions.allowUsersToSignInAndRegisterWithGitHub'
-                        )}
-                      </FormDescription>
-                    </SettingsSwitchContent>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </SettingsSwitchItem>
+            <TabsContent value='github'>
+              <SettingsGroup
+                title={t('systemSettings.actions.enableGitHubOauth')}
+                description={t(
+                  'systemSettings.actions.allowUsersToSignInAndRegisterWithGitHub'
                 )}
-              />
+                control={<SettingsGroupSwitch name='GitHubOAuthEnabled' />}
+                enabled={githubEnabled}
+              >
+                <FormField
+                  control={form.control}
+                  name='GitHubClientId'
+                  render={({ field }) => (
+                    <SettingsRow
+                      label={t('systemSettings.fields.gitHubClientId')}
+                    >
+                      <SettingsControl>
+                        <FormControl>
+                          <Input autoComplete='off' {...field} />
+                        </FormControl>
+                      </SettingsControl>
+                    </SettingsRow>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name='GitHubClientId'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.gitHubClientId')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input autoComplete='off' {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='GitHubClientSecret'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.gitHubClientSecret')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type='password'
-                        autoComplete='new-password'
-                        placeholder={t(
-                          'systemSettings.tips.sensitiveValuesAreNotReturned'
-                        )}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
+                <FormField
+                  control={form.control}
+                  name='GitHubClientSecret'
+                  render={({ field }) => (
+                    <SettingsRow
+                      label={t('systemSettings.fields.gitHubClientSecret')}
+                      description={t(
                         'systemSettings.tips.leaveBlankUnlessYouWantToUpdateTheSecret'
                       )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    >
+                      <SettingsControl>
+                        <FormControl>
+                          <Input
+                            type='password'
+                            autoComplete='new-password'
+                            placeholder={t(
+                              'systemSettings.tips.sensitiveValuesAreNotReturned'
+                            )}
+                            {...field}
+                          />
+                        </FormControl>
+                      </SettingsControl>
+                    </SettingsRow>
+                  )}
+                />
+              </SettingsGroup>
             </TabsContent>
 
-            <TabsContent value='linuxdo' className='space-y-6'>
-              <FormField
-                control={form.control}
-                name='LinuxDOOAuthEnabled'
-                render={({ field }) => (
-                  <SettingsSwitchItem>
-                    <SettingsSwitchContent>
-                      <FormLabel>
-                        {t('systemSettings.actions.enableLinuxDoOauth')}
-                      </FormLabel>
-                      <FormDescription>
-                        {t(
-                          'systemSettings.actions.allowUsersToSignInAndRegisterWithLinuxDo'
-                        )}
-                      </FormDescription>
-                    </SettingsSwitchContent>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </SettingsSwitchItem>
+            <TabsContent value='linuxdo'>
+              <SettingsGroup
+                title={t('systemSettings.actions.enableLinuxDoOauth')}
+                description={t(
+                  'systemSettings.actions.allowUsersToSignInAndRegisterWithLinuxDo'
                 )}
-              />
+                control={<SettingsGroupSwitch name='LinuxDOOAuthEnabled' />}
+                enabled={linuxDoEnabled}
+              >
+                <FormField
+                  control={form.control}
+                  name='LinuxDOClientId'
+                  render={({ field }) => (
+                    <SettingsRow
+                      label={t('systemSettings.fields.linuxDoClientId')}
+                    >
+                      <SettingsControl>
+                        <FormControl>
+                          <Input autoComplete='off' {...field} />
+                        </FormControl>
+                      </SettingsControl>
+                    </SettingsRow>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name='LinuxDOClientId'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.linuxDoClientId')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input autoComplete='off' {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='LinuxDOClientSecret'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.linuxDoClientSecret')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type='password'
-                        autoComplete='new-password'
-                        placeholder={t(
-                          'systemSettings.tips.sensitiveValuesAreNotReturned'
-                        )}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
+                <FormField
+                  control={form.control}
+                  name='LinuxDOClientSecret'
+                  render={({ field }) => (
+                    <SettingsRow
+                      label={t('systemSettings.fields.linuxDoClientSecret')}
+                      description={t(
                         'systemSettings.tips.leaveBlankUnlessYouWantToUpdateTheSecret'
                       )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    >
+                      <SettingsControl>
+                        <FormControl>
+                          <Input
+                            type='password'
+                            autoComplete='new-password'
+                            placeholder={t(
+                              'systemSettings.tips.sensitiveValuesAreNotReturned'
+                            )}
+                            {...field}
+                          />
+                        </FormControl>
+                      </SettingsControl>
+                    </SettingsRow>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name='LinuxDOMinimumTrustLevel'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.linuxDoMinimumTrustLevel')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input autoComplete='off' placeholder='0' {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name='LinuxDOMinimumTrustLevel'
+                  render={({ field }) => (
+                    <SettingsRow
+                      label={t(
+                        'systemSettings.fields.linuxDoMinimumTrustLevel'
+                      )}
+                    >
+                      <SettingsControl>
+                        <FormControl>
+                          <Input
+                            autoComplete='off'
+                            placeholder='0'
+                            {...field}
+                          />
+                        </FormControl>
+                      </SettingsControl>
+                    </SettingsRow>
+                  )}
+                />
+              </SettingsGroup>
             </TabsContent>
           </Tabs>
         </SettingsForm>

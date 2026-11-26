@@ -21,22 +21,15 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -67,6 +60,8 @@ export function SensitiveWordsSection({
     form.reset(defaultValues)
   }, [defaultValues, form])
 
+  const filteringEnabled = form.watch('CheckSensitiveEnabled')
+
   const onSubmit = async (values: SensitiveFormValues) => {
     const updates = Object.entries(values).filter(
       ([key, value]) =>
@@ -87,84 +82,56 @@ export function SensitiveWordsSection({
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveSensitiveWords'
           />
-          <div className='space-y-4'>
-            <FormField
-              control={form.control}
-              name='CheckSensitiveEnabled'
-              render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.actions.enableFiltering')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.blocksMessagesWhenSensitiveKeywordsAreDetected'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
-
+          <SettingsGroup
+            title={t('systemSettings.actions.enableFiltering')}
+            description={t(
+              'systemSettings.tips.blocksMessagesWhenSensitiveKeywordsAreDetected'
+            )}
+            control={<SettingsGroupSwitch name='CheckSensitiveEnabled' />}
+            enabled={filteringEnabled}
+          >
             <FormField
               control={form.control}
               name='CheckSensitiveOnPromptEnabled'
               render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.fields.inspectUserPrompts')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.status.enabledPromptsAreScannedBeforeReachingUpstreamModels'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
+                <SettingsRow
+                  label={t('systemSettings.fields.inspectUserPrompts')}
+                  description={t(
+                    'systemSettings.status.enabledPromptsAreScannedBeforeReachingUpstreamModels'
+                  )}
+                >
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                </SettingsSwitchItem>
+                </SettingsRow>
               )}
             />
-          </div>
-
-          <FormField
-            control={form.control}
-            name='SensitiveWords'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.blockedKeywords')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={12}
-                    placeholder={t(
-                      'systemSettings.placeholders.enterOneKeywordPerLine'
-                    )}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='SensitiveWords'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.blockedKeywords')}
+                  description={t(
                     'systemSettings.tips.eachLineRepresentsOneKeywordLeaveBlankToDisable'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea
+                      rows={12}
+                      placeholder={t(
+                        'systemSettings.placeholders.enterOneKeywordPerLine'
+                      )}
+                      {...field}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

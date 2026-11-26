@@ -3,36 +3,44 @@ Copyright (C) 2023-2026 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, version 3 of the License.
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY. See the GNU Affero General Public License
-for more details.
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useRef } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from 'react'
 import * as z from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useFormContext } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ModelMappingEditor } from '@/features/channels/components/model-mapping-editor'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { EditorModeButton } from '../components/editor-mode-button'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -148,6 +156,7 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
     defaultValues: buildFormDefaults(defaultValues),
   })
   const enabled = form.watch('minimax.enabled')
+  const customVoiceEnabled = form.watch('minimax.custom_voice_enabled')
 
   const syncJsonMapBaseline =
     (key: MiniMaxJsonMapKey, fieldName: MiniMaxJsonMapKey) =>
@@ -211,203 +220,139 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
   return (
     <SettingsSection title={t('systemSettings.fields.miniMaxTtsEnhancement')}>
       <Form {...form}>
-        <SettingsForm
-          className='lg:grid-cols-1'
-          onSubmit={form.handleSubmit(onSubmit)}
-        >
+        <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <DisabledSettingsNotice enabled={enabled} />
 
-          <FormField
-            control={form.control}
-            name='minimax.enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.enableTtsEnhancement')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.status.enabledModelRedirectEmotionTagAndToneWordTag'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('systemSettings.actions.enableTtsEnhancement')}
+            description={t(
+              'systemSettings.status.enabledModelRedirectEmotionTagAndToneWordTag'
             )}
-          />
-
-          <FormField
-            control={form.control}
-            name='minimax.model_redirect'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.modelRedirect')}
-                </FormLabel>
-                <FormControl>
-                  <ModelMappingEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    optionKey='minimax.model_redirect'
-                    fromLabel='systemSettings.fields.clientModel'
-                    toLabel='systemSettings.fields.minimaxModel'
-                    fromPlaceholder='tts-1'
-                    toPlaceholder='speech-01-turbo'
-                    jsonPlaceholder={t('common.tips.clientModelMinimaxModel')}
-                    template={JSON.stringify(
-                      {
-                        'tts-1': 'speech-01-turbo',
-                        'tts-1-hd': 'speech-01-240228',
-                      },
-                      null,
-                      2
-                    )}
-                    emptyText='common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
-                    onFullValueLoaded={syncJsonMapBaseline(
-                      'minimax.model_redirect',
-                      'minimax.model_redirect'
-                    )}
-                  />
-                </FormControl>
-                <FormDescription>
+            control={<SettingsGroupSwitch name='minimax.enabled' />}
+            enabled={enabled}
+          >
+            <MappingRow
+              name='minimax.model_redirect'
+              label={t('systemSettings.fields.modelRedirect')}
+              description={
+                <>
                   {t('systemSettings.tips.jsonMapOfClientModelNameToMiniMax')}{' '}
                   {`{ "tts-1": "speech-01-turbo", "tts-1-hd": "speech-01-240228" }`}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                </>
+              }
+              editor={{
+                optionKey: 'minimax.model_redirect',
+                fromLabel: 'systemSettings.fields.clientModel',
+                toLabel: 'systemSettings.fields.minimaxModel',
+                fromPlaceholder: 'tts-1',
+                toPlaceholder: 'speech-01-turbo',
+                jsonPlaceholder: t('common.tips.clientModelMinimaxModel'),
+                template: JSON.stringify(
+                  {
+                    'tts-1': 'speech-01-turbo',
+                    'tts-1-hd': 'speech-01-240228',
+                  },
+                  null,
+                  2
+                ),
+                emptyText:
+                  'common.tips.noRedirectsConfiguredClickAddMappingToGetStarted',
+                onFullValueLoaded: syncJsonMapBaseline(
+                  'minimax.model_redirect',
+                  'minimax.model_redirect'
+                ),
+              }}
+            />
 
-          <FormField
-            control={form.control}
-            name='minimax.emotion_pattern'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.emotionPattern')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder={`<tts(?:\\s+emotion="([^"]+)")?>([\\s\\S]*?)</tts>`}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'systemSettings.status.regexToExtractMiniMaxVoiceSettingEmotionFrom'
-                  )}{' '}
-                  {`<tts\\s+emotion="happy">text</tts> -> emotion="happy", text kept; <tts>text</tts> -> tags stripped, text kept`}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='minimax.emotion_pattern'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.emotionPattern')}
+                  description={
+                    <>
+                      {t(
+                        'systemSettings.status.regexToExtractMiniMaxVoiceSettingEmotionFrom'
+                      )}{' '}
+                      {`<tts\\s+emotion="happy">text</tts> -> emotion="happy", text kept; <tts>text</tts> -> tags stripped, text kept`}
+                    </>
+                  }
+                >
+                  <SettingsControl size='lg'>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder={`<tts(?:\\s+emotion="([^"]+)")?>([\\s\\S]*?)</tts>`}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='minimax.emotion_redirect'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.emotionRedirect')}
-                </FormLabel>
-                <FormControl>
-                  <ModelMappingEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    optionKey='minimax.emotion_redirect'
-                    fromLabel='systemSettings.fields.emotionTag'
-                    toLabel='systemSettings.fields.minimaxEmotion'
-                    fromPlaceholder='happy'
-                    toPlaceholder='happy'
-                    jsonPlaceholder={t('common.tips.tagValueMinimaxEmotion')}
-                    template={JSON.stringify(
-                      { happy: 'happy', sad: 'sad' },
-                      null,
-                      2
-                    )}
-                    emptyText='common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
-                    onFullValueLoaded={syncJsonMapBaseline(
-                      'minimax.emotion_redirect',
-                      'minimax.emotion_redirect'
-                    )}
-                  />
-                </FormControl>
-                <FormDescription>
+            <MappingRow
+              name='minimax.emotion_redirect'
+              label={t('systemSettings.fields.emotionRedirect')}
+              description={
+                <>
                   {t('systemSettings.tips.jsonMapOfEmotionTagValueToMiniMax')}{' '}
                   {`{ "happy": "happy", "sad": "sad" }`}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                </>
+              }
+              editor={{
+                optionKey: 'minimax.emotion_redirect',
+                fromLabel: 'systemSettings.fields.emotionTag',
+                toLabel: 'systemSettings.fields.minimaxEmotion',
+                fromPlaceholder: 'happy',
+                toPlaceholder: 'happy',
+                jsonPlaceholder: t('common.tips.tagValueMinimaxEmotion'),
+                template: JSON.stringify(
+                  { happy: 'happy', sad: 'sad' },
+                  null,
+                  2
+                ),
+                emptyText:
+                  'common.tips.noRedirectsConfiguredClickAddMappingToGetStarted',
+                onFullValueLoaded: syncJsonMapBaseline(
+                  'minimax.emotion_redirect',
+                  'minimax.emotion_redirect'
+                ),
+              }}
+            />
 
-          <FormField
-            control={form.control}
-            name='minimax.tone_word_pattern'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.toneWordPattern')}
-                </FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={`\\(([^()]+)\\)`} />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'systemSettings.tips.regexToIdentifyToneWordTagsInTextOnly'
-                  )}{' '}
-                  {`\\(([^()]+)\\) -> (laugh) (crying)`}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='minimax.tone_word_pattern'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.toneWordPattern')}
+                  description={
+                    <>
+                      {t(
+                        'systemSettings.tips.regexToIdentifyToneWordTagsInTextOnly'
+                      )}{' '}
+                      {`\\(([^()]+)\\) -> (laugh) (crying)`}
+                    </>
+                  }
+                >
+                  <SettingsControl size='lg'>
+                    <FormControl>
+                      <Input {...field} placeholder={`\\(([^()]+)\\)`} />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='minimax.tone_word_redirect'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.toneWordRedirect')}
-                </FormLabel>
-                <FormControl>
-                  <ModelMappingEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    optionKey='minimax.tone_word_redirect'
-                    fromLabel='systemSettings.fields.toneWordTag'
-                    toLabel='systemSettings.fields.replacementText'
-                    fromPlaceholder='laughs'
-                    toPlaceholder={t('systemSettings.tips.toneWordSampleLaugh')}
-                    jsonPlaceholder={t('common.fields.tagValueReplacement')}
-                    template={JSON.stringify(
-                      {
-                        laughs: t('systemSettings.tips.toneWordSampleLaugh'),
-                        crying: t('systemSettings.tips.toneWordSampleCry'),
-                      },
-                      null,
-                      2
-                    )}
-                    emptyText='common.tips.noRedirectsConfiguredClickAddMappingToGetStarted'
-                    onFullValueLoaded={syncJsonMapBaseline(
-                      'minimax.tone_word_redirect',
-                      'minimax.tone_word_redirect'
-                    )}
-                  />
-                </FormControl>
-                <FormDescription>
+            <MappingRow
+              name='minimax.tone_word_redirect'
+              label={t('systemSettings.fields.toneWordRedirect')}
+              description={
+                <>
                   {t(
                     'systemSettings.status.jsonMapOfToneWordTagValueToReplacement'
                   )}{' '}
@@ -415,72 +360,73 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                     laughs: t('systemSettings.tips.toneWordSampleLaugh'),
                     crying: t('systemSettings.tips.toneWordSampleCry'),
                   })}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+                </>
+              }
+              editor={{
+                optionKey: 'minimax.tone_word_redirect',
+                fromLabel: 'systemSettings.fields.toneWordTag',
+                toLabel: 'systemSettings.fields.replacementText',
+                fromPlaceholder: 'laughs',
+                toPlaceholder: t('systemSettings.tips.toneWordSampleLaugh'),
+                jsonPlaceholder: t('common.fields.tagValueReplacement'),
+                template: JSON.stringify(
+                  {
+                    laughs: t('systemSettings.tips.toneWordSampleLaugh'),
+                    crying: t('systemSettings.tips.toneWordSampleCry'),
+                  },
+                  null,
+                  2
+                ),
+                emptyText:
+                  'common.tips.noRedirectsConfiguredClickAddMappingToGetStarted',
+                onFullValueLoaded: syncJsonMapBaseline(
+                  'minimax.tone_word_redirect',
+                  'minimax.tone_word_redirect'
+                ),
+              }}
+            />
+          </SettingsGroup>
+
+          <SettingsGroup
+            title={t('multimodal.fields.customVoice')}
+            description={t(
+              'systemSettings.status.enabledUsersCanUseTheCustomVoicePageTo'
             )}
-          />
-
-          <div className='mt-8'>
-            <SettingsSection title={t('multimodal.fields.customVoice')}>
-              <DisabledSettingsNotice
-                enabled={form.watch('minimax.custom_voice_enabled')}
-              />
-
-              <FormField
-                control={form.control}
-                name='minimax.custom_voice_enabled'
-                render={({ field }) => (
-                  <SettingsSwitchItem>
-                    <SettingsSwitchContent>
-                      <FormLabel>
-                        {t('systemSettings.actions.enableCustomVoice')}
-                      </FormLabel>
-                      <FormDescription>
-                        {t(
-                          'systemSettings.status.enabledUsersCanUseTheCustomVoicePageTo'
-                        )}
-                      </FormDescription>
-                    </SettingsSwitchContent>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </SettingsSwitchItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name='minimax.custom_voice_group'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.customVoiceGroup')}
-                    </FormLabel>
+            control={
+              <SettingsGroupSwitch name='minimax.custom_voice_enabled' />
+            }
+            enabled={customVoiceEnabled}
+          >
+            <FormField
+              control={form.control}
+              name='minimax.custom_voice_group'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.customVoiceGroup')}
+                  description={t(
+                    'systemSettings.status.userGroupUsedByTheCustomVoicePageIt'
+                  )}
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input {...field} placeholder='default' />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.status.userGroupUsedByTheCustomVoicePageIt'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name='minimax.custom_voice_billing_model_id'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.customVoiceBillingModelId')}
-                    </FormLabel>
+            <FormField
+              control={form.control}
+              name='minimax.custom_voice_billing_model_id'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.customVoiceBillingModelId')}
+                  description={t(
+                    'systemSettings.errors.modelIdChargedOnceWhenAUserConfirmsVoice'
+                  )}
+                >
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         {...field}
@@ -489,44 +435,95 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                         )}
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.errors.modelIdChargedOnceWhenAUserConfirmsVoice'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
 
-              <FormField
-                control={form.control}
-                name='minimax.voice_whitelist_enabled'
-                render={({ field }) => (
-                  <SettingsSwitchItem>
-                    <SettingsSwitchContent>
-                      <FormLabel>
-                        {t('systemSettings.actions.enableVoiceWhitelist')}
-                      </FormLabel>
-                      <FormDescription>
-                        {t(
-                          'systemSettings.status.enabledOnlyVoicesMarkedAsAllowedInVoiceManagement'
-                        )}
-                      </FormDescription>
-                    </SettingsSwitchContent>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </SettingsSwitchItem>
-                )}
-              />
-            </SettingsSection>
-          </div>
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='minimax.voice_whitelist_enabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.actions.enableVoiceWhitelist')}
+                  description={t(
+                    'systemSettings.status.enabledOnlyVoicesMarkedAsAllowedInVoiceManagement'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>
+  )
+}
+
+type MappingRowProps = {
+  name: MiniMaxJsonMapKey
+  label: ReactNode
+  description: ReactNode
+  /** 映射编辑器除 value、onChange 以外的属性。 */
+  editor: Omit<
+    ComponentProps<typeof ModelMappingEditor>,
+    'value' | 'onChange' | 'renderModeToggle'
+  >
+}
+
+/**
+ * 带映射编辑器的通栏设置行：「JSON / 可视」切换按钮挂在标题行右侧，
+ * 编辑器的其余工具留在内容上方。
+ */
+function MappingRow({ name, label, description, editor }: MappingRowProps) {
+  const form = useFormContext<MiniMaxFormInput, unknown, MiniMaxFormValues>()
+  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
+
+  if (form === null) {
+    throw new Error('MappingRow 必须位于表单内。')
+  }
+
+  return (
+    <FormField
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <SettingsRow
+          label={label}
+          description={description}
+          stacked
+          actions={
+            <div ref={setActionsHost} className='flex items-center gap-2' />
+          }
+        >
+          <FormControl>
+            <ModelMappingEditor
+              value={field.value}
+              onChange={field.onChange}
+              renderModeToggle={({ visualMode, toggle }) =>
+                actionsHost === null
+                  ? null
+                  : createPortal(
+                      <EditorModeButton
+                        visualMode={visualMode}
+                        onToggle={toggle}
+                      />,
+                      actionsHost
+                    )
+              }
+              {...editor}
+            />
+          </FormControl>
+        </SettingsRow>
+      )}
+    />
   )
 }

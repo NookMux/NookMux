@@ -21,16 +21,10 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Textarea } from '@/components/ui/textarea'
 import { SettingsForm } from '../components/settings-form-layout'
+import { SettingsGroup, SettingsRow } from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -79,27 +73,27 @@ export function NoticeSection({ defaultValue }: NoticeSectionProps) {
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveNotice'
           />
-          <FormField
-            control={form.control}
-            name='Notice'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.announcementContent')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={8}
-                    placeholder={t(
-                      'systemSettings.tips.plannedMaintenanceOnFridayAt2200Utc'
-                    )}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='Notice'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.announcementContent')}
+                >
+                  <FormControl>
+                    <Textarea
+                      rows={8}
+                      placeholder={t(
+                        'systemSettings.tips.plannedMaintenanceOnFridayAt2200Utc'
+                      )}
+                      {...field}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

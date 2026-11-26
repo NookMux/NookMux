@@ -16,26 +16,45 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useSystemInfo } from '@/hooks/use-system-info'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { SettingsGroup, SettingsRow } from '../components/settings-group'
 import { SettingsSection } from '../components/settings-section'
 
 export function SystemMaintenanceSection() {
   const { t } = useTranslation()
-  const { version: buildHash, loading } = useSystemInfo()
+  const { version, loading } = useSystemInfo()
+  const { copyToClipboard } = useCopyToClipboard()
 
   return (
     <SettingsSection title={t('systemSettings.titles.maintenance')}>
-      <div className='rounded-lg border p-4'>
-        <div className='text-muted-foreground text-sm'>
-          {t('systemSettings.fields.buildIdHash')}
-        </div>
-        <div className='mt-1 font-mono text-lg font-semibold break-all'>
-          {loading && !buildHash
-            ? t('common.tips.loading')
-            : buildHash || t('layout.fields.unknownVersion')}
-        </div>
-      </div>
+      <SettingsGroup>
+        <SettingsRow label={t('systemSettings.fields.buildIdHash')}>
+          {loading && !version ? (
+            <Skeleton className='h-5 w-64' />
+          ) : (
+            <span className='flex min-w-0 items-center gap-1'>
+              <code className='font-mono text-sm break-all'>
+                {version || t('layout.fields.unknownVersion')}
+              </code>
+              {version && (
+                <Button
+                  variant='ghost'
+                  size='icon-sm'
+                  aria-label={t('common.actions.copyToClipboard')}
+                  onClick={() => void copyToClipboard(version)}
+                >
+                  <Copy />
+                </Button>
+              )}
+            </span>
+          )}
+        </SettingsRow>
+      </SettingsGroup>
     </SettingsSection>
   )
 }

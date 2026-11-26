@@ -20,22 +20,15 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -153,51 +146,55 @@ export function EmailSettingsSection({
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveSmtpSettings'
           />
-          <FormField
-            control={form.control}
-            name='SMTPServer'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('systemSettings.fields.smtpHost')}</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete='off'
-                    placeholder={t(
-                      'systemSettings.placeholders.smtpExampleCom'
-                    )}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('systemSettings.tips.hostnameOrIpOfYourSmtpProvider')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='SMTPServer'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.smtpHost')}
+                  description={t(
+                    'systemSettings.tips.hostnameOrIpOfYourSmtpProvider'
+                  )}
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        placeholder={t(
+                          'systemSettings.placeholders.smtpExampleCom'
+                        )}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <div className='grid gap-6 md:grid-cols-2'>
             <FormField
               control={form.control}
               name='SMTPPort'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('models.fields.port')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      autoComplete='off'
-                      type='number'
-                      placeholder='587'
-                      {...field}
-                      onChange={(event) => field.onChange(event.target.value)}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('systemSettings.tips.commonPortsInclude25465And587')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('models.fields.port')}
+                  description={t(
+                    'systemSettings.tips.commonPortsInclude25465And587'
+                  )}
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        type='number'
+                        placeholder='587'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -205,24 +202,19 @@ export function EmailSettingsSection({
               control={form.control}
               name='SMTPSSLEnabled'
               render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.actions.enableSslTls')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.actions.useSecureConnectionWhenSendingEmails'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
+                <SettingsRow
+                  label={t('systemSettings.actions.enableSslTls')}
+                  description={t(
+                    'systemSettings.actions.useSecureConnectionWhenSendingEmails'
+                  )}
+                >
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                </SettingsSwitchItem>
+                </SettingsRow>
               )}
             />
 
@@ -230,108 +222,101 @@ export function EmailSettingsSection({
               control={form.control}
               name='SMTPForceLoginAuthEnabled'
               render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.fields.forceAuthLogin')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.alwaysUseSmtpLoginAuthForOutboundMail'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
+                <SettingsRow
+                  label={t('systemSettings.fields.forceAuthLogin')}
+                  description={t(
+                    'systemSettings.tips.alwaysUseSmtpLoginAuthForOutboundMail'
+                  )}
+                >
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                </SettingsSwitchItem>
+                </SettingsRow>
               )}
             />
-          </div>
 
-          <FormField
-            control={form.control}
-            name='SMTPAccount'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('auth.fields.username')}</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete='off'
-                    placeholder={t(
-                      'systemSettings.placeholders.noreplyExampleCom'
-                    )}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='SMTPAccount'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('auth.fields.username')}
+                  description={t(
                     'systemSettings.status.accountUsedWhenAuthenticatingWithTheSmtpServer'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        placeholder={t(
+                          'systemSettings.placeholders.noreplyExampleCom'
+                        )}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='SMTPFrom'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('systemSettings.fields.address')}</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete='off'
-                    placeholder={t(
-                      'systemSettings.tips.newApiNoreplyExampleCom'
-                    )}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='SMTPFrom'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.address')}
+                  description={t(
                     'systemSettings.status.displayNameAndEmailUsedInOutgoingMessages'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        placeholder={t(
+                          'systemSettings.tips.newApiNoreplyExampleCom'
+                        )}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='SMTPToken'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.passwordAccessToken')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete='off'
-                    type='password'
-                    placeholder={t(
-                      'systemSettings.placeholders.enterNewTokenToUpdate'
-                    )}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='SMTPToken'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.passwordAccessToken')}
+                  description={t(
                     'systemSettings.tips.leaveBlankToKeepTheExistingCredential'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        type='password'
+                        placeholder={t(
+                          'systemSettings.placeholders.enterNewTokenToUpdate'
+                        )}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

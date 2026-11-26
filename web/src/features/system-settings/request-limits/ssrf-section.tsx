@@ -22,15 +22,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -42,11 +34,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -199,6 +193,7 @@ export function SSRFSection({ defaultValues }: SSRFSectionProps) {
     baselineRef.current = normalized
   }
 
+  const ssrfEnabled = form.watch('fetch_setting.enable_ssrf_protection')
   const domainFilterMode = form.watch('fetch_setting.domain_filter_mode')
   const ipFilterMode = form.watch('fetch_setting.ip_filter_mode')
 
@@ -211,258 +206,252 @@ export function SSRFSection({ defaultValues }: SSRFSectionProps) {
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveSsrfSettings'
           />
-          <FormField
-            control={form.control}
-            name='fetch_setting.enable_ssrf_protection'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.actions.enableSsrfProtection')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.preventServerSideRequestForgeryAttacks'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('systemSettings.actions.enableSsrfProtection')}
+            description={t(
+              'systemSettings.tips.preventServerSideRequestForgeryAttacks'
             )}
-          />
-
-          <FormField
-            control={form.control}
-            name='fetch_setting.allow_private_ip'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.allowPrivateIps')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.allowRequestsToPrivateIpRanges1000'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='fetch_setting.domain_filter_mode'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.domainFilterMode')}
-                </FormLabel>
-                <Select
-                  items={[
-                    {
-                      value: 'false',
-                      label: t(
-                        'systemSettings.tips.blacklistBlockListedDomains'
-                      ),
-                    },
-                    {
-                      value: 'true',
-                      label: t(
-                        'systemSettings.tips.whitelistOnlyAllowListedDomains'
-                      ),
-                    },
-                  ]}
-                  onValueChange={(value) => field.onChange(value === 'true')}
-                  value={field.value ? 'true' : 'false'}
+            control={
+              <SettingsGroupSwitch name='fetch_setting.enable_ssrf_protection' />
+            }
+            enabled={ssrfEnabled}
+          >
+            <FormField
+              control={form.control}
+              name='fetch_setting.allow_private_ip'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.allowPrivateIps')}
+                  description={t(
+                    'systemSettings.tips.allowRequestsToPrivateIpRanges1000'
+                  )}
                 >
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   </FormControl>
-                  <SelectContent alignItemWithTrigger={false}>
-                    <SelectGroup>
-                      <SelectItem value='false'>
-                        {t('systemSettings.tips.blacklistBlockListedDomains')}
-                      </SelectItem>
-                      <SelectItem value='true'>
-                        {t(
-                          'systemSettings.tips.whitelistOnlyAllowListedDomains'
-                        )}
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  {t('systemSettings.placeholders.chooseHowToFilterDomains')}
-                </FormDescription>
-              </FormItem>
-            )}
-          />
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='fetch_setting.domain_list'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.domain')}{' '}
-                  {domainFilterMode
-                    ? t('systemSettings.fields.whitelist')
-                    : t('systemSettings.fields.blacklist')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder={t(
-                      'systemSettings.placeholders.exampleComBlockedSiteCom'
-                    )}
-                    rows={4}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('systemSettings.placeholders.oneDomainPerLine')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='fetch_setting.domain_filter_mode'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.domainFilterMode')}
+                  description={t(
+                    'systemSettings.placeholders.chooseHowToFilterDomains'
+                  )}
+                >
+                  <SettingsControl size='sm'>
+                    <Select
+                      items={[
+                        {
+                          value: 'false',
+                          label: t(
+                            'systemSettings.tips.blacklistBlockListedDomains'
+                          ),
+                        },
+                        {
+                          value: 'true',
+                          label: t(
+                            'systemSettings.tips.whitelistOnlyAllowListedDomains'
+                          ),
+                        },
+                      ]}
+                      onValueChange={(value) =>
+                        field.onChange(value === 'true')
+                      }
+                      value={field.value ? 'true' : 'false'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          <SelectItem value='false'>
+                            {t(
+                              'systemSettings.tips.blacklistBlockListedDomains'
+                            )}
+                          </SelectItem>
+                          <SelectItem value='true'>
+                            {t(
+                              'systemSettings.tips.whitelistOnlyAllowListedDomains'
+                            )}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='fetch_setting.ip_filter_mode'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('systemSettings.fields.ipFilterMode')}</FormLabel>
-                <Select
-                  items={[
-                    {
-                      value: 'false',
-                      label: t('systemSettings.fields.blacklistBlockListedIps'),
-                    },
-                    {
-                      value: 'true',
-                      label: t(
-                        'systemSettings.tips.whitelistOnlyAllowListedIps'
-                      ),
-                    },
-                  ]}
-                  onValueChange={(value) => field.onChange(value === 'true')}
-                  value={field.value ? 'true' : 'false'}
+            <FormField
+              control={form.control}
+              name='fetch_setting.domain_list'
+              render={({ field }) => (
+                <SettingsRow
+                  label={
+                    <>
+                      {t('systemSettings.fields.domain')}{' '}
+                      {domainFilterMode
+                        ? t('systemSettings.fields.whitelist')
+                        : t('systemSettings.fields.blacklist')}
+                    </>
+                  }
+                  description={t(
+                    'systemSettings.placeholders.oneDomainPerLine'
+                  )}
                 >
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <Textarea
+                      placeholder={t(
+                        'systemSettings.placeholders.exampleComBlockedSiteCom'
+                      )}
+                      rows={4}
+                      {...field}
+                    />
                   </FormControl>
-                  <SelectContent alignItemWithTrigger={false}>
-                    <SelectGroup>
-                      <SelectItem value='false'>
-                        {t('systemSettings.fields.blacklistBlockListedIps')}
-                      </SelectItem>
-                      <SelectItem value='true'>
-                        {t('systemSettings.tips.whitelistOnlyAllowListedIps')}
-                      </SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  {t(
+                </SettingsRow>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='fetch_setting.ip_filter_mode'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.ipFilterMode')}
+                  description={t(
                     'systemSettings.placeholders.chooseHowToFilterIpAddresses'
                   )}
-                </FormDescription>
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl size='sm'>
+                    <Select
+                      items={[
+                        {
+                          value: 'false',
+                          label: t(
+                            'systemSettings.fields.blacklistBlockListedIps'
+                          ),
+                        },
+                        {
+                          value: 'true',
+                          label: t(
+                            'systemSettings.tips.whitelistOnlyAllowListedIps'
+                          ),
+                        },
+                      ]}
+                      onValueChange={(value) =>
+                        field.onChange(value === 'true')
+                      }
+                      value={field.value ? 'true' : 'false'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent alignItemWithTrigger={false}>
+                        <SelectGroup>
+                          <SelectItem value='false'>
+                            {t('systemSettings.fields.blacklistBlockListedIps')}
+                          </SelectItem>
+                          <SelectItem value='true'>
+                            {t(
+                              'systemSettings.tips.whitelistOnlyAllowListedIps'
+                            )}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='fetch_setting.ip_list'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('auditLogs.fields.ip')}{' '}
-                  {ipFilterMode
-                    ? t('systemSettings.fields.whitelist')
-                    : t('systemSettings.fields.blacklist')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder={t(
-                      'systemSettings.placeholders.value1921681110000'
-                    )}
-                    rows={4}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('systemSettings.placeholders.oneIpOrCidrRangePerLine')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='fetch_setting.ip_list'
+              render={({ field }) => (
+                <SettingsRow
+                  label={
+                    <>
+                      {t('auditLogs.fields.ip')}{' '}
+                      {ipFilterMode
+                        ? t('systemSettings.fields.whitelist')
+                        : t('systemSettings.fields.blacklist')}
+                    </>
+                  }
+                  description={t(
+                    'systemSettings.placeholders.oneIpOrCidrRangePerLine'
+                  )}
+                >
+                  <FormControl>
+                    <Textarea
+                      placeholder={t(
+                        'systemSettings.placeholders.value1921681110000'
+                      )}
+                      rows={4}
+                      {...field}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='fetch_setting.allowed_ports'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('systemSettings.fields.allowedPorts')}</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t(
-                      'systemSettings.placeholders.value804438080'
-                    )}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='fetch_setting.allowed_ports'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.allowedPorts')}
+                  description={t(
                     'systemSettings.tips.commaSeparatedListOfAllowedPortsEmptyAllPorts'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        placeholder={t(
+                          'systemSettings.placeholders.value804438080'
+                        )}
+                        {...field}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='fetch_setting.apply_ip_filter_for_domain'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.tips.applyIpFilterToResolvedDomains')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.checkResolvedIpsAgainstIpFiltersEvenWhenAccessing'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='fetch_setting.apply_ip_filter_for_domain'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t(
+                    'systemSettings.tips.applyIpFilterToResolvedDomains'
+                  )}
+                  description={t(
+                    'systemSettings.tips.checkResolvedIpsAgainstIpFiltersEvenWhenAccessing'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

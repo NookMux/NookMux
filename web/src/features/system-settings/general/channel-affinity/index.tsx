@@ -20,7 +20,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { Edit, FileText, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -28,9 +27,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Empty, EmptyDescription, EmptyHeader } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -42,9 +41,19 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StatusBadge, StatusBadgeList } from '@/components/status-badge'
-import { DisabledSettingsNotice } from '../../components/disabled-settings-notice'
-import { SettingsSwitchField } from '../../components/settings-form-layout'
-import { SettingsPageActionsPortal } from '../../components/settings-page-context'
+import { EditorModeButton } from '../../components/editor-mode-button'
+import {
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../../components/settings-group'
+import { SettingsPageFormActions } from '../../components/settings-page-context'
+import {
+  SettingsPanel,
+  SettingsStat,
+  SettingsStatGrid,
+} from '../../components/settings-panel'
 import { SettingsSection } from '../../components/settings-section'
 import { useUpdateOption } from '../../hooks/use-update-option'
 import { getCacheStats, clearAllCache, clearRuleCache } from './api'
@@ -62,6 +71,26 @@ function parseRules(jsonStr: string): AffinityRule[] {
     )
   } catch {
     return []
+  }
+}
+
+/** 规则列表的归一化文本：去掉本地 id、补齐布尔字段，用来判断规则相对已保存的值是否有改动。 */
+function normalizeRulesJson(list: unknown): string | null {
+  if (!Array.isArray(list)) return null
+  return JSON.stringify(
+    list.map((item) => {
+      const { id: _id, ...rule } = item as AffinityRule
+      return { ...rule, skip_retry_on_failure: !!rule.skip_retry_on_failure }
+    })
+  )
+}
+
+/** 已保存规则的归一化文本；已保存的值无法解析时为 null。 */
+function parseSavedRulesJson(raw: string): string | null {
+  try {
+    return normalizeRulesJson(JSON.parse(raw))
+  } catch {
+    return null
   }
 }
 
@@ -140,7 +169,7 @@ export function ChannelAffinitySection(props: Props) {
   const [clearRuleName, setClearRuleName] = useState<string | null>(null)
   const [fillTemplateDialogOpen, setFillTemplateDialogOpen] = useState(false)
 
-  useEffect(() => {
+  const loadDefaults = useCallback(() => {
     setEnabled(props.defaultValues['channel_affinity_setting.enabled'])
     setSwitchOnSuccess(
       props.defaultValues['channel_affinity_setting.switch_on_success']
@@ -164,6 +193,35 @@ export function ChannelAffinitySection(props: Props) {
       )
     )
   }, [props.defaultValues])
+
+  useEffect(() => {
+    loadDefaults()
+  }, [loadDefaults])
+
+  const defaults = props.defaultValues
+  const savedRulesJson = parseSavedRulesJson(
+    defaults['channel_affinity_setting.rules'] || '[]'
+  )
+  const currentRulesJson =
+    editMode === 'json'
+      ? (() => {
+          try {
+            return normalizeRulesJson(JSON.parse(jsonText))
+          } catch {
+            return null
+          }
+        })()
+      : normalizeRulesJson(rules)
+  const isDirty =
+    enabled !== defaults['channel_affinity_setting.enabled'] ||
+    switchOnSuccess !==
+      defaults['channel_affinity_setting.switch_on_success'] ||
+    keepOnChannelDisabled !==
+      defaults['channel_affinity_setting.keep_on_channel_disabled'] ||
+    maxEntries !== defaults['channel_affinity_setting.max_entries'] ||
+    defaultTtl !== defaults['channel_affinity_setting.default_ttl_seconds'] ||
+    currentRulesJson === null ||
+    currentRulesJson !== savedRulesJson
 
   const refreshCache = useCallback(async () => {
     setCacheLoading(true)
@@ -299,6 +357,11 @@ export function ChannelAffinitySection(props: Props) {
     }
   }
 
+  const handleReset = () => {
+    loadDefaults()
+    toast.success(t('systemSettings.status.formResetToSavedValues'))
+  }
+
   const handleRuleSave = (rule: AffinityRule) => {
     setRules((prev) => {
       const existIdx = prev.findIndex(
@@ -373,279 +436,336 @@ export function ChannelAffinitySection(props: Props) {
   return (
     <>
       <SettingsSection title={t('systemSettings.fields.channelAffinity')}>
-        <Alert>
-          <AlertDescription className='text-xs'>
-            {t(
+        <SettingsPageFormActions
+          onSave={() => void handleSave()}
+          onReset={handleReset}
+          isSaving={saving || updateOption.isPending}
+          isDirty={isDirty}
+        />
+
+        <div className='flex w-full min-w-0 flex-col gap-8'>
+          <SettingsGroup
+            title={t('systemSettings.actions.enableChannelAffinity')}
+            description={t(
               'systemSettings.status.channelAffinityReusesTheLastSuccessfulChannelBasedOn'
             )}
-          </AlertDescription>
-        </Alert>
-
-        <DisabledSettingsNotice enabled={enabled} />
-
-        {/* Basic Settings */}
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
-          <SettingsSwitchField
-            checked={enabled}
-            onCheckedChange={setEnabled}
-            label={t('channels.actions.enable')}
-            className='border-b-0 py-0'
-          />
-          <div className='grid gap-1.5'>
-            <Label>{t('systemSettings.fields.maxEntries')}</Label>
-            <Input
-              type='number'
-              min={0}
-              value={maxEntries}
-              onChange={(e) => setMaxEntries(Number(e.target.value))}
-            />
-          </div>
-          <div className='grid gap-1.5'>
-            <Label>{t('systemSettings.fields.defaultTtlSeconds')}</Label>
-            <Input
-              type='number'
-              min={0}
-              value={defaultTtl}
-              onChange={(e) => setDefaultTtl(Number(e.target.value))}
-            />
-          </div>
-        </div>
-
-        <SettingsSwitchField
-          checked={switchOnSuccess}
-          onCheckedChange={setSwitchOnSuccess}
-          label={t('systemSettings.actions.switchAffinityOnSuccess')}
-          description={t(
-            'systemSettings.status.ifTheAffinityChannelFailsAndRetrySucceedsOn'
-          )}
-        />
-
-        <SettingsSwitchField
-          checked={keepOnChannelDisabled}
-          onCheckedChange={setKeepOnChannelDisabled}
-          label={t('systemSettings.actions.keepAffinityOnChannelDisabled')}
-          description={t(
-            'systemSettings.status.whenEnabledKeepTheAffinityEntryEvenIfThe'
-          )}
-        />
-
-        <Separator />
-
-        <SettingsPageActionsPortal>
-          <Button
-            variant={editMode === 'visual' ? 'default' : 'outline'}
-            size='sm'
-            onClick={editMode === 'json' ? switchToVisualMode : undefined}
+            control={
+              <SettingsGroupSwitch
+                checked={enabled}
+                onCheckedChange={setEnabled}
+              />
+            }
+            enabled={enabled}
           >
-            {t('channels.fields.visual')}
-          </Button>
-          <Button
-            variant={editMode === 'json' ? 'default' : 'outline'}
-            size='sm'
-            onClick={editMode === 'visual' ? switchToJsonMode : undefined}
-          >
-            JSON
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant='outline' size='sm' />}
+            <SettingsRow
+              label={t('systemSettings.fields.maxEntries')}
+              htmlFor='channel-affinity-max-entries'
             >
-              <Plus className='mr-1 h-3 w-3' />
-              {t('systemSettings.actions.addRule')}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem
-                onClick={() => {
-                  setEditingRule(null)
-                  setRuleTemplateKey(null)
-                  setRuleEditorOpen(true)
-                }}
-              >
-                {t('systemSettings.fields.blankRule')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setEditingRule(null)
-                  setRuleTemplateKey('codexCli')
-                  setRuleEditorOpen(true)
-                }}
-              >
-                Codex CLI
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setEditingRule(null)
-                  setRuleTemplateKey('claudeCli')
-                  setRuleEditorOpen(true)
-                }}
-              >
-                Claude CLI
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant='outline' size='sm' onClick={handleFillTemplates}>
-            <FileText className='mr-1 h-3 w-3' />
-            {t('systemSettings.actions.fillTemplates')}
-          </Button>
-          <Button size='sm' onClick={handleSave} disabled={saving}>
-            {saving ? t('channels.tips.saving') : t('channels.actions.save')}
-          </Button>
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={refreshCache}
-            disabled={cacheLoading}
-          >
-            <RefreshCw
-              className={`mr-1 h-3 w-3 ${cacheLoading ? 'animate-spin' : ''}`}
-            />
-            {t('systemSettings.actions.refreshCache')}
-          </Button>
-          <Button
-            variant='destructive'
-            size='sm'
-            onClick={() => setClearAllDialogOpen(true)}
-          >
-            {t('systemSettings.actions.clearAllCache')}
-          </Button>
-          {cacheStats && (
-            <span className='text-muted-foreground text-xs'>
-              {t('systemSettings.fields.cacheEntries')}: {cacheStats.total} /{' '}
-              {cacheStats.cache_capacity}
-            </span>
-          )}
-        </SettingsPageActionsPortal>
-
-        {/* Rules Table or JSON Editor */}
-        {editMode === 'visual' ? (
-          <div className='overflow-x-auto rounded-md border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('channels.fields.name')}</TableHead>
-                  <TableHead>{t('systemSettings.fields.modelRegex')}</TableHead>
-                  <TableHead>{t('systemSettings.fields.keySources')}</TableHead>
-                  <TableHead>{t('systemSettings.fields.ttl')}</TableHead>
-                  <TableHead>{t('common.actions.retry')}</TableHead>
-                  <TableHead>{t('systemSettings.fields.scope')}</TableHead>
-                  <TableHead>{t('pricing.fields.cache')}</TableHead>
-                  <TableHead className='text-right'>
-                    {t('channels.fields.actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rules.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className='text-muted-foreground py-8 text-center'
+              <SettingsControl size='xs'>
+                <Input
+                  id='channel-affinity-max-entries'
+                  type='number'
+                  min={0}
+                  value={maxEntries}
+                  onChange={(event) =>
+                    setMaxEntries(Number(event.target.value))
+                  }
+                />
+              </SettingsControl>
+            </SettingsRow>
+            <SettingsRow
+              label={t('systemSettings.fields.defaultTtlSeconds')}
+              htmlFor='channel-affinity-default-ttl'
+            >
+              <SettingsControl size='xs'>
+                <Input
+                  id='channel-affinity-default-ttl'
+                  type='number'
+                  min={0}
+                  value={defaultTtl}
+                  onChange={(event) =>
+                    setDefaultTtl(Number(event.target.value))
+                  }
+                />
+              </SettingsControl>
+            </SettingsRow>
+            <SettingsRow
+              label={t('systemSettings.actions.switchAffinityOnSuccess')}
+              description={t(
+                'systemSettings.status.ifTheAffinityChannelFailsAndRetrySucceedsOn'
+              )}
+            >
+              <Switch
+                checked={switchOnSuccess}
+                onCheckedChange={setSwitchOnSuccess}
+              />
+            </SettingsRow>
+            <SettingsRow
+              label={t('systemSettings.actions.keepAffinityOnChannelDisabled')}
+              description={t(
+                'systemSettings.status.whenEnabledKeepTheAffinityEntryEvenIfThe'
+              )}
+            >
+              <Switch
+                checked={keepOnChannelDisabled}
+                onCheckedChange={setKeepOnChannelDisabled}
+              />
+            </SettingsRow>
+            <SettingsRow
+              label={t('systemSettings.fields.rule')}
+              stacked
+              actions={
+                <EditorModeButton
+                  visualMode={editMode === 'visual'}
+                  onToggle={
+                    editMode === 'visual'
+                      ? switchToJsonMode
+                      : switchToVisualMode
+                  }
+                />
+              }
+            >
+              {editMode === 'visual' ? (
+                <div className='flex flex-col gap-4'>
+                  <div className='flex flex-wrap items-center gap-2 sm:justify-end'>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button type='button' variant='outline' size='sm' />
+                        }
+                      >
+                        <Plus data-icon='inline-start' />
+                        {t('systemSettings.actions.addRule')}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setEditingRule(null)
+                            setRuleTemplateKey(null)
+                            setRuleEditorOpen(true)
+                          }}
+                        >
+                          {t('systemSettings.fields.blankRule')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setEditingRule(null)
+                            setRuleTemplateKey('codexCli')
+                            setRuleEditorOpen(true)
+                          }}
+                        >
+                          Codex CLI
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setEditingRule(null)
+                            setRuleTemplateKey('claudeCli')
+                            setRuleEditorOpen(true)
+                          }}
+                        >
+                          Claude CLI
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={handleFillTemplates}
                     >
-                      {t('systemSettings.fields.noRulesYet')}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rules.map((rule, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className='font-medium'>
-                        {rule.name || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <RuleBadgeList items={rule.model_regex || []} />
-                      </TableCell>
-                      <TableCell>
-                        <RuleBadgeList
-                          items={(rule.key_sources || []).map(
-                            (src) =>
-                              `${src.type}:${src.type === 'gjson' ? src.path : src.key}`
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell>{rule.ttl_seconds || '-'}</TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          label={
-                            rule.skip_retry_on_failure
-                              ? t('systemSettings.fields.noRetry')
-                              : t('common.actions.retry')
-                          }
-                          variant={
-                            rule.skip_retry_on_failure ? 'danger' : 'neutral'
-                          }
-                          copyable={false}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const scopeItems = [
-                            rule.include_using_group &&
-                              t('common.fields.group'),
-                            rule.include_model_name && t('common.fields.model'),
-                            rule.include_rule_name &&
-                              t('systemSettings.fields.rule'),
-                          ].filter(Boolean) as string[]
-                          if (scopeItems.length === 0) return '-'
-                          return <RuleBadgeList items={scopeItems} />
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        {rule.include_rule_name && cacheStats?.by_rule_name
-                          ? cacheStats.by_rule_name[rule.name] || 0
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell className='text-right'>
-                        <div className='flex justify-end gap-1'>
-                          {rule.include_rule_name && (
-                            <Button
-                              variant='ghost'
-                              size='icon'
-                              className='h-7 w-7'
-                              onClick={() => setClearRuleName(rule.name)}
-                              title={t(
-                                'systemSettings.actions.clearCacheForThisRule'
-                              )}
-                            >
-                              <X className='h-3 w-3' />
-                            </Button>
-                          )}
-                          <Button
-                            variant='ghost'
-                            size='icon'
-                            className='h-7 w-7'
-                            onClick={() => {
-                              setEditingRule(rule)
-                              setRuleTemplateKey(null)
-                              setRuleEditorOpen(true)
-                            }}
-                          >
-                            <Edit className='h-3 w-3' />
-                          </Button>
-                          <Button
-                            variant='ghost'
-                            size='icon'
-                            className='h-7 w-7'
-                            onClick={() => handleDeleteRule(idx)}
-                          >
-                            <Trash2 className='h-3 w-3' />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        ) : (
-          <div className='grid gap-1.5'>
-            <Label>{t('systemSettings.fields.rulesJson')}</Label>
-            <Textarea
-              className='min-h-[300px] font-mono text-xs'
-              value={jsonText}
-              onChange={(e) => setJsonText(e.target.value)}
-            />
-          </div>
-        )}
+                      <FileText data-icon='inline-start' />
+                      {t('systemSettings.actions.fillTemplates')}
+                    </Button>
+                  </div>
+                  {rules.length === 0 ? (
+                    <Empty>
+                      <EmptyHeader>
+                        <EmptyDescription>
+                          {t('systemSettings.fields.noRulesYet')}
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  ) : (
+                    <div>
+                      <Table className='[&_td:first-child]:pl-0 [&_td:last-child]:pr-0 [&_th:first-child]:pl-0 [&_th:last-child]:pr-0'>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t('channels.fields.name')}</TableHead>
+                            <TableHead>
+                              {t('systemSettings.fields.modelRegex')}
+                            </TableHead>
+                            <TableHead>
+                              {t('systemSettings.fields.keySources')}
+                            </TableHead>
+                            <TableHead>
+                              {t('systemSettings.fields.ttl')}
+                            </TableHead>
+                            <TableHead>{t('common.actions.retry')}</TableHead>
+                            <TableHead>
+                              {t('systemSettings.fields.scope')}
+                            </TableHead>
+                            <TableHead>{t('pricing.fields.cache')}</TableHead>
+                            <TableHead className='text-right'>
+                              {t('channels.fields.actions')}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {rules.map((rule, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className='font-medium'>
+                                {rule.name || '-'}
+                              </TableCell>
+                              <TableCell>
+                                <RuleBadgeList items={rule.model_regex || []} />
+                              </TableCell>
+                              <TableCell>
+                                <RuleBadgeList
+                                  items={(rule.key_sources || []).map(
+                                    (src) =>
+                                      `${src.type}:${src.type === 'gjson' ? src.path : src.key}`
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>{rule.ttl_seconds || '-'}</TableCell>
+                              <TableCell>
+                                <StatusBadge
+                                  label={
+                                    rule.skip_retry_on_failure
+                                      ? t('systemSettings.fields.noRetry')
+                                      : t('common.actions.retry')
+                                  }
+                                  variant={
+                                    rule.skip_retry_on_failure
+                                      ? 'danger'
+                                      : 'neutral'
+                                  }
+                                  copyable={false}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {(() => {
+                                  const scopeItems = [
+                                    rule.include_using_group &&
+                                      t('common.fields.group'),
+                                    rule.include_model_name &&
+                                      t('common.fields.model'),
+                                    rule.include_rule_name &&
+                                      t('systemSettings.fields.rule'),
+                                  ].filter(Boolean) as string[]
+                                  if (scopeItems.length === 0) return '-'
+                                  return <RuleBadgeList items={scopeItems} />
+                                })()}
+                              </TableCell>
+                              <TableCell>
+                                {rule.include_rule_name &&
+                                cacheStats?.by_rule_name
+                                  ? cacheStats.by_rule_name[rule.name] || 0
+                                  : 'N/A'}
+                              </TableCell>
+                              <TableCell className='text-right'>
+                                <div className='flex justify-end gap-2'>
+                                  {rule.include_rule_name && (
+                                    <Button
+                                      type='button'
+                                      variant='ghost'
+                                      size='sm'
+                                      onClick={() =>
+                                        setClearRuleName(rule.name)
+                                      }
+                                      title={t(
+                                        'systemSettings.actions.clearCacheForThisRule'
+                                      )}
+                                      aria-label={t(
+                                        'systemSettings.actions.clearCacheForThisRule'
+                                      )}
+                                    >
+                                      <X className='h-4 w-4' />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    type='button'
+                                    variant='ghost'
+                                    size='sm'
+                                    onClick={() => {
+                                      setEditingRule(rule)
+                                      setRuleTemplateKey(null)
+                                      setRuleEditorOpen(true)
+                                    }}
+                                    aria-label={t('channels.actions.edit')}
+                                  >
+                                    <Edit className='h-4 w-4' />
+                                  </Button>
+                                  <Button
+                                    type='button'
+                                    variant='ghost'
+                                    size='sm'
+                                    onClick={() => handleDeleteRule(idx)}
+                                    aria-label={t('common.actions.delete')}
+                                  >
+                                    <Trash2 className='h-4 w-4' />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Textarea
+                  className='min-h-[300px] font-mono text-xs'
+                  value={jsonText}
+                  onChange={(event) => setJsonText(event.target.value)}
+                />
+              )}
+            </SettingsRow>
+          </SettingsGroup>
+
+          <SettingsPanel
+            title={t('pricing.fields.cache')}
+            actions={
+              <>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={refreshCache}
+                  disabled={cacheLoading}
+                >
+                  <RefreshCw
+                    data-icon='inline-start'
+                    className={cacheLoading ? 'animate-spin' : undefined}
+                  />
+                  {t('systemSettings.actions.refreshCache')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => setClearAllDialogOpen(true)}
+                >
+                  {t('systemSettings.actions.clearAllCache')}
+                </Button>
+              </>
+            }
+          >
+            <div className='py-2'>
+              <SettingsStatGrid columns={3}>
+                <SettingsStat
+                  label={t('systemSettings.fields.cacheEntries')}
+                  value={
+                    cacheStats
+                      ? `${cacheStats.total} / ${cacheStats.cache_capacity}`
+                      : '-'
+                  }
+                />
+              </SettingsStatGrid>
+            </div>
+          </SettingsPanel>
+        </div>
       </SettingsSection>
 
       <RuleEditorDialog
@@ -672,7 +792,7 @@ export function ChannelAffinitySection(props: Props) {
       {clearRuleName !== null && (
         <ConfirmDialog
           open
-          onOpenChange={(v) => !v && setClearRuleName(null)}
+          onOpenChange={(value) => !value && setClearRuleName(null)}
           title={t('systemSettings.actions.confirmClearingCacheForThisRule')}
           desc={`${t('systemSettings.fields.rule')}: ${clearRuleName}`}
           handleConfirm={handleClearRule}

@@ -9,6 +9,11 @@
 
 ### Changed
 
+- **系统设置全部页面统一为「分区 + 行」结构**：7 个分组下的设置页按同一套页面结构重排——随「保存」生效的设置写成「分区 + 行」，行与行之间只用细横线分隔，带边框的面板只用于不随「保存」逐项生效的内容（立即执行的运维操作、只读监控数据、危险操作、自带列表或编辑区的编辑器）；行的标题与控件同处一条横带，是否分成标题、控件两列由所在容器宽度决定，对话框等窄容器自动单列，页面宽度跟随主题的内容布局设置；只放一个开关的行两端对齐，文字在左、开关贴行的右边缘，分区标题上的总开关同样贴右端。
+  - **新增设置页基础组件**（`web/src/features/system-settings/components/`）：`SettingsGroup`（分区，支持分组级开关与从属行：开关关闭时从属行整块禁用；表单内绑定布尔字段，页面自管状态时传 `checked` / `onCheckedChange`）、`SettingsRow` / `SettingsControl`（行与控件宽度档，含通栏行）、`SettingsPanel` 与 `SettingsStatGrid` / `SettingsStat` / `SettingsMeter`（面板与只读指标块）、`SettingsListPanel`（列表面板）、`SettingsNotice`（无框提示）、`EditorModeButton`（可视化 / JSON 切换）。
+  - **编辑器与列表页**：定价、倍率、限额、支付等「可视化 / JSON」编辑器的切换按钮与工具栏统一（搜索靠左、添加靠右），编辑器内表格贴边；公告、API 地址、常见问题、Uptime Kuma 分组等列表编辑页统一为页头「重置 / 保存」+ 列表面板（标题行「添加」，勾选后底部出现「已选 n 项 / 删除所选」）；定价页左右两栏按容器宽度切换，列表的名称列占满剩余宽度，编辑器表格的输入框列在窄容器下不再被挤压，只读指标网格的列数按容器宽度切换。
+  - **页头、页签与提示**：页头操作栏统一为 `SettingsPageFormActions`（无未保存改动时「重置」「保存」禁用，「恢复默认」式页面可随时重置，有改动时页面标题旁显示「未保存的更改」标记；标题与操作栏放不下同一行时操作栏换到标题下一行，标题不再被操作栏挤压截断）；页签统一为 `TabsList variant='line'`；设置页提示统一为无框的 `SettingsNotice`。
+  - 设计规范同步：`DESIGN.md` 新增设置页组成规则，并更新字号与卡片规范中的设置页条目。
 - **内置模型价格按厂商官方价补齐**：按 OpenAI、Claude、智谱 GLM、DeepSeek、Kimi、豆包、Gemini、阿里云百炼 Qwen、MiniMax 九家厂商的第一方官方标准美元价更新内置倍率表，并用 OpenRouter 第一方端点价交叉核对；Batch、Fast、Flex 等服务档价与缓存存储费等平台不保存的价格维度不导入，厂商不收缓存写入费的型号不设缓存写入倍率（`internal/config/ratio/model_ratio.go`、`internal/config/ratio/cache_ratio.go`）。
   - **新增在售型号**：Claude Fable / Mythos / Opus / Sonnet / Haiku 5 系列，智谱 GLM 5 至 5.3 系列（含 `glm-5v-turbo`、`glm-ocr`），DeepSeek `deepseek-flash`、`deepseek-v4-flash`、`deepseek-v4-pro`，Gemini 3.7 / 3.8 Flash、Gemini 4 系列、Embedding 2 与 Robotics ER 2，Kimi K3、K3.1-pro、K2.7-code，MiniMax M3 与 M3.1-Flash，豆包 Seed 2.0 / 2.1（ModelArk 国际站型号 ID），OpenAI GPT-5.4 快照、GPT-5.5、GPT-5.6、GPT-6 全系、GPT-Image 2.x、RealTime、Audio 1.5、文本向量与审核模型，以及 Qwen 的百炼型号（`qwen4-max`、`qwen3.8-max`、`qwen3.7-plus`、`qwen3.7-flash`、`qwen3-coder-flash` 等，取百炼国际站新加坡地域牌价）与 `qwen/` 前缀的 OpenRouter 型号。
   - **同步厂商现行价**：`gpt-5.6-terra`、`gpt-5.6-terra-pro` 输入价 $2 / 1M tokens，`gpt-5.6-luna`、`gpt-5.6-luna-pro` 输入价 $0.20；`glm-4.7-flash`、`glm-4.6v-flash`、`glm-4.5-flash` 为免费模型；`gpt-audio-mini` 系列音频输入 / 输出价 $10 / $20；豆包 `seed-2.0-lite`、`seed-2.0-mini` 缓存命中按输入价的 20% 计价；GLM、DeepSeek、Kimi、Gemini、Qwen 其余在售型号一并按现行价更新。

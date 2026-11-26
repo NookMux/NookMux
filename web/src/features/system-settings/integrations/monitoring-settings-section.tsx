@@ -23,24 +23,17 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { parseHttpStatusCodeRules } from '@/lib/http-status-code-rules'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -232,97 +225,76 @@ export function MonitoringSettingsSection({
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveMonitoringRules'
           />
-          <DisabledSettingsNotice enabled={autoTestEnabled} />
 
-          <div className='grid gap-6 md:grid-cols-2'>
-            <FormField
-              control={form.control}
-              name='monitor_setting.auto_test_channel_enabled'
-              render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.fields.scheduledChannelTests')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.automaticallyProbeAllChannelsInTheBackground'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
-
+          <SettingsGroup
+            title={t('systemSettings.fields.scheduledChannelTests')}
+            description={t(
+              'systemSettings.tips.automaticallyProbeAllChannelsInTheBackground'
+            )}
+            control={
+              <SettingsGroupSwitch name='monitor_setting.auto_test_channel_enabled' />
+            }
+            enabled={autoTestEnabled}
+          >
             <FormField
               control={form.control}
               name='monitor_setting.auto_test_channel_minutes'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.fields.testIntervalMinutes')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={1}
-                      step={1}
-                      value={
-                        typeof field.value === 'number' &&
-                        Number.isFinite(field.value)
-                          ? field.value
-                          : ''
-                      }
-                      onChange={(event) =>
-                        field.onChange(event.target.valueAsNumber)
-                      }
-                      name={field.name}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.howFrequentlyTheSystemTestsAllChannels'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.fields.testIntervalMinutes')}
+                  description={t(
+                    'systemSettings.tips.howFrequentlyTheSystemTestsAllChannels'
+                  )}
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        step={1}
+                        value={
+                          typeof field.value === 'number' &&
+                          Number.isFinite(field.value)
+                            ? field.value
+                            : ''
+                        }
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
-          </div>
+          </SettingsGroup>
 
-          <div className='grid gap-6 md:grid-cols-2'>
+          <SettingsGroup>
             <FormField
               control={form.control}
               name='ChannelDisableThreshold'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.actions.disableThresholdSeconds')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={0}
-                      step={1}
-                      value={field.value}
-                      onChange={(event) => field.onChange(event.target.value)}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.automaticallyDisableChannelsExceedingThisResponseTime'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.actions.disableThresholdSeconds')}
+                  description={t(
+                    'systemSettings.tips.automaticallyDisableChannelsExceedingThisResponseTime'
+                  )}
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        step={1}
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
@@ -330,53 +302,44 @@ export function MonitoringSettingsSection({
               control={form.control}
               name='QuotaRemindThreshold'
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('systemSettings.tips.defaultQuotaReminderThreshold')}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      type='number'
-                      min={0}
-                      step={1}
-                      value={field.value}
-                      onChange={(event) => field.onChange(event.target.value)}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.defaultReminderThresholdInBackendQuotaUnitsTokensUsers'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+                <SettingsRow
+                  label={t('systemSettings.tips.defaultQuotaReminderThreshold')}
+                  description={t(
+                    'systemSettings.tips.defaultReminderThresholdInBackendQuotaUnitsTokensUsers'
+                  )}
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        step={1}
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
-          </div>
 
-          <div className='grid gap-6 md:grid-cols-2'>
             <FormField
               control={form.control}
               name='AutomaticDisableChannelEnabled'
               render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.actions.disableOnFailure')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.tips.automaticallyDisableChannelsWhenTestsFail'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
+                <SettingsRow
+                  label={t('systemSettings.actions.disableOnFailure')}
+                  description={t(
+                    'systemSettings.tips.automaticallyDisableChannelsWhenTestsFail'
+                  )}
+                >
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                </SettingsSwitchItem>
+                </SettingsRow>
               )}
             />
 
@@ -384,90 +347,81 @@ export function MonitoringSettingsSection({
               control={form.control}
               name='AutomaticEnableChannelEnabled'
               render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.status.reEnableOnSuccess')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t(
-                        'systemSettings.status.bringChannelsBackOnlineAfterSuccessfulChecks'
-                      )}
-                    </FormDescription>
-                  </SettingsSwitchContent>
+                <SettingsRow
+                  label={t('systemSettings.status.reEnableOnSuccess')}
+                  description={t(
+                    'systemSettings.status.bringChannelsBackOnlineAfterSuccessfulChecks'
+                  )}
+                >
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                </SettingsSwitchItem>
+                </SettingsRow>
               )}
             />
-          </div>
 
-          <FormField
-            control={form.control}
-            name='AutomaticDisableKeywords'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.errors.failureKeywords')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={6}
-                    placeholder={t(
-                      'systemSettings.placeholders.oneKeywordPerLine'
-                    )}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='AutomaticDisableKeywords'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.errors.failureKeywords')}
+                  description={t(
                     'systemSettings.status.ifAnUpstreamErrorContainsAnyOfTheseKeywords'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea
+                      rows={6}
+                      placeholder={t(
+                        'systemSettings.placeholders.oneKeywordPerLine'
+                      )}
+                      {...field}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='AutomaticDisableStatusCodes'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.autoDisableStatusCodes')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t(
-                      'systemSettings.placeholders.eG401403429500599'
-                    )}
-                    value={field.value}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='AutomaticDisableStatusCodes'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.autoDisableStatusCodes')}
+                  description={t(
                     'systemSettings.tips.acceptsCommaSeparatedStatusCodesAndInclusiveRanges'
-                  )}{' '}
-                  {autoDisableParsed.ok &&
+                  )}
+                  hint={
+                    autoDisableParsed.ok &&
                     autoDisableParsed.normalized &&
-                    autoDisableParsed.normalized !== field.value.trim() && (
-                      <span className='text-muted-foreground'>
+                    autoDisableParsed.normalized !== field.value.trim() ? (
+                      <>
                         {t('systemSettings.fields.normalized')}{' '}
                         {autoDisableParsed.normalized}
-                      </span>
-                    )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                      </>
+                    ) : undefined
+                  }
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        placeholder={t(
+                          'systemSettings.placeholders.eG401403429500599'
+                        )}
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

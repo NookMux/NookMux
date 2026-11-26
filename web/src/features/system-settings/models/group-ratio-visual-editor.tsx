@@ -17,16 +17,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState, useMemo, useEffect, useCallback, memo } from 'react'
-import { Pencil, Plus, Trash2, GripVertical, ChevronDown } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Collapsible,
@@ -51,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { SettingsPanel } from '../components/settings-panel'
 import { safeJsonParse } from '../utils/json-parser'
 
 type GroupRatioVisualEditorProps = {
@@ -79,10 +80,6 @@ type GroupOverride = {
   targetGroup: string
   ratio: number
 }
-
-const sectionCardClassName =
-  'relative shadow-sm ring-0 before:pointer-events-none before:absolute before:inset-0 before:rounded-xl before:border before:border-border/90'
-const sectionHeaderClassName = 'border-b bg-muted/20'
 
 let groupPricingIdCounter = 0
 function createGroupPricingId() {
@@ -409,7 +406,7 @@ export const GroupRatioVisualEditor = memo(function GroupRatioVisualEditor({
   }
 
   return (
-    <div className='space-y-4'>
+    <div className='flex min-w-0 flex-col gap-8'>
       <GroupPricingTable
         groupRatio={groupRatio}
         userUsableGroups={userUsableGroups}
@@ -417,267 +414,284 @@ export const GroupRatioVisualEditor = memo(function GroupRatioVisualEditor({
       />
 
       {/* Topup Group Ratios */}
-      <Card className={sectionCardClassName}>
-        <CardHeader className={sectionHeaderClassName}>
-          <CardTitle>{t('systemSettings.fields.topUpGroupRatios')}</CardTitle>
-          <CardDescription>
-            {t(
-              'systemSettings.tips.multipliersForRechargePricingBasedOnUserGroups'
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className='space-y-4'>
-            <Button
-              onClick={() => handleSimpleAdd('topupGroupRatio')}
-              size='sm'
-            >
-              <Plus className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.addGroup')}
-            </Button>
-            {topupRatioList.length > 0 && (
-              <div className='rounded-md border'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('models.fields.groupName')}</TableHead>
-                      <TableHead>
-                        {t('systemSettings.fields.multiplier')}
-                      </TableHead>
-                      <TableHead className='text-right'>
-                        {t('channels.fields.actions')}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topupRatioList.map((group) => (
-                      <TableRow key={group.name}>
-                        <TableCell className='font-medium'>
-                          {group.name}
-                        </TableCell>
-                        <TableCell>{group.value}</TableCell>
-                        <TableCell className='text-right'>
-                          <div className='flex justify-end gap-2'>
+      <SettingsPanel
+        title={t('systemSettings.fields.topUpGroupRatios')}
+        description={t(
+          'systemSettings.tips.multipliersForRechargePricingBasedOnUserGroups'
+        )}
+        actions={
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={() => handleSimpleAdd('topupGroupRatio')}
+          >
+            <Plus data-icon='inline-start' />
+            {t('systemSettings.actions.addGroup')}
+          </Button>
+        }
+        flush
+      >
+        {topupRatioList.length === 0 ? (
+          <p className='text-muted-foreground py-8 text-center text-sm'>
+            {t('systemSettings.tips.noGroupsYetAddAGroupToGetStarted')}
+          </p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className='pl-4'>
+                  {t('models.fields.groupName')}
+                </TableHead>
+                <TableHead>{t('systemSettings.fields.multiplier')}</TableHead>
+                <TableHead className='pr-4 text-right'>
+                  {t('channels.fields.actions')}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topupRatioList.map((group) => (
+                <TableRow key={group.name}>
+                  <TableCell className='pl-4 font-medium'>
+                    {group.name}
+                  </TableCell>
+                  <TableCell className='tabular-nums'>{group.value}</TableCell>
+                  <TableCell className='pr-4 text-right'>
+                    <div className='flex justify-end gap-1'>
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='icon'
+                        className='h-7 w-7'
+                        aria-label={t('channels.actions.edit')}
+                        onClick={() =>
+                          handleSimpleEdit('topupGroupRatio', group)
+                        }
+                      >
+                        <Pencil className='h-4 w-4' />
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='icon'
+                        className='h-7 w-7'
+                        aria-label={t('common.actions.delete')}
+                        onClick={() =>
+                          handleSimpleDelete('topupGroupRatio', group.name)
+                        }
+                      >
+                        <Trash2 className='text-destructive h-4 w-4' />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </SettingsPanel>
+
+      {/* Inter-group ratio overrides */}
+      <SettingsPanel
+        title={t('systemSettings.fields.interGroupRatioOverrides')}
+        description={t(
+          'common.tips.customMultipliersWhenSpecificUserGroupsUseSpecificToken'
+        )}
+        actions={
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={handleUserGroupAdd}
+          >
+            <Plus data-icon='inline-start' />
+            {t('systemSettings.actions.addUserGroup')}
+          </Button>
+        }
+      >
+        {groupGroupRatioList.length === 0 ? (
+          <p className='text-muted-foreground py-8 text-center text-sm'>
+            {t('systemSettings.tips.noUserGroupsYetAddAUserGroupToGetStarted')}
+          </p>
+        ) : (
+          <div className='[&>*+*]:border-t'>
+            {groupGroupRatioList.map((userGroupData) => (
+              <Collapsible key={userGroupData.userGroup}>
+                <div className='flex items-center justify-between py-2'>
+                  <div className='flex min-w-0 items-center gap-2'>
+                    <CollapsibleTrigger
+                      render={
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          className='h-6 w-6 p-0'
+                        />
+                      }
+                    >
+                      <ChevronDown className='h-4 w-4' />
+                    </CollapsibleTrigger>
+                    <span className='text-sm leading-snug font-medium'>
+                      {userGroupData.userGroup}
+                    </span>
+                    <span className='text-muted-foreground text-sm'>
+                      {t('systemSettings.fields.countOverride', {
+                        count: userGroupData.overrides.length,
+                      })}
+                    </span>
+                  </div>
+                  <div className='flex shrink-0 gap-1'>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      className='h-7 w-7'
+                      aria-label={t('systemSettings.actions.addRatioOverride')}
+                      onClick={() => handleOverrideAdd(userGroupData.userGroup)}
+                    >
+                      <Plus className='h-4 w-4' />
+                    </Button>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='icon'
+                      className='h-7 w-7'
+                      aria-label={t('common.actions.delete')}
+                      onClick={() =>
+                        handleUserGroupDelete(userGroupData.userGroup)
+                      }
+                    >
+                      <Trash2 className='text-destructive h-4 w-4' />
+                    </Button>
+                  </div>
+                </div>
+                <CollapsibleContent>
+                  {userGroupData.overrides.length > 0 && (
+                    <div className='ml-3 border-l pl-5 [&>*+*]:border-t'>
+                      {userGroupData.overrides.map((override) => (
+                        <div
+                          key={override.targetGroup}
+                          className='flex items-center gap-3 py-2'
+                        >
+                          <span className='min-w-0 flex-1 truncate text-sm font-medium'>
+                            {override.targetGroup}
+                          </span>
+                          <span className='text-sm tabular-nums'>
+                            {override.ratio}
+                          </span>
+                          <div className='flex shrink-0 gap-1'>
                             <Button
+                              type='button'
                               variant='ghost'
-                              size='sm'
+                              size='icon'
+                              className='h-7 w-7'
+                              aria-label={t('channels.actions.edit')}
                               onClick={() =>
-                                handleSimpleEdit('topupGroupRatio', group)
+                                handleOverrideEdit(
+                                  userGroupData.userGroup,
+                                  override
+                                )
                               }
                             >
                               <Pencil className='h-4 w-4' />
                             </Button>
                             <Button
+                              type='button'
                               variant='ghost'
-                              size='sm'
+                              size='icon'
+                              className='h-7 w-7'
+                              aria-label={t('common.actions.delete')}
                               onClick={() =>
-                                handleSimpleDelete(
-                                  'topupGroupRatio',
-                                  group.name
+                                handleOverrideDelete(
+                                  userGroupData.userGroup,
+                                  override.targetGroup
                                 )
                               }
                             >
-                              <Trash2 className='h-4 w-4' />
+                              <Trash2 className='text-destructive h-4 w-4' />
                             </Button>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Inter-group ratio overrides */}
-      <Card className={sectionCardClassName}>
-        <CardHeader className={sectionHeaderClassName}>
-          <CardTitle>
-            {t('systemSettings.fields.interGroupRatioOverrides')}
-          </CardTitle>
-          <CardDescription>
-            {t(
-              'common.tips.customMultipliersWhenSpecificUserGroupsUseSpecificToken'
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className='space-y-4'>
-            <Button onClick={handleUserGroupAdd} size='sm'>
-              <Plus className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.addUserGroup')}
-            </Button>
-            {groupGroupRatioList.length > 0 && (
-              <div className='space-y-3'>
-                {groupGroupRatioList.map((userGroupData) => (
-                  <Collapsible key={userGroupData.userGroup}>
-                    <div className='rounded-lg border'>
-                      <div className='flex items-center justify-between p-4'>
-                        <div className='flex items-center gap-2'>
-                          <CollapsibleTrigger
-                            render={<Button variant='ghost' size='sm' />}
-                          >
-                            <ChevronDown className='h-4 w-4' />
-                          </CollapsibleTrigger>
-                          <span className='font-semibold'>
-                            {userGroupData.userGroup}
-                          </span>
-                          <span className='text-muted-foreground text-sm'>
-                            {t('systemSettings.fields.countOverride', {
-                              count: userGroupData.overrides.length,
-                            })}
-                          </span>
                         </div>
-                        <div className='flex gap-2'>
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() =>
-                              handleOverrideAdd(userGroupData.userGroup)
-                            }
-                          >
-                            <Plus className='h-4 w-4' />
-                          </Button>
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() =>
-                              handleUserGroupDelete(userGroupData.userGroup)
-                            }
-                          >
-                            <Trash2 className='h-4 w-4' />
-                          </Button>
-                        </div>
-                      </div>
-                      <CollapsibleContent>
-                        {userGroupData.overrides.length > 0 && (
-                          <div className='border-t'>
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>
-                                    {t('systemSettings.fields.targetGroup')}
-                                  </TableHead>
-                                  <TableHead>
-                                    {t('dynamicRatio.fields.ratio794f65')}
-                                  </TableHead>
-                                  <TableHead className='text-right'>
-                                    {t('channels.fields.actions')}
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {userGroupData.overrides.map((override) => (
-                                  <TableRow key={override.targetGroup}>
-                                    <TableCell className='font-medium'>
-                                      {override.targetGroup}
-                                    </TableCell>
-                                    <TableCell>{override.ratio}</TableCell>
-                                    <TableCell className='text-right'>
-                                      <div className='flex justify-end gap-2'>
-                                        <Button
-                                          variant='ghost'
-                                          size='sm'
-                                          onClick={() =>
-                                            handleOverrideEdit(
-                                              userGroupData.userGroup,
-                                              override
-                                            )
-                                          }
-                                        >
-                                          <Pencil className='h-4 w-4' />
-                                        </Button>
-                                        <Button
-                                          variant='ghost'
-                                          size='sm'
-                                          onClick={() =>
-                                            handleOverrideDelete(
-                                              userGroupData.userGroup,
-                                              override.targetGroup
-                                            )
-                                          }
-                                        >
-                                          <Trash2 className='h-4 w-4' />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </CollapsibleContent>
+                      ))}
                     </div>
-                  </Collapsible>
-                ))}
-              </div>
-            )}
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </SettingsPanel>
 
       {/* Auto Groups */}
-      <Card className={sectionCardClassName}>
-        <CardHeader className={sectionHeaderClassName}>
-          <CardTitle>
-            {t('systemSettings.fields.autoAssignmentOrder')}
-          </CardTitle>
-          <CardDescription>
-            {t(
-              'systemSettings.tips.priorityOrderForAutomaticGroupAssignmentNewTokensRotate'
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className='space-y-4'>
-            <Button onClick={handleAutoGroupAdd} size='sm'>
-              <Plus className='mr-2 h-4 w-4' />
-              {t('systemSettings.actions.addGroup')}
-            </Button>
-            {autoGroupsList.length > 0 && (
-              <div className='space-y-2'>
-                {autoGroupsList.map((group, index) => (
-                  <div
-                    key={index}
-                    className='flex items-center gap-2 rounded-md border p-3'
+      <SettingsPanel
+        title={t('systemSettings.fields.autoAssignmentOrder')}
+        description={t(
+          'systemSettings.tips.priorityOrderForAutomaticGroupAssignmentNewTokensRotate'
+        )}
+        actions={
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={handleAutoGroupAdd}
+          >
+            <Plus data-icon='inline-start' />
+            {t('systemSettings.actions.addGroup')}
+          </Button>
+        }
+      >
+        {autoGroupsList.length === 0 ? (
+          <p className='text-muted-foreground py-8 text-center text-sm'>
+            {t('systemSettings.tips.noAutoGroupsYetAddAGroupToGetStarted')}
+          </p>
+        ) : (
+          <div className='[&>*+*]:border-t'>
+            {autoGroupsList.map((group, index) => (
+              <div key={index} className='flex items-center gap-3 py-1.5'>
+                <span className='text-muted-foreground w-5 text-right text-xs tabular-nums'>
+                  {index + 1}
+                </span>
+                <span className='min-w-0 flex-1 truncate text-sm font-medium'>
+                  {group}
+                </span>
+                <div className='flex gap-1'>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='h-7 w-7'
+                    disabled={index === 0}
+                    aria-label={t('channels.actions.moveUp')}
+                    onClick={() => handleAutoGroupMove(index, 'up')}
                   >
-                    <GripVertical className='text-muted-foreground h-4 w-4' />
-                    <span className='flex-1 font-medium'>{group}</span>
-                    <div className='flex gap-1'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        disabled={index === 0}
-                        onClick={() => handleAutoGroupMove(index, 'up')}
-                      >
-                        ↑
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        disabled={index === autoGroupsList.length - 1}
-                        onClick={() => handleAutoGroupMove(index, 'down')}
-                      >
-                        ↓
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={() => handleAutoGroupDelete(index)}
-                      >
-                        <Trash2 className='h-4 w-4' />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                    <ArrowUp className='h-4 w-4' />
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='h-7 w-7'
+                    disabled={index === autoGroupsList.length - 1}
+                    aria-label={t('channels.actions.moveDown')}
+                    onClick={() => handleAutoGroupMove(index, 'down')}
+                  >
+                    <ArrowDown className='h-4 w-4' />
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='h-7 w-7'
+                    aria-label={t('common.actions.delete')}
+                    onClick={() => handleAutoGroupDelete(index)}
+                  >
+                    <Trash2 className='text-destructive h-4 w-4' />
+                  </Button>
+                </div>
               </div>
-            )}
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </SettingsPanel>
 
       {/* Simple Group Dialog */}
       <SimpleGroupDialog
@@ -866,148 +880,128 @@ function GroupPricingTable({
   }, [rows])
 
   return (
-    <Card className={sectionCardClassName}>
-      <CardHeader className={sectionHeaderClassName}>
-        <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-          <div>
-            <CardTitle>{t('systemSettings.fields.pricingGroups')}</CardTitle>
-            <CardDescription>
-              {t(
-                'systemSettings.actions.editBillingRatiosAndUserSelectableGroupsInOne'
-              )}
-            </CardDescription>
-          </div>
-          <Button onClick={addRow} size='sm' className='sm:self-start'>
-            <Plus className='mr-2 h-4 w-4' />
-            {t('systemSettings.actions.addGroup')}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className='space-y-3'>
-          <div className='overflow-hidden rounded-md border'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className='min-w-40'>
-                    {t('models.fields.groupName')}
-                  </TableHead>
-                  <TableHead className='w-28'>
-                    {t('dynamicRatio.fields.ratio794f65')}
-                  </TableHead>
-                  <TableHead className='w-28 text-center'>
-                    {t('systemSettings.fields.userSelectable')}
-                  </TableHead>
-                  <TableHead className='min-w-56'>
-                    {t('auditLogs.tips.description')}
-                  </TableHead>
-                  <TableHead className='w-16 text-right'>
-                    {t('channels.fields.actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className='text-muted-foreground h-20 text-center text-sm'
-                    >
-                      {t(
-                        'systemSettings.tips.noGroupsYetAddAGroupToGetStarted'
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rows.map((row) => (
-                    <TableRow key={row._id}>
-                      <TableCell>
-                        <Input
-                          value={row.name}
-                          onChange={(event) =>
-                            updateRow(row._id, 'name', event.target.value)
-                          }
-                          aria-invalid={duplicateNames.includes(
-                            row.name.trim()
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type='number'
-                          min={0}
-                          step={0.1}
-                          value={String(row.ratio)}
-                          onChange={(event) =>
-                            updateRow(
-                              row._id,
-                              'ratio',
-                              normalizeRatio(event.target.value)
-                            )
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex justify-center'>
-                          <Checkbox
-                            checked={row.selectable}
-                            onCheckedChange={(checked) =>
-                              updateRow(row._id, 'selectable', checked === true)
-                            }
-                            aria-label={t(
-                              'systemSettings.fields.userSelectable'
-                            )}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {row.selectable ? (
-                          <Input
-                            value={row.description}
-                            placeholder={t(
-                              'systemSettings.tips.groupDescription'
-                            )}
-                            onChange={(event) =>
-                              updateRow(
-                                row._id,
-                                'description',
-                                event.target.value
-                              )
-                            }
-                          />
-                        ) : (
-                          <span className='text-muted-foreground px-3 text-sm'>
-                            -
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className='text-right'>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => removeRow(row._id)}
-                          aria-label={t('common.actions.delete')}
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {duplicateNames.length > 0 && (
-            <p className='text-destructive text-sm'>
-              {t('systemSettings.errors.duplicateGroupNamesNames', {
-                names: duplicateNames.join(', '),
-              })}
-            </p>
+    <SettingsPanel
+      title={t('systemSettings.fields.pricingGroups')}
+      description={t(
+        'systemSettings.actions.editBillingRatiosAndUserSelectableGroupsInOne'
+      )}
+      actions={
+        <Button type='button' variant='outline' size='sm' onClick={addRow}>
+          <Plus data-icon='inline-start' />
+          {t('systemSettings.actions.addGroup')}
+        </Button>
+      }
+      flush
+      footer={
+        duplicateNames.length > 0 ? (
+          <p className='text-destructive w-full text-sm'>
+            {t('systemSettings.errors.duplicateGroupNamesNames', {
+              names: duplicateNames.join(', '),
+            })}
+          </p>
+        ) : undefined
+      }
+    >
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className='min-w-28 pl-4'>
+              {t('models.fields.groupName')}
+            </TableHead>
+            <TableHead className='min-w-28'>
+              {t('dynamicRatio.fields.ratio794f65')}
+            </TableHead>
+            {/* 窄容器下表头按词换行，不在词内断开。 */}
+            <TableHead className='w-28 text-center [word-break:keep-all] whitespace-normal'>
+              {t('systemSettings.fields.userSelectable')}
+            </TableHead>
+            <TableHead className='min-w-32'>
+              {t('auditLogs.tips.description')}
+            </TableHead>
+            <TableHead className='w-16 pr-4 text-right'>
+              {t('channels.fields.actions')}
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={5}
+                className='text-muted-foreground h-20 text-center text-sm'
+              >
+                {t('systemSettings.tips.noGroupsYetAddAGroupToGetStarted')}
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row) => (
+              <TableRow key={row._id}>
+                <TableCell className='pl-4'>
+                  <Input
+                    value={row.name}
+                    onChange={(event) =>
+                      updateRow(row._id, 'name', event.target.value)
+                    }
+                    aria-invalid={duplicateNames.includes(row.name.trim())}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type='number'
+                    min={0}
+                    step={0.1}
+                    value={String(row.ratio)}
+                    onChange={(event) =>
+                      updateRow(
+                        row._id,
+                        'ratio',
+                        normalizeRatio(event.target.value)
+                      )
+                    }
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className='flex justify-center'>
+                    <Checkbox
+                      checked={row.selectable}
+                      onCheckedChange={(checked) =>
+                        updateRow(row._id, 'selectable', checked === true)
+                      }
+                      aria-label={t('systemSettings.fields.userSelectable')}
+                    />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {row.selectable ? (
+                    <Input
+                      value={row.description}
+                      placeholder={t('systemSettings.tips.groupDescription')}
+                      onChange={(event) =>
+                        updateRow(row._id, 'description', event.target.value)
+                      }
+                    />
+                  ) : (
+                    <span className='text-muted-foreground px-3 text-sm'>
+                      -
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className='pr-4 text-right'>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => removeRow(row._id)}
+                    aria-label={t('common.actions.delete')}
+                  >
+                    <Trash2 className='h-4 w-4' />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </TableBody>
+      </Table>
+    </SettingsPanel>
   )
 }
 

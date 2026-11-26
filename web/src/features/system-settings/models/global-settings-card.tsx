@@ -21,23 +21,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -113,67 +105,48 @@ export function GlobalSettingsCard({ defaultValues }: GlobalSettingsCardProps) {
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <DisabledSettingsNotice enabled={pingEnabled} />
 
-          <FormField
-            control={form.control}
-            name='general_setting.ping_interval_enabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.keepAlivePing')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.status.periodicallySendPingFramesToKeepStreamingConnectionsActive'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
+          <SettingsGroup
+            title={t('systemSettings.fields.keepAlivePing')}
+            description={t(
+              'systemSettings.status.periodicallySendPingFramesToKeepStreamingConnectionsActive'
             )}
-          />
-
-          <FormField
-            control={form.control}
-            name='general_setting.ping_interval_seconds'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.pingIntervalSeconds')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    min={1}
-                    disabled={!pingEnabled}
-                    className='w-24'
-                    value={
-                      field.value === undefined || field.value === null
-                        ? ''
-                        : String(field.value)
-                    }
-                    onChange={(event) => field.onChange(event.target.value)}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            control={
+              <SettingsGroupSwitch name='general_setting.ping_interval_enabled' />
+            }
+            enabled={pingEnabled}
+          >
+            <FormField
+              control={form.control}
+              name='general_setting.ping_interval_seconds'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.pingIntervalSeconds')}
+                  description={t(
                     'systemSettings.tips.recommendedToKeepThisHighToAvoidUpstreamThrottling'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <SettingsControl size='xs'>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        value={
+                          field.value === undefined || field.value === null
+                            ? ''
+                            : String(field.value)
+                        }
+                        onChange={(event) => field.onChange(event.target.value)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

@@ -544,23 +544,21 @@ export function RatioSettingsCard({
     groups: 'systemSettings.fields.groupRatios',
     'tool-prices': 'common.fields.toolPrices',
   }
-  const tabsGridClass =
-    {
-      1: 'grid-cols-1',
-      2: 'grid-cols-2',
-      3: 'grid-cols-3',
-    }[visibleTabs.length] ?? 'grid-cols-3'
   const defaultTab = visibleTabs[0] ?? 'models'
+  const tabbed = visibleTabs.length > 1
+  // 页头操作栏只属于当前页签，所以页签需要受控。
+  const [activeTab, setActiveTab] = useState<RatioTabId>(defaultTab)
 
-  const renderTabContent = (tab: RatioTabId) => {
+  const renderTabContent = (tab: RatioTabId, active: boolean) => {
     if (tab === 'models') {
       return (
         <ModelRatioForm
           form={modelForm}
           onSave={saveModelRatios}
-          onReset={handleResetRatios}
+          onRestoreDefaults={handleResetRatios}
           isSaving={isSavingModelRatios}
           isResetting={resetMutation.isPending}
+          active={active}
         />
       )
     }
@@ -577,8 +575,9 @@ export function RatioSettingsCard({
       return (
         <ToolPriceSettings
           defaultValue={toolPricesDefault}
-          onReset={handleResetToolBillingRules}
+          onRestoreDefaults={handleResetToolBillingRules}
           isResetting={resetToolBillingMutation.isPending}
+          active={active}
         />
       )
     }
@@ -586,12 +585,17 @@ export function RatioSettingsCard({
   }
 
   return (
-    <SettingsSection title={t(titleKey)}>
-      {visibleTabs.length === 1 ? (
-        renderTabContent(defaultTab)
-      ) : (
-        <Tabs defaultValue={defaultTab} className='space-y-6'>
-          <TabsList className={`grid w-full ${tabsGridClass}`}>
+    <SettingsSection
+      title={t(titleKey)}
+      className={tabbed ? 'lg:h-full lg:min-h-[44rem]' : undefined}
+    >
+      {tabbed ? (
+        <Tabs
+          value={activeTab}
+          onValueChange={(tab) => setActiveTab(tab as RatioTabId)}
+          className='lg:min-h-0 lg:flex-1'
+        >
+          <TabsList variant='line'>
             {visibleTabs.map((tab) => (
               <TabsTrigger key={tab} value={tab}>
                 {t(tabLabels[tab])}
@@ -600,11 +604,17 @@ export function RatioSettingsCard({
           </TabsList>
 
           {visibleTabs.map((tab) => (
-            <TabsContent key={tab} value={tab}>
-              {renderTabContent(tab)}
+            <TabsContent
+              key={tab}
+              value={tab}
+              className='lg:flex lg:min-h-0 lg:flex-col'
+            >
+              {renderTabContent(tab, tab === activeTab)}
             </TabsContent>
           ))}
         </Tabs>
+      ) : (
+        renderTabContent(defaultTab, true)
       )}
 
       <ConfirmDialog

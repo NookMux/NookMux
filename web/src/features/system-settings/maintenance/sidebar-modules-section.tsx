@@ -19,23 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormLabel,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
-import { DisabledSettingsNotice } from '../components/disabled-settings-notice'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsControlChildren,
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsControlGroup,
-  SettingsSwitchField,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -251,25 +242,31 @@ export function SidebarModulesSection({
 
   return (
     <SettingsSection title={t('systemSettings.fields.sidebarModules')}>
-      <SettingsSwitchField
-        checked={defaultCollapseSidebar}
-        onCheckedChange={(checked) =>
-          updateOption.mutate({
-            key: 'DefaultCollapseSidebar',
-            value: checked,
-          })
-        }
-        label={t('systemSettings.fields.defaultCollapseSidebar')}
-        description={t(
-          'systemSettings.tips.sidebarCollapsedByDefaultForNewUsers'
-        )}
-      />
+      <SettingsGroup>
+        <SettingsRow
+          label={t('systemSettings.fields.defaultCollapseSidebar')}
+          description={t(
+            'systemSettings.tips.sidebarCollapsedByDefaultForNewUsers'
+          )}
+        >
+          <Switch
+            checked={defaultCollapseSidebar}
+            onCheckedChange={(checked) =>
+              updateOption.mutate({
+                key: 'DefaultCollapseSidebar',
+                value: checked,
+              })
+            }
+          />
+        </SettingsRow>
+      </SettingsGroup>
       <Form {...form}>
         <SettingsForm onSubmit={form.handleSubmit(onSubmit)}>
           <SettingsPageFormActions
             onSave={form.handleSubmit(onSubmit)}
             onReset={resetToDefault}
             isSaving={updateOption.isPending}
+            resettableWhenClean
             resetLabel='common.actions.resetToDefault'
             saveLabel='common.actions.saveSidebarModules'
           />
@@ -294,64 +291,41 @@ export function SidebarModulesSection({
             )
 
             return (
-              <SettingsControlGroup key={sectionKey}>
-                <DisabledSettingsNotice enabled={sectionEnabled} />
-                <FormField
-                  control={form.control}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  name={`${sectionKey}.enabled` as any}
-                  render={({ field }) => (
-                    <SettingsSwitchItem>
-                      <SettingsSwitchContent>
-                        <FormLabel>{sectionInfo.title}</FormLabel>
-                        <FormDescription>
-                          {sectionInfo.description}
-                        </FormDescription>
-                      </SettingsSwitchContent>
-                      <FormControl>
-                        <Switch
-                          checked={Boolean(field.value)}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </SettingsSwitchItem>
-                  )}
-                />
-
-                <SettingsControlChildren className='grid gap-3 md:grid-cols-2'>
-                  {modules.map(([moduleKey]) => {
-                    const moduleInfo = moduleMeta[sectionKey]?.[moduleKey] ?? {
-                      title: toTitleCase(moduleKey),
-                      description: t('systemSettings.fields.customModule'),
-                    }
-                    return (
-                      <FormField
-                        key={`${sectionKey}.${moduleKey}`}
-                        control={form.control}
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        name={`${sectionKey}.${moduleKey}` as any}
-                        render={({ field }) => (
-                          <SettingsSwitchItem className='border-b-0 py-2'>
-                            <SettingsSwitchContent>
-                              <FormLabel>{moduleInfo.title}</FormLabel>
-                              <FormDescription>
-                                {moduleInfo.description}
-                              </FormDescription>
-                            </SettingsSwitchContent>
-                            <FormControl>
-                              <Switch
-                                checked={Boolean(field.value)}
-                                onCheckedChange={field.onChange}
-                                disabled={!sectionEnabled}
-                              />
-                            </FormControl>
-                          </SettingsSwitchItem>
-                        )}
-                      />
-                    )
-                  })}
-                </SettingsControlChildren>
-              </SettingsControlGroup>
+              <SettingsGroup
+                key={sectionKey}
+                title={sectionInfo.title}
+                description={sectionInfo.description}
+                control={<SettingsGroupSwitch name={`${sectionKey}.enabled`} />}
+                enabled={sectionEnabled}
+              >
+                {modules.map(([moduleKey]) => {
+                  const moduleInfo = moduleMeta[sectionKey]?.[moduleKey] ?? {
+                    title: toTitleCase(moduleKey),
+                    description: t('systemSettings.fields.customModule'),
+                  }
+                  return (
+                    <FormField
+                      key={`${sectionKey}.${moduleKey}`}
+                      control={form.control}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      name={`${sectionKey}.${moduleKey}` as any}
+                      render={({ field }) => (
+                        <SettingsRow
+                          label={moduleInfo.title}
+                          description={moduleInfo.description}
+                        >
+                          <FormControl>
+                            <Switch
+                              checked={Boolean(field.value)}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </SettingsRow>
+                      )}
+                    />
+                  )
+                })}
+              </SettingsGroup>
             )
           })}
         </SettingsForm>

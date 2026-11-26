@@ -16,32 +16,36 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Code2, Eye } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 
-type DisabledSettingsNoticeProps = {
-  enabled: boolean
-  title?: string
-  description?: string
+type EditorModeButtonProps = {
+  /** 当前是否为可视化编辑；按钮的标签说明点下去会切到哪一种。 */
+  visualMode: boolean
+  onToggle: () => void
 }
 
-export function DisabledSettingsNotice({
-  enabled,
-  title = 'common.status.settingIsCurrentlyDisabled',
-  description = 'common.tips.ifYouAreReportingARelatedIssueEnableThis',
-}: DisabledSettingsNoticeProps) {
+/** 可视化编辑器与 JSON 文本框之间的切换按钮。 */
+export function EditorModeButton({
+  visualMode,
+  onToggle,
+}: EditorModeButtonProps) {
   const { t } = useTranslation()
 
-  if (enabled) {
-    return null
-  }
-
   return (
-    <Alert className='border-destructive/30 bg-destructive/10 text-destructive'>
-      <AlertTitle>{t(title)}</AlertTitle>
-      <AlertDescription className='text-destructive/90'>
-        {t(description)}
-      </AlertDescription>
-    </Alert>
+    <Button type='button' variant='outline' size='sm' onClick={onToggle}>
+      {visualMode ? (
+        <>
+          <Code2 data-icon='inline-start' />
+          {t('systemSettings.fields.jsonEditor')}
+        </>
+      ) : (
+        <>
+          <Eye data-icon='inline-start' />
+          {t('systemSettings.fields.visualEditor')}
+        </>
+      )}
+    </Button>
   )
 }

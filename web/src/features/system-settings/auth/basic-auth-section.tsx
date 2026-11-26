@@ -21,22 +21,11 @@ import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+import { SettingsForm } from '../components/settings-form-layout'
+import { SettingsGroup, SettingsRow } from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
@@ -112,174 +101,150 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <FormField
-            control={form.control}
-            name='PasswordLoginEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.passwordLogin')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t('systemSettings.tips.allowUsersToLogInWithPassword')}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+          <SettingsGroup>
+            <FormField
+              control={form.control}
+              name='PasswordLoginEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.passwordLogin')}
+                  description={t(
+                    'systemSettings.tips.allowUsersToLogInWithPassword'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='RegisterEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.status.registrationEnabled')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t('systemSettings.titles.allowNewUsersToRegister')}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='RegisterEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.status.registrationEnabled')}
+                  description={t(
+                    'systemSettings.titles.allowNewUsersToRegister'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='PasswordRegisterEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.passwordRegistration')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t('systemSettings.tips.allowRegistrationWithPassword')}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='PasswordRegisterEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.passwordRegistration')}
+                  description={t(
+                    'systemSettings.tips.allowRegistrationWithPassword'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='EmailVerificationEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.emailVerification')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.requireEmailVerificationForNewAccounts'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='EmailVerificationEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.emailVerification')}
+                  description={t(
+                    'systemSettings.tips.requireEmailVerificationForNewAccounts'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='EmailDomainRestrictionEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.emailDomainRestriction')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t('systemSettings.tips.onlyAllowSpecificEmailDomains')}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='EmailDomainRestrictionEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.emailDomainRestriction')}
+                  description={t(
+                    'systemSettings.tips.onlyAllowSpecificEmailDomains'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='EmailAliasRestrictionEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.emailAliasRestriction')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.blockEmailAliasesEGUserAliasDomainCom'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </SettingsSwitchItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='EmailAliasRestrictionEnabled'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.emailAliasRestriction')}
+                  description={t(
+                    'systemSettings.tips.blockEmailAliasesEGUserAliasDomainCom'
+                  )}
+                >
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='EmailDomainWhitelist'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('systemSettings.fields.emailDomainWhitelist')}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder={t(
-                      'systemSettings.placeholders.exampleComCompanyCom'
-                    )}
-                    rows={4}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
+            <FormField
+              control={form.control}
+              name='EmailDomainWhitelist'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.emailDomainWhitelist')}
+                  description={t(
                     'systemSettings.placeholders.oneDomainPerLineOnlyUsedWhenDomainRestriction'
                   )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                >
+                  <FormControl>
+                    <Textarea
+                      placeholder={t(
+                        'systemSettings.placeholders.exampleComCompanyCom'
+                      )}
+                      rows={4}
+                      {...field}
+                    />
+                  </FormControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

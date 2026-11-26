@@ -18,9 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -35,7 +36,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -44,9 +44,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { SettingsSwitchField } from '../../components/settings-form-layout'
+import { SettingsControl, SettingsRow } from '../../components/settings-group'
 import { RULE_TEMPLATES } from './constants'
 import type { AffinityRule, KeySource } from './types'
 
@@ -239,7 +239,7 @@ export function RuleEditorDialog(props: Props) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className='max-h-[85vh] max-w-2xl overflow-y-auto'>
+      <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-3xl'>
         <DialogHeader>
           <DialogTitle>
             {isEdit
@@ -248,46 +248,59 @@ export function RuleEditorDialog(props: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(handleSave)} className='space-y-4'>
-          <div className='grid gap-1.5'>
-            <Label>{t('channels.fields.name')} *</Label>
-            <Input
-              placeholder='prefer-by-conversation-id'
-              {...form.register('name', { required: true })}
+        <form
+          onSubmit={form.handleSubmit(handleSave)}
+          className='@container space-y-4'
+        >
+          <SettingsRow
+            label={`${t('channels.fields.name')} *`}
+            htmlFor='affinity-rule-name'
+          >
+            <SettingsControl>
+              <Input
+                id='affinity-rule-name'
+                placeholder='prefer-by-conversation-id'
+                {...form.register('name', { required: true })}
+              />
+            </SettingsControl>
+          </SettingsRow>
+
+          <SettingsRow
+            label={`${t('systemSettings.fields.modelRegexOnePerLine')} *`}
+            htmlFor='affinity-rule-model-regex'
+          >
+            <Textarea
+              id='affinity-rule-model-regex'
+              rows={4}
+              placeholder={'^gpt-4o.*$\n^claude-3.*$'}
+              {...form.register('model_regex_text', { required: true })}
             />
-          </div>
+          </SettingsRow>
 
-          <div className='grid grid-cols-2 gap-3'>
-            <div className='grid gap-1.5'>
-              <Label>{t('systemSettings.fields.modelRegexOnePerLine')} *</Label>
-              <Textarea
-                rows={4}
-                placeholder={'^gpt-4o.*$\n^claude-3.*$'}
-                {...form.register('model_regex_text', { required: true })}
-              />
-            </div>
-            <div className='grid gap-1.5'>
-              <Label>{t('systemSettings.fields.pathRegexOnePerLine')}</Label>
-              <Textarea
-                rows={4}
-                placeholder='/v1/chat/completions'
-                {...form.register('path_regex_text')}
-              />
-            </div>
-          </div>
+          <SettingsRow
+            label={t('systemSettings.fields.pathRegexOnePerLine')}
+            htmlFor='affinity-rule-path-regex'
+          >
+            <Textarea
+              id='affinity-rule-path-regex'
+              rows={4}
+              placeholder='/v1/chat/completions'
+              {...form.register('path_regex_text')}
+            />
+          </SettingsRow>
 
-          <SettingsSwitchField
-            checked={form.watch('skip_retry_on_failure')}
-            onCheckedChange={(v) => form.setValue('skip_retry_on_failure', v)}
-            label={t('systemSettings.fields.skipRetryOnFailure')}
-          />
+          <SettingsRow label={t('systemSettings.fields.skipRetryOnFailure')}>
+            <Switch
+              aria-label={t('systemSettings.fields.skipRetryOnFailure')}
+              checked={form.watch('skip_retry_on_failure')}
+              onCheckedChange={(v) => form.setValue('skip_retry_on_failure', v)}
+            />
+          </SettingsRow>
 
-          <Separator />
-
-          {/* Key Sources */}
-          <div>
-            <div className='mb-2 flex items-center justify-between'>
-              <Label>{t('systemSettings.fields.keySources')}</Label>
+          <SettingsRow
+            label={t('systemSettings.fields.keySources')}
+            stacked
+            actions={
               <Button
                 type='button'
                 variant='outline'
@@ -299,20 +312,21 @@ export function RuleEditorDialog(props: Props) {
                   ])
                 }
               >
-                <Plus className='mr-1 h-3 w-3' />
+                <Plus data-icon='inline-start' />
                 {t('channels.actions.add')}
               </Button>
-            </div>
-            <p className='text-muted-foreground mb-2 text-xs'>
-              {t('systemSettings.fields.commonKeys')}:{' '}
-              {CONTEXT_KEY_PRESETS.join(', ')}
-            </p>
-            <div className='space-y-2'>
+            }
+            hint={`${t('systemSettings.fields.commonKeys')}: ${CONTEXT_KEY_PRESETS.join(', ')}`}
+          >
+            <div className='flex flex-col gap-2'>
               {keySources.map((src, idx) => (
                 <div key={idx} className='flex items-center gap-2'>
                   <Select
                     items={[
-                      ...KEY_SOURCE_TYPES.map((t) => ({ value: t, label: t })),
+                      ...KEY_SOURCE_TYPES.map((type) => ({
+                        value: type,
+                        label: type,
+                      })),
                     ]}
                     value={src.type}
                     onValueChange={(v) => {
@@ -325,14 +339,14 @@ export function RuleEditorDialog(props: Props) {
                       setKeySources(next)
                     }}
                   >
-                    <SelectTrigger className='w-[160px]'>
+                    <SelectTrigger className='w-40'>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false}>
                       <SelectGroup>
-                        {KEY_SOURCE_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
+                        {KEY_SOURCE_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
                           </SelectItem>
                         ))}
                       </SelectGroup>
@@ -350,12 +364,12 @@ export function RuleEditorDialog(props: Props) {
                     value={
                       src.type === 'gjson' ? src.path || '' : src.key || ''
                     }
-                    onChange={(e) => {
+                    onChange={(event) => {
                       const next = [...keySources]
                       if (src.type === 'gjson') {
-                        next[idx] = { ...src, path: e.target.value }
+                        next[idx] = { ...src, path: event.target.value }
                       } else {
-                        next[idx] = { ...src, key: e.target.value }
+                        next[idx] = { ...src, key: event.target.value }
                       }
                       setKeySources(next)
                     }}
@@ -363,99 +377,102 @@ export function RuleEditorDialog(props: Props) {
                   <Button
                     type='button'
                     variant='ghost'
-                    size='icon'
+                    size='sm'
                     onClick={() =>
                       setKeySources((prev) => prev.filter((_, i) => i !== idx))
                     }
+                    aria-label={t('common.actions.delete')}
                   >
                     <Trash2 className='h-4 w-4' />
                   </Button>
                 </div>
               ))}
             </div>
-          </div>
+          </SettingsRow>
 
-          <Separator />
-
-          {/* Advanced */}
           <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
             <CollapsibleTrigger
-              render={
-                <Button
-                  type='button'
-                  variant='ghost'
-                  className='w-full justify-start'
-                />
-              }
+              render={<Button type='button' variant='ghost' size='sm' />}
             >
-              {advancedOpen ? '▼' : '▶'} {t('channels.titles.advancedSettings')}
+              <ChevronDown
+                data-icon='inline-start'
+                className={cn(
+                  'transition-transform',
+                  advancedOpen && 'rotate-180'
+                )}
+              />
+              {t('channels.titles.advancedSettings')}
             </CollapsibleTrigger>
-            <CollapsibleContent className='space-y-3 pt-2'>
-              <div className='grid gap-1.5'>
-                <Label>
-                  {t('systemSettings.tips.userAgentIncludeOnePerLine')}
-                </Label>
+            <CollapsibleContent className='space-y-4 pt-4'>
+              <SettingsRow
+                label={t('systemSettings.tips.userAgentIncludeOnePerLine')}
+              >
                 <Textarea
                   rows={3}
                   placeholder='curl&#10;PostmanRuntime'
                   {...form.register('user_agent_include_text')}
                 />
-              </div>
+              </SettingsRow>
 
-              <div className='grid grid-cols-2 gap-3'>
-                <div className='grid gap-1.5'>
-                  <Label>{t('systemSettings.fields.valueRegex')}</Label>
+              <SettingsRow label={t('systemSettings.fields.valueRegex')}>
+                <SettingsControl>
                   <Input
                     placeholder='^[-0-9A-Za-z._:]{1,128}$'
                     {...form.register('value_regex')}
                   />
-                </div>
-                <div className='grid gap-1.5'>
-                  <Label>{t('systemSettings.fields.ttlSeconds0Default')}</Label>
+                </SettingsControl>
+              </SettingsRow>
+
+              <SettingsRow
+                label={t('systemSettings.fields.ttlSeconds0Default')}
+              >
+                <SettingsControl size='xs'>
                   <Input
                     type='number'
                     min={0}
                     {...form.register('ttl_seconds')}
                   />
-                </div>
-              </div>
+                </SettingsControl>
+              </SettingsRow>
 
-              <div className='grid gap-1.5'>
-                <Label>
-                  {t('systemSettings.tips.parameterOverrideTemplateJson')}
-                </Label>
+              <SettingsRow
+                label={t('systemSettings.tips.parameterOverrideTemplateJson')}
+              >
                 <Textarea
                   rows={5}
                   placeholder='{"operations": [...]}'
                   {...form.register('param_override_template_json')}
                   className='font-mono text-xs'
                 />
-              </div>
+              </SettingsRow>
 
-              <div className='grid gap-3 sm:grid-cols-3'>
-                <SettingsSwitchField
+              <SettingsRow label={t('systemSettings.fields.includeGroup')}>
+                <Switch
+                  aria-label={t('systemSettings.fields.includeGroup')}
                   checked={form.watch('include_using_group')}
                   onCheckedChange={(v) =>
                     form.setValue('include_using_group', v)
                   }
-                  label={t('systemSettings.fields.includeGroup')}
-                  className='border-b-0 py-0'
                 />
-                <SettingsSwitchField
+              </SettingsRow>
+
+              <SettingsRow label={t('systemSettings.fields.includeModel')}>
+                <Switch
+                  aria-label={t('systemSettings.fields.includeModel')}
                   checked={form.watch('include_model_name')}
                   onCheckedChange={(v) =>
                     form.setValue('include_model_name', v)
                   }
-                  label={t('systemSettings.fields.includeModel')}
-                  className='border-b-0 py-0'
                 />
-                <SettingsSwitchField
+              </SettingsRow>
+
+              <SettingsRow label={t('systemSettings.fields.includeRuleName')}>
+                <Switch
+                  aria-label={t('systemSettings.fields.includeRuleName')}
                   checked={form.watch('include_rule_name')}
                   onCheckedChange={(v) => form.setValue('include_rule_name', v)}
-                  label={t('systemSettings.fields.includeRuleName')}
-                  className='border-b-0 py-0'
                 />
-              </div>
+              </SettingsRow>
             </CollapsibleContent>
           </Collapsible>
 

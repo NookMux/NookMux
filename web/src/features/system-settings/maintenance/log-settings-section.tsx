@@ -34,34 +34,23 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
 import { DateTimePicker } from '@/components/datetime-picker'
 import { cleanLogs } from '../api'
+import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsControlGroup,
-  SettingsForm,
-  SettingsSwitchContent,
-  SettingsSwitchItem,
-} from '../components/settings-form-layout'
+  SettingsChoiceGrid,
+  SettingsControl,
+  SettingsGroup,
+  SettingsGroupSwitch,
+  SettingsRow,
+  SettingsUnitField,
+  SettingsUnitInput,
+  SettingsUnitSelect,
+} from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
+import { SettingsPanel } from '../components/settings-panel'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -125,14 +114,6 @@ const getDateHoursAgo = (hours: number) => {
 
 const getDateDaysAgo = (days: number) => getDateHoursAgo(days * HOURS_IN_DAY)
 
-type CleanTargets = {
-  cleanLogs: boolean
-  cleanQuotaData: boolean
-  cleanStoredImages: boolean
-  cleanStoredVideos: boolean
-  cleanAuditLogs: boolean
-}
-
 export function LogSettingsSection({
   defaultEnabled,
   defaultAutoClean,
@@ -161,14 +142,8 @@ export function LogSettingsSection({
 
   useResetForm(form, formDefaults)
 
-  // 默认仅勾选使用日志
-  const [targets, setTargets] = useState<CleanTargets>({
-    cleanLogs: true,
-    cleanQuotaData: false,
-    cleanStoredImages: false,
-    cleanStoredVideos: false,
-    cleanAuditLogs: false,
-  })
+  // 手动清理默认仅勾选使用日志。
+  const [manualTargets, setManualTargets] = useState<string[]>(['logs'])
   const [startDate, setStartDate] = useState<Date | undefined>(() =>
     getDateDaysAgo(30)
   )
@@ -199,12 +174,7 @@ export function LogSettingsSection({
     return parts.join(' ~ ')
   }, [startTimestamp, endTimestamp])
 
-  const noTargetSelected =
-    !targets.cleanLogs &&
-    !targets.cleanQuotaData &&
-    !targets.cleanStoredImages &&
-    !targets.cleanStoredVideos &&
-    !targets.cleanAuditLogs
+  const noTargetSelected = manualTargets.length === 0
 
   const autoCleanEnabled = form.watch('auto_clean_enabled')
 
@@ -319,11 +289,11 @@ export function LogSettingsSection({
       const res = await cleanLogs({
         start_timestamp: startTimestamp ?? undefined,
         end_timestamp: endTimestamp,
-        clean_logs: targets.cleanLogs,
-        clean_quota_data: targets.cleanQuotaData,
-        clean_stored_images: targets.cleanStoredImages,
-        clean_stored_videos: targets.cleanStoredVideos,
-        clean_audit_logs: targets.cleanAuditLogs,
+        clean_logs: manualTargets.includes('logs'),
+        clean_quota_data: manualTargets.includes('quota_data'),
+        clean_stored_images: manualTargets.includes('stored_images'),
+        clean_stored_videos: manualTargets.includes('stored_videos'),
+        clean_audit_logs: manualTargets.includes('audit_logs'),
       })
       if (!res.success) {
         throw new Error(
@@ -390,58 +360,44 @@ export function LogSettingsSection({
   }
 
   const targetOptions: Array<{
-    key: keyof CleanTargets
-    target: string
+    value: string
     label: string
     description: string
   }> = [
     {
-      key: 'cleanLogs',
-      target: 'logs',
+      value: 'logs',
       label: t('systemSettings.titles.usageLogs'),
       description: t(
         'systemSettings.tips.consumeErrorTopupManageAndSystemLogs'
       ),
     },
     {
-      key: 'cleanQuotaData',
-      target: 'quota_data',
+      value: 'quota_data',
       label: t('systemSettings.fields.quotaDataStats'),
       description: t('systemSettings.tips.quotaDataStatsDesc'),
     },
     {
-      key: 'cleanStoredImages',
-      target: 'stored_images',
+      value: 'stored_images',
       label: t('systemSettings.fields.storedImages'),
       description: t(
         'systemSettings.tips.imageBytesCachedForTheImageToUrlConversion'
       ),
     },
     {
-      key: 'cleanStoredVideos',
-      target: 'stored_videos',
+      value: 'stored_videos',
       label: t('systemSettings.fields.storedVideos'),
       description: t(
         'systemSettings.tips.videoBytesCachedForTheVideoToUrlConversion'
       ),
     },
     {
-      key: 'cleanAuditLogs',
-      target: 'audit_logs',
+      value: 'audit_logs',
       label: t('systemSettings.titles.auditLogs'),
       description: t(
         'systemSettings.errors.administrativeOperationRecordsDeletionCannotBeUndone'
       ),
     },
   ]
-
-  const toggleAutoTarget = (target: string, checked: boolean) => {
-    const current = form.getValues('targets')
-    const next = checked
-      ? [...current, target]
-      : current.filter((item) => item !== target)
-    form.setValue('targets', next, { shouldDirty: true })
-  }
 
   return (
     <SettingsSection title={t('systemSettings.fields.logMaintenance')}>
@@ -452,316 +408,157 @@ export function LogSettingsSection({
             isSaving={updateOption.isPending}
             saveLabel='common.actions.saveLogSettings'
           />
-          <FormField
-            control={form.control}
-            name='LogConsumeEnabled'
-            render={({ field }) => (
-              <SettingsSwitchItem>
-                <SettingsSwitchContent>
-                  <FormLabel>
-                    {t('systemSettings.fields.recordQuotaUsage')}
-                  </FormLabel>
-                  <FormDescription>
-                    {t(
-                      'systemSettings.tips.trackPerRequestConsumptionToPowerUsageAnalyticsKeeping'
-                    )}
-                  </FormDescription>
-                </SettingsSwitchContent>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <FormMessage />
-              </SettingsSwitchItem>
-            )}
-          />
 
-          <SettingsControlGroup className='space-y-3'>
-            <div>
-              <h4 className='text-sm font-medium'>
-                {t('systemSettings.titles.autoLogCleanup')}
-              </h4>
-              <p className='text-muted-foreground text-sm'>
-                {t('systemSettings.tips.autoLogCleanupIntro')}
-              </p>
-            </div>
-
+          <SettingsGroup>
             <FormField
               control={form.control}
-              name='auto_clean_enabled'
+              name='LogConsumeEnabled'
               render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('systemSettings.fields.autoCleanEnabled')}
-                    </FormLabel>
-                    <FormDescription>
-                      {t('systemSettings.tips.autoCleanEnabledDesc')}
-                    </FormDescription>
-                  </SettingsSwitchContent>
+                <SettingsRow
+                  label={t('systemSettings.fields.recordQuotaUsage')}
+                  description={t(
+                    'systemSettings.tips.trackPerRequestConsumptionToPowerUsageAnalyticsKeeping'
+                  )}
+                >
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
-                  <FormMessage />
-                </SettingsSwitchItem>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
+
+          <SettingsGroup
+            title={t('systemSettings.titles.autoLogCleanup')}
+            description={t('systemSettings.tips.autoLogCleanupIntro')}
+            control={<SettingsGroupSwitch name='auto_clean_enabled' />}
+            enabled={autoCleanEnabled}
+          >
+            <FormField
+              control={form.control}
+              name='retention_value'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.retentionPeriod')}
+                  description={t('systemSettings.tips.autoCleanEnabledDesc')}
+                >
+                  <SettingsControl size='sm'>
+                    <SettingsUnitField
+                      input={
+                        <FormControl>
+                          <SettingsUnitInput
+                            type='number'
+                            min={1}
+                            step={1}
+                            value={
+                              typeof field.value === 'number' &&
+                              Number.isFinite(field.value)
+                                ? field.value
+                                : ''
+                            }
+                            onChange={(event) =>
+                              field.onChange(event.target.valueAsNumber)
+                            }
+                            name={field.name}
+                            onBlur={field.onBlur}
+                            ref={field.ref}
+                          />
+                        </FormControl>
+                      }
+                      select={
+                        <FormField
+                          control={form.control}
+                          name='retention_unit'
+                          render={({ field: unitField }) => (
+                            <SettingsUnitSelect
+                              aria-label={t(
+                                'systemSettings.fields.retentionPeriod'
+                              )}
+                              value={unitField.value}
+                              onValueChange={unitField.onChange}
+                              options={unitOptions}
+                            />
+                          )}
+                        />
+                      }
+                    />
+                  </SettingsControl>
+                </SettingsRow>
               )}
             />
 
-            <div className='grid gap-3 sm:grid-cols-2'>
-              <FormField
-                control={form.control}
-                name='retention_value'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.retentionPeriod')}
-                    </FormLabel>
-                    <div className='flex gap-2'>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          min={1}
-                          step={1}
-                          disabled={!autoCleanEnabled}
-                          value={
-                            typeof field.value === 'number' &&
-                            Number.isFinite(field.value)
-                              ? field.value
-                              : ''
-                          }
-                          onChange={(event) =>
-                            field.onChange(event.target.valueAsNumber)
-                          }
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                        />
-                      </FormControl>
-                      <FormField
-                        control={form.control}
-                        name='retention_unit'
-                        render={({ field: unitField }) => (
-                          <FormItem className='w-28 shrink-0'>
-                            <Select
-                              value={unitField.value}
-                              onValueChange={(value) =>
-                                unitField.onChange(value)
-                              }
-                              disabled={!autoCleanEnabled}
-                            >
-                              <SelectTrigger className='w-full'>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent alignItemWithTrigger={false}>
-                                {unitOptions.map((option) => (
-                                  <SelectItem
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='interval_value'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {t('systemSettings.fields.cleanupInterval')}
-                    </FormLabel>
-                    <div className='flex gap-2'>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          min={1}
-                          step={1}
-                          disabled={!autoCleanEnabled}
-                          value={
-                            typeof field.value === 'number' &&
-                            Number.isFinite(field.value)
-                              ? field.value
-                              : ''
-                          }
-                          onChange={(event) =>
-                            field.onChange(event.target.valueAsNumber)
-                          }
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                        />
-                      </FormControl>
-                      <FormField
-                        control={form.control}
-                        name='interval_unit'
-                        render={({ field: unitField }) => (
-                          <FormItem className='w-28 shrink-0'>
-                            <Select
-                              value={unitField.value}
-                              onValueChange={(value) =>
-                                unitField.onChange(value)
-                              }
-                              disabled={!autoCleanEnabled}
-                            >
-                              <SelectTrigger className='w-full'>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent alignItemWithTrigger={false}>
-                                {unitOptions.map((option) => (
-                                  <SelectItem
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className='space-y-2'>
-              <div className='text-sm font-medium'>
-                {t('systemSettings.fields.autoCleanTargets')}
-              </div>
-              <div className='space-y-2'>
-                {targetOptions.map((option) => (
-                  <label
-                    key={option.target}
-                    className='hover:bg-accent/50 flex cursor-pointer items-start gap-3 rounded-md border p-3'
-                  >
-                    <Checkbox
-                      checked={selectedAutoTargets.includes(option.target)}
-                      onCheckedChange={(value) =>
-                        toggleAutoTarget(option.target, value === true)
+            <FormField
+              control={form.control}
+              name='interval_value'
+              render={({ field }) => (
+                <SettingsRow label={t('systemSettings.fields.cleanupInterval')}>
+                  <SettingsControl size='sm'>
+                    <SettingsUnitField
+                      input={
+                        <FormControl>
+                          <SettingsUnitInput
+                            type='number'
+                            min={1}
+                            step={1}
+                            value={
+                              typeof field.value === 'number' &&
+                              Number.isFinite(field.value)
+                                ? field.value
+                                : ''
+                            }
+                            onChange={(event) =>
+                              field.onChange(event.target.valueAsNumber)
+                            }
+                            name={field.name}
+                            onBlur={field.onBlur}
+                            ref={field.ref}
+                          />
+                        </FormControl>
                       }
-                      disabled={!autoCleanEnabled}
-                      className='mt-0.5'
+                      select={
+                        <FormField
+                          control={form.control}
+                          name='interval_unit'
+                          render={({ field: unitField }) => (
+                            <SettingsUnitSelect
+                              aria-label={t(
+                                'systemSettings.fields.cleanupInterval'
+                              )}
+                              value={unitField.value}
+                              onValueChange={unitField.onChange}
+                              options={unitOptions}
+                            />
+                          )}
+                        />
+                      }
                     />
-                    <div className='space-y-0.5'>
-                      <div className='text-sm leading-none font-medium'>
-                        {option.label}
-                      </div>
-                      <p className='text-muted-foreground text-xs'>
-                        {option.description}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </SettingsControlGroup>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
 
-          <SettingsControlGroup className='space-y-3'>
-            <div>
-              <h4 className='text-sm font-medium'>
-                {t('systemSettings.actions.cleanHistoryLogs')}
-              </h4>
-              <p className='text-muted-foreground text-sm'>
-                {t(
-                  'systemSettings.placeholders.selectLogTypesAndTimeRangeToRemoveMatching'
-                )}
-              </p>
-            </div>
+            <SettingsRow label={t('systemSettings.fields.autoCleanTargets')}>
+              <SettingsChoiceGrid
+                aria-label={t('systemSettings.fields.autoCleanTargets')}
+                options={targetOptions}
+                value={selectedAutoTargets}
+                onValueChange={(next) =>
+                  form.setValue('targets', next, { shouldDirty: true })
+                }
+              />
+            </SettingsRow>
+          </SettingsGroup>
 
-            <div className='space-y-2'>
-              {targetOptions.map((option) => (
-                <label
-                  key={option.key}
-                  className='hover:bg-accent/50 flex cursor-pointer items-start gap-3 rounded-md border p-3'
-                >
-                  <Checkbox
-                    checked={targets[option.key]}
-                    onCheckedChange={(value) =>
-                      setTargets((prev) => ({
-                        ...prev,
-                        [option.key]: value === true,
-                      }))
-                    }
-                    className='mt-0.5'
-                  />
-                  <div className='space-y-0.5'>
-                    <div className='text-sm leading-none font-medium'>
-                      {option.label}
-                    </div>
-                    <p className='text-muted-foreground text-xs'>
-                      {option.description}
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <div className='space-y-2'>
-              <div className='text-sm font-medium'>
-                {t('systemSettings.fields.timeRange')}
-              </div>
-              <div className='grid gap-2 sm:grid-cols-2'>
-                <div className='space-y-1'>
-                  <div className='text-muted-foreground text-xs'>
-                    {t('subscriptions.actions.start')}
-                  </div>
-                  <DateTimePicker
-                    value={startDate}
-                    onChange={setStartDate}
-                    placeholder={t('systemSettings.fields.noLowerBound')}
-                  />
-                </div>
-                <div className='space-y-1'>
-                  <div className='text-muted-foreground text-xs'>
-                    {t('subscriptions.fields.end')}
-                  </div>
-                  <DateTimePicker
-                    value={endDate}
-                    onChange={setEndDate}
-                    placeholder={t('systemSettings.placeholders.requiredField')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className='flex flex-wrap gap-3'>
-              <Button
-                type='button'
-                variant='outline'
-                onClick={() => {
-                  setStartDate(getDateDaysAgo(7))
-                  setEndDate(getDateDaysAgo(0))
-                }}
-              >
-                {t('systemSettings.fields.last7Days')}
-              </Button>
-              <Button
-                type='button'
-                variant='outline'
-                onClick={() => {
-                  setStartDate(getDateDaysAgo(30))
-                  setEndDate(getDateDaysAgo(0))
-                }}
-              >
-                {t('systemSettings.fields.last30Days')}
-              </Button>
+          <SettingsPanel
+            title={t('systemSettings.actions.cleanHistoryLogs')}
+            description={t(
+              'systemSettings.placeholders.selectLogTypesAndTimeRangeToRemoveMatching'
+            )}
+            divided
+            footer={
               <Button
                 type='button'
                 variant='destructive'
@@ -772,8 +569,69 @@ export function LogSettingsSection({
                   ? t('systemSettings.tips.cleaning')
                   : t('systemSettings.actions.cleanLogs')}
               </Button>
-            </div>
-          </SettingsControlGroup>
+            }
+          >
+            <SettingsRow label={t('systemSettings.fields.logTypes')}>
+              <SettingsChoiceGrid
+                aria-label={t('systemSettings.fields.logTypes')}
+                options={targetOptions}
+                value={manualTargets}
+                onValueChange={setManualTargets}
+              />
+            </SettingsRow>
+            <SettingsRow label={t('systemSettings.fields.timeRange')}>
+              <div className='flex flex-col gap-2'>
+                <div className='grid gap-4 sm:grid-cols-2'>
+                  <div className='flex flex-col gap-1.5'>
+                    <span className='text-muted-foreground text-xs leading-snug'>
+                      {t('subscriptions.actions.start')}
+                    </span>
+                    <DateTimePicker
+                      value={startDate}
+                      onChange={setStartDate}
+                      placeholder={t('systemSettings.fields.noLowerBound')}
+                    />
+                  </div>
+                  <div className='flex flex-col gap-1.5'>
+                    <span className='text-muted-foreground text-xs leading-snug'>
+                      {t('subscriptions.fields.end')}
+                    </span>
+                    <DateTimePicker
+                      value={endDate}
+                      onChange={setEndDate}
+                      placeholder={t(
+                        'systemSettings.placeholders.requiredField'
+                      )}
+                    />
+                  </div>
+                </div>
+                <div className='flex flex-wrap gap-1'>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='xs'
+                    onClick={() => {
+                      setStartDate(getDateDaysAgo(7))
+                      setEndDate(getDateDaysAgo(0))
+                    }}
+                  >
+                    {t('systemSettings.fields.last7Days')}
+                  </Button>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='xs'
+                    onClick={() => {
+                      setStartDate(getDateDaysAgo(30))
+                      setEndDate(getDateDaysAgo(0))
+                    }}
+                  >
+                    {t('systemSettings.fields.last30Days')}
+                  </Button>
+                </div>
+              </div>
+            </SettingsRow>
+          </SettingsPanel>
         </SettingsForm>
       </Form>
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
@@ -792,7 +650,7 @@ export function LogSettingsSection({
                     'systemSettings.tips.permanentlyRemoveLogEntriesMatchingTheSelectedRange'
                   )}{' '}
               {t('keys.errors.actionCannotBeUndone951f49')}
-              {targets.cleanAuditLogs && (
+              {manualTargets.includes('audit_logs') && (
                 <span className='text-destructive mt-2 block font-medium'>
                   {t(
                     'systemSettings.status.auditLogsSelectedAdministrativeOperationRecordsWillBePermanently'
