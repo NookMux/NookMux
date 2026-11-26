@@ -54,8 +54,11 @@ export function PageTransition(props: PageTransitionProps) {
 
 export function AnimatedOutlet() {
   const shouldReduce = useReducedMotion()
+  // key 取已提交的叶子路由路径。导航一开始 location 就换成新地址，而 Outlet 要等
+  // 新页面就绪才切换内容，两者并不同步；容器必须和新页面在同一帧更换，
+  // 否则离开的页面会先被重新挂载一遍，挂载时的请求和进场动画全部重来。
   const routeKey = useRouterState({
-    select: (s) => s.location.pathname,
+    select: (s) => s.matches[s.matches.length - 1]?.pathname,
   })
 
   if (shouldReduce) {

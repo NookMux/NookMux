@@ -79,9 +79,10 @@ NookMux 前端（`web/`）的视觉与交互规范，团队与 AI 代理共读�
 
 - 弹层用 `tw-animate-css`：`fade-in-0 zoom-in-95`，统一 `duration-100`
 - 编排用 `motion/react`（`lib/motion.ts`）：`0.25s`，缓动 `cubic-bezier(0.33, 1, 0.68, 1)`；spring 仅用于侧栏
-- 时长：卡片 hover 150ms · 表格行 120ms · 页面转场 250ms · 表格行入场 200ms（逐行 +25ms）
+- 时长：卡片 hover 150ms · 表格行 120ms · 页面切换 150ms（登录后区域，`AnimatedOutlet`）· 页内容器 250ms（`PageTransition`）· 表格行入场 200ms（逐行 +25ms）
 - 复用 `pageEnter` / `tableRow` / `cardItem` 变体与 stagger（列表 0.04 / 表格 0.03 / 卡片 0.05），不自定曲线
 - 所有动效支持 `prefers-reduced-motion` 降级；按钮按下 `active:translate-y-px`
+- 页面切换容器 `AnimatedOutlet` 的 key 取已提交的叶子路由路径（`matches` 末项的 `pathname`），与新页面同帧更换；不用当前地址，否则离开的页面会先重挂载一遍，挂载时的请求与进场动画全部重来
 
 ## 7. 模式
 
