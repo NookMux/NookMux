@@ -98,17 +98,23 @@ export function useAuthRedirect() {
   }
 
   /**
-   * Redirect to 2FA page
+   * Redirect to 2FA page, carrying the post-login target
+   * @param redirectTo - Redirect path after login
    */
-  const redirectTo2FA = () => {
-    navigate({ to: '/otp', replace: true })
+  const redirectTo2FA = (redirectTo?: string) => {
+    navigate({ to: '/otp', search: { redirect: redirectTo }, replace: true })
   }
 
   /**
-   * Redirect to login page
+   * Redirect to login page, carrying the post-login target
+   * @param redirectTo - Redirect path after login
    */
-  const redirectToLogin = () => {
-    navigate({ to: '/sign-in', replace: true })
+  const redirectToLogin = (redirectTo?: string) => {
+    navigate({
+      to: '/sign-in',
+      search: { redirect: redirectTo },
+      replace: true,
+    })
   }
 
   /**

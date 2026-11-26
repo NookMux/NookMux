@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useSearch } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -67,6 +68,7 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
 
   const { auth } = useAuthStore()
   const { redirectToLogin } = useAuthRedirect()
+  const { redirect } = useSearch({ from: '/(auth)/otp' })
 
   const form = useForm<z.infer<typeof otpFormSchema>>({
     resolver: zodResolver(otpFormSchema),
@@ -115,7 +117,7 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
       }
 
       toast.success(t('auth.status.signedIn'))
-      redirectToLogin() // This will redirect to dashboard via the redirect logic
+      redirectToLogin(redirect)
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('2FA verification error:', error)
@@ -135,7 +137,7 @@ export function OtpForm({ className, ...props }: OtpFormProps) {
   }
 
   function handleBackToLogin() {
-    redirectToLogin()
+    redirectToLogin(redirect)
   }
 
   const isFormValid = useBackupCode
