@@ -33,24 +33,23 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-
-// ============================================================================
-// Two-FA Disable Dialog Component
-// ============================================================================
+import {
+  SettingsControl,
+  SettingsRow,
+} from '@/features/system-settings/components/settings-group'
+import { useSignInAgain } from '../../hooks'
 
 interface TwoFADisableDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
 }
 
 export function TwoFADisableDialog({
   open,
   onOpenChange,
-  onSuccess,
 }: TwoFADisableDialogProps) {
   const { t } = useTranslation()
+  const signInAgain = useSignInAgain()
   const [loading, setLoading] = useState(false)
   const [code, setCode] = useState('')
   const [confirmed, setConfirmed] = useState(false)
@@ -75,12 +74,11 @@ export function TwoFADisableDialog({
       const response = await disable2FA(code)
 
       if (response.success) {
-        toast.success(t('profile.status.twoFactorAuthenticationDisabled'))
-        onOpenChange(false)
-        onSuccess()
-        // Reset
-        setCode('')
-        setConfirmed(false)
+        // 关闭后服务端会让该用户的全部会话失效，回到登录页重新登录。
+        toast.success(
+          t('profile.status.twoFactorAuthenticationDisabledSignInAgain')
+        )
+        signInAgain()
       } else {
         toast.error(response.message || t('profile.errors.failedToDisable2Fa'))
       }
@@ -114,43 +112,43 @@ export function TwoFADisableDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-4 py-4'>
-          <Alert variant='destructive'>
-            <AlertTriangle className='h-4 w-4' />
-            <AlertDescription>
-              {t('profile.tips.warningDisabling2FaWillMakeYourAccountLess')}
-            </AlertDescription>
-          </Alert>
+        <Alert variant='destructive'>
+          <AlertTriangle className='h-4 w-4' />
+          <AlertDescription>
+            {t('profile.tips.warningDisabling2FaWillMakeYourAccountLess')}
+          </AlertDescription>
+        </Alert>
 
-          <div className='space-y-2'>
-            <Label htmlFor='code'>{t('auth.fields.verificationCode')}</Label>
+        <SettingsRow
+          label={t('auth.fields.verificationCode')}
+          hint={t(
+            'profile.placeholders.enterYourAuthenticatorCodeOrABackupCode'
+          )}
+          htmlFor='two-fa-disable-code'
+        >
+          <SettingsControl>
             <Input
-              id='code'
+              id='two-fa-disable-code'
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder={t('profile.placeholders.enterCodeOrBackupCode')}
               disabled={loading}
             />
-            <p className='text-muted-foreground text-xs'>
-              {t(
-                'profile.placeholders.enterYourAuthenticatorCodeOrABackupCode'
-              )}
-            </p>
-          </div>
+          </SettingsControl>
+        </SettingsRow>
 
-          <div className='flex items-start space-x-2'>
-            <Checkbox
-              id='confirm'
-              checked={confirmed}
-              onCheckedChange={(checked) => setConfirmed(checked as boolean)}
-            />
-            <Label
-              htmlFor='confirm'
-              className='text-sm leading-tight font-normal'
-            >
-              {t('profile.tips.iUnderstandThatDisabling2FaWillRemoveAll')}
-            </Label>
-          </div>
+        <div className='flex items-start space-x-2'>
+          <Checkbox
+            id='confirm'
+            checked={confirmed}
+            onCheckedChange={(checked) => setConfirmed(checked === true)}
+          />
+          <label
+            htmlFor='confirm'
+            className='text-sm leading-tight font-normal peer-disabled:cursor-not-allowed peer-disabled:opacity-50'
+          >
+            {t('profile.tips.iUnderstandThatDisabling2FaWillRemoveAll')}
+          </label>
         </div>
 
         <DialogFooter>
@@ -166,7 +164,9 @@ export function TwoFADisableDialog({
             onClick={handleDisable}
             disabled={loading || !code || !confirmed}
           >
-            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+            {loading && (
+              <Loader2 className='animate-spin' data-icon='inline-start' />
+            )}
             {loading
               ? t('profile.tips.disabling')
               : t('profile.actions.disable2Fa')}

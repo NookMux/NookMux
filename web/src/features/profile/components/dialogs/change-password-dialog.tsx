@@ -29,13 +29,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/password-input'
+import {
+  SettingsControl,
+  SettingsRow,
+} from '@/features/system-settings/components/settings-group'
 import { updateUserProfile } from '../../api'
-
-// ============================================================================
-// Change Password Dialog Component
-// ============================================================================
+import { useSignInAgain } from '../../hooks'
 
 interface ChangePasswordDialogProps {
   open: boolean
@@ -49,6 +49,7 @@ export function ChangePasswordDialog({
   username,
 }: ChangePasswordDialogProps) {
   const { t } = useTranslation()
+  const signInAgain = useSignInAgain()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     originalPassword: '',
@@ -63,7 +64,6 @@ export function ChangePasswordDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
     if (!formData.originalPassword) {
       toast.error(t('profile.errors.pleaseEnterYourCurrentPassword'))
       return
@@ -99,13 +99,9 @@ export function ChangePasswordDialog({
       })
 
       if (response.success) {
-        toast.success(t('profile.fields.passwordChangedSuccessfully'))
-        onOpenChange(false)
-        setFormData({
-          originalPassword: '',
-          newPassword: '',
-          confirmPassword: '',
-        })
+        // 改密后服务端会让该用户的全部会话失效，回到登录页重新登录。
+        toast.success(t('profile.status.passwordChangedSignInAgain'))
+        signInAgain()
       } else {
         toast.error(
           response.message || t('profile.errors.failedToChangePassword')
@@ -121,7 +117,7 @@ export function ChangePasswordDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-md'>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className='@container space-y-4'>
           <DialogHeader>
             <DialogTitle>{t('profile.fields.changePassword')}</DialogTitle>
             <DialogDescription>
@@ -130,13 +126,13 @@ export function ChangePasswordDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className='my-6 space-y-4'>
-            <div className='space-y-2'>
-              <Label htmlFor='currentPassword'>
-                {t('profile.fields.currentPassword')}
-              </Label>
+          <SettingsRow
+            label={t('profile.fields.currentPassword')}
+            htmlFor='current-password'
+          >
+            <SettingsControl>
               <PasswordInput
-                id='currentPassword'
+                id='current-password'
                 value={formData.originalPassword}
                 onChange={(e) =>
                   handleChange('originalPassword', e.target.value)
@@ -145,14 +141,17 @@ export function ChangePasswordDialog({
                 required
                 autoComplete='current-password'
               />
-            </div>
+            </SettingsControl>
+          </SettingsRow>
 
-            <div className='space-y-2'>
-              <Label htmlFor='newPassword'>
-                {t('auth.fields.newPassword')}
-              </Label>
+          <SettingsRow
+            label={t('auth.fields.newPassword')}
+            hint={t('profile.errors.mustBeAtLeast8Characters')}
+            htmlFor='new-password'
+          >
+            <SettingsControl>
               <PasswordInput
-                id='newPassword'
+                id='new-password'
                 value={formData.newPassword}
                 onChange={(e) => handleChange('newPassword', e.target.value)}
                 disabled={loading}
@@ -160,17 +159,16 @@ export function ChangePasswordDialog({
                 minLength={8}
                 autoComplete='new-password'
               />
-              <p className='text-muted-foreground text-xs'>
-                {t('profile.errors.mustBeAtLeast8Characters')}
-              </p>
-            </div>
+            </SettingsControl>
+          </SettingsRow>
 
-            <div className='space-y-2'>
-              <Label htmlFor='confirmPassword'>
-                {t('profile.actions.confirmNewPassword')}
-              </Label>
+          <SettingsRow
+            label={t('profile.actions.confirmNewPassword')}
+            htmlFor='confirm-password'
+          >
+            <SettingsControl>
               <PasswordInput
-                id='confirmPassword'
+                id='confirm-password'
                 value={formData.confirmPassword}
                 onChange={(e) =>
                   handleChange('confirmPassword', e.target.value)
@@ -179,8 +177,8 @@ export function ChangePasswordDialog({
                 required
                 autoComplete='new-password'
               />
-            </div>
-          </div>
+            </SettingsControl>
+          </SettingsRow>
 
           <DialogFooter>
             <Button
@@ -192,7 +190,9 @@ export function ChangePasswordDialog({
               {t('common.actions.cancel')}
             </Button>
             <Button type='submit' disabled={loading}>
-              {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {loading && (
+                <Loader2 className='animate-spin' data-icon='inline-start' />
+              )}
               {loading
                 ? t('profile.tips.changing')
                 : t('profile.fields.changePassword')}

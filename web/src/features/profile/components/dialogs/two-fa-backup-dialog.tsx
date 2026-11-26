@@ -32,28 +32,29 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { CopyButton } from '@/components/copy-button'
-
-// ============================================================================
-// Two-FA Backup Codes Dialog Component
-// ============================================================================
+import {
+  SettingsControl,
+  SettingsRow,
+} from '@/features/system-settings/components/settings-group'
+import { useSignInAgain } from '../../hooks'
 
 interface TwoFABackupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
 }
 
 export function TwoFABackupDialog({
   open,
   onOpenChange,
-  onSuccess,
 }: TwoFABackupDialogProps) {
   const { t } = useTranslation()
+  const signInAgain = useSignInAgain()
   const [loading, setLoading] = useState(false)
   const [code, setCode] = useState('')
   const [backupCodes, setBackupCodes] = useState<string[]>([])
+  // 恢复码轮换后服务端会让该用户的全部会话失效，看过新恢复码后关闭即回到登录页。
+  const [regenerated, setRegenerated] = useState(false)
 
   const handleRegenerate = async () => {
     if (!code) {
@@ -67,6 +68,7 @@ export function TwoFABackupDialog({
 
       if (response.success && response.data?.backup_codes) {
         setBackupCodes(response.data.backup_codes)
+        setRegenerated(true)
         toast.success(t('profile.tips.backupCodesRegeneratedSuccessfully'))
       } else {
         toast.error(
@@ -80,19 +82,18 @@ export function TwoFABackupDialog({
     }
   }
 
-  const handleDone = () => {
-    handleOpenChange(false)
-    onSuccess()
-  }
-
   const handleOpenChange = (open: boolean) => {
-    if (!loading) {
-      if (!open) {
-        setCode('')
-        setBackupCodes([])
-      }
-      onOpenChange(open)
+    if (loading) return
+    if (!open && regenerated) {
+      toast.success(t('profile.status.backupCodesRegeneratedSignInAgain'))
+      signInAgain()
+      return
     }
+    if (!open) {
+      setCode('')
+      setBackupCodes([])
+    }
+    onOpenChange(open)
   }
 
   return (
@@ -110,7 +111,7 @@ export function TwoFABackupDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-4 py-4'>
+        <div className='space-y-4 py-2'>
           {backupCodes.length === 0 ? (
             <>
               <Alert>
@@ -121,19 +122,23 @@ export function TwoFABackupDialog({
                 </AlertDescription>
               </Alert>
 
-              <div className='space-y-2'>
-                <Label htmlFor='code'>
-                  {t('auth.fields.verificationCode')}
-                </Label>
-                <Input
-                  id='code'
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder={t('profile.placeholders.enterAuthenticatorCode')}
-                  maxLength={6}
-                  disabled={loading}
-                />
-              </div>
+              <SettingsRow
+                label={t('auth.fields.verificationCode')}
+                htmlFor='two-fa-backup-code'
+              >
+                <SettingsControl>
+                  <Input
+                    id='two-fa-backup-code'
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder={t(
+                      'profile.placeholders.enterAuthenticatorCode'
+                    )}
+                    maxLength={6}
+                    disabled={loading}
+                  />
+                </SettingsControl>
+              </SettingsRow>
             </>
           ) : (
             <>
@@ -145,12 +150,12 @@ export function TwoFABackupDialog({
 
               <div className='rounded-lg border p-4'>
                 <div className='grid grid-cols-2 gap-2'>
-                  {backupCodes.map((code, index) => (
+                  {backupCodes.map((backupCode, index) => (
                     <div
                       key={index}
                       className='bg-muted rounded-md p-2 text-center font-mono text-sm'
                     >
-                      {code}
+                      {backupCode}
                     </div>
                   ))}
                 </div>
@@ -182,14 +187,18 @@ export function TwoFABackupDialog({
                 {t('common.actions.cancel')}
               </Button>
               <Button onClick={handleRegenerate} disabled={loading || !code}>
-                {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+                {loading && (
+                  <Loader2 className='animate-spin' data-icon='inline-start' />
+                )}
                 {loading
                   ? t('channels.tips.generating')
                   : t('profile.fields.generateNewCodes')}
               </Button>
             </>
           ) : (
-            <Button onClick={handleDone}>{t('profile.fields.done')}</Button>
+            <Button onClick={() => handleOpenChange(false)}>
+              {t('profile.fields.done')}
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

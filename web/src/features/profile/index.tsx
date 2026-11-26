@@ -16,23 +16,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { CircleAlert } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useStatus } from '@/hooks/use-status'
-import { Main } from '@/components/layout'
+import { Button } from '@/components/ui/button'
 import {
-  CardStaggerContainer,
-  CardStaggerItem,
-} from '@/components/page-transition'
-import { CheckinCalendarCard } from './components/checkin-calendar-card'
-import { LanguagePreferencesCard } from './components/language-preferences-card'
-import { PasskeyCard } from './components/passkey-card'
-import { ProfileHeader } from './components/profile-header'
-import { ProfileSecurityCard } from './components/profile-security-card'
-import { ProfileSettingsCard } from './components/profile-settings-card'
-import { TwoFACard } from './components/two-fa-card'
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { SettingsPageFrame } from '@/features/system-settings/components/settings-page'
+import { AccountOverviewPanel } from './components/account-overview-panel'
+import { CheckinPanel } from './components/checkin-panel'
+import { NotificationForm } from './components/notification-form'
+import { ProfileSkeleton } from './components/profile-skeleton'
 import { useProfile } from './hooks'
 
+/** 个人资料：账户概览、通知设置、每日签到。登录方式与危险操作在「安全与访问」页。 */
 export function Profile() {
-  const { profile, loading, refreshProfile } = useProfile()
+  const { t } = useTranslation()
+  const { profile, loading, failed, fetchProfile, refreshProfile } =
+    useProfile()
   const { status } = useStatus()
 
   const checkinEnabled = status?.checkin_enabled === true
@@ -42,43 +47,37 @@ export function Profile() {
   const turnstileSiteKey = status?.turnstile_site_key || ''
 
   return (
-    <Main>
-      <div className='min-h-0 flex-1 overflow-auto px-3 py-3 sm:px-4 sm:py-6'>
-        <CardStaggerContainer className='flex w-full flex-col gap-4 sm:gap-6'>
-          <CardStaggerItem>
-            <ProfileHeader profile={profile} loading={loading} />
-          </CardStaggerItem>
-
-          <CardStaggerItem>
-            <div className='grid gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.46fr)] xl:items-start'>
-              <div className='space-y-4 sm:space-y-6'>
-                <ProfileSettingsCard
-                  profile={profile}
-                  loading={loading}
-                  onProfileUpdate={refreshProfile}
-                />
-                <LanguagePreferencesCard
-                  profile={profile}
-                  onProfileUpdate={refreshProfile}
-                />
-                <ProfileSecurityCard profile={profile} loading={loading} />
-              </div>
-
-              <div className='space-y-4 sm:space-y-6 xl:sticky xl:top-6'>
-                {checkinEnabled && (
-                  <CheckinCalendarCard
-                    checkinEnabled={checkinEnabled}
-                    turnstileEnabled={turnstileEnabled}
-                    turnstileSiteKey={turnstileSiteKey}
-                  />
-                )}
-                <PasskeyCard loading={loading} />
-                <TwoFACard loading={loading} />
-              </div>
-            </div>
-          </CardStaggerItem>
-        </CardStaggerContainer>
-      </div>
-    </Main>
+    <SettingsPageFrame title={t('layout.titles.profile')}>
+      {loading ? (
+        <ProfileSkeleton />
+      ) : failed || !profile ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant='icon'>
+              <CircleAlert />
+            </EmptyMedia>
+            <EmptyTitle>{t('profile.errors.failedToLoadProfile')}</EmptyTitle>
+          </EmptyHeader>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => void fetchProfile()}
+          >
+            {t('common.actions.retry')}
+          </Button>
+        </Empty>
+      ) : (
+        <>
+          <AccountOverviewPanel profile={profile} />
+          <NotificationForm profile={profile} onSaved={refreshProfile} />
+        </>
+      )}
+      {checkinEnabled && (
+        <CheckinPanel
+          turnstileEnabled={turnstileEnabled}
+          turnstileSiteKey={turnstileSiteKey}
+        />
+      )}
+    </SettingsPageFrame>
   )
 }

@@ -33,17 +33,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { CopyButton } from '@/components/copy-button'
 import {
   SecureVerificationDialog,
   useSecureVerification,
 } from '@/features/auth/secure-verification'
+import {
+  SettingsControl,
+  SettingsRow,
+} from '@/features/system-settings/components/settings-group'
 import type { TwoFASetupData } from '../../types'
-
-// ============================================================================
-// Two-FA Setup Dialog Component
-// ============================================================================
 
 interface TwoFASetupDialogProps {
   open: boolean
@@ -74,6 +73,8 @@ export function TwoFASetupDialog({
   } = useSecureVerification({ scope: '2fa_setup', methodPolicy: 'strongest' })
   // 请求闩锁：403 触发验证对话框后阻止自动初始化 effect 反复重发。
   const [setupAttempted, setSetupAttempted] = useState(false)
+  // 等待安全验证：验证通过后挂起的请求会自动重试，期间保持加载状态。
+  const [awaitingVerification, setAwaitingVerification] = useState(false)
   const stepLabels = [
     t('profile.fields.scanQrCode'),
     t('profile.actions.saveBackupCodes'),
@@ -84,6 +85,7 @@ export function TwoFASetupDialog({
     try {
       setInitializing(true)
       const response = await withVerification(async () => {
+        setAwaitingVerification(false)
         const result = await setup2FA()
         if (result.success && result.data) {
           setSetupData(result.data)
@@ -96,6 +98,7 @@ export function TwoFASetupDialog({
       })
       if (!response) {
         // 已触发安全验证，验证通过后将自动重试。
+        setAwaitingVerification(true)
         return
       }
     } catch (error) {
@@ -124,7 +127,6 @@ export function TwoFASetupDialog({
         )
         onOpenChange(false)
         onSuccess()
-        // Reset
         setStep(0)
         setCode('')
         setSetupData(null)
@@ -138,6 +140,11 @@ export function TwoFASetupDialog({
     }
   }
 
+  const endVerification = useCallback(() => {
+    setAwaitingVerification(false)
+    cancelVerification()
+  }, [cancelVerification])
+
   const handleOpenChange = (open: boolean) => {
     if (!loading && !initializing) {
       if (open && !setupData && !setupAttempted) {
@@ -149,6 +156,7 @@ export function TwoFASetupDialog({
         setCode('')
         setSetupData(null)
         setSetupAttempted(false)
+        setAwaitingVerification(false)
       }
       onOpenChange(open)
     }
@@ -177,8 +185,8 @@ export function TwoFASetupDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className='space-y-4 py-4'>
-            {initializing ? (
+          <div className='space-y-4 py-2'>
+            {initializing || awaitingVerification ? (
               <div className='flex flex-col items-center justify-center gap-3 py-8'>
                 <div className='border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent' />
                 <div className='text-muted-foreground text-sm'>
@@ -201,27 +209,27 @@ export function TwoFASetupDialog({
                         'profile.tips.scanThisQrCodeWithYourAuthenticatorAppGoogle'
                       )}
                     </p>
-                    <div className='flex justify-center rounded-lg bg-white p-4'>
+                    {/* 二维码需要白底才能被扫码识别，不随主题变化。 */}
+                    <div className='ring-foreground/10 flex justify-center rounded-lg bg-white p-4 ring-1'>
                       <QRCodeSVG value={setupData.qr_code_data} size={200} />
                     </div>
-                    <div className='bg-muted rounded-lg p-3'>
-                      <div className='flex items-center justify-between'>
-                        <div>
-                          <p className='text-muted-foreground text-xs'>
-                            {t('profile.fields.enterThisKeyManually')}
-                          </p>
-                          <code className='font-mono text-sm'>
+                    <SettingsRow
+                      label={t('profile.fields.enterThisKeyManually')}
+                    >
+                      <SettingsControl>
+                        <div className='flex items-center gap-2'>
+                          <code className='min-w-0 font-mono text-sm break-all'>
                             {setupData.secret}
                           </code>
+                          <CopyButton
+                            value={setupData.secret}
+                            variant='ghost'
+                            tooltip={t('profile.actions.copySecretKey')}
+                            aria-label={t('profile.actions.copySecretKey')}
+                          />
                         </div>
-                        <CopyButton
-                          value={setupData.secret}
-                          variant='ghost'
-                          tooltip={t('profile.actions.copySecretKey')}
-                          aria-label={t('profile.actions.copySecretKey')}
-                        />
-                      </div>
-                    </div>
+                      </SettingsControl>
+                    </SettingsRow>
                   </div>
                 )}
 
@@ -237,12 +245,12 @@ export function TwoFASetupDialog({
                     </Alert>
                     <div className='rounded-lg border p-4'>
                       <div className='grid grid-cols-2 gap-2'>
-                        {setupData.backup_codes.map((code, index) => (
+                        {setupData.backup_codes.map((backupCode, index) => (
                           <div
                             key={index}
                             className='bg-muted rounded-md p-2 text-center font-mono text-sm'
                           >
-                            {code}
+                            {backupCode}
                           </div>
                         ))}
                       </div>
@@ -263,26 +271,24 @@ export function TwoFASetupDialog({
 
                 {/* Step 2: Verify */}
                 {step === 2 && (
-                  <div className='space-y-4'>
-                    <div className='space-y-2'>
-                      <Label htmlFor='code'>
-                        {t('auth.fields.verificationCode')}
-                      </Label>
+                  <SettingsRow
+                    label={t('auth.fields.verificationCode')}
+                    hint={t(
+                      'profile.placeholders.enterThe6DigitCodeFromYourAuthenticatorApp'
+                    )}
+                    htmlFor='two-fa-enable-code'
+                  >
+                    <SettingsControl>
                       <Input
-                        id='code'
+                        id='two-fa-enable-code'
                         value={code}
                         onChange={(e) => setCode(e.target.value)}
                         placeholder={t('profile.placeholders.enter6DigitCode')}
                         maxLength={6}
                         disabled={loading}
                       />
-                      <p className='text-muted-foreground text-xs'>
-                        {t(
-                          'profile.placeholders.enterThe6DigitCodeFromYourAuthenticatorApp'
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                    </SettingsControl>
+                  </SettingsRow>
                 )}
               </>
             )}
@@ -310,7 +316,9 @@ export function TwoFASetupDialog({
                 onClick={handleEnable}
                 disabled={initializing || loading || !code}
               >
-                {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+                {loading && (
+                  <Loader2 className='animate-spin' data-icon='inline-start' />
+                )}
                 {loading
                   ? t('profile.tips.enabling')
                   : t('profile.actions.enable2Fa')}
@@ -324,7 +332,7 @@ export function TwoFASetupDialog({
         open={verificationOpen}
         onOpenChange={(open) => {
           if (!open) {
-            cancelVerification()
+            endVerification()
           }
         }}
         methods={verificationMethods}
@@ -332,7 +340,7 @@ export function TwoFASetupDialog({
         onVerify={async (method, code) => {
           await executeVerification(method, code)
         }}
-        onCancel={cancelVerification}
+        onCancel={endVerification}
         onCodeChange={setVerificationCode}
         onMethodChange={switchVerificationMethod}
       />

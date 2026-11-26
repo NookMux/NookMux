@@ -28,6 +28,7 @@
   "layout.tips.projectAttributionSuffix": "由社区驱动的开源项目。",
   "layout.fields.privacyPolicy": "隐私政策",
   "layout.titles.profile": "个人资料",
+  "layout.titles.securityAccess": "安全与访问",
   "layout.status.redirectingToSignInInSecondsSeconds": "将在 {{seconds}} 秒后跳转到登录页。",
   "layout.fields.securityLimits": "安全与限制",
   "layout.actions.signIn": "登录",

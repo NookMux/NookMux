@@ -115,6 +115,7 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/wallet': { section: 'personal', module: 'topup' },
   '/order-query': { section: 'personal', module: 'order_query' },
   '/profile': { section: 'personal', module: 'personal' },
+  '/profile/security': { section: 'personal', module: 'personal' },
   '/ticket': { section: 'support', module: 'ticket' },
   '/dynamic-ratio': { section: 'admin', module: 'dynamic_ratio' },
   '/channels': { section: 'admin', module: 'channel' },

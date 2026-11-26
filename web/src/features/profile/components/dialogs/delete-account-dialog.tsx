@@ -35,16 +35,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   SecureVerificationDialog,
   useSecureVerification,
 } from '@/features/auth/secure-verification'
+import {
+  SettingsControl,
+  SettingsRow,
+} from '@/features/system-settings/components/settings-group'
 import { deleteUserAccount } from '../../api'
-
-// ============================================================================
-// Delete Account Dialog Component
-// ============================================================================
 
 interface DeleteAccountDialogProps {
   open: boolean
@@ -87,11 +86,10 @@ export function DeleteAccountDialog({
         if (result.success) {
           toast.success(t('profile.status.accountDeletedSuccessfully'))
 
-          // Logout and redirect
           try {
             await api.get('/api/user/logout')
           } catch {
-            // Ignore logout errors
+            // 注销请求失败不阻断本地退出。
           }
 
           reset()
@@ -142,24 +140,26 @@ export function DeleteAccountDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className='my-6 space-y-4'>
-            <Alert variant='destructive'>
-              <AlertTriangle className='h-4 w-4' />
-              <AlertDescription>
-                {t('profile.tips.warningThisActionIsPermanentAndIrreversible')}
-              </AlertDescription>
-            </Alert>
+          <Alert variant='destructive'>
+            <AlertTriangle className='h-4 w-4' />
+            <AlertDescription>
+              {t('profile.tips.warningThisActionIsPermanentAndIrreversible')}
+            </AlertDescription>
+          </Alert>
 
-            <div className='space-y-2'>
-              <Label htmlFor='confirmation'>
-                <Trans
-                  i18nKey='profile.tips.typeUsernameToConfirm'
-                  values={{ username }}
-                  components={{ strong: <strong /> }}
-                />
-              </Label>
+          <SettingsRow
+            label={
+              <Trans
+                i18nKey='profile.tips.typeUsernameToConfirm'
+                values={{ username }}
+                components={{ strong: <strong /> }}
+              />
+            }
+            htmlFor='delete-account-confirmation'
+          >
+            <SettingsControl>
               <Input
-                id='confirmation'
+                id='delete-account-confirmation'
                 type='text'
                 value={confirmation}
                 onChange={(e) => setConfirmation(e.target.value)}
@@ -167,8 +167,8 @@ export function DeleteAccountDialog({
                 placeholder={username}
                 autoComplete='off'
               />
-            </div>
-          </div>
+            </SettingsControl>
+          </SettingsRow>
 
           <DialogFooter>
             <Button
@@ -185,7 +185,9 @@ export function DeleteAccountDialog({
               onClick={handleDelete}
               disabled={loading || confirmation !== username}
             >
-              {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {loading && (
+                <Loader2 className='animate-spin' data-icon='inline-start' />
+              )}
               {loading
                 ? t('keys.tips.deleting')
                 : t('profile.actions.deleteAccount')}

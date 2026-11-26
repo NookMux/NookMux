@@ -53,7 +53,11 @@ type SettingsPageFrameProps = {
   children: ReactNode
 }
 
-function SettingsPageFrame(props: SettingsPageFrameProps) {
+/**
+ * 设置页的页面框架：页面标题、页头操作栏与内容区；页头操作由
+ * SettingsPageFormActions 投放到操作栏。
+ */
+export function SettingsPageFrame(props: SettingsPageFrameProps) {
   const [actionsContainer, setActionsContainer] =
     useState<HTMLDivElement | null>(null)
   const [titleStatusContainer, setTitleStatusContainer] =

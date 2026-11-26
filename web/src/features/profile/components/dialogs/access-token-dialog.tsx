@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useEffect } from 'react'
-import { RefreshCw, Loader2 } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,17 +29,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { CopyButton } from '@/components/copy-button'
 import {
   SecureVerificationDialog,
   useSecureVerification,
 } from '@/features/auth/secure-verification'
+import {
+  SettingsControl,
+  SettingsRow,
+} from '@/features/system-settings/components/settings-group'
 import { useAccessToken } from '../../hooks'
-
-// ============================================================================
-// Access Token Dialog Component
-// ============================================================================
 
 interface AccessTokenDialogProps {
   open: boolean
@@ -63,7 +62,7 @@ export function AccessTokenDialog({
     switchMethod: switchVerificationMethod,
   } = useSecureVerification({ scope: 'access_token' })
 
-  // Auto-generate token when dialog opens if no token exists
+  // 打开对话框时还没有令牌就自动生成；安全验证按需弹出。
   useEffect(() => {
     if (open && !token) {
       void withVerification(generate)
@@ -83,12 +82,14 @@ export function AccessTokenDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className='my-6 space-y-4'>
-            <div className='space-y-2'>
-              <Label htmlFor='token'>{t('profile.fields.accessToken')}</Label>
-              <div className='flex gap-2'>
+          <SettingsRow
+            label={t('profile.actions.useThisTokenForApiAuthentication')}
+            htmlFor='system-access-token'
+          >
+            <SettingsControl>
+              <div className='flex items-center gap-2'>
                 <Input
-                  id='token'
+                  id='system-access-token'
                   type='text'
                   value={token}
                   readOnly
@@ -98,17 +99,12 @@ export function AccessTokenDialog({
                 <CopyButton
                   value={token}
                   variant='outline'
-                  className='size-9'
-                  iconClassName='size-4'
                   tooltip={t('profile.actions.copyToken')}
                   aria-label={t('profile.actions.copyToken')}
                 />
               </div>
-              <p className='text-muted-foreground text-xs'>
-                {t('profile.actions.useThisTokenForApiAuthentication')}
-              </p>
-            </div>
-          </div>
+            </SettingsControl>
+          </SettingsRow>
 
           <DialogFooter>
             <Button
@@ -127,9 +123,9 @@ export function AccessTokenDialog({
               className='gap-2'
             >
               {generating ? (
-                <Loader2 className='h-4 w-4 animate-spin' />
+                <Loader2 className='animate-spin' data-icon='inline-start' />
               ) : (
-                <RefreshCw className='h-4 w-4' />
+                <RefreshCw data-icon='inline-start' />
               )}
               {generating
                 ? t('channels.tips.generating')

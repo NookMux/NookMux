@@ -31,16 +31,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   SecureVerificationDialog,
   useSecureVerification,
 } from '@/features/auth/secure-verification'
+import {
+  SettingsControl,
+  SettingsRow,
+} from '@/features/system-settings/components/settings-group'
 import { sendEmailVerification, bindEmail } from '../../api'
-
-// ============================================================================
-// Email Bind Dialog Component
-// ============================================================================
 
 interface EmailBindDialogProps {
   open: boolean
@@ -121,7 +120,6 @@ export function EmailBindDialog({
           toast.success(t('profile.tips.emailBoundSuccessfully'))
           onOpenChange(false)
           onSuccess()
-          // Reset form
           setEmail('')
           setCode('')
           resetCountdown()
@@ -145,7 +143,6 @@ export function EmailBindDialog({
     if (!loading) {
       onOpenChange(open)
       if (!open) {
-        // Reset form when closing
         setEmail('')
         setCode('')
         resetCountdown()
@@ -168,24 +165,30 @@ export function EmailBindDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className='space-y-4 py-4'>
-            <div className='space-y-2'>
-              <Label htmlFor='email'>{t('profile.fields.emailAddress')}</Label>
+          <SettingsRow
+            label={t('profile.fields.emailAddress')}
+            htmlFor='email-bind-address'
+          >
+            <SettingsControl>
               <Input
-                id='email'
+                id='email-bind-address'
                 type='email'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('profile.placeholders.enterYourEmail')}
                 disabled={loading}
               />
-            </div>
+            </SettingsControl>
+          </SettingsRow>
 
-            <div className='space-y-2'>
-              <Label htmlFor='code'>{t('auth.fields.verificationCode')}</Label>
+          <SettingsRow
+            label={t('auth.fields.verificationCode')}
+            htmlFor='email-bind-code'
+          >
+            <SettingsControl>
               <div className='flex gap-2'>
                 <Input
-                  id='code'
+                  id='email-bind-code'
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder={t('profile.placeholders.enterCode')}
@@ -205,8 +208,8 @@ export function EmailBindDialog({
                       : t('playground.actions.send')}
                 </Button>
               </div>
-            </div>
-          </div>
+            </SettingsControl>
+          </SettingsRow>
 
           <DialogFooter>
             <Button
@@ -222,7 +225,9 @@ export function EmailBindDialog({
               onClick={handleBind}
               disabled={loading || !email || !code}
             >
-              {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {loading && (
+                <Loader2 className='animate-spin' data-icon='inline-start' />
+              )}
               {loading
                 ? t('profile.tips.binding')
                 : t('profile.actions.bindEmail')}

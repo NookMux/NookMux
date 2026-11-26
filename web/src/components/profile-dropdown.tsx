@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { User, Wallet, LogOut, Settings } from 'lucide-react'
+import { User, Wallet, LogOut, Settings, ShieldUser } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
@@ -110,6 +110,12 @@ export function ProfileDropdown() {
           <DropdownMenuItem onClick={() => navigate({ to: '/profile' })}>
             <User className='size-4' />
             {t('layout.titles.profile')}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => navigate({ to: '/profile/security' })}
+          >
+            <ShieldUser className='size-4' />
+            {t('layout.titles.securityAccess')}
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => navigate({ to: '/wallet' })}>

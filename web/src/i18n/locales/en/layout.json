@@ -28,6 +28,7 @@
   "layout.tips.projectAttributionSuffix": "A community-driven open-source project.",
   "layout.fields.privacyPolicy": "Privacy Policy",
   "layout.titles.profile": "Profile",
+  "layout.titles.securityAccess": "Security & Access",
   "layout.status.redirectingToSignInInSecondsSeconds": "Redirecting to the sign-in page in {{seconds}} seconds.",
   "layout.fields.securityLimits": "Security & Limits",
   "layout.actions.signIn": "Sign In",

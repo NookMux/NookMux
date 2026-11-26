@@ -61,3 +61,5 @@ export function useTwoFA(enabled = true) {
     refetch: fetchStatus,
   }
 }
+
+export type TwoFAState = ReturnType<typeof useTwoFA>

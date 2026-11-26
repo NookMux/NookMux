@@ -44,7 +44,7 @@ NookMux 前端（`web/`）的视觉与交互规范，团队与 AI 代理共读�
 ## 3. 字体
 
 - 默认 Public Sans（`--font-sans`，自托管）；可选 inter / manrope / system
-- 字号：`text-xs` 徽章与辅助信息 · `text-sm` 表格/表单/弹层/设置页分区与面板标题（默认正文）· `text-base` 卡片标题 · `text-lg` 页面标题（`sm+`）/ `TitledCard`（个人中心、钱包）· `text-2xl+` 仅公开页
+- 字号：`text-xs` 徽章与辅助信息 · `text-sm` 表格/表单/弹层/设置页分区与面板标题（默认正文）· `text-base` 卡片标题 · `text-lg` 页面标题（`sm+`）/ `TitledCard`（钱包）· `text-2xl+` 仅公开页
 - 页面标题 `text-base font-bold tracking-tight sm:text-lg`；卡片标题 `text-base font-medium`；设置页分区与面板标题 `text-sm font-semibold`，行标题 `text-sm font-medium`
 - 数据数字一律 `tabular-nums`
 - 用户密度档 `data-theme-scale` 同时缩放字号与 `--spacing`，不写死刻度外间距
@@ -90,16 +90,19 @@ NookMux 前端（`web/`）的视觉与交互规范，团队与 AI 代理共读�
 - 统计概览：网格 + `tabular-nums` + `chart-*` 迷你图
 - 状态徽章：`Badge` + 状态语义令牌；空态/骨架：`Empty` / `TableSkeleton` / `.skeleton-shimmer`
 - 设置页：`SettingsGroup` 分区 + `SettingsRow` 行 + React Hook Form / Zod（细则见下）
+- 个人中心：个人资料页与安全与访问页沿用设置页的分区与行（细则见下）
 - 全站个性化：`ConfigDrawer`（写入 `data-theme-*`）
 
 ### 设置页
 
 页面由分区组成，分区由行组成，基础组件在 `features/system-settings/components/`；每页是一个 `SettingsSection`，页面标题与页头操作栏由 `SettingsPage` 框架提供。
 
+个人中心两页（`features/profile/`）沿用同一套分区与行，页面框架用 `SettingsPageFrame`：个人资料页是账户概览面板（`SettingsPanel` + `SettingsStatGrid`）、通知设置表单、签到面板；安全与访问页是登录与认证、Passkey 登录、两步验证、访问令牌四个逐项操作的分区；页底的删除账户是一条无框的高风险提示加一行操作。
+
 - 一页只用一种行结构：随「保存」生效的设置写成 `SettingsGroup` 分区 + `SettingsRow` 行，行与行之间只用细横线；设置页里带边框的容器只有 `SettingsPanel`
 - 分区 `SettingsGroup`：标题行（`title` / `description` / `actions`）+ 以横线分隔的行；功能的启用开关连同它的从属设置写成带 `control` 的分区：开关贴标题行右端（表单内 `control={<SettingsGroupSwitch name=… />} enabled={…}`，页面自管状态时传 `checked` / `onCheckedChange`），从属行缩进到一条竖线之下，开关关闭时整块禁用；分区里的单个开关带从属行时，开关写成开关行，从属行放进 `SettingsDependent`，两者包在同一个容器里；彼此独立的选项开关写成开关行（见下）
 - 行 `SettingsRow`：宽容器里左列 `label` + `description`，右列控件 + `hint`，标题与控件同处一条 32px 横带；是否分两列看所在容器宽度（容器查询 `@container`：42rem 起两列、标签列 14rem，72rem 起标签列 16rem），与视口无关，对话框等窄容器自动单列，页面宽度跟随主题的内容布局设置；表单容器用 `SettingsForm`；左右分栏右侧的面板里写 `columns`：面板再窄也保持标签在左、控件在右（标签列与控件列 1:2，容器够宽时用上面的列宽），不能与 `stacked` 同用
-- 开关行两端对齐：只放一个开关的行由行组件自动识别，文字在左、最宽 48rem，开关贴行的右边缘；开关被其他组件包住时传 `trailing`；分区标题上的总开关同样贴右端；窄容器里开关行同样是标题与开关同处一行、说明在下一行；开关与其他控件同格的行仍从控件列左端开始
+- 开关行两端对齐：只放一个开关的行由行组件自动识别，文字在左、最宽 48rem，开关贴行的右边缘；开关被其他组件包住时传 `trailing`；分区标题上的总开关同样贴右端；窄容器里开关行同样是标题与开关同处一行、说明在下一行；开关与其他控件同格的行仍从控件列左端开始；行里只放操作按钮时同样两端对齐（传 `trailing`），按钮贴行的右边缘，与分区标题行右端的操作同列
 - 控件宽度：输入框占满控件列（文本、数字、密码一致）；数值带单位（固定文字 `unit` 或单位下拉 `select`）用 `SettingsUnitField` 并同样占满；下拉等选择类控件写 `SettingsControl size='sm'` 保持紧凑；多选用 `SettingsChoiceGrid`（复选框 + 标题与说明，不逐项套卡片）
 - 通栏行 `SettingsRow stacked`：自带工具栏、表格或编辑器的行，标题一行（右侧 `actions`）、内容占满下一行；「可视化 / JSON」编辑器的切换用 `EditorModeButton` 挂在标题行右侧，编辑器工具栏搜索靠左、添加靠右（`variant='outline' size='sm'` + `Plus`）；表格贴边对齐，不加第二层边框；表格里可省略的文本列写 `w-full min-w-… max-w-0 truncate` 占满剩余宽度，输入框列用 `min-w-…` 定下限，放不下时表格在面板内横向滚动；需要换行的表头写 `whitespace-normal [word-break:keep-all]`，按词换行、不在词内断开；页面里列表与编辑器左右分栏同样按容器宽度切换（价格设置页的「模型价格」「工具价格」页签 56rem 起分两栏：左侧列表显示名称、类型与价格，右侧是选中项的完整设置，右侧改名后左侧同步；规则这类条目的启用开关放在右侧面板的标题行右侧，右侧的可增删列表只滚动列表本身）：分两栏、占满剩余高度、内部表格占满用同一个条件——包住编辑器与危险面板的那一层标 `@container/<名称>`，其内的栅格、表格都写 `@4xl/<名称>:`，不混用视口断点；窄容器里上下堆叠、按内容撑开；编辑器与下方的危险面板之间留 2rem
 - 面板 `SettingsPanel`：只放不随「保存」逐项生效的内容——立即执行的运维操作、只读监控数据、危险操作、自带列表或需内部滚动的编辑器；只读的数据面板放在设置分区之前，先看到当前数据再调整设置；`divided` 子元素间画横线 · `flush` 表格贴边 · `scroll` 内容区整体滚动 · `fill` 内容占满剩余高度、由内容自己滚动（阶梯档位、工具规则的条件这类可增删列表只滚动列表本身，字段、小标题与添加按钮保持不动；列表块占满剩余高度，固定部分放不下时内容区整体再滚） · `footer` 底部操作栏 · `tone='destructive'` 危险区；只有标题、说明和一个操作的面板写 `inline`，说明在左、操作在右，同处一行；只读指标用 `SettingsStatGrid` / `SettingsStat` / `SettingsMeter`（列数同样看容器宽度，2 列固定）
@@ -108,6 +111,9 @@ NookMux 前端（`web/`）的视觉与交互规范，团队与 AI 代理共读�
 - 页头操作栏 `SettingsPageFormActions`：有未保存改动时页面标题旁出现「未保存的更改」标记，「重置」「保存」才可点；「恢复默认」式页面传 `resettableWhenClean` + `resetLabel`；标题至少占 12rem，标题与操作栏放不下同一行时操作栏整体换到标题下一行（`SectionPageLayout wrapActionsUnderTitle`）
 - 页签统一 `TabsList variant='line'`；空状态面板外用 `Empty`，面板内用无框的居中灰字（`text-muted-foreground` + `text-center`）；配色只用语义令牌；带页签的页面：页签用受控 `value`，面板保持挂载（`keepMounted`），切换页签不丢失未保存的改动；各页签各自一张表单与页头操作栏，页头操作栏只属于当前页签（`SettingsPageActionsPortal` / `SettingsPageFormActions` 只随激活页签渲染）
 - 对话框里的表单同样写成 `SettingsRow`（`<form className='@container space-y-4'>`）：窄对话框自动单列，字段多的编辑对话框用 `sm:max-w-3xl` 加宽后自动分两列
+- 逐项生效的操作（Passkey、两步验证、访问令牌、删除账户）：操作按钮一律贴右：行里的按钮写 `SettingsRow trailing` 贴行的右边缘，与分区标题行右端的操作同在一列，文字按钮写 `variant='outline' size='sm'`，已绑定、已备份这类状态用 `StatusBadge` 跟在行标题后面；加载中显示行骨架，加载失败显示 `SettingsNotice tone='danger'` 加「重试」；不可恢复的操作（删除账户）写在页底，不套带边框的面板：上方一条无框的高风险提示（`SettingsNotice tone='danger'`，标题与系统设置一致），下面是操作行
+- 改动登录凭证的操作（更改密码、关闭两步验证、重新生成恢复码）：服务端会让该用户的全部会话失效，成功后不再发需要登录的请求，用 `useSignInAgain` 清掉本地登录状态回到登录页并说明原因，登录后回到当前页；重新生成恢复码先让用户看完新恢复码，关闭对话框时再退出
+- 条数会增多的操作（更改密码与各类账号绑定）：每种方式一个等宽的面板（标题带图标与状态徽章；说明短的用 `SettingsPanel inline`，说明在左、操作在右；说明长的操作放在标题行、说明另起一行），平铺在网格里——窄容器一列，32rem 起两列，64rem 起三列，`gap-3`，超出自动换行；加载中显示同列数的骨架
 
 ## 8. 禁止
 
