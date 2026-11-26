@@ -96,44 +96,47 @@ export const ModelRatioForm = memo(function ModelRatioForm({
           isSaveDisabled={!isEditorValid}
         />
       )}
-      <SettingsForm
-        onSubmit={form.handleSubmit(onSave)}
-        className='lg:min-h-0 lg:flex-1'
-      >
-        <ModelRatioVisualEditor
-          modelPrice={values.ModelPrice}
-          modelRatio={values.ModelRatio}
-          cacheRatio={values.CacheRatio}
-          createCacheRatio={values.CreateCacheRatio}
-          completionRatio={values.CompletionRatio}
-          audioRatio={values.AudioRatio}
-          audioCompletionRatio={values.AudioCompletionRatio}
-          contextPricing={values.ContextPricing}
-          onChange={handleFieldChange}
-          onValidityChange={handleValidityChange}
-          isSaving={isSaving}
-        />
-      </SettingsForm>
+      <div className='@container/editor flex min-h-0 flex-1 flex-col gap-8'>
+        <SettingsForm
+          onSubmit={form.handleSubmit(onSave)}
+          className='@4xl/editor:min-h-0 @4xl/editor:flex-1'
+        >
+          <ModelRatioVisualEditor
+            modelPrice={values.ModelPrice}
+            modelRatio={values.ModelRatio}
+            cacheRatio={values.CacheRatio}
+            createCacheRatio={values.CreateCacheRatio}
+            completionRatio={values.CompletionRatio}
+            audioRatio={values.AudioRatio}
+            audioCompletionRatio={values.AudioCompletionRatio}
+            contextPricing={values.ContextPricing}
+            onChange={handleFieldChange}
+            onValidityChange={handleValidityChange}
+            isSaving={isSaving}
+          />
+        </SettingsForm>
 
-      <SettingsPanel
-        tone='destructive'
-        className='shrink-0'
-        title={t('systemSettings.actions.resetModelRatios')}
-        description={t(
-          'systemSettings.tips.clearCustomPricingRatiosAndRevertToUpstreamDefaults'
-        )}
-        footer={
-          <Button
-            type='button'
-            variant='destructive'
-            size='sm'
-            onClick={onRestoreDefaults}
-            disabled={isResetting}
-          >
-            {t('common.actions.resetToDefault')}
-          </Button>
-        }
-      />
+        <SettingsPanel
+          tone='destructive'
+          className='shrink-0'
+          inline
+          title={t('systemSettings.actions.resetModelRatios')}
+          description={t(
+            'systemSettings.tips.clearCustomPricingRatiosAndRevertToUpstreamDefaults'
+          )}
+          actions={
+            <Button
+              type='button'
+              variant='destructive'
+              size='sm'
+              onClick={onRestoreDefaults}
+              disabled={isResetting}
+            >
+              {t('common.actions.resetToDefault')}
+            </Button>
+          }
+        />
+      </div>
     </Form>
   )
 })

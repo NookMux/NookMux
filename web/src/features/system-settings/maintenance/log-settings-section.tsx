@@ -445,7 +445,7 @@ export function LogSettingsSection({
                   label={t('systemSettings.fields.retentionPeriod')}
                   description={t('systemSettings.tips.autoCleanEnabledDesc')}
                 >
-                  <SettingsControl size='sm'>
+                  <SettingsControl>
                     <SettingsUnitField
                       input={
                         <FormControl>
@@ -495,7 +495,7 @@ export function LogSettingsSection({
               name='interval_value'
               render={({ field }) => (
                 <SettingsRow label={t('systemSettings.fields.cleanupInterval')}>
-                  <SettingsControl size='sm'>
+                  <SettingsControl>
                     <SettingsUnitField
                       input={
                         <FormControl>

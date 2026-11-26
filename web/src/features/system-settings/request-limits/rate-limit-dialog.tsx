@@ -32,7 +32,12 @@ import {
 } from '@/components/ui/dialog'
 import { Form, FormControl, FormField } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { SettingsControl, SettingsRow } from '../components/settings-group'
+import {
+  SettingsControl,
+  SettingsRow,
+  SettingsUnitField,
+  SettingsUnitInput,
+} from '../components/settings-group'
 
 const rateLimitDialogSchema = z.object({
   groupName: z.string().min(1, 'common.errors.groupNameIsRequired'),
@@ -157,10 +162,10 @@ export function RateLimitDialog({
                     'systemSettings.tips.totalRequestsAllowedPerPeriod0Unlimited'
                   )}
                 >
-                  <div className='flex items-center gap-2'>
-                    <SettingsControl size='xs'>
+                  <SettingsUnitField
+                    input={
                       <FormControl>
-                        <Input
+                        <SettingsUnitInput
                           type='number'
                           min={0}
                           max={2147483647}
@@ -171,11 +176,9 @@ export function RateLimitDialog({
                           }
                         />
                       </FormControl>
-                    </SettingsControl>
-                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
-                      {t('systemSettings.fields.times')}
-                    </span>
-                  </div>
+                    }
+                    unit={t('systemSettings.fields.times')}
+                  />
                 </SettingsRow>
               )}
             />
@@ -190,10 +193,10 @@ export function RateLimitDialog({
                     'systemSettings.status.onlySuccessfulRequestsCountTowardThisLimit'
                   )}
                 >
-                  <div className='flex items-center gap-2'>
-                    <SettingsControl size='xs'>
+                  <SettingsUnitField
+                    input={
                       <FormControl>
-                        <Input
+                        <SettingsUnitInput
                           type='number'
                           min={1}
                           max={2147483647}
@@ -204,11 +207,9 @@ export function RateLimitDialog({
                           }
                         />
                       </FormControl>
-                    </SettingsControl>
-                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
-                      {t('systemSettings.fields.times')}
-                    </span>
-                  </div>
+                    }
+                    unit={t('systemSettings.fields.times')}
+                  />
                 </SettingsRow>
               )}
             />

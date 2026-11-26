@@ -183,7 +183,7 @@ export function EmailSettingsSection({
                     'systemSettings.tips.commonPortsInclude25465And587'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         autoComplete='off'

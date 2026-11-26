@@ -22,15 +22,15 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { Form, FormControl, FormField } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { EditorModeButton } from '../components/editor-mode-button'
 import { SettingsForm } from '../components/settings-form-layout'
 import {
-  SettingsControl,
   SettingsGroup,
   SettingsGroupSwitch,
   SettingsRow,
+  SettingsUnitField,
+  SettingsUnitInput,
 } from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
@@ -145,10 +145,10 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     'systemSettings.fields.timeWindowForRateLimiting'
                   )}
                 >
-                  <div className='flex items-center gap-2'>
-                    <SettingsControl size='xs'>
+                  <SettingsUnitField
+                    input={
                       <FormControl>
-                        <Input
+                        <SettingsUnitInput
                           type='number'
                           min={0}
                           step={1}
@@ -158,11 +158,9 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                           }
                         />
                       </FormControl>
-                    </SettingsControl>
-                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
-                      {t('subscriptions.fields.minutes')}
-                    </span>
-                  </div>
+                    }
+                    unit={t('subscriptions.fields.minutes')}
+                  />
                 </SettingsRow>
               )}
             />
@@ -177,10 +175,10 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     'systemSettings.status.includingFailedRequests0Unlimited'
                   )}
                 >
-                  <div className='flex items-center gap-2'>
-                    <SettingsControl size='xs'>
+                  <SettingsUnitField
+                    input={
                       <FormControl>
-                        <Input
+                        <SettingsUnitInput
                           type='number'
                           min={0}
                           max={100000000}
@@ -191,11 +189,9 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                           }
                         />
                       </FormControl>
-                    </SettingsControl>
-                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
-                      {t('systemSettings.fields.times')}
-                    </span>
-                  </div>
+                    }
+                    unit={t('systemSettings.fields.times')}
+                  />
                 </SettingsRow>
               )}
             />
@@ -210,10 +206,10 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     'systemSettings.status.onlySuccessfulRequests'
                   )}
                 >
-                  <div className='flex items-center gap-2'>
-                    <SettingsControl size='xs'>
+                  <SettingsUnitField
+                    input={
                       <FormControl>
-                        <Input
+                        <SettingsUnitInput
                           type='number'
                           min={1}
                           max={100000000}
@@ -224,11 +220,9 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                           }
                         />
                       </FormControl>
-                    </SettingsControl>
-                    <span className='text-muted-foreground text-sm whitespace-nowrap'>
-                      {t('systemSettings.fields.times')}
-                    </span>
-                  </div>
+                    }
+                    unit={t('systemSettings.fields.times')}
+                  />
                 </SettingsRow>
               )}
             />

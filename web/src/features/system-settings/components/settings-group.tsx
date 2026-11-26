@@ -51,7 +51,7 @@ import { Switch } from '@/components/ui/switch'
  * 系统设置的统一页面结构：页面由分区组成，分区由行组成，行与行之间只用细横线分隔。
  *
  * 宽容器里行的左列是标题与说明，右列是控件与辅助信息。标题和控件同处一条 32px 高的
- * 横带并垂直居中，所以文本框、下拉与开关混排时标题始终对齐控件。多行文本填满控件列；
+ * 横带并垂直居中，所以文本框、下拉与开关混排时标题始终对齐控件。输入框占满控件列；
  * 自带工具栏或表格的编辑器用 stacked 通栏，标题一行、内容一行；只放一个开关的行两端
  * 对齐，文字在左、开关贴行的右边缘，分区标题上的总开关同样贴右端。
  */
@@ -108,8 +108,11 @@ type SettingsDependentProps = ComponentProps<'fieldset'> & {
   enabled: boolean
 }
 
-/** 从属区：缩进到一条竖线之下，关闭时内部所有控件禁用。 */
-function SettingsDependent({
+/**
+ * 从属区：缩进到一条竖线之下，关闭时内部所有控件禁用。
+ * 分区带 control 时由分区自动包上；分区里的单个开关带从属行时直接使用。
+ */
+export function SettingsDependent({
   enabled,
   className,
   children,
@@ -375,28 +378,27 @@ export function SettingsRow({
   )
 }
 
-const CONTROL_SIZE_CLASS = {
-  xs: 'max-w-28',
-  sm: 'max-w-40',
-  md: 'max-w-md',
-  lg: 'max-w-xl',
-  full: '',
-} as const
+/** 保持紧凑的选择类控件（下拉等）的最大宽度。 */
+const COMPACT_CONTROL_CLASS = 'max-w-40'
 
 type SettingsControlProps = ComponentProps<'div'> & {
-  /** 控件列里的宽度档：数字 xs、下拉 sm、单行文本 md、长文本 lg、通栏 full。 */
-  size?: keyof typeof CONTROL_SIZE_CLASS
+  /** 下拉等选择类控件传 sm 保持紧凑；输入框默认占满控件列。 */
+  size?: 'sm'
 }
 
-/** 控件列的限宽容器，避免输入框随页面宽度无限拉长。 */
+/** 控件列的容器：输入框占满控件列，选择类控件保持紧凑。 */
 export function SettingsControl({
-  size = 'md',
+  size,
   className,
   ...props
 }: SettingsControlProps) {
   return (
     <div
-      className={cn('w-full min-w-0', CONTROL_SIZE_CLASS[size], className)}
+      className={cn(
+        'w-full min-w-0',
+        size === 'sm' && COMPACT_CONTROL_CLASS,
+        className
+      )}
       {...props}
     />
   )
@@ -414,23 +416,31 @@ const UNIT_SELECT_TRIGGER_CLASS =
 type SettingsUnitFieldProps = ComponentProps<'div'> & {
   /** 数值输入，用 SettingsUnitInput。 */
   input: ReactNode
-  /** 单位下拉，用 SettingsUnitSelect。 */
-  select: ReactNode
+  /** 单位下拉，用 SettingsUnitSelect；与 unit 二选一。 */
+  select?: ReactNode
+  /** 固定单位的文字；与 select 二选一。 */
+  unit?: ReactNode
 }
 
-/** 数值加单位：两个控件拼成一个带边框的整体，焦点环画在外框上。 */
+const UNIT_TEXT_CLASS = 'text-muted-foreground px-2.5 text-sm'
+
+/** 数值加单位：数值与单位拼成一个带边框的整体，占满控件列，焦点环画在外框上。 */
 export function SettingsUnitField({
   input,
   select,
+  unit,
   className,
   ...props
 }: SettingsUnitFieldProps) {
   return (
     <div className={cn(UNIT_FIELD_CLASS, className)} {...props}>
       <div className='min-w-0 flex-1'>{input}</div>
-      <div className='border-input flex shrink-0 items-center border-l'>
-        {select}
-      </div>
+      {(select != null || unit != null) && (
+        <div className='border-input flex shrink-0 items-center border-l'>
+          {select}
+          {unit != null && <span className={UNIT_TEXT_CLASS}>{unit}</span>}
+        </div>
+      )}
     </div>
   )
 }

@@ -282,7 +282,7 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                     </>
                   }
                 >
-                  <SettingsControl size='lg'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         {...field}
@@ -339,7 +339,7 @@ export function MiniMaxSettingsCard({ defaultValues }: Props) {
                     </>
                   }
                 >
-                  <SettingsControl size='lg'>
+                  <SettingsControl>
                     <FormControl>
                       <Input {...field} placeholder={`\\(([^()]+)\\)`} />
                     </FormControl>

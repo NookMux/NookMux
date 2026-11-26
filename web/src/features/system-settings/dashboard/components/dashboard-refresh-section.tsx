@@ -114,7 +114,7 @@ export function DashboardRefreshSection() {
                 <SettingsRow
                   label={t('systemSettings.tips.quotaDataIntervalSeconds')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -138,7 +138,7 @@ export function DashboardRefreshSection() {
                 <SettingsRow
                   label={t('systemSettings.tips.userAnalyticsIntervalSeconds')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -162,7 +162,7 @@ export function DashboardRefreshSection() {
                 <SettingsRow
                   label={t('systemSettings.tips.rankingsIntervalSeconds')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -188,7 +188,7 @@ export function DashboardRefreshSection() {
                     'systemSettings.tips.uptimeMonitoringIntervalSeconds'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

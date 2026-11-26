@@ -816,11 +816,12 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
       <SettingsPanel
         tone='destructive'
         className='shrink-0'
+        inline
         title={t('systemSettings.actions.resetToolBillingRules')}
         description={t(
           'systemSettings.tips.clearToolBillingRulesAndRestoreDefaults'
         )}
-        footer={
+        actions={
           <Button
             type='button'
             variant='destructive'

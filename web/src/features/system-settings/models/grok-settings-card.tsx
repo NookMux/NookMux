@@ -164,7 +164,7 @@ export function GrokSettingsCard({ defaultValues }: GrokSettingsCardProps) {
                     'systemSettings.tips.baseAmountActualDeductionBaseAmountSystemGroupRate'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input type='number' step={0.01} min={0} {...field} />
                     </FormControl>

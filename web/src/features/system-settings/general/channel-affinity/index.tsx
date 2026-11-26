@@ -444,6 +444,48 @@ export function ChannelAffinitySection(props: Props) {
         />
 
         <div className='flex w-full min-w-0 flex-col gap-8'>
+          <SettingsPanel
+            title={t('pricing.fields.cache')}
+            actions={
+              <>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={refreshCache}
+                  disabled={cacheLoading}
+                >
+                  <RefreshCw
+                    data-icon='inline-start'
+                    className={cacheLoading ? 'animate-spin' : undefined}
+                  />
+                  {t('systemSettings.actions.refreshCache')}
+                </Button>
+                <Button
+                  type='button'
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => setClearAllDialogOpen(true)}
+                >
+                  {t('systemSettings.actions.clearAllCache')}
+                </Button>
+              </>
+            }
+          >
+            <div className='py-2'>
+              <SettingsStatGrid columns={3}>
+                <SettingsStat
+                  label={t('systemSettings.fields.cacheEntries')}
+                  value={
+                    cacheStats
+                      ? `${cacheStats.total} / ${cacheStats.cache_capacity}`
+                      : '-'
+                  }
+                />
+              </SettingsStatGrid>
+            </div>
+          </SettingsPanel>
+
           <SettingsGroup
             title={t('systemSettings.actions.enableChannelAffinity')}
             description={t(
@@ -461,7 +503,7 @@ export function ChannelAffinitySection(props: Props) {
               label={t('systemSettings.fields.maxEntries')}
               htmlFor='channel-affinity-max-entries'
             >
-              <SettingsControl size='xs'>
+              <SettingsControl>
                 <Input
                   id='channel-affinity-max-entries'
                   type='number'
@@ -477,7 +519,7 @@ export function ChannelAffinitySection(props: Props) {
               label={t('systemSettings.fields.defaultTtlSeconds')}
               htmlFor='channel-affinity-default-ttl'
             >
-              <SettingsControl size='xs'>
+              <SettingsControl>
                 <Input
                   id='channel-affinity-default-ttl'
                   type='number'
@@ -723,48 +765,6 @@ export function ChannelAffinitySection(props: Props) {
               )}
             </SettingsRow>
           </SettingsGroup>
-
-          <SettingsPanel
-            title={t('pricing.fields.cache')}
-            actions={
-              <>
-                <Button
-                  type='button'
-                  variant='outline'
-                  size='sm'
-                  onClick={refreshCache}
-                  disabled={cacheLoading}
-                >
-                  <RefreshCw
-                    data-icon='inline-start'
-                    className={cacheLoading ? 'animate-spin' : undefined}
-                  />
-                  {t('systemSettings.actions.refreshCache')}
-                </Button>
-                <Button
-                  type='button'
-                  variant='destructive'
-                  size='sm'
-                  onClick={() => setClearAllDialogOpen(true)}
-                >
-                  {t('systemSettings.actions.clearAllCache')}
-                </Button>
-              </>
-            }
-          >
-            <div className='py-2'>
-              <SettingsStatGrid columns={3}>
-                <SettingsStat
-                  label={t('systemSettings.fields.cacheEntries')}
-                  value={
-                    cacheStats
-                      ? `${cacheStats.total} / ${cacheStats.cache_capacity}`
-                      : '-'
-                  }
-                />
-              </SettingsStatGrid>
-            </div>
-          </SettingsPanel>
         </div>
       </SettingsSection>
 

@@ -374,7 +374,7 @@ export function PasskeySection({ defaultValues }: PasskeySectionProps) {
                     'systemSettings.tips.maximumNumberOfPasskeysEachUserCanRegister1'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

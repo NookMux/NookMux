@@ -126,7 +126,7 @@ export function GlobalSettingsCard({ defaultValues }: GlobalSettingsCardProps) {
                     'systemSettings.tips.recommendedToKeepThisHighToAvoidUpstreamThrottling'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

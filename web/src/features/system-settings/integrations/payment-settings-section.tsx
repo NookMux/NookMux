@@ -400,7 +400,7 @@ export function PaymentSettingsSection({
                 <SettingsRow
                   label={t('systemSettings.fields.topUpPriceLocalUsd')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -422,7 +422,7 @@ export function PaymentSettingsSection({
               name='MinTopUp'
               render={({ field }) => (
                 <SettingsRow label={t('systemSettings.fields.minimumTopUpUsd')}>
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -594,7 +594,7 @@ export function PaymentSettingsSection({
                 </div>
               }
             >
-              <SettingsControl size='lg'>
+              <SettingsControl>
                 <div className='flex min-w-0 items-center gap-2'>
                   <span className='text-muted-foreground shrink-0 text-sm'>
                     {t('profile.fields.webhookUrl')}
@@ -689,7 +689,7 @@ export function PaymentSettingsSection({
                 <SettingsRow
                   label={t('systemSettings.fields.topUpPriceLocalUsd')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -711,7 +711,7 @@ export function PaymentSettingsSection({
               name='StripeMinTopUp'
               render={({ field }) => (
                 <SettingsRow label={t('systemSettings.fields.minimumTopUpUsd')}>
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

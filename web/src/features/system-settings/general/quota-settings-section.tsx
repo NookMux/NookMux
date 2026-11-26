@@ -151,7 +151,7 @@ export function QuotaSettingsSection({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -186,7 +186,7 @@ export function QuotaSettingsSection({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -221,7 +221,7 @@ export function QuotaSettingsSection({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -254,7 +254,7 @@ export function QuotaSettingsSection({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -289,7 +289,7 @@ export function QuotaSettingsSection({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

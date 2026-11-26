@@ -426,7 +426,7 @@ export function RuleEditorDialog(props: Props) {
               <SettingsRow
                 label={t('systemSettings.fields.ttlSeconds0Default')}
               >
-                <SettingsControl size='xs'>
+                <SettingsControl>
                   <Input
                     type='number'
                     min={0}

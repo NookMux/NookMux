@@ -371,7 +371,7 @@ function DatabaseMigrationPanel({ config }: { config: MigrationPanelConfig }) {
           description={config.help}
           htmlFor={`${config.mode}-target-dsn`}
         >
-          <SettingsControl size='lg'>
+          <SettingsControl>
             <Input
               id={`${config.mode}-target-dsn`}
               type='password'
@@ -396,7 +396,7 @@ function DatabaseMigrationPanel({ config }: { config: MigrationPanelConfig }) {
           )}
           htmlFor={`${config.mode}-target-log-dsn`}
         >
-          <SettingsControl size='lg'>
+          <SettingsControl>
             <Input
               id={`${config.mode}-target-log-dsn`}
               type='password'

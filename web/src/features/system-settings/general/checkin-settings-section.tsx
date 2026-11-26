@@ -146,7 +146,7 @@ export function CheckinSettingsSection({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -179,7 +179,7 @@ export function CheckinSettingsSection({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

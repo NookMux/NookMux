@@ -144,7 +144,7 @@ export function AmountDiscountDialog({
                         )
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -183,7 +183,7 @@ export function AmountDiscountDialog({
                     </>
                   }
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

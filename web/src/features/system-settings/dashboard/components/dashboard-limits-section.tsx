@@ -127,7 +127,7 @@ export function DashboardLimitsSection() {
                 <SettingsRow
                   label={t('systemSettings.tips.defaultTimeRangeDays')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -151,7 +151,7 @@ export function DashboardLimitsSection() {
                 <SettingsRow
                   label={t('systemSettings.tips.maximumTimeRangeDays')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -175,7 +175,7 @@ export function DashboardLimitsSection() {
                 <SettingsRow
                   label={t('systemSettings.fields.rankingsModelLimit')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -199,7 +199,7 @@ export function DashboardLimitsSection() {
                 <SettingsRow
                   label={t('systemSettings.fields.rankingsVendorLimit')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -223,7 +223,7 @@ export function DashboardLimitsSection() {
                 <SettingsRow
                   label={t('systemSettings.fields.rankingsPlatformLimit')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -247,7 +247,7 @@ export function DashboardLimitsSection() {
                 <SettingsRow
                   label={t('systemSettings.fields.userAnalyticsTopN')}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

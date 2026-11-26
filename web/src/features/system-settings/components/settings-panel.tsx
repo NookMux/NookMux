@@ -45,8 +45,12 @@ type SettingsPanelProps = {
   divided?: boolean
   /** 内容贴边铺满并占满剩余高度，适合放表格与内部滚动区。 */
   flush?: boolean
-  /** 内容占满剩余高度并在内部滚动；面板有确定的高度时才会生效。 */
+  /** 内容占满剩余高度并纵向排列，面板有确定的高度时才会生效；需要滚动的部分由内容自己滚动。 */
+  fill?: boolean
+  /** 内容占满剩余高度并在内部整体滚动；面板有确定的高度时才会生效。 */
   scroll?: boolean
+  /** 只有标题、说明与右侧操作：三者同处一行，没有内容区与底部操作栏。 */
+  inline?: boolean
   className?: string
   children?: ReactNode
 }
@@ -65,7 +69,9 @@ export function SettingsPanel({
   tone = 'default',
   divided = false,
   flush = false,
+  fill = false,
   scroll = false,
+  inline = false,
   className,
   children,
 }: SettingsPanelProps) {
@@ -81,14 +87,9 @@ export function SettingsPanel({
         className
       )}
     >
-      {(title != null || description != null || actions != null) && (
-        <div className='flex flex-col gap-1 px-4 py-3'>
-          <div
-            className={cn(
-              'flex flex-wrap items-center gap-x-4 gap-y-2',
-              title != null ? 'justify-between' : 'justify-end'
-            )}
-          >
+      {inline ? (
+        <div className='flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3'>
+          <div className='flex min-w-0 flex-col gap-1'>
             {title != null && (
               <div className='flex min-w-0 items-center gap-2'>
                 {Icon != null && (
@@ -108,36 +109,80 @@ export function SettingsPanel({
                 </h3>
               </div>
             )}
-            {actions != null && (
-              <div className='flex min-w-0 flex-wrap items-center gap-2'>
-                {actions}
-              </div>
+            {description != null && (
+              <p className='text-muted-foreground text-sm leading-snug'>
+                {description}
+              </p>
             )}
           </div>
-          {description != null && (
-            <p className='text-muted-foreground text-sm leading-snug'>
-              {description}
-            </p>
+          {actions != null && (
+            <div className='flex min-w-0 shrink-0 flex-wrap items-center gap-2'>
+              {actions}
+            </div>
           )}
         </div>
-      )}
-      {children != null && (
-        <div
-          className={cn(
-            'min-w-0',
-            flush ? 'p-0' : 'px-4 py-2',
-            (flush || scroll) && 'min-h-0 flex-1',
-            scroll && 'overflow-y-auto',
-            divided && RULED
+      ) : (
+        <>
+          {(title != null || description != null || actions != null) && (
+            <div className='flex flex-col gap-1 px-4 py-3'>
+              <div
+                className={cn(
+                  'flex flex-wrap items-center gap-x-4 gap-y-2',
+                  title != null ? 'justify-between' : 'justify-end'
+                )}
+              >
+                {title != null && (
+                  <div className='flex min-w-0 items-center gap-2'>
+                    {Icon != null && (
+                      <Icon
+                        className='text-muted-foreground size-4 shrink-0'
+                        aria-hidden='true'
+                      />
+                    )}
+                    <h3
+                      id={titleId}
+                      className={cn(
+                        'text-sm leading-snug font-semibold',
+                        tone === 'destructive' && 'text-destructive'
+                      )}
+                    >
+                      {title}
+                    </h3>
+                  </div>
+                )}
+                {actions != null && (
+                  <div className='flex min-w-0 flex-wrap items-center gap-2'>
+                    {actions}
+                  </div>
+                )}
+              </div>
+              {description != null && (
+                <p className='text-muted-foreground text-sm leading-snug'>
+                  {description}
+                </p>
+              )}
+            </div>
           )}
-        >
-          {children}
-        </div>
-      )}
-      {footer != null && (
-        <div className='flex flex-wrap items-center justify-end gap-2 border-t px-4 py-3'>
-          {footer}
-        </div>
+          {children != null && (
+            <div
+              className={cn(
+                'min-w-0',
+                flush ? 'p-0' : 'px-4 py-2',
+                (flush || fill || scroll) && 'min-h-0 flex-1',
+                fill && 'flex flex-col',
+                scroll && 'overflow-y-auto',
+                divided && RULED
+              )}
+            >
+              {children}
+            </div>
+          )}
+          {footer != null && (
+            <div className='flex flex-wrap items-center justify-end gap-2 border-t px-4 py-3'>
+              {footer}
+            </div>
+          )}
+        </>
       )}
     </section>
   )

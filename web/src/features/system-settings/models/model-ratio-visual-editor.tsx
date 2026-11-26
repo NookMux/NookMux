@@ -852,14 +852,13 @@ export function ModelRatioVisualEditor({
   return (
     <div
       className={cn(
-        'grid min-h-[560px] gap-4 lg:min-h-0 lg:flex-1 @4xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]',
+        'grid min-h-[560px] shrink-0 gap-4 @4xl/editor:min-h-0 @4xl/editor:flex-1 @4xl/editor:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]',
         isSaving &&
           'pointer-events-none opacity-60 transition-opacity duration-150'
       )}
     >
       <SettingsPanel
         title={t('channels.titles.models')}
-        className='@4xl:min-h-0'
         actions={
           <>
             <div className='relative min-w-[180px] flex-1'>
@@ -959,7 +958,7 @@ export function ModelRatioVisualEditor({
           </div>
         }
       >
-        <Table containerClassName='max-h-[70vh] overflow-y-auto @4xl:max-h-none @4xl:h-full'>
+        <Table containerClassName='max-h-[70vh] overflow-y-auto @4xl/editor:max-h-none @4xl/editor:h-full'>
           <TableHeader className='bg-card sticky top-0 z-10'>
             <TableRow>
               <TableHead className='pl-4'>
@@ -1043,7 +1042,6 @@ export function ModelRatioVisualEditor({
             t('systemSettings.titles.priceSettings')
           )
         }
-        className='@4xl:max-h-full @4xl:self-start'
         actions={
           <Button
             type='button'
@@ -1064,7 +1062,7 @@ export function ModelRatioVisualEditor({
             {t('systemSettings.actions.importBuiltinPricing')}
           </Button>
         }
-        scroll
+        fill
         footer={
           selectedRow ? (
             <Button
@@ -1084,7 +1082,10 @@ export function ModelRatioVisualEditor({
             {t('systemSettings.placeholders.selectAModelToEditPricing')}
           </div>
         ) : (
-          <div className='flex flex-col gap-5 py-3' key={selectedRow.name}>
+          <div
+            className='flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto py-3'
+            key={selectedRow.name}
+          >
             {selectedRow.mode === 'unconfigured' && (
               <div className='bg-warning/10 text-warning rounded-md px-3 py-2 text-sm'>
                 {t(
@@ -1230,7 +1231,7 @@ export function ModelRatioVisualEditor({
             )}
 
             {selectedRow.mode === 'per-token-length' && (
-              <div className='space-y-4'>
+              <div className='flex min-h-40 flex-1 flex-col gap-4'>
                 <div className='flex items-center justify-between gap-2'>
                   <div>
                     <Label className='text-sm font-semibold'>
@@ -1254,7 +1255,7 @@ export function ModelRatioVisualEditor({
                 </div>
 
                 {(selectedRow.contextTiers || []).length > 0 ? (
-                  <div className='[&>*+*]:border-t'>
+                  <div className='hover-scrollbar min-h-0 flex-1 overflow-y-auto [&>*+*]:border-t'>
                     {(selectedRow.contextTiers || []).map((tier, tierIdx) => {
                       const maxTokensStr =
                         tier.max_tokens === null ? '' : String(tier.max_tokens)

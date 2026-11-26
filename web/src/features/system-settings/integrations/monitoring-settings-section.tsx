@@ -30,8 +30,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { SettingsForm } from '../components/settings-form-layout'
 import {
   SettingsControl,
+  SettingsDependent,
   SettingsGroup,
-  SettingsGroupSwitch,
   SettingsRow,
 } from '../components/settings-group'
 import { SettingsPageFormActions } from '../components/settings-page-context'
@@ -226,50 +226,64 @@ export function MonitoringSettingsSection({
             saveLabel='common.actions.saveMonitoringRules'
           />
 
-          <SettingsGroup
-            title={t('systemSettings.fields.scheduledChannelTests')}
-            description={t(
-              'systemSettings.tips.automaticallyProbeAllChannelsInTheBackground'
-            )}
-            control={
-              <SettingsGroupSwitch name='monitor_setting.auto_test_channel_enabled' />
-            }
-            enabled={autoTestEnabled}
-          >
-            <FormField
-              control={form.control}
-              name='monitor_setting.auto_test_channel_minutes'
-              render={({ field }) => (
-                <SettingsRow
-                  label={t('systemSettings.fields.testIntervalMinutes')}
-                  description={t(
-                    'systemSettings.tips.howFrequentlyTheSystemTestsAllChannels'
-                  )}
-                >
-                  <SettingsControl size='xs'>
+          <SettingsGroup title={t('systemSettings.fields.autoCheck')}>
+            <div className='flex min-w-0 flex-col'>
+              <FormField
+                control={form.control}
+                name='monitor_setting.auto_test_channel_enabled'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.scheduledChannelTests')}
+                    description={t(
+                      'systemSettings.tips.automaticallyProbeAllChannelsInTheBackground'
+                    )}
+                  >
                     <FormControl>
-                      <Input
-                        type='number'
-                        min={1}
-                        step={1}
-                        value={
-                          typeof field.value === 'number' &&
-                          Number.isFinite(field.value)
-                            ? field.value
-                            : ''
-                        }
-                        onChange={(event) =>
-                          field.onChange(event.target.valueAsNumber)
-                        }
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        ref={field.ref}
+                      <Switch
+                        checked={field.value === true}
+                        onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                  </SettingsControl>
-                </SettingsRow>
-              )}
-            />
+                  </SettingsRow>
+                )}
+              />
+              <SettingsDependent enabled={autoTestEnabled}>
+                <FormField
+                  control={form.control}
+                  name='monitor_setting.auto_test_channel_minutes'
+                  render={({ field }) => (
+                    <SettingsRow
+                      label={t('systemSettings.fields.testIntervalMinutes')}
+                      description={t(
+                        'systemSettings.tips.howFrequentlyTheSystemTestsAllChannels'
+                      )}
+                    >
+                      <SettingsControl>
+                        <FormControl>
+                          <Input
+                            type='number'
+                            min={1}
+                            step={1}
+                            value={
+                              typeof field.value === 'number' &&
+                              Number.isFinite(field.value)
+                                ? field.value
+                                : ''
+                            }
+                            onChange={(event) =>
+                              field.onChange(event.target.valueAsNumber)
+                            }
+                            name={field.name}
+                            onBlur={field.onBlur}
+                            ref={field.ref}
+                          />
+                        </FormControl>
+                      </SettingsControl>
+                    </SettingsRow>
+                  )}
+                />
+              </SettingsDependent>
+            </div>
           </SettingsGroup>
 
           <SettingsGroup>
@@ -283,32 +297,7 @@ export function MonitoringSettingsSection({
                     'systemSettings.tips.automaticallyDisableChannelsExceedingThisResponseTime'
                   )}
                 >
-                  <SettingsControl size='xs'>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={0}
-                        step={1}
-                        value={field.value}
-                        onChange={(event) => field.onChange(event.target.value)}
-                      />
-                    </FormControl>
-                  </SettingsControl>
-                </SettingsRow>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='QuotaRemindThreshold'
-              render={({ field }) => (
-                <SettingsRow
-                  label={t('systemSettings.tips.defaultQuotaReminderThreshold')}
-                  description={t(
-                    'systemSettings.tips.defaultReminderThresholdInBackendQuotaUnitsTokensUsers'
-                  )}
-                >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -413,6 +402,33 @@ export function MonitoringSettingsSection({
                         placeholder={t(
                           'systemSettings.placeholders.eG401403429500599'
                         )}
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+          </SettingsGroup>
+
+          <SettingsGroup title={t('systemSettings.fields.quotaReminder')}>
+            <FormField
+              control={form.control}
+              name='QuotaRemindThreshold'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.tips.defaultQuotaReminderThreshold')}
+                  description={t(
+                    'systemSettings.tips.defaultReminderThresholdInBackendQuotaUnitsTokensUsers'
+                  )}
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={0}
+                        step={1}
                         value={field.value}
                         onChange={(event) => field.onChange(event.target.value)}
                       />

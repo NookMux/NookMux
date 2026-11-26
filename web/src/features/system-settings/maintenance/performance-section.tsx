@@ -369,171 +369,6 @@ export function PerformanceSection(props: Props) {
             isSaving={updateOption.isPending}
           />
 
-          <SettingsGroup
-            title={t('systemSettings.titles.diskCacheSettings')}
-            description={t(
-              'systemSettings.status.enabledLargeRequestBodiesAreTemporarilyStoredOnDisk'
-            )}
-            control={
-              <SettingsGroupSwitch name='performance_setting.disk_cache_enabled' />
-            }
-            enabled={diskEnabled}
-          >
-            <FormField
-              control={form.control}
-              name='performance_setting.disk_cache_threshold_mb'
-              render={({ field }) => (
-                <SettingsRow
-                  label={t('systemSettings.fields.diskCacheThresholdMb')}
-                  description={t(
-                    'systemSettings.actions.useDiskCacheWhenRequestBodyExceedsThisSize'
-                  )}
-                >
-                  <SettingsControl size='xs'>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={1}
-                        value={
-                          typeof field.value === 'number' &&
-                          Number.isFinite(field.value)
-                            ? field.value
-                            : ''
-                        }
-                        onChange={(event) =>
-                          field.onChange(event.target.valueAsNumber)
-                        }
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        ref={field.ref}
-                      />
-                    </FormControl>
-                  </SettingsControl>
-                </SettingsRow>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='performance_setting.disk_cache_max_size_mb'
-              render={({ field }) => (
-                <SettingsRow
-                  label={t('systemSettings.fields.maxDiskCacheSizeMb')}
-                  hint={
-                    diskSpace !== undefined && diskSpace.total > 0
-                      ? t('systemSettings.tips.freeFreeTotalTotal', {
-                          free: formatBytes(diskSpace.free),
-                          total: formatBytes(diskSpace.total),
-                        })
-                      : undefined
-                  }
-                >
-                  <SettingsControl size='xs'>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={100}
-                        value={
-                          typeof field.value === 'number' &&
-                          Number.isFinite(field.value)
-                            ? field.value
-                            : ''
-                        }
-                        onChange={(event) =>
-                          field.onChange(event.target.valueAsNumber)
-                        }
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        ref={field.ref}
-                      />
-                    </FormControl>
-                  </SettingsControl>
-                </SettingsRow>
-              )}
-            />
-            {!stats?.config?.is_running_in_container && (
-              <FormField
-                control={form.control}
-                name='performance_setting.disk_cache_path'
-                render={({ field }) => (
-                  <SettingsRow
-                    label={t('systemSettings.fields.cacheDirectory')}
-                    hint={t(
-                      'systemSettings.tips.leaveEmptyToUseSystemTempDirectory'
-                    )}
-                  >
-                    <SettingsControl size='lg'>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(event) =>
-                            field.onChange(event.target.value)
-                          }
-                        />
-                      </FormControl>
-                    </SettingsControl>
-                  </SettingsRow>
-                )}
-              />
-            )}
-            {lowDiskSpace && diskSpace !== undefined && (
-              <SettingsNotice
-                tone='warning'
-                title={t('systemSettings.tips.warning')}
-              >
-                {t('systemSettings.fields.availableDiskSpace')} (
-                {formatBytes(diskSpace.free)}){' '}
-                {t('systemSettings.tips.lessThanTheConfiguredMaximumCacheSize')}{' '}
-                ({maxCacheSizeMb} MB).{' '}
-                {t('systemSettings.tips.mayCauseCacheFailures')}
-              </SettingsNotice>
-            )}
-          </SettingsGroup>
-
-          <SettingsGroup
-            title={t('systemSettings.titles.performanceMonitoring')}
-            description={t(
-              'systemSettings.status.performanceMonitoringIsEnabledAndSystemResourceUsageExceeds'
-            )}
-            control={
-              <SettingsGroupSwitch name='performance_setting.monitor_enabled' />
-            }
-            enabled={monitorEnabled}
-          >
-            {monitorThresholdFields.map(({ name, label, max }) => (
-              <FormField
-                key={name}
-                control={form.control}
-                name={`performance_setting.${name}`}
-                render={({ field }) => (
-                  <SettingsRow label={label}>
-                    <SettingsControl size='xs'>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          min={0}
-                          max={max}
-                          value={
-                            typeof field.value === 'number' &&
-                            Number.isFinite(field.value)
-                              ? field.value
-                              : ''
-                          }
-                          onChange={(event) =>
-                            field.onChange(event.target.valueAsNumber)
-                          }
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                        />
-                      </FormControl>
-                    </SettingsControl>
-                  </SettingsRow>
-                )}
-              />
-            ))}
-          </SettingsGroup>
-
           <SettingsPanel
             title={t('systemSettings.fields.performanceMonitor')}
             actions={
@@ -615,6 +450,171 @@ export function PerformanceSection(props: Props) {
               )}
             </div>
           </SettingsPanel>
+
+          <SettingsGroup
+            title={t('systemSettings.titles.diskCacheSettings')}
+            description={t(
+              'systemSettings.status.enabledLargeRequestBodiesAreTemporarilyStoredOnDisk'
+            )}
+            control={
+              <SettingsGroupSwitch name='performance_setting.disk_cache_enabled' />
+            }
+            enabled={diskEnabled}
+          >
+            <FormField
+              control={form.control}
+              name='performance_setting.disk_cache_threshold_mb'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.diskCacheThresholdMb')}
+                  description={t(
+                    'systemSettings.actions.useDiskCacheWhenRequestBodyExceedsThisSize'
+                  )}
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={1}
+                        value={
+                          typeof field.value === 'number' &&
+                          Number.isFinite(field.value)
+                            ? field.value
+                            : ''
+                        }
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='performance_setting.disk_cache_max_size_mb'
+              render={({ field }) => (
+                <SettingsRow
+                  label={t('systemSettings.fields.maxDiskCacheSizeMb')}
+                  hint={
+                    diskSpace !== undefined && diskSpace.total > 0
+                      ? t('systemSettings.tips.freeFreeTotalTotal', {
+                          free: formatBytes(diskSpace.free),
+                          total: formatBytes(diskSpace.total),
+                        })
+                      : undefined
+                  }
+                >
+                  <SettingsControl>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        min={100}
+                        value={
+                          typeof field.value === 'number' &&
+                          Number.isFinite(field.value)
+                            ? field.value
+                            : ''
+                        }
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                      />
+                    </FormControl>
+                  </SettingsControl>
+                </SettingsRow>
+              )}
+            />
+            {!stats?.config?.is_running_in_container && (
+              <FormField
+                control={form.control}
+                name='performance_setting.disk_cache_path'
+                render={({ field }) => (
+                  <SettingsRow
+                    label={t('systemSettings.fields.cacheDirectory')}
+                    hint={t(
+                      'systemSettings.tips.leaveEmptyToUseSystemTempDirectory'
+                    )}
+                  >
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
+                )}
+              />
+            )}
+            {lowDiskSpace && diskSpace !== undefined && (
+              <SettingsNotice
+                tone='warning'
+                title={t('systemSettings.tips.warning')}
+              >
+                {t('systemSettings.fields.availableDiskSpace')} (
+                {formatBytes(diskSpace.free)}){' '}
+                {t('systemSettings.tips.lessThanTheConfiguredMaximumCacheSize')}{' '}
+                ({maxCacheSizeMb} MB).{' '}
+                {t('systemSettings.tips.mayCauseCacheFailures')}
+              </SettingsNotice>
+            )}
+          </SettingsGroup>
+
+          <SettingsGroup
+            title={t('systemSettings.titles.performanceMonitoring')}
+            description={t(
+              'systemSettings.status.performanceMonitoringIsEnabledAndSystemResourceUsageExceeds'
+            )}
+            control={
+              <SettingsGroupSwitch name='performance_setting.monitor_enabled' />
+            }
+            enabled={monitorEnabled}
+          >
+            {monitorThresholdFields.map(({ name, label, max }) => (
+              <FormField
+                key={name}
+                control={form.control}
+                name={`performance_setting.${name}`}
+                render={({ field }) => (
+                  <SettingsRow label={label}>
+                    <SettingsControl>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          max={max}
+                          value={
+                            typeof field.value === 'number' &&
+                            Number.isFinite(field.value)
+                              ? field.value
+                              : ''
+                          }
+                          onChange={(event) =>
+                            field.onChange(event.target.valueAsNumber)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                    </SettingsControl>
+                  </SettingsRow>
+                )}
+              />
+            ))}
+          </SettingsGroup>
         </SettingsForm>
       </Form>
     </SettingsSection>

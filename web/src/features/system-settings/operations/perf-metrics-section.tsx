@@ -188,7 +188,7 @@ export function PerfMetricsSection(props: Props) {
                     'systemSettings.tips.perfMetricsFlushIntervalTip'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
@@ -263,7 +263,7 @@ export function PerfMetricsSection(props: Props) {
                     'systemSettings.tips.perfMetricsRetentionDaysTip'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'

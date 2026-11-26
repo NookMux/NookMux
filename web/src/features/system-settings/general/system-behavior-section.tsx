@@ -177,7 +177,7 @@ export function SystemBehaviorSection({
                     'systemSettings.tips.numberOfRetryAttemptsBeyondTheFirstRequest0'
                   )}
                 >
-                  <SettingsControl size='xs'>
+                  <SettingsControl>
                     <FormControl>
                       <Input
                         type='number'
