@@ -65,12 +65,15 @@ type GroupRatioFormProps = {
   form: UseFormReturn<GroupFormValues>
   onSave: (values: GroupFormValues) => Promise<void>
   isSaving: boolean
+  /** 页签激活时才向页头注册操作按钮。 */
+  active: boolean
 }
 
 export const GroupRatioForm = memo(function GroupRatioForm({
   form,
   onSave,
   isSaving,
+  active,
 }: GroupRatioFormProps) {
   const { t } = useTranslation()
   const [editMode, setEditMode] = useState<'visual' | 'json'>('visual')
@@ -95,39 +98,43 @@ export const GroupRatioForm = memo(function GroupRatioForm({
       <GroupPricingGuide open={guideOpen} onOpenChange={setGuideOpen} />
 
       <Form {...form}>
-        <SettingsPageActionsPortal>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={() => setGuideOpen(true)}
-          >
-            <HelpCircle data-icon='inline-start' />
-            {t('systemSettings.fields.usageGuide')}
-          </Button>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={toggleEditMode}
-          >
-            {editMode === 'visual' ? (
-              <>
-                <Code2 data-icon='inline-start' />
-                {t('systemSettings.actions.switchToJson')}
-              </>
-            ) : (
-              <>
-                <Eye data-icon='inline-start' />
-                {t('systemSettings.actions.switchToVisual')}
-              </>
-            )}
-          </Button>
-        </SettingsPageActionsPortal>
-        <SettingsPageFormActions
-          onSave={form.handleSubmit(onSave)}
-          isSaving={isSaving}
-        />
+        {active && (
+          <>
+            <SettingsPageActionsPortal>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => setGuideOpen(true)}
+              >
+                <HelpCircle data-icon='inline-start' />
+                {t('systemSettings.fields.usageGuide')}
+              </Button>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={toggleEditMode}
+              >
+                {editMode === 'visual' ? (
+                  <>
+                    <Code2 data-icon='inline-start' />
+                    {t('systemSettings.actions.switchToJson')}
+                  </>
+                ) : (
+                  <>
+                    <Eye data-icon='inline-start' />
+                    {t('systemSettings.actions.switchToVisual')}
+                  </>
+                )}
+              </Button>
+            </SettingsPageActionsPortal>
+            <SettingsPageFormActions
+              onSave={form.handleSubmit(onSave)}
+              isSaving={isSaving}
+            />
+          </>
+        )}
         {editMode === 'visual' ? (
           <div className='flex min-w-0 flex-col gap-8'>
             <GroupRatioVisualEditor

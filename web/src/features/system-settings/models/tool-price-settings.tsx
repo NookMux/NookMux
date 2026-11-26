@@ -631,6 +631,19 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                 ? selectedRow.name || t('systemSettings.fields.unnamedToolRule')
                 : t('systemSettings.titles.toolRuleSettings')
             }
+            actions={
+              selectedRow ? (
+                <label className='flex cursor-pointer items-center gap-2 text-sm font-medium'>
+                  {t('channels.actions.enable')}
+                  <Switch
+                    checked={selectedRow.enabled}
+                    onCheckedChange={(checked) =>
+                      updateRow(selectedRow.rowId, 'enabled', checked)
+                    }
+                  />
+                </label>
+              ) : undefined
+            }
             scroll
             footer={
               selectedRow ? (
@@ -655,7 +668,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
               </div>
             ) : (
               <div className={RULED} key={selectedRow.rowId}>
-                <SettingsRow label='ID'>
+                <SettingsRow label='ID' columns>
                   <Input
                     ref={idInputRef}
                     value={selectedRow.id}
@@ -665,7 +678,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                     }
                   />
                 </SettingsRow>
-                <SettingsRow label={t('channels.fields.name')}>
+                <SettingsRow label={t('channels.fields.name')} columns>
                   <Input
                     value={selectedRow.name}
                     placeholder='OpenAI Web Search'
@@ -674,7 +687,10 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                     }
                   />
                 </SettingsRow>
-                <SettingsRow label={t('systemSettings.fields.toolType')}>
+                <SettingsRow
+                  label={t('systemSettings.fields.toolType')}
+                  columns
+                >
                   <SettingsControl size='sm'>
                     <Select
                       items={toolTypeItems}
@@ -696,7 +712,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                     </Select>
                   </SettingsControl>
                 </SettingsRow>
-                <SettingsRow label={t('pricing.fields.price')}>
+                <SettingsRow label={t('pricing.fields.price')} columns>
                   <SettingsUnitField
                     input={
                       <SettingsUnitInput
@@ -714,14 +730,6 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                       />
                     }
                     unit='USD'
-                  />
-                </SettingsRow>
-                <SettingsRow label={t('channels.status.enabled')}>
-                  <Switch
-                    checked={selectedRow.enabled}
-                    onCheckedChange={(checked) =>
-                      updateRow(selectedRow.rowId, 'enabled', checked)
-                    }
                   />
                 </SettingsRow>
 

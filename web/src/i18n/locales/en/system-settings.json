@@ -322,7 +322,7 @@
   "systemSettings.tips.groupDescription": "Group description",
   "systemSettings.fields.groupIdentifier": "Group identifier",
   "systemSettings.errors.groupNameCannotBeChangedWhenEditing": "Group name cannot be changed when editing.",
-  "systemSettings.fields.groupPricingUsageGuide": "Group pricing usage guide",
+  "systemSettings.fields.groupPricingUsageGuide": "Group prices usage guide",
   "systemSettings.fields.groupRatios": "Group ratios",
   "systemSettings.fields.groupBasedRateLimits": "Group-based rate limits",
   "systemSettings.fields.headerNavigation": "Header navigation",

@@ -93,27 +93,13 @@ const BILLING_SECTIONS = [
   },
   {
     id: 'model-pricing',
-    titleKey: 'common.fields.modelPricing',
+    titleKey: 'common.fields.pricingSettings',
     build: (settings: BillingSettings) => (
       <RatioSettingsCard
-        titleKey='common.fields.modelPricing'
+        titleKey='common.fields.pricingSettings'
         modelDefaults={getModelDefaults(settings)}
         groupDefaults={getGroupDefaults(settings)}
         toolPricesDefault={settings['tool_billing_setting.rules']}
-        visibleTabs={['models', 'tool-prices']}
-      />
-    ),
-  },
-  {
-    id: 'group-pricing',
-    titleKey: 'common.fields.groupPricing',
-    build: (settings: BillingSettings) => (
-      <RatioSettingsCard
-        titleKey='common.fields.groupPricing'
-        modelDefaults={getModelDefaults(settings)}
-        groupDefaults={getGroupDefaults(settings)}
-        toolPricesDefault={settings['tool_billing_setting.rules']}
-        visibleTabs={['groups']}
       />
     ),
   },

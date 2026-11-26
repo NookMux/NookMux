@@ -185,6 +185,9 @@ type ModelFormValues = z.infer<typeof modelSchema>
 type GroupFormValues = z.infer<typeof groupSchema>
 type RatioTabId = 'models' | 'groups' | 'tool-prices'
 
+/** 页签的显示顺序。 */
+const RATIO_TABS: readonly RatioTabId[] = ['models', 'groups', 'tool-prices']
+
 type ModelJsonMapField =
   | 'ModelPrice'
   | 'ModelRatio'
@@ -260,7 +263,6 @@ type RatioSettingsCardProps = {
   groupDefaults: GroupFormValues
   toolPricesDefault: string
   titleKey?: string
-  visibleTabs?: RatioTabId[]
 }
 
 export function RatioSettingsCard({
@@ -268,7 +270,6 @@ export function RatioSettingsCard({
   groupDefaults,
   toolPricesDefault,
   titleKey = 'systemSettings.titles.pricingRatios',
-  visibleTabs = ['models', 'groups', 'tool-prices'],
 }: RatioSettingsCardProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
@@ -539,15 +540,14 @@ export function RatioSettingsCard({
     resetToolBillingMutate()
   }, [resetToolBillingMutate])
 
+  // 页签面板保持挂载，切换页签时不丢失还没保存的改动；未激活的页签不往页头注册按钮。
   const tabLabels: Record<RatioTabId, string> = {
     models: 'common.fields.modelPrices',
-    groups: 'systemSettings.fields.groupRatios',
+    groups: 'common.fields.groupPrices',
     'tool-prices': 'common.fields.toolPrices',
   }
-  const defaultTab = visibleTabs[0] ?? 'models'
-  const tabbed = visibleTabs.length > 1
   // 页头操作栏只属于当前页签，所以页签需要受控。
-  const [activeTab, setActiveTab] = useState<RatioTabId>(defaultTab)
+  const [activeTab, setActiveTab] = useState<RatioTabId>('models')
 
   const renderTabContent = (tab: RatioTabId, active: boolean) => {
     if (tab === 'models') {
@@ -568,6 +568,7 @@ export function RatioSettingsCard({
           form={groupForm}
           onSave={saveGroupRatios}
           isSaving={updateOption.isPending}
+          active={active}
         />
       )
     }
@@ -585,37 +586,31 @@ export function RatioSettingsCard({
   }
 
   return (
-    <SettingsSection
-      title={t(titleKey)}
-      className={tabbed ? 'lg:h-full lg:min-h-[44rem]' : undefined}
-    >
-      {tabbed ? (
-        <Tabs
-          value={activeTab}
-          onValueChange={(tab) => setActiveTab(tab as RatioTabId)}
-          className='lg:min-h-0 lg:flex-1'
-        >
-          <TabsList variant='line'>
-            {visibleTabs.map((tab) => (
-              <TabsTrigger key={tab} value={tab}>
-                {t(tabLabels[tab])}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {visibleTabs.map((tab) => (
-            <TabsContent
-              key={tab}
-              value={tab}
-              className='lg:flex lg:min-h-0 lg:flex-col'
-            >
-              {renderTabContent(tab, tab === activeTab)}
-            </TabsContent>
+    <SettingsSection title={t(titleKey)} className='lg:h-full lg:min-h-[44rem]'>
+      <Tabs
+        value={activeTab}
+        onValueChange={(tab) => setActiveTab(tab as RatioTabId)}
+        className='lg:min-h-0 lg:flex-1'
+      >
+        <TabsList variant='line'>
+          {RATIO_TABS.map((tab) => (
+            <TabsTrigger key={tab} value={tab}>
+              {t(tabLabels[tab])}
+            </TabsTrigger>
           ))}
-        </Tabs>
-      ) : (
-        renderTabContent(defaultTab, true)
-      )}
+        </TabsList>
+
+        {RATIO_TABS.map((tab) => (
+          <TabsContent
+            key={tab}
+            value={tab}
+            keepMounted
+            className='lg:flex lg:min-h-0 lg:flex-col'
+          >
+            {renderTabContent(tab, tab === activeTab)}
+          </TabsContent>
+        ))}
+      </Tabs>
 
       <ConfirmDialog
         open={confirmOpen}

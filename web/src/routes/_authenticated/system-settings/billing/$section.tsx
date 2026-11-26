@@ -27,6 +27,13 @@ export const Route = createFileRoute(
   '/_authenticated/system-settings/billing/$section'
 )({
   beforeLoad: ({ params }) => {
+    // 分组价格并入价格设置之前的地址。
+    if (params.section === 'group-pricing') {
+      throw redirect({
+        to: '/system-settings/billing/$section',
+        params: { section: 'model-pricing' },
+      })
+    }
     const validSections = BILLING_SECTION_IDS as unknown as string[]
     if (!validSections.includes(params.section)) {
       throw redirect({

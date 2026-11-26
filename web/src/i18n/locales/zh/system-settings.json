@@ -322,7 +322,7 @@
   "systemSettings.tips.groupDescription": "分组描述",
   "systemSettings.fields.groupIdentifier": "分组标识符",
   "systemSettings.errors.groupNameCannotBeChangedWhenEditing": "编辑时无法更改分组名称。",
-  "systemSettings.fields.groupPricingUsageGuide": "分组定价使用教程",
+  "systemSettings.fields.groupPricingUsageGuide": "分组价格使用教程",
   "systemSettings.fields.groupRatios": "分组倍率",
   "systemSettings.fields.groupBasedRateLimits": "基于分组的速率限制",
   "systemSettings.fields.headerNavigation": "顶部导航",

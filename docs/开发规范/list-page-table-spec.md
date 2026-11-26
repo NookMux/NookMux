@@ -168,7 +168,7 @@ sticky top-0 z-10'`。仅在需要覆盖表头样式时才传 `tableHeaderClassN
 
 | 页面 | 路径 | 原因 |
 |------|------|------|
-| 系统设置-模型定价/工具定价 | `features/system-settings/models/` | `SettingsSection` + `Tabs` + RHF/Zod 表单 + 可视化规则编辑器 |
+| 系统设置-价格设置（模型价格 / 分组价格 / 工具价格） | `features/system-settings/models/` | `SettingsSection` + `Tabs` + RHF/Zod 表单 + 可视化规则编辑器 |
 | 系统设置其他子页面 | `features/system-settings/` | 通用配置表单、JSON 编辑器 |
 | 公开定价目录页 | `features/pricing/` | 使用 `PublicLayout` 的对外营销页面 |
 

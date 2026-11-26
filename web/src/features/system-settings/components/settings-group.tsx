@@ -70,6 +70,11 @@ const TRAILING_ROW = 'flex min-w-0 flex-col gap-0 py-2'
 const TWO_COLUMN_GRID =
   '@2xl:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] @6xl:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]'
 
+/**
+ * 分栏里的设置面板用：标签列与控件列按 1:2 分配，面板再窄也保持两列；容器够宽时用上面的列宽。
+ */
+const TWO_COLUMN_ROW = `grid-cols-[minmax(0,1fr)_minmax(0,2fr)] ${TWO_COLUMN_GRID}`
+
 /** 相邻的兄弟元素之间画一条横线，首尾不留线。 */
 const RULED = '[&>*+*]:border-t'
 
@@ -275,6 +280,8 @@ type SettingsRowProps = {
   hint?: ReactNode
   /** 通栏：标题一行（右侧放 actions），内容占满整行。用于自带工具栏或表格的编辑器。 */
   stacked?: boolean
+  /** 两列行：标签在左、控件在右，窄容器里也保持两列。用于左右分栏里的设置面板。不能与 stacked 同用。 */
+  columns?: boolean
   /**
    * 开关行：文字占满剩余宽度，控件贴行的右边缘。
    * 行里只有一个开关时自动启用；开关被其他组件包住时传 true。不能与 stacked 同用。
@@ -291,12 +298,14 @@ type SettingsRowProps = {
 /**
  * 设置行：左列标题与说明，右列控件；位于表单内时自动显示该字段的校验错误。
  * 开关行两端对齐：标题与开关同处一行，说明在标题下方。
+ * 两列行：面板再窄也保持标签在左、控件在右。
  */
 export function SettingsRow({
   label,
   description,
   hint,
   stacked = false,
+  columns = false,
   trailing: trailingProp,
   htmlFor,
   actions,
@@ -309,10 +318,13 @@ export function SettingsRow({
   if (stacked && trailingProp) {
     throw new Error('SettingsRow 的 stacked 与 trailing 不能同时使用。')
   }
+  if (stacked && columns) {
+    throw new Error('SettingsRow 的 stacked 与 columns 不能同时使用。')
+  }
   const trailing = !stacked && (trailingProp ?? isSoleSwitch(children))
   const rowClass = cn(
     trailing ? TRAILING_ROW : ROW_GRID,
-    !trailing && !stacked && TWO_COLUMN_GRID,
+    !trailing && !stacked && (columns ? TWO_COLUMN_ROW : TWO_COLUMN_GRID),
     className
   )
   const descriptionClass = cn(DESCRIPTION_CLASS, stacked && 'max-w-3xl')
