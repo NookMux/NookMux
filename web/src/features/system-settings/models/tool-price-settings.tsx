@@ -238,6 +238,12 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
   const idInputRef = useRef<HTMLInputElement | null>(null)
   /** 点了「添加」之后把光标放进新规则的 ID 输入框。 */
   const focusIdOnSelect = useRef(false)
+  const conditionsListRef = useRef<HTMLDivElement | null>(null)
+  /** 上次统计条件数时的规则与条数，用来认出「刚新增了一条条件」。 */
+  const conditionCountRef = useRef<{
+    rowId: number | null
+    count: number
+  } | null>(null)
   /** 已保存规则序列化后的样子，用来判断当前有没有未保存的改动。 */
   const [savedSnapshot, setSavedSnapshot] = useState<{
     rules: string
@@ -450,6 +456,18 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
     idInputRef.current?.focus()
   }, [selectedRow])
 
+  // 条件列表在面板内部滚动：新增的条件排在末尾，把它滚进可视区。
+  useEffect(() => {
+    const rowId = selectedRow?.rowId ?? null
+    const count = selectedRow?.conditions?.length ?? 0
+    const previous = conditionCountRef.current
+    conditionCountRef.current = { rowId, count }
+    const added =
+      previous !== null && previous.rowId === rowId && count > previous.count
+    const list = conditionsListRef.current
+    if (added && list) list.scrollTo({ top: list.scrollHeight })
+  }, [selectedRow])
+
   const handleCopyJson = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(jsonText)
@@ -644,7 +662,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                 </label>
               ) : undefined
             }
-            scroll
+            fill
             footer={
               selectedRow ? (
                 <Button
@@ -667,73 +685,78 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                 {t('systemSettings.placeholders.selectAToolRuleToEdit')}
               </div>
             ) : (
-              <div className={RULED} key={selectedRow.rowId}>
-                <SettingsRow label='ID' columns>
-                  <Input
-                    ref={idInputRef}
-                    value={selectedRow.id}
-                    placeholder='web_search_openai'
-                    onChange={(event) =>
-                      updateRow(selectedRow.rowId, 'id', event.target.value)
-                    }
-                  />
-                </SettingsRow>
-                <SettingsRow label={t('channels.fields.name')} columns>
-                  <Input
-                    value={selectedRow.name}
-                    placeholder='OpenAI Web Search'
-                    onChange={(event) =>
-                      updateRow(selectedRow.rowId, 'name', event.target.value)
-                    }
-                  />
-                </SettingsRow>
-                <SettingsRow
-                  label={t('systemSettings.fields.toolType')}
-                  columns
-                >
-                  <SettingsControl size='sm'>
-                    <Select
-                      items={toolTypeItems}
-                      value={selectedRow.tool_type}
-                      onValueChange={(value) =>
-                        updateRow(selectedRow.rowId, 'tool_type', value ?? '')
+              <div
+                className='flex min-h-0 flex-1 flex-col overflow-y-auto'
+                key={selectedRow.rowId}
+              >
+                <div className={cn(RULED, 'shrink-0')}>
+                  <SettingsRow label='ID' columns>
+                    <Input
+                      ref={idInputRef}
+                      value={selectedRow.id}
+                      placeholder='web_search_openai'
+                      onChange={(event) =>
+                        updateRow(selectedRow.rowId, 'id', event.target.value)
                       }
-                    >
-                      <SelectTrigger className='w-full'>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent alignItemWithTrigger={false}>
-                        {TOOL_TYPES.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {t(option.label)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </SettingsControl>
-                </SettingsRow>
-                <SettingsRow label={t('pricing.fields.price')} columns>
-                  <SettingsUnitField
-                    input={
-                      <SettingsUnitInput
-                        type='number'
-                        min={0}
-                        step={0.001}
-                        value={selectedRow.price}
-                        onChange={(event) =>
-                          updateRow(
-                            selectedRow.rowId,
-                            'price',
-                            Number(event.target.value) || 0
-                          )
+                    />
+                  </SettingsRow>
+                  <SettingsRow label={t('channels.fields.name')} columns>
+                    <Input
+                      value={selectedRow.name}
+                      placeholder='OpenAI Web Search'
+                      onChange={(event) =>
+                        updateRow(selectedRow.rowId, 'name', event.target.value)
+                      }
+                    />
+                  </SettingsRow>
+                  <SettingsRow
+                    label={t('systemSettings.fields.toolType')}
+                    columns
+                  >
+                    <SettingsControl size='sm'>
+                      <Select
+                        items={toolTypeItems}
+                        value={selectedRow.tool_type}
+                        onValueChange={(value) =>
+                          updateRow(selectedRow.rowId, 'tool_type', value ?? '')
                         }
-                      />
-                    }
-                    unit='USD'
-                  />
-                </SettingsRow>
+                      >
+                        <SelectTrigger className='w-full'>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent alignItemWithTrigger={false}>
+                          {TOOL_TYPES.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {t(option.label)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </SettingsControl>
+                  </SettingsRow>
+                  <SettingsRow label={t('pricing.fields.price')} columns>
+                    <SettingsUnitField
+                      input={
+                        <SettingsUnitInput
+                          type='number'
+                          min={0}
+                          step={0.001}
+                          value={selectedRow.price}
+                          onChange={(event) =>
+                            updateRow(
+                              selectedRow.rowId,
+                              'price',
+                              Number(event.target.value) || 0
+                            )
+                          }
+                        />
+                      }
+                      unit='USD'
+                    />
+                  </SettingsRow>
+                </div>
 
-                <div className='flex flex-col gap-3 py-3'>
+                <div className='flex min-h-0 flex-1 flex-col gap-3 border-t py-3'>
                   <div className='flex flex-wrap items-center gap-2'>
                     <span className='text-sm font-medium'>
                       {t('channels.fields.conditions')}
@@ -770,7 +793,13 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                   </div>
 
                   {(selectedRow.conditions ?? []).length > 0 && (
-                    <div className={RULED}>
+                    <div
+                      ref={conditionsListRef}
+                      className={cn(
+                        RULED,
+                        'hover-scrollbar min-h-0 overflow-y-auto'
+                      )}
+                    >
                       {(selectedRow.conditions ?? []).map((cond, index) => (
                         <div key={index} className='flex flex-col gap-2 py-3'>
                           <div className='flex items-center gap-2'>
