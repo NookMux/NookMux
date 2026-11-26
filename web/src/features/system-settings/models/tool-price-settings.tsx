@@ -16,18 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  ChevronDown,
-  ChevronRight,
-  Code2,
-  Copy,
-  Eye,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Code2, Copy, Eye, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -38,7 +32,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  SettingsControl,
+  SettingsRow,
+  SettingsUnitField,
+  SettingsUnitInput,
+} from '../components/settings-group'
 import {
   SettingsPageActionsPortal,
   SettingsPageFormActions,
@@ -97,9 +105,9 @@ type ToolBillingRule = {
   enabled: boolean
 }
 
+/** 列表与右侧设置共用的规则，rowId 用来跟踪选中项。 */
 type ToolBillingRow = ToolBillingRule & {
   rowId: number
-  conditionsExpanded: boolean
 }
 
 function normalizeCondition(cond: ToolBillingCondition): ToolBillingCondition {
@@ -126,10 +134,7 @@ function normalizeRule(rule: ToolBillingRule): ToolBillingRule {
 }
 
 function rowsToRules(rows: ToolBillingRow[]): ToolBillingRule[] {
-  return rows.map(
-    ({ rowId: _rowId, conditionsExpanded: _conditionsExpanded, ...rule }) =>
-      normalizeRule(rule)
-  )
+  return rows.map(({ rowId: _rowId, ...rule }) => normalizeRule(rule))
 }
 
 function validateRules(
@@ -228,6 +233,11 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
   const [jsonText, setJsonText] = useState('[]')
   const [jsonError, setJsonError] = useState('')
   const [nextRowId, setNextRowId] = useState(1)
+  const [selectedRowId, setSelectedRowId] = useState<number | null>(null)
+  const selectedRowRef = useRef<HTMLTableRowElement | null>(null)
+  const idInputRef = useRef<HTMLInputElement | null>(null)
+  /** 点了「添加」之后把光标放进新规则的 ID 输入框。 */
+  const focusIdOnSelect = useRef(false)
   /** 已保存规则序列化后的样子，用来判断当前有没有未保存的改动。 */
   const [savedSnapshot, setSavedSnapshot] = useState<{
     rules: string
@@ -240,7 +250,6 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
       const initialRows = rules.map((rule, index) => ({
         ...rule,
         rowId: index + 1,
-        conditionsExpanded: false,
       }))
       const prettyJson = JSON.stringify(rules, null, 2)
       setRows(initialRows)
@@ -301,7 +310,6 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
         const nextRows = rules.map((rule, index) => ({
           ...rule,
           rowId: index + 1,
-          conditionsExpanded: false,
         }))
         setRows(nextRows)
         setNextRowId(nextRows.length + 1)
@@ -330,19 +338,6 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
       )
     },
     [rows, syncFromRows]
-  )
-
-  const toggleConditionsExpanded = useCallback(
-    (rowId: number) => {
-      setRows(
-        rows.map((row) =>
-          row.rowId === rowId
-            ? { ...row, conditionsExpanded: !row.conditionsExpanded }
-            : row
-        )
-      )
-    },
-    [rows]
   )
 
   const updateCondition = useCallback(
@@ -377,11 +372,7 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
             mode: 'eq',
             value: '',
           }
-          return {
-            ...row,
-            conditions: [...(row.conditions ?? []), newCond],
-            conditionsExpanded: true,
-          }
+          return { ...row, conditions: [...(row.conditions ?? []), newCond] }
         })
       )
     },
@@ -414,18 +405,50 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
       conditions: [],
       logic: 'AND',
       enabled: true,
-      conditionsExpanded: false,
     }
     setNextRowId((prev) => prev + 1)
     syncFromRows([...rows, newRow])
+    setSelectedRowId(nextRowId)
+    focusIdOnSelect.current = true
   }, [nextRowId, rows, syncFromRows])
 
   const removeRow = useCallback(
     (rowId: number) => {
-      syncFromRows(rows.filter((row) => row.rowId !== rowId))
+      const index = rows.findIndex((row) => row.rowId === rowId)
+      const nextRows = rows.filter((row) => row.rowId !== rowId)
+      syncFromRows(nextRows)
+      // 删掉的是选中项时，改选同一位置的规则，没有就选前一条。
+      setSelectedRowId((current) => {
+        if (current !== rowId) return current
+        const neighbor = nextRows[Math.min(index, nextRows.length - 1)]
+        return neighbor ? neighbor.rowId : null
+      })
     },
     [rows, syncFromRows]
   )
+
+  const selectedRow = useMemo(
+    () => rows.find((row) => row.rowId === selectedRowId) ?? null,
+    [rows, selectedRowId]
+  )
+
+  // 列表在面板内部滚动：选中行落到可视区之外时，把它滚回可视区。
+  useEffect(() => {
+    const row = selectedRowRef.current
+    const container = row?.closest('[data-slot="table-container"]')
+    if (!row || !container) return
+    const rowBox = row.getBoundingClientRect()
+    const containerBox = container.getBoundingClientRect()
+    if (rowBox.top < containerBox.top || rowBox.bottom > containerBox.bottom) {
+      row.scrollIntoView({ block: 'nearest' })
+    }
+  }, [selectedRowId])
+
+  useEffect(() => {
+    if (!focusIdOnSelect.current || !selectedRow) return
+    focusIdOnSelect.current = false
+    idInputRef.current?.focus()
+  }, [selectedRow])
 
   const handleCopyJson = useCallback(async () => {
     try {
@@ -471,8 +494,15 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
       label: t(option.label),
     }))
 
+  const rulesDescription = (
+    <>
+      {t('systemSettings.actions.configureToolBillingRulesPricesAreUsdPerCall')}{' '}
+      <code className='bg-muted rounded px-1 py-0.5 text-xs'>{OPTION_KEY}</code>
+    </>
+  )
+
   return (
-    <div className='flex min-w-0 flex-col gap-8 lg:min-h-0 lg:flex-1'>
+    <div className='@container/editor flex min-h-0 flex-1 flex-col gap-8'>
       {active && (
         <>
           <SettingsPageActionsPortal>
@@ -505,88 +535,155 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
         </>
       )}
 
-      <SettingsPanel
-        title={t('systemSettings.fields.toolBillingRules')}
-        description={
-          <>
-            {t(
-              'systemSettings.actions.configureToolBillingRulesPricesAreUsdPerCall'
-            )}{' '}
-            <code className='bg-muted rounded px-1 py-0.5 text-xs'>
-              {OPTION_KEY}
-            </code>
-          </>
-        }
-        actions={
-          editMode === 'visual' ? (
-            <Button type='button' size='sm' onClick={addRow}>
-              <Plus data-icon='inline-start' />
-              {t('channels.actions.add')}
-            </Button>
-          ) : (
-            <Button
-              type='button'
-              variant='outline'
-              size='sm'
-              onClick={handleCopyJson}
-            >
-              <Copy data-icon='inline-start' />
-              {t('channels.actions.copy')}
-            </Button>
-          )
-        }
-        className='lg:min-h-0 lg:flex-1'
-        divided={editMode === 'visual'}
-        scroll
-      >
-        {editMode === 'visual' ? (
-          rows.length === 0 ? (
-            <p className='text-muted-foreground py-8 text-center text-sm'>
-              {t('systemSettings.errors.noRulesConfigured')}
-            </p>
-          ) : (
-            rows.map((row) => (
-              <div key={row.rowId} className='py-3'>
-                {/* 主行 */}
-                <div className='flex flex-wrap items-end gap-3'>
-                  <div className='min-w-[150px] flex-1'>
-                    <span className='text-muted-foreground mb-1 block text-xs'>
-                      ID
-                    </span>
-                    <Input
-                      value={row.id}
-                      placeholder='web_search_openai'
-                      className='h-8'
-                      onChange={(e) =>
-                        updateRow(row.rowId, 'id', e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className='min-w-[150px] flex-1'>
-                    <span className='text-muted-foreground mb-1 block text-xs'>
-                      {t('channels.fields.name')}
-                    </span>
-                    <Input
-                      value={row.name}
-                      placeholder='OpenAI Web Search'
-                      className='h-8'
-                      onChange={(e) =>
-                        updateRow(row.rowId, 'name', e.target.value)
-                      }
-                    />
-                  </div>
-                  <div className='min-w-[130px]'>
-                    <span className='text-muted-foreground mb-1 block text-xs'>
-                      {t('systemSettings.fields.toolType')}
-                    </span>
+      {editMode === 'visual' ? (
+        <div className='grid min-h-[560px] shrink-0 gap-4 @4xl/editor:min-h-0 @4xl/editor:flex-1 @4xl/editor:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]'>
+          <SettingsPanel
+            title={t('systemSettings.fields.toolBillingRules')}
+            description={rulesDescription}
+            actions={
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={addRow}
+              >
+                <Plus data-icon='inline-start' />
+                {t('channels.actions.add')}
+              </Button>
+            }
+            flush
+            footer={
+              <span className='text-muted-foreground text-xs'>
+                {t('systemSettings.status.toolRuleCount', {
+                  count: rows.length,
+                })}
+              </span>
+            }
+          >
+            <Table containerClassName='max-h-[70vh] overflow-y-auto @4xl/editor:max-h-none @4xl/editor:h-full'>
+              <TableHeader className='bg-card sticky top-0 z-10'>
+                <TableRow>
+                  <TableHead className='pl-4'>
+                    {t('channels.fields.name')}
+                  </TableHead>
+                  <TableHead>{t('systemSettings.fields.toolType')}</TableHead>
+                  <TableHead className='pr-4'>
+                    {t('pricing.fields.price')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={3}
+                      className='text-muted-foreground h-32 text-center'
+                    >
+                      {t('systemSettings.errors.noRulesConfigured')}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map((row) => {
+                    const selected = row.rowId === selectedRowId
+                    const toolType = TOOL_TYPES.find(
+                      (type) => type.value === row.tool_type
+                    )
+                    return (
+                      <TableRow
+                        key={row.rowId}
+                        ref={selected ? selectedRowRef : undefined}
+                        className={cn(
+                          'cursor-pointer',
+                          selected && 'bg-muted/70'
+                        )}
+                        onClick={() => setSelectedRowId(row.rowId)}
+                      >
+                        <TableCell
+                          className={cn(
+                            'w-full max-w-0 min-w-[9rem] truncate pl-4 font-medium',
+                            !row.name && 'text-muted-foreground font-normal'
+                          )}
+                        >
+                          {row.name ||
+                            t('systemSettings.fields.unnamedToolRule')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant='outline'>
+                            {t(toolType?.label ?? 'common.fields.webSearch')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className='max-w-[240px] truncate pr-4 text-xs'>
+                          {row.enabled
+                            ? `$${row.price}`
+                            : t('channels.status.disabled')}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </SettingsPanel>
+
+          <SettingsPanel
+            title={
+              selectedRow
+                ? selectedRow.name || t('systemSettings.fields.unnamedToolRule')
+                : t('systemSettings.titles.toolRuleSettings')
+            }
+            scroll
+            footer={
+              selectedRow ? (
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => removeRow(selectedRow.rowId)}
+                >
+                  <Trash2
+                    data-icon='inline-start'
+                    className='text-destructive'
+                  />
+                  {t('systemSettings.actions.deleteToolRule')}
+                </Button>
+              ) : undefined
+            }
+          >
+            {!selectedRow ? (
+              <div className='text-muted-foreground py-16 text-center text-sm'>
+                {t('systemSettings.placeholders.selectAToolRuleToEdit')}
+              </div>
+            ) : (
+              <div className={RULED} key={selectedRow.rowId}>
+                <SettingsRow label='ID'>
+                  <Input
+                    ref={idInputRef}
+                    value={selectedRow.id}
+                    placeholder='web_search_openai'
+                    onChange={(event) =>
+                      updateRow(selectedRow.rowId, 'id', event.target.value)
+                    }
+                  />
+                </SettingsRow>
+                <SettingsRow label={t('channels.fields.name')}>
+                  <Input
+                    value={selectedRow.name}
+                    placeholder='OpenAI Web Search'
+                    onChange={(event) =>
+                      updateRow(selectedRow.rowId, 'name', event.target.value)
+                    }
+                  />
+                </SettingsRow>
+                <SettingsRow label={t('systemSettings.fields.toolType')}>
+                  <SettingsControl size='sm'>
                     <Select
                       items={toolTypeItems}
-                      value={row.tool_type}
-                      onValueChange={(v) =>
-                        updateRow(row.rowId, 'tool_type', v ?? '')
+                      value={selectedRow.tool_type}
+                      onValueChange={(value) =>
+                        updateRow(selectedRow.rowId, 'tool_type', value ?? '')
                       }
                     >
-                      <SelectTrigger className='h-8 w-full'>
+                      <SelectTrigger className='w-full'>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent alignItemWithTrigger={false}>
@@ -597,79 +694,57 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className='min-w-[110px]'>
-                    <span className='text-muted-foreground mb-1 block text-xs'>
-                      {t('pricing.fields.price')}
-                    </span>
-                    <Input
-                      type='number'
-                      min={0}
-                      step={0.001}
-                      value={row.price}
-                      className='h-8'
-                      onChange={(e) =>
-                        updateRow(
-                          row.rowId,
-                          'price',
-                          Number(e.target.value) || 0
-                        )
-                      }
-                    />
-                  </div>
-                  <label className='text-muted-foreground flex h-8 items-center gap-1 text-xs'>
-                    <Switch
-                      checked={row.enabled}
-                      onCheckedChange={(checked) =>
-                        updateRow(row.rowId, 'enabled', checked)
-                      }
-                    />
-                    {t('channels.status.enabled')}
-                  </label>
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='sm'
-                    className='h-8'
-                    onClick={() => toggleConditionsExpanded(row.rowId)}
-                  >
-                    {row.conditionsExpanded ? (
-                      <ChevronDown className='h-4 w-4' />
-                    ) : (
-                      <ChevronRight className='h-4 w-4' />
-                    )}
-                    <span className='ml-1 text-xs'>
-                      {t('channels.fields.conditions')} (
-                      {row.conditions?.length ?? 0})
-                    </span>
-                  </Button>
-                  <Button
-                    type='button'
-                    variant='ghost'
-                    size='icon'
-                    className='h-8'
-                    onClick={() => removeRow(row.rowId)}
-                    aria-label={t('common.actions.delete')}
-                  >
-                    <Trash2 className='text-destructive h-4 w-4' />
-                  </Button>
-                </div>
+                  </SettingsControl>
+                </SettingsRow>
+                <SettingsRow label={t('pricing.fields.price')}>
+                  <SettingsUnitField
+                    input={
+                      <SettingsUnitInput
+                        type='number'
+                        min={0}
+                        step={0.001}
+                        value={selectedRow.price}
+                        onChange={(event) =>
+                          updateRow(
+                            selectedRow.rowId,
+                            'price',
+                            Number(event.target.value) || 0
+                          )
+                        }
+                      />
+                    }
+                    unit='USD'
+                  />
+                </SettingsRow>
+                <SettingsRow label={t('channels.status.enabled')}>
+                  <Switch
+                    checked={selectedRow.enabled}
+                    onCheckedChange={(checked) =>
+                      updateRow(selectedRow.rowId, 'enabled', checked)
+                    }
+                  />
+                </SettingsRow>
 
-                {/* 条件展开区 */}
-                {row.conditionsExpanded && (
-                  <div className='mt-3 border-t pt-3'>
-                    <div className='flex flex-wrap items-center gap-2'>
-                      <span className='text-muted-foreground text-xs'>
-                        {t('systemSettings.actions.match')}:
-                      </span>
+                <div className='flex flex-col gap-3 py-3'>
+                  <div className='flex flex-wrap items-center gap-2'>
+                    <span className='text-sm font-medium'>
+                      {t('channels.fields.conditions')}
+                    </span>
+                    <span className='text-muted-foreground text-sm'>
+                      {t('systemSettings.actions.match')}
+                    </span>
+                    <SettingsControl size='sm'>
                       <Select
                         items={logicItems}
-                        value={row.logic || 'AND'}
-                        onValueChange={(v) =>
-                          updateRow(row.rowId, 'logic', v ?? 'AND')
+                        value={selectedRow.logic || 'AND'}
+                        onValueChange={(value) =>
+                          updateRow(selectedRow.rowId, 'logic', value ?? 'AND')
                         }
                       >
-                        <SelectTrigger className='h-7 w-[140px]'>
+                        <SelectTrigger
+                          className='w-full'
+                          aria-label={t('systemSettings.actions.match')}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent alignItemWithTrigger={false}>
@@ -680,51 +755,63 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                           ))}
                         </SelectContent>
                       </Select>
-                      <span className='text-muted-foreground text-xs'>
-                        {t('systemSettings.fields.ofTheFollowingConditions')}
-                      </span>
-                    </div>
+                    </SettingsControl>
+                    <span className='text-muted-foreground text-sm'>
+                      {t('systemSettings.fields.ofTheFollowingConditions')}
+                    </span>
+                  </div>
 
-                    {(row.conditions ?? []).length > 0 && (
-                      <div className={RULED}>
-                        {(row.conditions ?? []).map((cond, ci) => (
-                          <div
-                            key={ci}
-                            className='flex flex-wrap items-center gap-2 py-2'
-                          >
+                  {(selectedRow.conditions ?? []).length > 0 && (
+                    <div className={RULED}>
+                      {(selectedRow.conditions ?? []).map((cond, index) => (
+                        <div key={index} className='flex flex-col gap-2 py-3'>
+                          <div className='flex items-center gap-2'>
                             <span className='text-muted-foreground w-10 shrink-0 font-mono text-xs'>
-                              {ci === 0
+                              {index === 0
                                 ? 'IF'
-                                : (row.logic || 'AND') === 'AND'
+                                : (selectedRow.logic || 'AND') === 'AND'
                                   ? 'AND'
                                   : 'OR'}
                             </span>
                             <Input
                               value={cond.field}
                               placeholder='model / provider / quality / size'
-                              className='h-7 min-w-[160px] flex-1'
-                              onChange={(e) =>
+                              className='min-w-0 flex-1'
+                              onChange={(event) =>
                                 updateCondition(
-                                  row.rowId,
-                                  ci,
+                                  selectedRow.rowId,
+                                  index,
                                   'field',
-                                  e.target.value
+                                  event.target.value
                                 )
                               }
                             />
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='icon'
+                              onClick={() =>
+                                removeCondition(selectedRow.rowId, index)
+                              }
+                              aria-label={t('common.actions.delete')}
+                            >
+                              <Trash2 className='text-destructive h-4 w-4' />
+                            </Button>
+                          </div>
+                          <div className='grid gap-2 sm:grid-cols-2'>
                             <Select
                               items={modeItems}
                               value={cond.mode}
-                              onValueChange={(v) =>
+                              onValueChange={(value) =>
                                 updateCondition(
-                                  row.rowId,
-                                  ci,
+                                  selectedRow.rowId,
+                                  index,
                                   'mode',
-                                  v ?? 'eq'
+                                  value ?? 'eq'
                                 )
                               }
                             >
-                              <SelectTrigger className='h-7 w-[150px]'>
+                              <SelectTrigger className='w-full'>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent alignItemWithTrigger={false}>
@@ -743,61 +830,69 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
                               placeholder={t(
                                 'systemSettings.placeholders.conditionValue'
                               )}
-                              className='h-7 min-w-[120px] flex-1'
-                              onChange={(e) =>
+                              onChange={(event) =>
                                 updateCondition(
-                                  row.rowId,
-                                  ci,
+                                  selectedRow.rowId,
+                                  index,
                                   'value',
-                                  e.target.value
+                                  event.target.value
                                 )
                               }
                             />
-                            <label className='text-muted-foreground flex items-center gap-1 text-xs'>
-                              <Switch
-                                checked={cond.invert ?? false}
-                                onCheckedChange={(checked) =>
-                                  updateCondition(
-                                    row.rowId,
-                                    ci,
-                                    'invert',
-                                    checked
-                                  )
-                                }
-                              />
-                              {t('systemSettings.actions.invert')}
-                            </label>
-                            <Button
-                              type='button'
-                              variant='ghost'
-                              size='icon'
-                              className='h-7'
-                              onClick={() => removeCondition(row.rowId, ci)}
-                              aria-label={t('common.actions.delete')}
-                            >
-                              <Trash2 className='text-destructive h-3.5 w-3.5' />
-                            </Button>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          <label className='flex items-center justify-between gap-2 text-sm'>
+                            {t('systemSettings.actions.invert')}
+                            <Switch
+                              checked={cond.invert ?? false}
+                              onCheckedChange={(checked) =>
+                                updateCondition(
+                                  selectedRow.rowId,
+                                  index,
+                                  'invert',
+                                  checked
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
+                  <div>
                     <Button
                       type='button'
                       variant='outline'
                       size='sm'
-                      className='mt-2 h-7'
-                      onClick={() => addCondition(row.rowId)}
+                      onClick={() => addCondition(selectedRow.rowId)}
                     >
-                      <Plus data-icon='inline-start' className='h-3.5 w-3.5' />
+                      <Plus data-icon='inline-start' />
                       {t('systemSettings.actions.addCondition')}
                     </Button>
                   </div>
-                )}
+                </div>
               </div>
-            ))
-          )
-        ) : (
+            )}
+          </SettingsPanel>
+        </div>
+      ) : (
+        <SettingsPanel
+          title={t('systemSettings.fields.toolBillingRules')}
+          description={rulesDescription}
+          actions={
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={handleCopyJson}
+            >
+              <Copy data-icon='inline-start' />
+              {t('channels.actions.copy')}
+            </Button>
+          }
+          className='min-h-0 flex-1'
+          scroll
+        >
           <div className='flex flex-col gap-2 py-2'>
             <Textarea
               value={jsonText}
@@ -810,8 +905,8 @@ export const ToolPriceSettings = memo(function ToolPriceSettings({
               <p className='text-destructive text-sm'>{jsonError}</p>
             )}
           </div>
-        )}
-      </SettingsPanel>
+        </SettingsPanel>
+      )}
 
       <SettingsPanel
         tone='destructive'
