@@ -32,6 +32,15 @@
 
 本项目主要用于个人学习、研究与自用场景。使用、部署或二次分发本项目时，应遵守 AGPL-3.0 许可证、本项目及上游项目的版权声明，并自行确保不违反相关上游服务提供商的服务条款；不得将本项目用于中转、分发、倒卖厂商 Plan 或其他违反第三方服务条款的行为。
 
+<p align="center">
+  <p>本项目使用GLM Coding Plan完成主要开发，点击图片或扫描二维码立即参与<a href="https://www.bigmodel.cn/glm-coding?ic=J2QPQGUXXQ">「拼好模」</a>享受首次购买 95 折：</p>
+  <a href="https://www.bigmodel.cn/glm-coding?ic=J2QPQGUXXQ">
+    <img src="./docs/GLM-CodingPlan.jpg" alt="GLM Coding Plan" />
+  </a>
+</p>
+
+> 此图片由GPT-Image模型基于智谱官方竖版海报重绘而成
+
 ---
 
 > ⚠️ 本项目仅供个人学习与自用，不保证稳定性、可用性与长期维护，也不提供任何形式的技术支持。
