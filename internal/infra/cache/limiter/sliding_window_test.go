@@ -253,7 +253,7 @@ func TestSlidingWindowReportsUnusableCounters(t *testing.T) {
 	}
 }
 
-// 窗口不是正数表示不限流，与内存限流器的规则一致：放行，且不留记录。
+// 窗口不是正数表示不限流，判定与内存限流器一致；Redis 侧放行且不留记录。
 func TestSlidingWindowDoesNotLimitWhenTheWindowIsNotPositive(t *testing.T) {
 	clock, client := newSlidingWindowRedis(t)
 	ctx := context.Background()

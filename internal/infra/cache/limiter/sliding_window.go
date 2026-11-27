@@ -44,7 +44,7 @@ func runSlidingWindow(ctx context.Context, rdb redis.Scripter, key string, maxRe
 	if maxRequestNum <= 0 {
 		return false, fmt.Errorf("rate limit maximum must be positive, got %d", maxRequestNum)
 	}
-	// 窗口不是正数表示不限流，与内存限流器的规则一致：直接放行，不判定也不写记录。
+	// 窗口不是正数表示不限流，判定与内存限流器一致：这里直接放行，不判定也不写记录。
 	if window <= 0 {
 		return true, nil
 	}
