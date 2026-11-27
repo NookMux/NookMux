@@ -121,7 +121,8 @@
   合并并签名后，按已签名的 manifest 摘要把镜像同步为 CNB 同名 Docker 制品库
   `docker.cnb.cool/nookmux/nookmux` 的 `dev` 标签，并核对两端摘要；推送前先
   删除 CNB 上 `dev` 以外的历史标签，制品库只保留这一个版本；删除、拷贝或核对
-  失败即本次发布失败，飞书通知的结论包含同步结果。所需密钥为仓库 Secrets 的
+  失败即本次发布失败。同步结束后单独发送一张飞书卡片，结论取同步结果；发布
+  卡片只反映镜像发布的结果，不等同步。所需密钥为仓库 Secrets 的
   `CNB_TOKEN`（CNB 访问令牌，授权范围 `registry-package` 与
   `registry-package-delete` 读写，令牌账号在该仓库为管理员及以上）。
 - **模型性能指标（API 模型性能）**：新增按「模型 × 分组 × 时间桶」聚合的

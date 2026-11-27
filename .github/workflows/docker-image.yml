@@ -14,7 +14,8 @@ name: Publish Docker image (multi-arch)
 #                     （<tag>-amd64 / <tag>-arm64），GHA 缓存按架构分 scope
 #   create_manifests  imagetools create 合成多架构 manifest，cosign 签名
 #   sync_cnb          仅 dev 发布：先删除 CNB 上 dev 以外的历史标签，再用 skopeo
-#                     把已签名的多架构 manifest 拷贝为 CNB 的 dev 标签并核对摘要
+#                     把已签名的多架构 manifest 拷贝为 CNB 的 dev 标签并核对摘要，
+#                     结束后单独发一张飞书卡片（notify_feishu_cnb）
 #
 # arm64 构建机：本仓库为公开仓库，默认使用免费的原生 arm64 runner
 # （ubuntu-24.04-arm），无需 QEMU 模拟；若需回退 QEMU 模拟（例如仓库转
@@ -459,8 +460,9 @@ jobs:
 
   notify_feishu:
     name: Notify Feishu
-    needs: [prepare, build_frontend, build_single_arch, create_manifests, sync_cnb]
-    # 被取消的 run（concurrency 抢占）不打扰；上游任一失败都要通知
+    needs: [prepare, build_frontend, build_single_arch, create_manifests]
+    # 只反映镜像发布的结果，不等 CNB 同步；被取消的 run（concurrency 抢占）不打扰，
+    # 上游任一失败都要通知
     if: ${{ always() && !cancelled() && !contains(needs.*.result, 'cancelled') }}
     continue-on-error: true
     runs-on: ubuntu-latest
@@ -478,6 +480,34 @@ jobs:
           project_name: ${{ github.repository }}
           branch: ${{ github.ref_name }}
           conclusion: ${{ contains(needs.*.result, 'failure') && 'failure' || 'success' }}
+          app_id: ${{ secrets.FEISHU_APP_ID }}
+          app_secret: ${{ secrets.FEISHU_APP_SECRET }}
+          user_id: ${{ secrets.FEISHU_USER_ID }}
+
+  notify_feishu_cnb:
+    name: Notify Feishu (CNB)
+    needs: sync_cnb
+    # 仅在 CNB 同步实际运行过时发卡，结论取同步本身；上游失败连带跳过同步时
+    # 不发，由发布卡片报告。被取消的 run（concurrency 抢占）不打扰
+    if: ${{ always() && !cancelled() && needs.sync_cnb.result != 'skipped' }}
+    continue-on-error: true
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Send Feishu notification
+        uses: ./.github/actions/feishu-notify
+        with:
+          notify_type: docker
+          workflow_name: Sync dev image to CNB
+          project_name: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          conclusion: ${{ needs.sync_cnb.result == 'success' && 'success' || 'failure' }}
           app_id: ${{ secrets.FEISHU_APP_ID }}
           app_secret: ${{ secrets.FEISHU_APP_SECRET }}
           user_id: ${{ secrets.FEISHU_USER_ID }}
