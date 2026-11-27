@@ -13,8 +13,8 @@ name: Publish Docker image (multi-arch)
 #   build_single_arch 每架构独占一个 runner 并行构建，推送 per-arch tag
 #                     （<tag>-amd64 / <tag>-arm64），GHA 缓存按架构分 scope
 #   create_manifests  imagetools create 合成多架构 manifest，cosign 签名
-#   sync_cnb          skopeo 把已签名的多架构 manifest 按同一组 tag 整体拷贝到
-#                     CNB 制品库（docker.cnb.cool/<owner/repo>），并核对两端摘要
+#   sync_cnb          仅 dev 发布：先删除 CNB 上 dev 以外的历史标签，再用 skopeo
+#                     把已签名的多架构 manifest 拷贝为 CNB 的 dev 标签并核对摘要
 #
 # arm64 构建机：本仓库为公开仓库，默认使用免费的原生 arm64 runner
 # （ubuntu-24.04-arm），无需 QEMU 模拟；若需回退 QEMU 模拟（例如仓库转
@@ -26,12 +26,14 @@ name: Publish Docker image (multi-arch)
 # imagetools create 合并时会保留两架构的 attestation 条目；cosign 无密签名
 # 覆盖最终多架构 manifest 的 digest。
 #
-# CNB 镜像同步：CNB 的 Docker 制品库归属代码仓库，地址固定为
-# docker.cnb.cool/<小写 owner/repo>，要求 CNB 上存在与本仓库同名的代码仓库；
-# attestation 条目随清单一起拷贝，cosign 签名不在同步范围内。
-# 所需仓库配置（Settings → Secrets and variables → Actions）：
-#   Secrets → CNB_TOKEN = CNB 访问令牌：授权范围 registry-package 读写；使用范围
-#              选「指定仓库」时须勾上该 CNB 仓库；令牌账号在该仓库为开发者及以上
+# CNB 镜像同步：CNB 的 Docker 制品库只放开发版，仅 dev 分支的发布会同步，且只
+# 保留 dev 这一个标签，每次推送前先删除其余的历史标签。CNB 的 Docker 制品库
+# 归属代码仓库，地址固定为 docker.cnb.cool/<小写 owner/repo>，要求 CNB 上存在
+# 与本仓库同名的代码仓库；attestation 条目随清单一起拷贝，cosign 签名不在同步
+# 范围内。所需仓库配置（Settings → Secrets and variables → Actions）：
+#   Secrets → CNB_TOKEN = CNB 访问令牌：授权范围 registry-package 与
+#              registry-package-delete 读写；使用范围选「指定仓库」时须勾上该
+#              CNB 仓库；令牌账号在该仓库为管理员及以上（删除标签所需）
 on:
   workflow_dispatch:
 
@@ -313,13 +315,19 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   sync_cnb:
-    name: Mirror to CNB
+    name: Mirror dev to CNB
     needs: [prepare, create_manifests]
+    # CNB 制品库只放开发版：仅 dev 分支的发布同步，其余分支与标签的发布不同步
+    if: needs.prepare.outputs.channel == 'dev' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
 
     permissions:
       # packages: 用 GITHUB_TOKEN 拉取 GHCR 上刚发布的 manifest
       packages: read
+
+    env:
+      CNB_REGISTRY: https://docker.cnb.cool
+      CNB_API: https://api.cnb.cool
 
     steps:
       - name: Log in to GitHub Container Registry
@@ -337,6 +345,67 @@ jobs:
           username: cnb
           password: ${{ secrets.CNB_TOKEN }}
 
+      - name: Prune stale CNB tags
+        # 推送前清理历史：渠道标签本身保留、由推送覆盖，其余标签全部删除。
+        # 令牌无删除权限或响应异常时立即失败，不带病推送
+        shell: bash
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          CNB_IMAGE: ${{ needs.prepare.outputs.cnb_image }}
+          KEEP_TAG: ${{ needs.prepare.outputs.channel }}
+        run: |
+          set -euo pipefail
+          repo="${CNB_IMAGE#*/}"
+          package="${repo##*/}"
+
+          # 用 CNB 登录凭据换 registry 的拉取令牌后列出全部标签；
+          # 包尚不存在（404）时没有历史标签可删
+          pull_token=$(curl -sS --connect-timeout 10 --max-time 60 -u "cnb:${CNB_TOKEN}" \
+            "${CNB_REGISTRY}/service/token?service=cnb-registry&scope=repository:${repo}:pull" \
+            | jq -r '.token // empty')
+          [ -n "$pull_token" ] || { echo "::error::Failed to get a CNB registry token"; exit 1; }
+          http=$(curl -sS --connect-timeout 10 --max-time 60 \
+            -D tags_headers.txt -o tags.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${pull_token}" "${CNB_REGISTRY}/v2/${repo}/tags/list")
+          # 200 必须是带 tags 字段的标签列表（数组或 null），404 必须是 registry 的
+          # 错误信封。空响应体在个别 jq 版本上能通过 -e 校验，所以先单独判空
+          case "$http" in
+            200)
+              if [ ! -s tags.json ] || ! jq -e 'has("tags") and (.tags == null or (.tags | type == "array"))' tags.json > /dev/null; then
+                echo "::error::Unexpected tags response: $(cat tags.json)"
+                exit 1
+              fi ;;
+            404)
+              if [ ! -s tags.json ] || ! jq -e 'has("errors") and (.errors | type == "array")' tags.json > /dev/null; then
+                echo "::error::Unexpected 404 response: $(cat tags.json)"
+                exit 1
+              fi ;;
+            *) echo "::error::Failed to list CNB tags: HTTP ${http}, body: $(cat tags.json)"; exit 1 ;;
+          esac
+          # CNB registry 的标签列表支持分页（n / last 参数）。本仓库只保留 dev 一个
+          # 标签，默认请求一次就能取全；万一响应带了下一页链接，说明标签数超出预期，
+          # 不逐页删除，直接暴露
+          if grep -qi -E '^link:.*rel="next"' tags_headers.txt; then
+            echo "::error::CNB tags list is paginated; refusing to prune partially"
+            exit 1
+          fi
+
+          echo "Tags on CNB: $(jq -r '(.tags // []) | join(" ")' tags.json)"
+          deleted=0
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            encoded=$(printf '%s' "$tag" | jq -sRr @uri)
+            http=$(curl -sS --connect-timeout 10 --max-time 60 -X DELETE \
+              -o delete_response.json -w '%{http_code}' \
+              -H "Authorization: Bearer ${CNB_TOKEN}" \
+              "${CNB_API}/${repo}/-/packages/docker/${package}/-/tag/${encoded}")
+            case "$http" in
+              2*) echo "Deleted stale CNB tag: ${tag}"; deleted=$((deleted + 1)) ;;
+              *) echo "::error::Failed to delete CNB tag ${tag}: HTTP ${http}, body: $(cat delete_response.json)"; exit 1 ;;
+            esac
+          done < <(jq -r --arg keep "$KEEP_TAG" '(.tags // [])[] | select(. != $keep)' tags.json)
+          echo "Deleted ${deleted} stale tag(s); ${KEEP_TAG} is kept and replaced by the push."
+
       - name: Install skopeo
         # runner 官方 apt 源安装，签名校验由 apt 完成，无外部二进制下载
         shell: bash
@@ -346,12 +415,12 @@ jobs:
           sudo apt-get install -y -qq skopeo
           skopeo --version
 
-      - name: Copy manifests from GHCR to CNB
+      - name: Copy dev manifest from GHCR to CNB
         shell: bash
         env:
           IMAGE: ${{ needs.prepare.outputs.image }}
           CNB_IMAGE: ${{ needs.prepare.outputs.cnb_image }}
-          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
           DIGEST: ${{ needs.create_manifests.outputs.digest }}
         run: |
           set -euo pipefail
@@ -360,38 +429,32 @@ jobs:
           # --preserve-digests 要求目标端各 manifest 摘要与源端一致，无法保持时
           # 直接报错。两步 docker login 的凭据都写在默认配置文件里，skopeo 复用
           authfile="${HOME}/.docker/config.json"
-          # tag 列表为空或非法时立即失败，避免循环零次迭代后仍显示成功
-          jq -e 'type == "array" and length > 0' <<< "$TAGS_JSON" > /dev/null \
-            || { echo "::error::tags_json is empty or not a JSON array" >&2; exit 1; }
-          while IFS= read -r tag; do
-            [ -n "$tag" ] || continue
-            echo "Copying ${IMAGE}@${DIGEST} -> ${CNB_IMAGE}:${tag}"
-            skopeo copy \
-              --all \
-              --retry-times 5 \
-              --preserve-digests \
-              --src-authfile "$authfile" \
-              --dest-authfile "$authfile" \
-              "docker://${IMAGE}@${DIGEST}" "docker://${CNB_IMAGE}:${tag}"
-            # 拷贝后摘要比对，确保 CNB 上的清单与已签名的 manifest 完全一致；
-            # --no-tags：只需要清单摘要，不请求目标端的 tag 列表接口
-            cnb_digest=$(skopeo inspect --no-tags --authfile "$authfile" \
-              --format '{{.Digest}}' "docker://${CNB_IMAGE}:${tag}")
-            if [ "$cnb_digest" != "$DIGEST" ]; then
-              echo "::error::Digest mismatch for ${CNB_IMAGE}:${tag}: published=${DIGEST} cnb=${cnb_digest}"
-              exit 1
-            fi
-            echo "Digest OK: ${CNB_IMAGE}:${tag} ${cnb_digest}"
-          done < <(jq -r '.[]' <<< "$TAGS_JSON")
+          echo "Copying ${IMAGE}@${DIGEST} -> ${CNB_IMAGE}:${CHANNEL}"
+          skopeo copy \
+            --all \
+            --retry-times 5 \
+            --preserve-digests \
+            --src-authfile "$authfile" \
+            --dest-authfile "$authfile" \
+            "docker://${IMAGE}@${DIGEST}" "docker://${CNB_IMAGE}:${CHANNEL}"
+          # 拷贝后摘要比对，确保 CNB 上的清单与已签名的 manifest 完全一致；
+          # --no-tags：只需要清单摘要，不请求目标端的 tag 列表接口
+          cnb_digest=$(skopeo inspect --no-tags --authfile "$authfile" \
+            --format '{{.Digest}}' "docker://${CNB_IMAGE}:${CHANNEL}")
+          if [ "$cnb_digest" != "$DIGEST" ]; then
+            echo "::error::Digest mismatch for ${CNB_IMAGE}:${CHANNEL}: published=${DIGEST} cnb=${cnb_digest}"
+            exit 1
+          fi
+          echo "Digest OK: ${CNB_IMAGE}:${CHANNEL} ${cnb_digest}"
 
-      - name: Output CNB image tags
+      - name: Output CNB image
         env:
           CNB_IMAGE: ${{ needs.prepare.outputs.cnb_image }}
-          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
         run: |
           echo "### Mirrored to CNB" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          jq -r --arg image "$CNB_IMAGE" '.[] | "\($image):\(.)"' <<< "$TAGS_JSON" >> "$GITHUB_STEP_SUMMARY"
+          echo "${CNB_IMAGE}:${CHANNEL}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   notify_feishu:
