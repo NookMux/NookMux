@@ -117,6 +117,13 @@
 
 ### Added
 
+- **镜像发布同步到 CNB 制品库**：Docker 发布工作流在多架构 manifest 合并并签名
+  后，把渠道 tag（latest / beta / dev / test / git tag）与不可变 tag
+  （YYYYMMDD-<sha7>）按已签名的 manifest 摘要整体拷贝到 CNB 的同名 Docker
+  制品库 `docker.cnb.cool/nookmux/nookmux`，并逐个核对两端摘要；拷贝或核对
+  失败即本次发布失败，飞书通知的结论包含同步结果。所需密钥为仓库
+  Secrets 的 `CNB_TOKEN`（CNB 访问令牌，授权范围 `registry-package` 读写）。
+  Mintlify 中英文安装总览页补充 CNB 镜像地址说明。
 - **模型性能指标（API 模型性能）**：新增按「模型 × 分组 × 时间桶」聚合的
   中继性能统计全链路。采样挂在中继请求边界（`Relay()` defer），每请求恰好
   一次、天然覆盖文本 / Claude / Gemini / 音频 / 实时 / 图像 / 嵌入 / 重排全

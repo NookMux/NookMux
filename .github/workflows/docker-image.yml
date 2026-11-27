@@ -4,14 +4,17 @@ name: Publish Docker image (multi-arch)
 # （见 ci.yml 的 trigger-docker job），或维护者手动触发。直接 push 不再
 # 触发本工作流——所有提交必须先过 CI 门禁。
 #
-# 流水线分四段：
-#   prepare           计算镜像名、渠道 tag（latest/beta/dev/test/<git tag>）、
-#                     不可变 tag（YYYYMMDD-<sha7>）与构建矩阵
+# 流水线分五段：
+#   prepare           计算 GHCR 与 CNB 两侧的镜像名（同为小写 owner/repo）、
+#                     渠道 tag（latest/beta/dev/test/<git tag>）、不可变 tag
+#                     （YYYYMMDD-<sha7>）与构建矩阵
 #   build_frontend    构建一次 web/dist（架构无关），经 artifact 分发给各架构
 #                     构建 job，避免每个架构重复构建前端
 #   build_single_arch 每架构独占一个 runner 并行构建，推送 per-arch tag
 #                     （<tag>-amd64 / <tag>-arm64），GHA 缓存按架构分 scope
 #   create_manifests  imagetools create 合成多架构 manifest，cosign 签名
+#   sync_cnb          skopeo 把已签名的多架构 manifest 按同一组 tag 整体拷贝到
+#                     CNB 制品库（docker.cnb.cool/<owner/repo>），并核对两端摘要
 #
 # arm64 构建机：本仓库为公开仓库，默认使用免费的原生 arm64 runner
 # （ubuntu-24.04-arm），无需 QEMU 模拟；若需回退 QEMU 模拟（例如仓库转
@@ -22,6 +25,13 @@ name: Publish Docker image (multi-arch)
 # 供应链：per-arch 构建携带 provenance(mode=max) 与 SBOM attestation；
 # imagetools create 合并时会保留两架构的 attestation 条目；cosign 无密签名
 # 覆盖最终多架构 manifest 的 digest。
+#
+# CNB 镜像同步：CNB 的 Docker 制品库归属代码仓库，地址固定为
+# docker.cnb.cool/<小写 owner/repo>，要求 CNB 上存在与本仓库同名的代码仓库；
+# attestation 条目随清单一起拷贝，cosign 签名不在同步范围内。
+# 所需仓库配置（Settings → Secrets and variables → Actions）：
+#   Secrets → CNB_TOKEN = CNB 访问令牌：授权范围 registry-package 读写；使用范围
+#              选「指定仓库」时须勾上该 CNB 仓库；令牌账号在该仓库为开发者及以上
 on:
   workflow_dispatch:
 
@@ -40,6 +50,7 @@ jobs:
 
     outputs:
       image: ${{ steps.vars.outputs.image }}
+      cnb_image: ${{ steps.vars.outputs.cnb_image }}
       channel: ${{ steps.vars.outputs.channel }}
       tags_json: ${{ steps.vars.outputs.tags_json }}
       matrix_json: ${{ steps.vars.outputs.matrix_json }}
@@ -53,6 +64,7 @@ jobs:
         run: |
           repo="${GITHUB_REPOSITORY,,}"
           image="ghcr.io/${repo}"
+          cnb_image="docker.cnb.cool/${repo}"
           immutable="$(date -u +'%Y%m%d')-${GITHUB_SHA::7}"
 
           ref="${GITHUB_REF}"
@@ -93,6 +105,7 @@ jobs:
 
           {
             echo "image=$image"
+            echo "cnb_image=$cnb_image"
             echo "channel=$channel"
             echo "tags_json=$tags_json"
             echo "matrix_json=$matrix_json"
@@ -224,6 +237,9 @@ jobs:
     needs: [prepare, build_single_arch]
     runs-on: ubuntu-latest
 
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
+
     permissions:
       contents: read
       packages: write
@@ -246,6 +262,9 @@ jobs:
           IMAGE: ${{ needs.prepare.outputs.image }}
           TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
         run: |
+          # tag 列表为空或非法时立即失败，避免循环零次迭代后仍显示成功
+          jq -e 'type == "array" and length > 0' <<< "$TAGS_JSON" > /dev/null \
+            || { echo "::error::tags_json is empty or not a JSON array" >&2; exit 1; }
           while IFS= read -r tag; do
             [ -n "$tag" ] || continue
             docker buildx imagetools create \
@@ -293,9 +312,91 @@ jobs:
           docker buildx imagetools inspect "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+  sync_cnb:
+    name: Mirror to CNB
+    needs: [prepare, create_manifests]
+    runs-on: ubuntu-latest
+
+    permissions:
+      # packages: 用 GITHUB_TOKEN 拉取 GHCR 上刚发布的 manifest
+      packages: read
+
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to CNB registry
+        # CNB Docker 制品库固定以用户名 cnb + 访问令牌登录
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: docker.cnb.cool
+          username: cnb
+          password: ${{ secrets.CNB_TOKEN }}
+
+      - name: Install skopeo
+        # runner 官方 apt 源安装，签名校验由 apt 完成，无外部二进制下载
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq skopeo
+          skopeo --version
+
+      - name: Copy manifests from GHCR to CNB
+        shell: bash
+        env:
+          IMAGE: ${{ needs.prepare.outputs.image }}
+          CNB_IMAGE: ${{ needs.prepare.outputs.cnb_image }}
+          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+          DIGEST: ${{ needs.create_manifests.outputs.digest }}
+        run: |
+          set -euo pipefail
+          # 源端按摘要引用，拷贝的就是本次发布已签名的 manifest；--all 覆盖清单里
+          # 的全部条目（两架构镜像与各自的 provenance / SBOM attestation）；
+          # --preserve-digests 要求目标端各 manifest 摘要与源端一致，无法保持时
+          # 直接报错。两步 docker login 的凭据都写在默认配置文件里，skopeo 复用
+          authfile="${HOME}/.docker/config.json"
+          # tag 列表为空或非法时立即失败，避免循环零次迭代后仍显示成功
+          jq -e 'type == "array" and length > 0' <<< "$TAGS_JSON" > /dev/null \
+            || { echo "::error::tags_json is empty or not a JSON array" >&2; exit 1; }
+          while IFS= read -r tag; do
+            [ -n "$tag" ] || continue
+            echo "Copying ${IMAGE}@${DIGEST} -> ${CNB_IMAGE}:${tag}"
+            skopeo copy \
+              --all \
+              --retry-times 5 \
+              --preserve-digests \
+              --src-authfile "$authfile" \
+              --dest-authfile "$authfile" \
+              "docker://${IMAGE}@${DIGEST}" "docker://${CNB_IMAGE}:${tag}"
+            # 拷贝后摘要比对，确保 CNB 上的清单与已签名的 manifest 完全一致；
+            # --no-tags：只需要清单摘要，不请求目标端的 tag 列表接口
+            cnb_digest=$(skopeo inspect --no-tags --authfile "$authfile" \
+              --format '{{.Digest}}' "docker://${CNB_IMAGE}:${tag}")
+            if [ "$cnb_digest" != "$DIGEST" ]; then
+              echo "::error::Digest mismatch for ${CNB_IMAGE}:${tag}: published=${DIGEST} cnb=${cnb_digest}"
+              exit 1
+            fi
+            echo "Digest OK: ${CNB_IMAGE}:${tag} ${cnb_digest}"
+          done < <(jq -r '.[]' <<< "$TAGS_JSON")
+
+      - name: Output CNB image tags
+        env:
+          CNB_IMAGE: ${{ needs.prepare.outputs.cnb_image }}
+          TAGS_JSON: ${{ needs.prepare.outputs.tags_json }}
+        run: |
+          echo "### Mirrored to CNB" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          jq -r --arg image "$CNB_IMAGE" '.[] | "\($image):\(.)"' <<< "$TAGS_JSON" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
   notify_feishu:
     name: Notify Feishu
-    needs: [prepare, build_frontend, build_single_arch, create_manifests]
+    needs: [prepare, build_frontend, build_single_arch, create_manifests, sync_cnb]
     # 被取消的 run（concurrency 抢占）不打扰；上游任一失败都要通知
     if: ${{ always() && !cancelled() && !contains(needs.*.result, 'cancelled') }}
     continue-on-error: true
