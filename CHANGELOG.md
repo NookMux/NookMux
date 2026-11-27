@@ -45,6 +45,7 @@
 
 ### Fixed
 
+- **价格设置里看不到渠道刚加的模型**：进入过一次「价格设置」后，五分钟内再回到该页，模型列表沿用上一次缓存的启用模型，渠道上新加、尚未配价的模型要刷新整页才出现。启用模型列表改为每次进入页面都重新拉取；API 密钥与用户页面里由渠道、分组派生的模型和分组列表是同一种缓存方式，一并改为每次进入页面都重新拉取（`web/src/features/channels/hooks/use-enabled-models.ts`、`web/src/features/system-settings/models/model-ratio-visual-editor.tsx`、`web/src/features/keys`、`web/src/features/users`）。
 - **离开页面时旧页面先被重新挂载一遍**：登录后页面的过渡容器以路由当前地址为 key，而地址在导航一开始就更新，旧页面要重挂载一次（挂载时的请求全部重发、进场动画重放）才切到新页面；会话已失效时这些重发的请求会连续提示「会话已过期」。容器的 key 改为已提交的页面路径，与新页面在同一帧更换（`web/src/components/page-transition.tsx`）。
 - **两步验证登录后没有回到原本要去的页面**：登录页带着目标地址跳到验证码页时把地址丢了，验证通过后固定进入控制台。验证码页现在沿用登录页的 `redirect` 参数，验证通过和「重新登录」都回到目标页面（`web/src/features/auth`、`web/src/routes/(auth)/otp.tsx`）。
 - **gpt-5.4 及之后型号的补全倍率表条目不生效**：补全倍率对 `gpt-5` 前缀的型号恒定按输入价的 8 倍推导并跳过倍率表，表中 `gpt-5.4-mini`、`gpt-5.4-nano`、`gpt-5.5-pro` 等型号写明的输出价不参与计费。现在表里有该型号的精确条目时以条目为准，没有条目时才按输入价的 8 倍推导（`internal/config/ratio/model_ratio.go`）。

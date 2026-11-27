@@ -125,7 +125,8 @@ export function CCSwitchDialog(props: Props) {
     queryKey: ['user-models-ccswitch'],
     queryFn: getUserModels,
     enabled: props.open,
-    staleTime: 5 * 60 * 1000,
+    // 可用模型随渠道与用户分组变动，每次打开对话框都重新拉取
+    staleTime: 0,
   })
 
   const modelOptions = useMemo(() => {

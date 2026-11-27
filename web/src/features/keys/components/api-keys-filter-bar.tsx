@@ -84,7 +84,8 @@ export function ApiKeysFilterBar<TData extends RowData>(
   const { data: groupsData } = useQuery({
     queryKey: ['user-self-groups'],
     queryFn: getUserGroups,
-    staleTime: 5 * 60 * 1000,
+    // 分组随分组设置与用户分组变动，每次挂载都重新拉取
+    staleTime: 0,
   })
 
   const groupOptions = useMemo(() => {

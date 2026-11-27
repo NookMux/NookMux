@@ -100,7 +100,8 @@ export function UsersMutateDrawer({
   const { data: groupsData } = useQuery({
     queryKey: ['groups'],
     queryFn: getGroups,
-    staleTime: 5 * 60 * 1000,
+    // 分组随渠道与分组设置变动，每次进入页面都重新拉取
+    staleTime: 0,
   })
 
   const groups = groupsData?.data || []

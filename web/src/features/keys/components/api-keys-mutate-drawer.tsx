@@ -99,14 +99,16 @@ export function ApiKeysMutateDrawer({
   const { data: modelsData } = useQuery({
     queryKey: ['user-models'],
     queryFn: getUserModels,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    // 可用模型随渠道与用户分组变动，每次进入页面都重新拉取
+    staleTime: 0,
   })
 
   // Fetch groups
   const { data: groupsData } = useQuery({
     queryKey: ['user-groups'],
     queryFn: getUserGroups,
-    staleTime: 5 * 60 * 1000,
+    // 可用分组随分组设置与用户分组变动，每次进入页面都重新拉取
+    staleTime: 0,
   })
 
   const models = modelsData?.data || []

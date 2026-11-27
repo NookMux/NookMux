@@ -50,6 +50,7 @@ export const channelsQueryKeys = {
   details: () => [...channelsQueryKeys.all, 'detail'] as const,
   detail: (id: number) => [...channelsQueryKeys.details(), id] as const,
   builtinUrls: () => [...channelsQueryKeys.all, 'builtin-urls'] as const,
+  enabledModels: () => [...channelsQueryKeys.all, 'models-enabled'] as const,
 }
 
 // ============================================================================

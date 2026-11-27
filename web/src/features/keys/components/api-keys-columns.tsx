@@ -45,7 +45,8 @@ function useGroupRatios(): Record<string, number> {
   const { data } = useQuery({
     queryKey: ['user-self-groups'],
     queryFn: getUserGroups,
-    staleTime: 5 * 60 * 1000,
+    // 分组倍率随分组设置变动，每次挂载都重新拉取
+    staleTime: 0,
     select: (res) => {
       if (!res.success || !res.data) return {}
       const ratios: Record<string, number> = {}

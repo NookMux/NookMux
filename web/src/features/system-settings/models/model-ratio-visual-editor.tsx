@@ -43,7 +43,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { getEnabledModels } from '@/features/channels/api'
+import { useEnabledModels } from '@/features/channels/hooks/use-enabled-models'
 import { getBuiltinModelPricing } from '../api'
 import { SettingsPanel } from '../components/settings-panel'
 import { safeJsonParse } from '../utils/json-parser'
@@ -444,11 +444,7 @@ export function ModelRatioVisualEditor({
   const [customModelName, setCustomModelName] = useState('')
 
   const { data: enabledModelsData, isLoading: isLoadingEnabledModels } =
-    useQuery({
-      queryKey: ['channel', 'models-enabled'],
-      queryFn: getEnabledModels,
-      staleTime: 5 * 60 * 1000,
-    })
+    useEnabledModels()
 
   const maps = useMemo(
     () => ({
