@@ -49,20 +49,24 @@ var privateNetworkTrustedProxyCIDRs = []string{
 	"fe80::/10",      // IPv6 link-local
 }
 
-func SetupGinTrustedProxies(engine *gin.Engine) {
+// ForwardedClientIPHeaders 是请求来自可信代理时依次检查的请求头，顺序即优先级：
+// Cloudflare 的头在前，其后是通用的转发头。只读，不要在运行期修改。
+var ForwardedClientIPHeaders = []string{
+	"CF-Connecting-IP",
+	"True-Client-IP",
+	"X-Forwarded-For",
+	"X-Real-IP",
+}
+
+// SetupGinTrustedProxies 让 Gin 只在请求来自可信代理时从 ForwardedClientIPHeaders 解析客户端 IP，
+// 返回按同一份名单判断来源地址是否可信的匹配器；TRUSTED_PROXIES 显式关闭或列表无法应用时返回 nil。
+func SetupGinTrustedProxies(engine *gin.Engine) *IPMatcher {
 	if engine == nil {
-		return
+		return nil
 	}
 
-	// Ensure Gin can extract the real client IP from common reverse-proxy / CDN headers.
-	// Order matters: prefer Cloudflare headers first when present.
 	engine.ForwardedByClientIP = true
-	engine.RemoteIPHeaders = []string{
-		"CF-Connecting-IP",
-		"True-Client-IP",
-		"X-Forwarded-For",
-		"X-Real-IP",
-	}
+	engine.RemoteIPHeaders = ForwardedClientIPHeaders
 
 	env := strings.TrimSpace(os.Getenv(trustedProxiesEnvKey))
 	proxies, desc := buildTrustedProxiesFromEnv(env)
@@ -70,17 +74,23 @@ func SetupGinTrustedProxies(engine *gin.Engine) {
 	if proxies == nil {
 		if err := engine.SetTrustedProxies(nil); err != nil {
 			common.SysError(fmt.Sprintf("failed to disable trusted proxies: %v", err))
-			return
+			return nil
 		}
 		common.SysLog("trusted proxies disabled (TRUSTED_PROXIES=none)")
-		return
+		return nil
 	}
 
 	if err := engine.SetTrustedProxies(proxies); err != nil {
 		common.SysError(fmt.Sprintf("failed to set trusted proxies (%s): %v", desc, err))
-		return
+		return nil
+	}
+	trusted, err := NewIPMatcher(proxies)
+	if err != nil {
+		common.SysError(fmt.Sprintf("failed to set trusted proxies (%s): %v", desc, err))
+		return nil
 	}
 	common.SysLog(fmt.Sprintf("trusted proxies configured (%s)", desc))
+	return trusted
 }
 
 func buildTrustedProxiesFromEnv(env string) ([]string, string) {

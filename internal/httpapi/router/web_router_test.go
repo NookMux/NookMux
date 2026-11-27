@@ -207,6 +207,19 @@ func TestSetWebRouterScopesWebRateLimitToFallbackChain(t *testing.T) {
 	if resp := page("/api/ping"); resp.Code != http.StatusOK || resp.Body.String() != "pong" {
 		t.Fatalf("GET /api/ping: code = %d, body = %q", resp.Code, resp.Body.String())
 	}
+
+	// 未匹配的接口路径不占页面额度：页面额度用尽后仍按自己的额度放行两次，第三次 429
+	for i := 0; i < 2; i++ {
+		if resp := page("/api/unknown"); resp.Code != http.StatusNotFound {
+			t.Fatalf("GET /api/unknown %d after pages exhausted: code = %d, want %d", i+1, resp.Code, http.StatusNotFound)
+		}
+	}
+	if resp := page("/api/unknown"); resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("GET /api/unknown 3: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if got, want := resp.Header().Get("Retry-After"), strconv.FormatInt(90, 10); got != want {
+		t.Fatalf("Retry-After = %q, want %q", got, want)
+	}
 }
 
 func TestSetWebRouterReturnsNotFoundForNonPagePaths(t *testing.T) {

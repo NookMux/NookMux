@@ -131,7 +131,6 @@ func Run() int {
 
 	// Initialize HTTP server
 	server := gin.New()
-	security.SetupGinTrustedProxies(server)
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -141,6 +140,7 @@ func Run() int {
 			},
 		})
 	}))
+	server.Use(middleware.ForwardedHeaderIgnoredHint(security.SetupGinTrustedProxies(server)))
 	// This will cause SSE not to work!!!
 	//server.Use(gzip.Gzip(gzip.DefaultCompression))
 	server.Use(middleware.RequestId())

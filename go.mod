@@ -7,6 +7,7 @@ require (
 	gitcode.com/opengauss/openGauss-connector-go-pq v1.0.9
 	github.com/Calcium-Ion/go-epay v0.0.5
 	github.com/abema/go-mp4 v1.7.4
+	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/andybalholm/brotli v1.2.6
 	github.com/anknown/ahocorasick v0.0.0-20190904063843-d75dbd5169c0
 	github.com/aws/aws-sdk-go-v2 v1.48.0
@@ -139,6 +140,7 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.8.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect

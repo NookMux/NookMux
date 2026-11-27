@@ -11,6 +11,7 @@ import (
 	"github.com/NookMux/NookMux/internal/config"
 	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/cache/limiter"
+	"github.com/NookMux/NookMux/internal/infra/log"
 
 	"github.com/NookMux/NookMux/internal/httpapi"
 	infraredis "github.com/NookMux/NookMux/internal/infra/redis"
@@ -23,57 +24,26 @@ const (
 	ModelRequestRateLimitSuccessCountMark = "MRRLS"
 )
 
-// 检查Redis中的请求限制
+// 检查Redis中的请求限制：只判定，请求成功后才由 recordRedisRequest 记入窗口
 func checkRedisRateLimit(ctx context.Context, rdb *redis.Client, key string, maxCount int, duration int64) (bool, error) {
 	// 如果maxCount为0，表示不限制
 	if maxCount == 0 {
 		return true, nil
 	}
 
-	// 获取当前计数
-	length, err := rdb.LLen(ctx, key).Result()
-	if err != nil {
-		return false, err
-	}
-
-	// 如果未达到限制，允许请求
-	if length < int64(maxCount) {
-		return true, nil
-	}
-
-	// 检查时间窗口
-	oldTimeStr, _ := rdb.LIndex(ctx, key, -1).Result()
-	oldTime, err := time.Parse(timeFormat, oldTimeStr)
-	if err != nil {
-		return false, err
-	}
-
-	nowTimeStr := time.Now().Format(timeFormat)
-	nowTime, err := time.Parse(timeFormat, nowTimeStr)
-	if err != nil {
-		return false, err
-	}
-	// 如果在时间窗口内已达到限制，拒绝请求
-	subTime := nowTime.Sub(oldTime).Seconds()
-	if int64(subTime) < duration {
-		rdb.Expire(ctx, key, time.Duration(config.ModelRequestRateLimitDurationMinutes)*time.Minute)
-		return false, nil
-	}
-
-	return true, nil
+	return limiter.SlidingWindowPeek(ctx, rdb, key, maxCount, time.Duration(duration)*time.Second)
 }
 
 // 记录Redis请求
-func recordRedisRequest(ctx context.Context, rdb *redis.Client, key string, maxCount int) {
+func recordRedisRequest(ctx context.Context, rdb *redis.Client, key string, maxCount int, duration int64) {
 	// 如果maxCount为0，不记录请求
 	if maxCount == 0 {
 		return
 	}
 
-	now := time.Now().Format(timeFormat)
-	rdb.LPush(ctx, key, now)
-	rdb.LTrim(ctx, key, 0, int64(maxCount-1))
-	rdb.Expire(ctx, key, time.Duration(config.ModelRequestRateLimitDurationMinutes)*time.Minute)
+	if err := limiter.SlidingWindowRecord(ctx, rdb, key, maxCount, time.Duration(duration)*time.Second); err != nil {
+		log.LogError(ctx, fmt.Sprintf("rate limit record failed (key=%s): %v", key, err))
+	}
 }
 
 // Redis限流处理器
@@ -84,7 +54,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		rdb := infraredis.RDB
 
 		// 1. 检查成功请求数限制
-		successKey := fmt.Sprintf("rateLimit:%s:%s", ModelRequestRateLimitSuccessCountMark, userId)
+		successKey := redisUserRateLimitKey(ModelRequestRateLimitSuccessCountMark, c.GetInt("id"))
 		allowed, err := checkRedisRateLimit(ctx, rdb, successKey, successMaxCount, duration)
 		if err != nil {
 			fmt.Println("检查成功请求数限制失败:", err.Error())
@@ -132,7 +102,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 
 		// 5. 如果请求成功，记录成功请求
 		if c.Writer.Status() < 400 {
-			recordRedisRequest(ctx, rdb, successKey, successMaxCount)
+			recordRedisRequest(ctx, rdb, successKey, successMaxCount, duration)
 		}
 	}
 }

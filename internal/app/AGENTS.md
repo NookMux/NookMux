@@ -6,7 +6,7 @@
 
 - `bootstrap.go`：系统基础设施（环境、日志、数据库、配置、缓存、监控、i18n）启动顺序编排。
 - `env.go`：命令行启动 flag（`--port`/`--version`/`--help`/`--log-dir`）解析与 `InitEnv` 环境装配。`--log-dir` 解析结果通过 `infra/log.Dir` 注入日志包（infra 不得反向 import app）。
-- `server.go`：Gin server、session、后台 worker 与路由挂载编排；进程退出码在此统一返回给 `cmd/server`。
+- `server.go`：Gin server、可信代理（`security.SetupGinTrustedProxies`）与转发头提示中间件（`middleware.ForwardedHeaderIgnoredHint`，紧随恢复中间件挂载）、session、后台 worker 与路由挂载编排；进程退出码在此统一返回给 `cmd/server`。
 - `analytics.go`：Umami / Google Analytics 统计脚本注入；纯函数式处理 HTML index 字节，不持有可变全局状态。
 - `webdist/`：为应用层提供前端嵌入资产门面，导出静态资源 `EmbedFolder`（供 `httpapi/router` 构建 Web 文件系统）。因 Go `//go:embed` 不支持跨层 `..`，真实嵌入声明必须位于 `web/embed.go`，由本包对外暴露内部 API；禁止将 `web/dist` 复制到本目录。
 

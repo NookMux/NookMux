@@ -45,6 +45,10 @@
 
 ### Fixed
 
+- **Redis 模式下隔了一段时间再访问域名返回 HTTP 429**：Redis 模式的限流计数改为按 Redis 服务端时钟计算的原子滑动窗口，各实例的时区与时钟不参与窗口判定，被拒的请求不写入记录、也不延长计数的生存期，计数在一个窗口内没有放行后到期清除；判定规则与内存模式一致（窗口内放行的记录数达到上限且最旧一条仍在窗口内才拒绝），模型请求限流的成功计数同样由这段脚本判定与记录。计数键改用 `rateLimit:v2:*`，与旧格式的计数互不读写，滚动更新期间新旧实例各自计数一个窗口时长（`internal/infra/cache/limiter/sliding_window.go`、`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/middleware/model_rate_limit.go`）。
+  - **未匹配路径不再占用页面额度**：`/v1`、`/api`、`/assets`、`/static` 下未匹配的路径（未注册的接口、发版后已删除的分块等）改由与页面同额度的独立限流器计数，旧标签页或其他客户端访问不存在的路径后，页面与已注册的接口照常可用（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/web_router.go`）。
+  - **转发头被忽略时给出提示**：请求带着转发客户端 IP 的请求头、直连来源却不在 `TRUSTED_PROXIES` 里时，日志按来源地址每 10 分钟记录一条提示，写明命中的请求头，并说明该地址下的所有访客共用同一份额度、应把反向代理或 CDN 加入 `TRUSTED_PROXIES`（`internal/httpapi/middleware/forwarded_header_hint.go`、`internal/infra/security/trusted_proxies.go`、`internal/app/server.go`）。
+  - Redis 模式的限流补充内嵌 Redis（`miniredis`）单元测试，覆盖窗口判定、并发、时区无关与页面 / 未匹配路径 / 构建产物分开计数（`internal/infra/cache/limiter/sliding_window_test.go`、`internal/httpapi/middleware/rate_limit_redis_test.go`）。
 - **价格设置里看不到渠道刚加的模型**：进入过一次「价格设置」后，五分钟内再回到该页，模型列表沿用上一次缓存的启用模型，渠道上新加、尚未配价的模型要刷新整页才出现。启用模型列表改为每次进入页面都重新拉取；API 密钥与用户页面里由渠道、分组派生的模型和分组列表是同一种缓存方式，一并改为每次进入页面都重新拉取（`web/src/features/channels/hooks/use-enabled-models.ts`、`web/src/features/system-settings/models/model-ratio-visual-editor.tsx`、`web/src/features/keys`、`web/src/features/users`）。
 - **离开页面时旧页面先被重新挂载一遍**：登录后页面的过渡容器以路由当前地址为 key，而地址在导航一开始就更新，旧页面要重挂载一次（挂载时的请求全部重发、进场动画重放）才切到新页面；会话已失效时这些重发的请求会连续提示「会话已过期」。容器的 key 改为已提交的页面路径，与新页面在同一帧更换（`web/src/components/page-transition.tsx`）。
 - **两步验证登录后没有回到原本要去的页面**：登录页带着目标地址跳到验证码页时把地址丢了，验证通过后固定进入控制台。验证码页现在沿用登录页的 `redirect` 参数，验证通过和「重新登录」都回到目标页面（`web/src/features/auth`、`web/src/routes/(auth)/otp.tsx`）。

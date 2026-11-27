@@ -166,24 +166,32 @@ func newFrontendFileServer(t *testing.T) static.ServeFileSystem {
 	return static.LocalFile(dir, false)
 }
 
+// setWebRateLimitQuota 覆盖 Web / 静态限流的开关与额度，不改存储模式，测试结束后恢复。
+func setWebRateLimitQuota(t *testing.T, webEnable bool, webNum int, staticEnable bool, staticNum int, duration int64) {
+	t.Helper()
+
+	origWebEnable, origWebNum, origWebDuration := common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration
+	origStaticEnable, origStaticNum, origStaticDuration := common.GlobalStaticRateLimitEnable, common.GlobalStaticRateLimitNum, common.GlobalStaticRateLimitDuration
+
+	common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration = webEnable, webNum, duration
+	common.GlobalStaticRateLimitEnable, common.GlobalStaticRateLimitNum, common.GlobalStaticRateLimitDuration = staticEnable, staticNum, duration
+
+	t.Cleanup(func() {
+		common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration = origWebEnable, origWebNum, origWebDuration
+		common.GlobalStaticRateLimitEnable, common.GlobalStaticRateLimitNum, common.GlobalStaticRateLimitDuration = origStaticEnable, origStaticNum, origStaticDuration
+	})
+}
+
 // setWebRateLimitForTest 覆盖 Web / 静态限流配置并强制走内存限流，测试结束后恢复。
 func setWebRateLimitForTest(t *testing.T, webEnable bool, webNum int, staticEnable bool, staticNum int, duration int64) {
 	t.Helper()
 
 	origRedisEnabled := redis.RedisEnabled
-	origWebEnable, origWebNum, origWebDuration := common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration
-	origStaticEnable, origStaticNum, origStaticDuration := common.GlobalStaticRateLimitEnable, common.GlobalStaticRateLimitNum, common.GlobalStaticRateLimitDuration
-
 	redis.RedisEnabled = false
-	common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration = webEnable, webNum, duration
-	common.GlobalStaticRateLimitEnable, common.GlobalStaticRateLimitNum, common.GlobalStaticRateLimitDuration = staticEnable, staticNum, duration
 	inMemoryRateLimiter.Init(common.RateLimitKeyExpirationDuration)
+	t.Cleanup(func() { redis.RedisEnabled = origRedisEnabled })
 
-	t.Cleanup(func() {
-		redis.RedisEnabled = origRedisEnabled
-		common.GlobalWebRateLimitEnable, common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration = origWebEnable, origWebNum, origWebDuration
-		common.GlobalStaticRateLimitEnable, common.GlobalStaticRateLimitNum, common.GlobalStaticRateLimitDuration = origStaticEnable, origStaticNum, origStaticDuration
-	})
+	setWebRateLimitQuota(t, webEnable, webNum, staticEnable, staticNum, duration)
 }
 
 // serveFromClient 以固定客户端 IP 发起请求。限流计数按 IP 隔离，各用例使用不同 IP。
@@ -227,12 +235,66 @@ func TestGlobalWebRateLimitSeparatesFrontendFilesFromPages(t *testing.T) {
 		t.Fatalf("Retry-After = %q, want %q", got, want)
 	}
 
-	// 页面额度耗尽后构建产物仍可访问；不存在的产物路径按页面计数
+	// 页面额度耗尽后构建产物仍可访问；不存在的产物路径不占页面额度，照常进入回退链
 	if resp := serveFromClient(router, clientIP, "/static/js/app.js"); resp.Code != http.StatusNoContent {
 		t.Fatalf("frontend file after pages exhausted: code = %d, want %d", resp.Code, http.StatusNoContent)
 	}
-	if resp := serveFromClient(router, clientIP, "/static/js/missing.js"); resp.Code != http.StatusTooManyRequests {
-		t.Fatalf("missing frontend file: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	if resp := serveFromClient(router, clientIP, "/static/js/missing.js"); resp.Code != http.StatusNoContent {
+		t.Fatalf("missing frontend file after pages exhausted: code = %d, want %d", resp.Code, http.StatusNoContent)
+	}
+}
+
+func TestGlobalWebRateLimitCountsUnmatchedPathsSeparatelyFromPages(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	setWebRateLimitForTest(t, true, 2, false, 1000, 41)
+
+	router := gin.New()
+	router.NoRoute(GlobalWebRateLimit(newFrontendFileServer(t)), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	const clientIP = "192.0.2.15"
+
+	// 未匹配路径共用一份额度：接口、中继与不存在的构建产物路径一起计数，超出后 429
+	for _, target := range []string{"/v1/unknown", "/api/unknown"} {
+		if resp := serveFromClient(router, clientIP, target); resp.Code != http.StatusNoContent {
+			t.Fatalf("unmatched request %s: code = %d, want %d", target, resp.Code, http.StatusNoContent)
+		}
+	}
+	resp := serveFromClient(router, clientIP, "/static/js/missing.js")
+	if resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("unmatched request beyond quota: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if got, want := resp.Header().Get("Retry-After"), strconv.FormatInt(41, 10); got != want {
+		t.Fatalf("Retry-After = %q, want %q", got, want)
+	}
+
+	// 未匹配路径的额度用尽不影响页面：页面按自己的额度放行两次，第三次才 429
+	for i := 0; i < 2; i++ {
+		if resp := serveFromClient(router, clientIP, "/console/overview"); resp.Code != http.StatusNoContent {
+			t.Fatalf("page request %d after unmatched quota exhausted: code = %d, want %d", i+1, resp.Code, http.StatusNoContent)
+		}
+	}
+	if resp := serveFromClient(router, clientIP, "/console/overview"); resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("page request 3: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+}
+
+func TestIsNonPageRequest(t *testing.T) {
+	cases := map[string]bool{
+		"/v1/chat/completions":  true,
+		"/v1beta/models":        true,
+		"/api/status":           true,
+		"/api/status?page=1":    true,
+		"/static/js/async/x.js": true,
+		"/assets/logo.png":      true,
+		"/":                     false,
+		"/console/overview":     false,
+		"/pricing/gpt-4":        false,
+	}
+	for requestURI, want := range cases {
+		if got := IsNonPageRequest(requestURI); got != want {
+			t.Fatalf("IsNonPageRequest(%q) = %v, want %v", requestURI, got, want)
+		}
 	}
 }
 
