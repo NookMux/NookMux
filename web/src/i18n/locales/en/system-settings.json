@@ -453,7 +453,7 @@
   "systemSettings.placeholders.oneDomainPerLineOnlyUsedWhenDomainRestriction": "One domain per line (only used when domain restriction is enabled)",
   "systemSettings.tips.onlyAllowSpecificEmailDomains": "Only allow specific email domains",
   "systemSettings.tips.onlyConfiguredCombinationsAreOverriddenAllOtherCallsKeep": "Only configured combinations are overridden. All other calls keep the token group base ratio.",
-  "systemSettings.status.onlySuccessfulRequests": "Only successful requests",
+  "systemSettings.status.onlySuccessfulRequests": "Only successful requests count; a request holds a slot while in flight and gives it back if it fails.",
   "systemSettings.status.onlySuccessfulRequestsCountTowardThisLimit": "Only successful requests count toward this limit.",
   "systemSettings.fields.optionalCallbackOverride": "Optional callback override",
   "systemSettings.tips.optionalMinimumRechargeAmountForThisMethod": "Optional minimum top-up amount for this method.",

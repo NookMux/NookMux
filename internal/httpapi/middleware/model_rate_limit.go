@@ -16,7 +16,6 @@ import (
 	"github.com/NookMux/NookMux/internal/httpapi"
 	infraredis "github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 )
 
 const (
@@ -24,25 +23,11 @@ const (
 	ModelRequestRateLimitSuccessCountMark = "MRRLS"
 )
 
-// 检查Redis中的请求限制：只判定，请求成功后才由 recordRedisRequest 记入窗口
-func checkRedisRateLimit(ctx context.Context, rdb *redis.Client, key string, maxCount int, duration int64) (bool, error) {
-	// 如果maxCount为0，表示不限制
-	if maxCount == 0 {
-		return true, nil
-	}
-
-	return limiter.SlidingWindowPeek(ctx, rdb, key, maxCount, time.Duration(duration)*time.Second)
-}
-
-// 记录Redis请求
-func recordRedisRequest(ctx context.Context, rdb *redis.Client, key string, maxCount int, duration int64) {
-	// 如果maxCount为0，不记录请求
-	if maxCount == 0 {
-		return
-	}
-
-	if err := limiter.SlidingWindowRecord(ctx, rdb, key, maxCount, time.Duration(duration)*time.Second); err != nil {
-		log.LogError(ctx, fmt.Sprintf("rate limit record failed (key=%s): %v", key, err))
+// completeSuccessReservation 了结成功请求数的占位：请求成功时保留记录，否则退回。退回失败只记日志，
+// 窗口里会多留一条记录，直到它离开窗口。
+func completeSuccessReservation(ctx context.Context, slot *limiter.SlidingWindowReservation, succeeded bool) {
+	if err := slot.Complete(ctx, succeeded); err != nil {
+		log.LogError(ctx, err.Error())
 	}
 }
 
@@ -62,18 +47,24 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		ctx := context.Background()
 		rdb := infraredis.RDB
 
-		// 1. 检查成功请求数限制
-		successKey := redisUserRateLimitKey(ModelRequestRateLimitSuccessCountMark, c.GetInt("id"))
-		allowed, err := checkRedisRateLimit(ctx, rdb, successKey, successMaxCount, duration)
-		if err != nil {
-			fmt.Println("检查成功请求数限制失败:", err.Error())
-			abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgRateLimitCheckFailed))
-			return
+		// 1. 成功请求数：处理前占位，占位与窗口内已成功的记录合计达到上限时拒绝（当successMaxCount为0时跳过）
+		var successSlot *limiter.SlidingWindowReservation
+		if successMaxCount > 0 {
+			successKey := redisUserRateLimitKey(ModelRequestRateLimitSuccessCountMark, c.GetInt("id"))
+			slot, err := limiter.SlidingWindowReserve(ctx, rdb, successKey, successMaxCount, time.Duration(duration)*time.Second)
+			if err != nil {
+				fmt.Println("检查成功请求数限制失败:", err.Error())
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgRateLimitCheckFailed))
+				return
+			}
+			if slot == nil {
+				abortModelRequestRateLimited(c, i18n.MsgRateLimitSuccessReached, successMaxCount, duration)
+				return
+			}
+			successSlot = slot
 		}
-		if !allowed {
-			abortModelRequestRateLimited(c, i18n.MsgRateLimitSuccessReached, successMaxCount, duration)
-			return
-		}
+		// 请求没有成功完成时退回占位：被请求数限额拒绝、处理失败，或处理过程中 panic
+		defer completeSuccessReservation(ctx, successSlot, false)
 
 		// 2. 检查总请求数限制并记录总请求（当totalMaxCount为0时跳过）
 		if totalMaxCount > 0 {
@@ -93,10 +84,8 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		// 3. 处理请求
 		c.Next()
 
-		// 4. 如果请求成功，记录成功请求
-		if c.Writer.Status() < 400 {
-			recordRedisRequest(ctx, rdb, successKey, successMaxCount, duration)
-		}
+		// 4. 请求成功则保留占位，失败则退回
+		completeSuccessReservation(ctx, successSlot, c.Writer.Status() < 400)
 	}
 }
 
@@ -109,11 +98,16 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		totalKey := ModelRequestRateLimitCountMark + userId
 		successKey := ModelRequestRateLimitSuccessCountMark + userId
 
-		// 1. 检查成功请求数限制：只判定，请求成功后才记入窗口（当successMaxCount为0时跳过）
-		if successMaxCount > 0 && !inMemoryRateLimiter.Peek(successKey, successMaxCount, duration) {
-			abortModelRequestRateLimited(c, i18n.MsgRateLimitSuccessReached, successMaxCount, duration)
-			return
+		// 1. 成功请求数：处理前占位，占位与窗口内已成功的记录合计达到上限时拒绝（当successMaxCount为0时跳过）
+		var successSlot *common.RateLimitReservation
+		if successMaxCount > 0 {
+			if successSlot = inMemoryRateLimiter.Reserve(successKey, successMaxCount, duration); successSlot == nil {
+				abortModelRequestRateLimited(c, i18n.MsgRateLimitSuccessReached, successMaxCount, duration)
+				return
+			}
 		}
+		// 请求没有成功完成时退回占位：被请求数限额拒绝、处理失败，或处理过程中 panic
+		defer successSlot.Complete(false)
 
 		// 2. 检查总请求数限制并记录总请求（当totalMaxCount为0时跳过）
 		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
@@ -124,10 +118,8 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		// 3. 处理请求
 		c.Next()
 
-		// 4. 如果请求成功，记录成功请求（当successMaxCount为0时不记录）
-		if c.Writer.Status() < 400 && successMaxCount > 0 {
-			inMemoryRateLimiter.Record(successKey, successMaxCount)
-		}
+		// 4. 请求成功则保留占位，失败则退回
+		successSlot.Complete(c.Writer.Status() < 400)
 	}
 }
 

@@ -498,3 +498,80 @@ func TestModelRequestRateLimitRedisHandlerDoesNotLimitWithZeroWindow(t *testing.
 		}
 	}
 }
+
+// 成功请求数在处理前占位：请求处理期间名额已被占住，此时到来的请求被拒；处理失败后退回名额，计数键
+// 随之消失，处理成功后记录保留，生存期等于限制周期。
+func TestModelRequestRateLimitRedisHandlerHoldsTheSuccessSlotWhileTheRequestIsInFlight(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	_, client, _ := useRateLimitRedis(t)
+
+	status := http.StatusOK
+	block := true
+	started := make(chan struct{}, 4)
+	finish := make(chan struct{})
+	router := gin.New()
+	router.GET("/relay",
+		func(c *gin.Context) { c.Set("id", 8) },
+		redisRateLimitHandler(60, 0, 1),
+		func(c *gin.Context) {
+			if block {
+				started <- struct{}{}
+				<-finish
+			}
+			c.Status(status)
+		},
+	)
+	const key = "rateLimit:v2:user:MRRLS:8"
+	send := func() int { return serveFromClient(router, "192.0.2.8", "/relay").Code }
+	stored := func() int64 {
+		length, err := client.LLen(context.Background(), key).Result()
+		if err != nil {
+			t.Fatalf("LLEN %s: %v", key, err)
+		}
+		return length
+	}
+
+	// 请求处理期间：窗口里有它的记录，此时到来的请求被拒
+	codes := make(chan int, 4)
+	go func() { codes <- send() }()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the request did not reach the handler")
+	}
+	if got := stored(); got != 1 {
+		t.Fatalf("records while the request is in flight = %d, want 1", got)
+	}
+	if code := send(); code != http.StatusTooManyRequests {
+		t.Fatalf("a request sent while one was in flight got %d, want %d", code, http.StatusTooManyRequests)
+	}
+
+	// 请求失败：退回名额，计数键随之消失，之后的请求恢复放行
+	status = http.StatusInternalServerError
+	close(finish)
+	if code := <-codes; code != status {
+		t.Fatalf("the in-flight request finished with %d, want %d", code, status)
+	}
+	if client.Exists(context.Background(), key).Val() != 0 {
+		t.Fatal("a failed request kept its record")
+	}
+	block = false
+	if code := send(); code != status {
+		t.Fatalf("a request after a failed one got %d, want %d", code, status)
+	}
+	if client.Exists(context.Background(), key).Val() != 0 {
+		t.Fatal("a failed request kept its record")
+	}
+
+	// 请求成功：记录保留，生存期等于限制周期，窗口内再请求被拒
+	status = http.StatusOK
+	if code := send(); code != status {
+		t.Fatalf("a request after failed ones got %d, want %d", code, status)
+	}
+	if got := client.TTL(context.Background(), key).Val(); got != time.Minute {
+		t.Fatalf("TTL after a successful request = %v, want %v", got, time.Minute)
+	}
+	if code := send(); code != http.StatusTooManyRequests {
+		t.Fatalf("a request inside the window after a successful one got %d, want %d", code, http.StatusTooManyRequests)
+	}
+}

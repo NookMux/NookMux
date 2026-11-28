@@ -73,55 +73,75 @@ func (l *InMemoryRateLimiter) Reset() {
 func (l *InMemoryRateLimiter) Request(key string, maxRequestNum int, duration int64) bool {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
-	// [old <-- new]
-	queue, ok := l.store[key]
-	now := time.Now().Unix()
-	if ok {
-		if len(*queue) < maxRequestNum {
-			*queue = append(*queue, now)
-			return true
-		} else {
-			if now-(*queue)[0] >= duration {
-				*queue = (*queue)[1:]
-				*queue = append(*queue, now)
-				return true
-			} else {
-				return false
-			}
-		}
-	} else {
-		s := make([]int64, 0, maxRequestNum)
-		l.store[key] = &s
-		*(l.store[key]) = append(*(l.store[key]), now)
+	_, allowed := l.admit(key, maxRequestNum, duration, time.Now().Unix())
+	return allowed
+}
+
+// RateLimitReservation 是 Reserve 在窗口里占下的一条记录，对应一个开始处理的请求。
+type RateLimitReservation struct {
+	limiter *InMemoryRateLimiter
+	key     string
+	stamp   int64 // 占位时写入窗口的时刻（秒）
+	settled bool
+}
+
+// Reserve parameter duration's unit is seconds
+// Reserve 按 Request 的规则判定并记录一次请求，返回占下的记录；窗口已满时返回 nil。供请求处理完毕后
+// 才知道成败的限额使用：处理前占位，处理完毕后由 Complete 保留或撤回。
+func (l *InMemoryRateLimiter) Reserve(key string, maxRequestNum int, duration int64) *RateLimitReservation {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	stamp, allowed := l.admit(key, maxRequestNum, duration, time.Now().Unix())
+	if !allowed {
+		return nil
 	}
-	return true
+	return &RateLimitReservation{limiter: l, key: key, stamp: stamp}
 }
 
-// Peek 只判定不记录：按 Request 的规则报告 key 此刻能否再放行一次，即窗口里的记录达到 maxRequestNum
-// 且其中最旧一条距今不足 duration 秒时拒绝；判定不改变窗口里的记录。供请求处理完毕后才计入的调用方
-// 在处理前预判，放行的请求处理成功后用 Record 记入。maxRequestNum 为 0 表示不限制，由调用方跳过
-// 判定与记录。
-func (l *InMemoryRateLimiter) Peek(key string, maxRequestNum int, duration int64) bool {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	// [old <-- new]
-	queue, ok := l.store[key]
-	return !ok || len(*queue) < maxRequestNum || time.Now().Unix()-(*queue)[0] >= duration
+// Complete 了结占位，只生效一次：succeeded 为 true 时记录留在窗口里，否则把这条记录撤回，失败的请求
+// 不占额度。记录已离开窗口时没有可撤回的记录。nil 占位的 Complete 不做任何事。
+func (r *RateLimitReservation) Complete(succeeded bool) {
+	if r == nil || r.settled {
+		return
+	}
+	r.settled = true
+	if succeeded {
+		return
+	}
+	r.limiter.withdraw(r.key, r.stamp)
 }
 
-// Record 只记录不判定：把当前时刻记入 key 的窗口，窗口已满时先丢弃最旧一条，写入的记录与 Request
-// 放行时写入的相同。
-func (l *InMemoryRateLimiter) Record(key string, maxRequestNum int) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+// admit 把一次放行记入 key 的窗口并报告窗口是否放得下：记录未满时放行，记录已满时最旧一条离开窗口后
+// 才再放行。调用方持有 l.mutex。
+func (l *InMemoryRateLimiter) admit(key string, maxRequestNum int, duration int64, now int64) (stamp int64, allowed bool) {
 	// [old <-- new]
 	queue, ok := l.store[key]
 	if !ok {
-		s := make([]int64, 0, maxRequestNum)
-		queue = &s
-		l.store[key] = queue
+		records := make([]int64, 0, maxRequestNum)
+		l.store[key] = &records
+		queue = &records
 	} else if len(*queue) >= maxRequestNum {
+		if now-(*queue)[0] < duration {
+			return 0, false
+		}
 		*queue = (*queue)[1:]
 	}
-	*queue = append(*queue, time.Now().Unix())
+	*queue = append(*queue, now)
+	return now, true
+}
+
+// withdraw 撤回窗口里值为 stamp 的一条记录；记录已不在窗口里时不做任何事。
+func (l *InMemoryRateLimiter) withdraw(key string, stamp int64) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	queue, ok := l.store[key]
+	if !ok {
+		return
+	}
+	for i, record := range *queue {
+		if record == stamp {
+			*queue = append((*queue)[:i], (*queue)[i+1:]...)
+			return
+		}
+	}
 }

@@ -453,7 +453,7 @@
   "systemSettings.placeholders.oneDomainPerLineOnlyUsedWhenDomainRestriction": "每行一个域名（仅在启用域名限制时使用）",
   "systemSettings.tips.onlyAllowSpecificEmailDomains": "仅允许指定的邮箱域名",
   "systemSettings.tips.onlyConfiguredCombinationsAreOverriddenAllOtherCallsKeep": "只有已配置的组合会被覆盖，其他调用仍使用令牌分组的基础倍率。",
-  "systemSettings.status.onlySuccessfulRequests": "仅成功的请求",
+  "systemSettings.status.onlySuccessfulRequests": "仅成功的请求计入；处理中的请求先占名额，失败后让出。",
   "systemSettings.status.onlySuccessfulRequestsCountTowardThisLimit": "仅成功的请求计入此限制。",
   "systemSettings.fields.optionalCallbackOverride": "可选的回调地址覆盖",
   "systemSettings.tips.optionalMinimumRechargeAmountForThisMethod": "此支付方式的可选最低充值金额。",

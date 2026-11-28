@@ -320,3 +320,144 @@ func TestModelRequestRateLimitRespondsAlikeWhenLimited(t *testing.T) {
 		})
 	}
 }
+
+// 成功请求数在处理前占位：同时在处理的请求与窗口内已成功的请求合计不超过设定值，两种存储模式相同。
+// 一批请求都成功后名额被占住，紧接着的请求被拒；一批请求都失败后让出名额，紧接着的请求进入处理函数。
+func TestModelRequestRateLimitHoldsASlotForEachInFlightRequestAlike(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const window, success = 60, 2
+	const requests = 5
+
+	// batch 同时发出 requests 个请求：只有 success 个进入处理函数并停在那里，其余的在这一批处理期间
+	// 被拒；放开后它们以 status 完成。返回处理期间被拒的数量，以及这一批结束后紧接着的请求得到的状态码。
+	batch := func(t *testing.T, handler func(int64, int, int) gin.HandlerFunc, status int) (rejected int, afterwards int) {
+		t.Helper()
+		userID := modelRateLimitUserID()
+		block := true
+		started := make(chan struct{}, requests)
+		finish := make(chan struct{})
+		defer func() {
+			select {
+			case <-finish:
+			default:
+				close(finish)
+			}
+		}()
+		router := gin.New()
+		router.GET("/relay",
+			func(c *gin.Context) { c.Set("id", userID) },
+			handler(window, 0, success),
+			func(c *gin.Context) {
+				if block {
+					started <- struct{}{}
+					<-finish
+				}
+				c.Status(status)
+			},
+		)
+		codes := make(chan int, requests)
+		for i := 0; i < requests; i++ {
+			go func() { codes <- serveFromClient(router, "192.0.2.70", "/relay").Code }()
+		}
+
+		// success 个请求进入处理函数，其余请求在这一批处理期间就被拒
+		for i := 0; i < success; i++ {
+			select {
+			case <-started:
+			case <-time.After(5 * time.Second):
+				t.Fatalf("only %d of %d requests reached the handler", i, success)
+			}
+		}
+		for rejected < requests-success {
+			select {
+			case code := <-codes:
+				if code != http.StatusTooManyRequests {
+					t.Fatalf("a request sent while %d were in flight got %d, want %d", success, code, http.StatusTooManyRequests)
+				}
+				rejected++
+			case <-time.After(5 * time.Second):
+				t.Fatalf("only %d of %d requests were rejected while %d were in flight", rejected, requests-success, success)
+			}
+		}
+
+		// 放开处理函数：进入处理函数的请求以 status 完成，之后不带占位的请求照常处理
+		close(finish)
+		for i := 0; i < success; i++ {
+			if code := <-codes; code != status {
+				t.Fatalf("an in-flight request finished with %d, want %d", code, status)
+			}
+		}
+		block = false
+		return rejected, serveFromClient(router, "192.0.2.70", "/relay").Code
+	}
+
+	type outcome struct{ rejected, afterSuccess, afterFailure int }
+	outcomes := map[string]outcome{}
+	for _, mode := range modelRateLimitModes {
+		t.Run(mode, func(t *testing.T) {
+			handler, _ := modelRateLimitStorage(t, mode)
+			rejected, afterSuccess := batch(t, handler, http.StatusOK)
+			_, afterFailure := batch(t, handler, http.StatusInternalServerError)
+			outcomes[mode] = outcome{rejected, afterSuccess, afterFailure}
+		})
+	}
+	if !reflect.DeepEqual(outcomes["redis"], outcomes["memory"]) {
+		t.Fatalf("outcomes differ between the storage modes:\nredis:  %+v\nmemory: %+v", outcomes["redis"], outcomes["memory"])
+	}
+	got := outcomes["memory"]
+	if want := (outcome{requests - success, http.StatusTooManyRequests, http.StatusInternalServerError}); got != want {
+		t.Fatalf("outcome = %+v, want %+v", got, want)
+	}
+}
+
+// 被请求数限额拒绝的请求不占成功额度：它为成功请求数占下的名额随拒绝退回，之后的请求仍能占到名额。
+func TestModelRequestRateLimitReleasesTheSuccessSlotWhenTheTotalLimitRejects(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const window = 60
+	codes, bodies := map[string][]int{}, map[string][]string{}
+	for _, mode := range modelRateLimitModes {
+		t.Run(mode, func(t *testing.T) {
+			handler, _ := modelRateLimitStorage(t, mode)
+			userID := modelRateLimitUserID()
+			router := gin.New()
+			router.GET("/relay",
+				func(c *gin.Context) { c.Set("id", userID) },
+				handler(window, 1, 1),
+				func(c *gin.Context) { c.Status(http.StatusInternalServerError) },
+			)
+
+			// 第一个请求用掉请求数额度并失败；之后两个都被请求数限额拒绝
+			for i := 0; i < 3; i++ {
+				resp := serveFromClient(router, "192.0.2.70", "/relay")
+				codes[mode] = append(codes[mode], resp.Code)
+				bodies[mode] = append(bodies[mode], resp.Body.String())
+			}
+		})
+	}
+
+	want := []int{http.StatusInternalServerError, http.StatusTooManyRequests, http.StatusTooManyRequests}
+	if !reflect.DeepEqual(codes["memory"], want) {
+		t.Fatalf("status codes = %v, want %v", codes["memory"], want)
+	}
+	if !reflect.DeepEqual(bodies["redis"], bodies["memory"]) {
+		t.Fatalf("bodies differ between the storage modes:\nredis:  %q\nmemory: %q", bodies["redis"], bodies["memory"])
+	}
+	// 被拒的响应说明命中的是请求数限额：如果占位没有退回，第三个请求会由成功请求数限额拒绝
+	wantMessage := common.MessageWithRequestId(i18n.Translate(i18n.LangZh, i18n.MsgRateLimitTotalReached, map[string]any{
+		"Minutes": config.ModelRequestRateLimitDurationMinutes,
+		"Max":     1,
+	}), "")
+	for i, body := range bodies["memory"][1:] {
+		var limited struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(body), &limited); err != nil {
+			t.Fatalf("request %d: body %q is not JSON: %v", i+2, body, err)
+		}
+		if limited.Error.Message != wantMessage {
+			t.Fatalf("request %d: message = %q, want %q", i+2, limited.Error.Message, wantMessage)
+		}
+	}
+}

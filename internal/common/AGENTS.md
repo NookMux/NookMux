@@ -11,7 +11,7 @@
 | 环境变量读取 | 基础类型读取与默认值回落（供 app/infra/store 多层复用，防成环） | `env.go` |
 | 系统日志输出 | 进程生命周期标准输出（写 Gin writer / stdout，与 `infra/log` 业务日志隔离防环） | `sys_log.go` |
 | 模型与端点 | 基础端点类型映射与常量 | `model.go`、`api_type.go`、`endpoint_type.go`、`endpoint_defaults.go`、`audio.go` |
-| 共享纯工具 | 字符串、哈希、分页、深拷贝、内存轻量限流纯函数 | `str.go`、`utils.go`、`hash.go`、`copy.go`、`rate_limit.go`、`page_info.go` |
+| 共享纯工具 | 字符串、哈希、分页、深拷贝、内存轻量限流器 | `str.go`、`utils.go`、`hash.go`、`copy.go`、`rate_limit.go`、`page_info.go` |
 
 ## 依赖与设计规则
 
@@ -21,6 +21,7 @@
 - **系统日志隔离**：`sys_log.go`（`SysLog`/`SysError`/`FatalLog`）负责底层与启动级日志，直接对接系统输出；`infra/log` 的业务日志（`LogInfo` 等）依赖本包状态及协程池。两者职责分明，不可合并以防形成循环依赖。
 - **上下文键注册**：`ContextKey` 被全层引用，统一在此登记。新增键前先确认归属：渠道特定上下文置于 `domain/channel`，中继协议特定键置于 `relay/constant`。
 - **工具纯度**：新增通用工具必须保持纯函数特性，严禁引入 controller/domain/store 的反向依赖。
+- **内存限流器的两种计入时机**：`InMemoryRateLimiter.Request` 用于处理前就能判定的限额，判定并记录一步完成；`InMemoryRateLimiter.Reserve` 用于处理完毕后才知道成败的限额，处理前占位、处理完毕后由 `RateLimitReservation.Complete(succeeded)` 保留或撤回自己那一条，`Complete` 只生效一次，nil 占位可安全调用。两者的判定规则与 Redis 滑动窗口脚本保持一致；上限为 0 表示不限制，由调用方跳过，不以 0 调用限流器。
 
 ## 验证
 
