@@ -46,10 +46,19 @@ func recordRedisRequest(ctx context.Context, rdb *redis.Client, key string, maxC
 	}
 }
 
+// abortModelRequestRateLimited 以 429 终止模型请求，两种存储模式的响应相同：响应体说明命中的限额，
+// Retry-After 给出完整的限制周期（秒）。
+func abortModelRequestRateLimited(c *gin.Context, messageKey string, maxCount int, duration int64) {
+	setRetryAfter(c, duration)
+	abortWithOpenAiMessage(c, http.StatusTooManyRequests, i18n.T(c, messageKey, map[string]any{
+		"Minutes": config.ModelRequestRateLimitDurationMinutes,
+		"Max":     maxCount,
+	}))
+}
+
 // Redis限流处理器
 func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userId := strconv.Itoa(c.GetInt("id"))
 		ctx := context.Background()
 		rdb := infraredis.RDB
 
@@ -62,45 +71,29 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 			return
 		}
 		if !allowed {
-			abortWithOpenAiMessage(c, http.StatusTooManyRequests, i18n.T(c, i18n.MsgRateLimitSuccessReached, map[string]any{
-				"Minutes": config.ModelRequestRateLimitDurationMinutes,
-				"Max":     successMaxCount,
-			}))
+			abortModelRequestRateLimited(c, i18n.MsgRateLimitSuccessReached, successMaxCount, duration)
 			return
 		}
 
-		//2.检查总请求数限制并记录总请求（当totalMaxCount为0时会自动跳过，使用令牌桶限流器
+		// 2. 检查总请求数限制并记录总请求（当totalMaxCount为0时跳过）
 		if totalMaxCount > 0 {
-			totalKey := fmt.Sprintf("rateLimit:%s", userId)
-			// 初始化
-			tb := limiter.New(ctx, rdb)
-			allowed, err = tb.Allow(
-				ctx,
-				totalKey,
-				limiter.WithCapacity(int64(totalMaxCount)*duration),
-				limiter.WithRate(int64(totalMaxCount)),
-				limiter.WithRequested(duration),
-			)
-
+			totalKey := redisUserRateLimitKey(ModelRequestRateLimitCountMark, c.GetInt("id"))
+			allowed, err := limiter.SlidingWindowTake(ctx, rdb, totalKey, totalMaxCount, time.Duration(duration)*time.Second)
 			if err != nil {
 				fmt.Println("检查总请求数限制失败:", err.Error())
 				abortWithOpenAiMessage(c, http.StatusInternalServerError, i18n.T(c, i18n.MsgRateLimitCheckFailed))
 				return
 			}
-
 			if !allowed {
-				abortWithOpenAiMessage(c, http.StatusTooManyRequests, i18n.T(c, i18n.MsgRateLimitTotalReached, map[string]any{
-					"Minutes": config.ModelRequestRateLimitDurationMinutes,
-					"Max":     totalMaxCount,
-				}))
+				abortModelRequestRateLimited(c, i18n.MsgRateLimitTotalReached, totalMaxCount, duration)
 				return
 			}
 		}
 
-		// 4. 处理请求
+		// 3. 处理请求
 		c.Next()
 
-		// 5. 如果请求成功，记录成功请求
+		// 4. 如果请求成功，记录成功请求
 		if c.Writer.Status() < 400 {
 			recordRedisRequest(ctx, rdb, successKey, successMaxCount, duration)
 		}
@@ -116,28 +109,24 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		totalKey := ModelRequestRateLimitCountMark + userId
 		successKey := ModelRequestRateLimitSuccessCountMark + userId
 
-		// 1. 检查总请求数限制（当totalMaxCount为0时跳过）
-		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
+		// 1. 检查成功请求数限制：只判定，请求成功后才记入窗口（当successMaxCount为0时跳过）
+		if successMaxCount > 0 && !inMemoryRateLimiter.Peek(successKey, successMaxCount, duration) {
+			abortModelRequestRateLimited(c, i18n.MsgRateLimitSuccessReached, successMaxCount, duration)
 			return
 		}
 
-		// 2. 检查成功请求数限制
-		// 使用一个临时key来检查限制，这样可以避免实际记录
-		checkKey := successKey + "_check"
-		if !inMemoryRateLimiter.Request(checkKey, successMaxCount, duration) {
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
+		// 2. 检查总请求数限制并记录总请求（当totalMaxCount为0时跳过）
+		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
+			abortModelRequestRateLimited(c, i18n.MsgRateLimitTotalReached, totalMaxCount, duration)
 			return
 		}
 
 		// 3. 处理请求
 		c.Next()
 
-		// 4. 如果请求成功，记录到实际的成功请求计数中
-		if c.Writer.Status() < 400 {
-			inMemoryRateLimiter.Request(successKey, successMaxCount, duration)
+		// 4. 如果请求成功，记录成功请求（当successMaxCount为0时不记录）
+		if c.Writer.Status() < 400 && successMaxCount > 0 {
+			inMemoryRateLimiter.Record(successKey, successMaxCount)
 		}
 	}
 }

@@ -62,13 +62,17 @@ func memoryRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark s
 	}
 }
 
-// writeRateLimited 以 429 终止请求，并通过 Retry-After 告知客户端可重试的等待秒数。
-// 限流窗口按窗口内最旧一次请求计时且限流器不回报剩余时间，两种存储模式统一给出
-// 完整窗口时长作为保守上界：等待该时长后窗口必然已清空。
-func writeRateLimited(c *gin.Context, retryAfterSeconds int64) {
+// setRetryAfter 通过 Retry-After 告知客户端可重试的等待秒数。限流窗口按窗口内最旧一次请求计时且
+// 限流器不回报剩余时间，两种存储模式统一给出完整窗口时长作为保守上界：等待该时长后窗口必然已清空。
+func setRetryAfter(c *gin.Context, retryAfterSeconds int64) {
 	if retryAfterSeconds > 0 {
 		c.Header("Retry-After", strconv.FormatInt(retryAfterSeconds, 10))
 	}
+}
+
+// writeRateLimited 以 429 终止请求，响应体为空，等待时长由 setRetryAfter 给出。
+func writeRateLimited(c *gin.Context, retryAfterSeconds int64) {
+	setRetryAfter(c, retryAfterSeconds)
 	c.Status(http.StatusTooManyRequests)
 	c.Abort()
 }

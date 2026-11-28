@@ -8,7 +8,7 @@
 |---|---|
 | `db/` | 数据库类型常量与连接状态变量（`UsingSQLite`/`LogSqlType`/`SQLitePath` 等；GORM 连接与模型映射位于 `internal/store/db`）。 |
 | `redis/` | Redis 客户端句柄（`RDB`）与操作助手（`InitRedisClient`/`Redis*` 读写族）。 |
-| `cache/` | 业务级缓存实现：磁盘缓存（`disk_cache*.go`）、请求体存储（`body_storage.go`，含 `ErrRequestBodyTooLarge`）与 Redis 限流器（`limiter/`：令牌桶，以及内嵌 Lua、按 Redis 服务端时钟的原子滑动窗口 `SlidingWindowTake` / `SlidingWindowPeek` / `SlidingWindowRecord`）。注：底层无业务依赖缓存原语位于 `pkg/cachex`。 |
+| `cache/` | 业务级缓存实现：磁盘缓存（`disk_cache*.go`）、请求体存储（`body_storage.go`，含 `ErrRequestBodyTooLarge`）与 Redis 限流器（`limiter/`：内嵌 Lua、按 Redis 服务端时钟的原子滑动窗口 `SlidingWindowTake` / `SlidingWindowPeek` / `SlidingWindowRecord`）。注：底层无业务依赖缓存原语位于 `pkg/cachex`。 |
 | `email/` | SMTP 邮件发送引擎（含 Outlook LOGIN 兼容认证）。 |
 | `security/` | 安全防护体系：SSRF 防护与连接时复查（防 DNS rebinding）、IP/CIDR 校验（预解析的 `IPMatcher`）、URL 白名单、HMAC/bcrypt 哈希、TOTP/备用码、验证码与 Gin 受信代理配置（`SetupGinTrustedProxies`、`ForwardedClientIPHeaders`）。 |
 | `runtime/` | 运行时设施：系统资源监控（CPU/内存/磁盘）、pprof 剖析、Pyroscope、有界 Relay 协程池（`RelayGo`/`RelayCtxGo`）及安全 channel 发送。 |

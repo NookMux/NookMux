@@ -96,3 +96,32 @@ func (l *InMemoryRateLimiter) Request(key string, maxRequestNum int, duration in
 	}
 	return true
 }
+
+// Peek 只判定不记录：按 Request 的规则报告 key 此刻能否再放行一次，即窗口里的记录达到 maxRequestNum
+// 且其中最旧一条距今不足 duration 秒时拒绝；判定不改变窗口里的记录。供请求处理完毕后才计入的调用方
+// 在处理前预判，放行的请求处理成功后用 Record 记入。maxRequestNum 为 0 表示不限制，由调用方跳过
+// 判定与记录。
+func (l *InMemoryRateLimiter) Peek(key string, maxRequestNum int, duration int64) bool {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	// [old <-- new]
+	queue, ok := l.store[key]
+	return !ok || len(*queue) < maxRequestNum || time.Now().Unix()-(*queue)[0] >= duration
+}
+
+// Record 只记录不判定：把当前时刻记入 key 的窗口，窗口已满时先丢弃最旧一条，写入的记录与 Request
+// 放行时写入的相同。
+func (l *InMemoryRateLimiter) Record(key string, maxRequestNum int) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	// [old <-- new]
+	queue, ok := l.store[key]
+	if !ok {
+		s := make([]int64, 0, maxRequestNum)
+		queue = &s
+		l.store[key] = queue
+	} else if len(*queue) >= maxRequestNum {
+		*queue = (*queue)[1:]
+	}
+	*queue = append(*queue, time.Now().Unix())
+}

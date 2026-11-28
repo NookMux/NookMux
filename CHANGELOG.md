@@ -49,6 +49,11 @@
   - **未匹配路径不再占用页面额度**：`/v1`、`/api`、`/assets`、`/static` 下未匹配的路径（未注册的接口、发版后已删除的分块等）改由与页面同额度的独立限流器计数，旧标签页或其他客户端访问不存在的路径后，页面与已注册的接口照常可用（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/web_router.go`）。
   - **转发头被忽略时给出提示**：请求带着转发客户端 IP 的请求头、直连来源却不在 `TRUSTED_PROXIES` 里时，日志按来源地址每 10 分钟记录一条提示，写明命中的请求头，并说明该地址下的所有访客共用同一份额度、应把反向代理或 CDN 加入 `TRUSTED_PROXIES`（`internal/httpapi/middleware/forwarded_header_hint.go`、`internal/infra/security/trusted_proxies.go`、`internal/app/server.go`）。
   - Redis 模式的限流补充内嵌 Redis（`miniredis`）单元测试，覆盖窗口判定、并发、时区无关与页面 / 未匹配路径 / 构建产物分开计数（`internal/infra/cache/limiter/sliding_window_test.go`、`internal/httpapi/middleware/rate_limit_redis_test.go`）。
+- **内存模式下模型请求限流把失败的请求也计入「成功请求数」**：未启用 Redis 时，模型请求限流与 Redis 模式按同一顺序判定，先判成功请求数、再计请求数。成功请求数只按窗口内已成功的请求预判，请求成功（状态码小于 400）后才记入；失败的请求不占「成功请求数」额度，被拒的请求不延长窗口，也不占用「请求数」额度，「成功请求数」为 0 时同样不限制。内存限流器为此增加只判定不记录的 `Peek` 与只记录不判定的 `Record`，判定规则与 `Request` 及 Redis 滑动窗口脚本一致（`internal/common/rate_limit.go`、`internal/httpapi/middleware/model_rate_limit.go`）。
+  - 模型请求限流补充两种存储模式判定一致的单元测试，内存限流器补充判定、记录、与 `Request` 等价及并发使用的单元测试（`internal/httpapi/middleware/model_rate_limit_test.go`、`internal/common/rate_limit_test.go`）。
+- **模型请求限流在 Redis 模式与内存模式下的请求数判定、被限流响应不一致**：启用 Redis 时，「每个限制周期内最大请求数」按令牌桶计算，空闲后可连续放行设定数量的请求，之后每个周期再补充同样数量的额度，一个周期内放行的请求数可达设定值的 2 倍，计数也不过期；内存模式按滑动窗口计算，同一串请求在两种存储模式下放行结果不同。Redis 模式的请求数改为与内存模式相同的滑动窗口：任一时刻往前一个限制周期内放行的请求数不超过设定值，启用 Redis 的部署升级后同一周期内的放行上限随之降为设定值；被拒的请求不计数、不延长窗口，计数在一个周期内没有放行后到期清除，与 IP 级、用户级限流共用同一段脚本；不再使用的令牌桶实现一并移除（`internal/httpapi/middleware/model_rate_limit.go`、`internal/infra/cache/limiter`）。
+  - 被两项限额拒绝时，两种存储模式返回相同的 429 响应：响应体是说明命中哪一项限额的 OpenAI 风格错误，`Retry-After` 响应头给出完整的限制周期（秒）（`internal/httpapi/middleware/model_rate_limit.go`、`internal/httpapi/middleware/rate_limit.go`）。
+  - 模型请求限流补充两种存储模式下请求数判定与 429 响应一致的单元测试，Redis 模式补充请求数的计数键与生存期、Redis 不可用时返回 500 的单元测试（`internal/httpapi/middleware/model_rate_limit_test.go`、`internal/httpapi/middleware/rate_limit_redis_test.go`）。
 - **价格设置里看不到渠道刚加的模型**：进入过一次「价格设置」后，五分钟内再回到该页，模型列表沿用上一次缓存的启用模型，渠道上新加、尚未配价的模型要刷新整页才出现。启用模型列表改为每次进入页面都重新拉取；API 密钥与用户页面里由渠道、分组派生的模型和分组列表是同一种缓存方式，一并改为每次进入页面都重新拉取（`web/src/features/channels/hooks/use-enabled-models.ts`、`web/src/features/system-settings/models/model-ratio-visual-editor.tsx`、`web/src/features/keys`、`web/src/features/users`）。
 - **离开页面时旧页面先被重新挂载一遍**：登录后页面的过渡容器以路由当前地址为 key，而地址在导航一开始就更新，旧页面要重挂载一次（挂载时的请求全部重发、进场动画重放）才切到新页面；会话已失效时这些重发的请求会连续提示「会话已过期」。容器的 key 改为已提交的页面路径，与新页面在同一帧更换（`web/src/components/page-transition.tsx`）。
 - **两步验证登录后没有回到原本要去的页面**：登录页带着目标地址跳到验证码页时把地址丢了，验证通过后固定进入控制台。验证码页现在沿用登录页的 `redirect` 参数，验证通过和「重新登录」都回到目标页面（`web/src/features/auth`、`web/src/routes/(auth)/otp.tsx`）。
@@ -60,7 +65,7 @@
 - **模型广场模型详情页签顺序（#458）**：模型详情页与模型列表右侧详情抽屉的页签统一按「概览、性能、API」排列（`web/src/features/pricing/components/model-details.tsx`）。
 - **控制台页面刷新返回 HTTP 429**：全局 Web 限流按 IP 只计页面与未匹配路径的请求，前端构建产物（入口脚本、懒加载分块等）不再占用页面额度，避免连续刷新或浏览较多页面后静态资源被限流、分块加载失败。
   - 前端构建产物改由独立的静态限流器计数：`GLOBAL_STATIC_RATE_LIMIT_ENABLE`（默认关闭，关闭时构建产物不限流）、`GLOBAL_STATIC_RATE_LIMIT`（默认 1000）、`GLOBAL_STATIC_RATE_LIMIT_DURATION`（默认 180）；Web 限流与静态资源服务显式挂在 SPA 回退链上，不涉及 API 与 Relay 路由（`internal/httpapi/middleware/rate_limit.go`、`internal/httpapi/router/web_router.go`、`internal/app/env.go`）。
-  - IP 级与用户级限流器（全局 API / Web / 静态 / 关键操作 / 搜索等）拒绝响应附带 `Retry-After` 响应头，取完整窗口时长；模型级限流与邮箱验证频控不受影响（`internal/httpapi/middleware/rate_limit.go`）。
+  - IP 级与用户级限流器（全局 API / Web / 静态 / 关键操作 / 搜索等）拒绝响应附带 `Retry-After` 响应头，取完整窗口时长；邮箱验证频控不受影响（`internal/httpapi/middleware/rate_limit.go`）。
   - 错误页遇到路由分块加载失败时在同一标签页内自动刷新一次，再次失败停留在错误页；作为错误边界渲染时，状态码标题仅在错误携带真实 HTTP 状态码时展示，直接访问的 `/500` 页面仍固定显示 500（`web/src/features/errors/general-error.tsx`、`web/src/features/errors/lib/general-error.ts`）。
 - **统一遗留品牌标识为 NookMux**：
   - 将 Bark 与 Gotify 通知请求的 `User-Agent` 统一为 `NookMux-Bark-Notify/1.0` 与 `NookMux-Gotify-Notify/1.0`（`internal/infra/notify/user_notify.go`），收口请求发送逻辑并补充单元测试。

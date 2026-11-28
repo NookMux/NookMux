@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/NookMux/NookMux/internal/i18n"
 	"github.com/NookMux/NookMux/internal/infra/redis"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
@@ -272,6 +274,102 @@ func TestModelRequestRateLimitRedisHandlerCountsOnlySuccessfulRequests(t *testin
 	}
 }
 
+// 请求数由滑动窗口脚本计数：计数键按用户 ID 拼在 rateLimit:v2:user 下，生存期等于限制周期，被拒的请求
+// 不续期，与成功请求数各记各的；令牌桶的计数键 rateLimit:<用户ID> 不被读写。
+func TestModelRequestRateLimitRedisHandlerCountsRequestsWithTheSlidingWindow(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server, _, advance := useRateLimitRedis(t)
+
+	const totalKey, legacyKey, successKey = "rateLimit:v2:user:MRRL:71", "rateLimit:71", "rateLimit:v2:user:MRRLS:71"
+	server.HSet(legacyKey, "tokens", "0", "last_time", "0")
+
+	status := http.StatusInternalServerError
+	router := gin.New()
+	router.GET("/relay",
+		func(c *gin.Context) { c.Set("id", 71) },
+		redisRateLimitHandler(37, 2, 1),
+		func(c *gin.Context) { c.Status(status) },
+	)
+	stored := func(key string) int {
+		records, err := server.List(key)
+		if err != nil {
+			t.Fatalf("records under %s: %v", key, err)
+		}
+		return len(records)
+	}
+
+	// 额度内的两个请求都放行并计入请求数；它们都失败了，不占成功请求数
+	for i := 0; i < 2; i++ {
+		if resp := serveFromClient(router, "192.0.2.71", "/relay"); resp.Code != status {
+			t.Fatalf("failed request %d: code = %d, want %d", i+1, resp.Code, status)
+		}
+	}
+	if got, want := stored(totalKey), 2; got != want {
+		t.Fatalf("records under %s = %d, want %d", totalKey, got, want)
+	}
+	if got := server.TTL(totalKey); got != 37*time.Second {
+		t.Fatalf("TTL after allowed requests = %v, want 37s", got)
+	}
+	if server.Exists(successKey) {
+		t.Fatal("failed requests were counted as successful requests")
+	}
+
+	// 请求数用尽：429 并给出完整的限制周期，被拒的请求不续期、不计数
+	rejected := serveFromClient(router, "192.0.2.71", "/relay")
+	if rejected.Code != http.StatusTooManyRequests || rejected.Header().Get("Retry-After") != "37" {
+		t.Fatalf("request beyond the quota: code = %d, Retry-After = %q, want 429 and 37", rejected.Code, rejected.Header().Get("Retry-After"))
+	}
+	advance(12 * time.Second)
+	if resp := serveFromClient(router, "198.51.100.71", "/relay"); resp.Code != http.StatusTooManyRequests {
+		t.Fatalf("request beyond the quota inside the window: code = %d, want %d", resp.Code, http.StatusTooManyRequests)
+	}
+	if got, want := server.TTL(totalKey), 25*time.Second; got != want {
+		t.Fatalf("TTL after a rejected request = %v, want %v", got, want)
+	}
+	if got, want := stored(totalKey), 2; got != want {
+		t.Fatalf("records under %s after a rejected request = %d, want %d", totalKey, got, want)
+	}
+
+	// 窗口过后恢复放行：上一周期的计数已到期清除，成功的请求计入成功请求数，请求数从这一次重新记起
+	advance(25 * time.Second)
+	status = http.StatusOK
+	if resp := serveFromClient(router, "198.51.100.71", "/relay"); resp.Code != http.StatusOK {
+		t.Fatalf("request after the window: code = %d, want %d", resp.Code, http.StatusOK)
+	}
+	if got, want := stored(successKey), 1; got != want {
+		t.Fatalf("records under %s = %d, want %d", successKey, got, want)
+	}
+	if got, want := stored(totalKey), 1; got != want {
+		t.Fatalf("records under %s after the window = %d, want %d", totalKey, got, want)
+	}
+	if !server.Exists(legacyKey) {
+		t.Fatal("the counter of the older format was removed")
+	}
+}
+
+// Redis 不可用时无法判定额度：成功请求数与请求数的检查失败都以 500 终止请求，不按放行处理。
+func TestModelRequestRateLimitRedisHandlerRejectsWithInternalServerErrorWhenRedisIsUnavailable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	_, client, _ := useRateLimitRedis(t)
+	if err := client.Close(); err != nil {
+		t.Fatalf("close the embedded redis client: %v", err)
+	}
+
+	router := gin.New()
+	setUser := func(c *gin.Context) { c.Set("id", 72) }
+	admitted := func(c *gin.Context) { c.Status(http.StatusOK) }
+	router.GET("/success-limit", setUser, redisRateLimitHandler(60, 0, 1), admitted)
+	router.GET("/total-limit", setUser, redisRateLimitHandler(60, 1, 0), admitted)
+
+	want := i18n.Translate(i18n.LangZh, i18n.MsgRateLimitCheckFailed)
+	for _, target := range []string{"/success-limit", "/total-limit"} {
+		resp := serveFromClient(router, "192.0.2.72", target)
+		if resp.Code != http.StatusInternalServerError || !strings.Contains(resp.Body.String(), want) {
+			t.Fatalf("GET %s with redis unavailable: code = %d, body = %q, want 500 with %q", target, resp.Code, resp.Body.String(), want)
+		}
+	}
+}
+
 func TestGlobalWebRateLimitSeparatesPagesUnmatchedPathsAndStaticFilesInRedisMode(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	server, client, advance := useRateLimitRedis(t)
@@ -377,7 +475,7 @@ func TestRateLimitersDoNotLimitWhenTheWindowIsNotPositive(t *testing.T) {
 	}
 }
 
-// 限制周期填 0 时不限流：Redis 模式下每个请求照常通过。
+// 限制周期填 0 时两项限额都不生效：Redis 模式下每个请求照常通过，不留计数。
 func TestModelRequestRateLimitRedisHandlerDoesNotLimitWithZeroWindow(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	server, _, _ := useRateLimitRedis(t)
@@ -385,7 +483,7 @@ func TestModelRequestRateLimitRedisHandlerDoesNotLimitWithZeroWindow(t *testing.
 	router := gin.New()
 	router.GET("/relay",
 		func(c *gin.Context) { c.Set("id", 9) },
-		redisRateLimitHandler(0, 0, 1),
+		redisRateLimitHandler(0, 1, 1),
 		func(c *gin.Context) { c.Status(http.StatusOK) },
 	)
 
@@ -394,7 +492,9 @@ func TestModelRequestRateLimitRedisHandlerDoesNotLimitWithZeroWindow(t *testing.
 			t.Fatalf("request %d: code = %d, want %d", i+1, resp.Code, http.StatusOK)
 		}
 	}
-	if server.Exists("rateLimit:v2:user:MRRLS:9") {
-		t.Fatal("a zero window left a counter in redis")
+	for _, key := range []string{"rateLimit:v2:user:MRRL:9", "rateLimit:v2:user:MRRLS:9"} {
+		if server.Exists(key) {
+			t.Fatalf("a zero window left a counter under %s", key)
+		}
 	}
 }
